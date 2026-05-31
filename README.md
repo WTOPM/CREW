@@ -1,59 +1,35 @@
-# Crew
+# Crew Documents
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.13.
+Приложение для управления данными судна и экипажа на основе `DOCUMENT.xlsx`. Локальное хранение, portable EXE для Windows.
 
-## Development server
-
-To start a local development server, run:
+## Запуск в браузере (разработка)
 
 ```bash
-ng serve
+npm start
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Откройте http://localhost:4200
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Запуск как desktop-приложение (разработка)
 
 ```bash
-ng generate component component-name
+npm run electron:dev
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Сборка portable EXE
 
 ```bash
-ng generate --help
+npm run electron:build
 ```
 
-## Building
+Готовый файл: `release/CREW-Documents.exe`
 
-To build the project run:
+При первом запуске EXE создаёт папку `data/` рядом с исполняемым файлом и сохраняет туда `crew-data.json`. Для переноса на другой компьютер скопируйте **EXE + папку data/**.
 
-```bash
-ng build
-```
+## Функции
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+- **Главная** — данные судна (вкладка Input), текущий экипаж, архив
+- **Crew Arr.** — форма IMO CREW LIST (FAL Form 5), генерация PDF
+- **Импорт Excel** — загрузка из `DOCUMENT.xlsx`
+- **Экспорт/импорт JSON** — резервное копирование данных
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

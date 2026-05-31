@@ -1,0 +1,54 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <a routerLink="/" class="back-link">← Главная</a>
+      <h1>Crew Arr. — IMO CREW LIST</h1>
+      <p class="subtitle">IMO FAL Form 5 — 23 строки, данные с главной страницы</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary" (click)="openPreview()">Open Crew List</button>
+      <button type="button" class="btn btn-secondary" (click)="generatePdf()">Download PDF</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>Параметры формы</h2>
+    <div class="form-grid">
+      <label class="checkbox-row">
+        <input
+          type="radio"
+          name="direction"
+          [checked]="crewArr().isArrival"
+          (change)="updateSetting('isArrival', true)"
+        />
+        <span>Arrival (прибытие)</span>
+      </label>
+      <label class="checkbox-row">
+        <input
+          type="radio"
+          name="direction"
+          [checked]="!crewArr().isArrival"
+          (change)="updateSetting('isArrival', false)"
+        />
+        <span>Departure (отбытие)</span>
+      </label>
+      <label>
+        <span>Page No.</span>
+        <input type="number" min="1" [ngModel]="crewArr().pageNo" (ngModelChange)="updateSetting('pageNo', +$event)" />
+      </label>
+      <label>
+        <span>Identity document (поле 6)</span>
+        <input
+          [ngModel]="crewArr().identityDocumentType"
+          (ngModelChange)="updateSetting('identityDocumentType', $event)"
+          placeholder="Passport"
+        />
+      </label>
+    </div>
+    <p class="hint">
+      Судно, порты, даты и экипаж (до 23 человек) берутся с
+      <a routerLink="/">главной страницы</a>.
+      Нажмите <strong>Open Crew List</strong> — откроется PDF-предпросмотр в новом окне браузера.
+    </p>
+  </section>
+</div>

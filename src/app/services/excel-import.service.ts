@@ -1,0 +1,107 @@
+import { Injectable } from '@angular/core';
+import * as XLSX from 'xlsx';
+import {
+  AppData,
+  CrewMember,
+  DEFAULT_PORTS,
+  DEFAULT_RANKS,
+  createDefaultCrewArrSettings,
+  createEmptyCrewMember,
+  createEmptyShip,
+  mergePorts,
+  mergeUniqueList,
+  parseCrewName,
+} from '../models/crew.models';
+import { excelSerialToIso } from '../utils/date.util';
+
+@Injectable({ providedIn: 'root' })
+export class ExcelImportService {
+  parseDocument(file: ArrayBuffer): AppData {
+    const wb = XLSX.read(file, { type: 'array' });
+    const ws = wb.Sheets['Input'];
+    if (!ws) throw new Error('Лист "Input" не найден в файле');
+
+    const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    const cell = (r: number, c: number) => String(rows[r]?.[c] ?? '').trim();
+
+    const ship = {
+      ...createEmptyShip(),
+      name: cell(1, 2),
+      callSign: cell(1, 6),
+      nationality: cell(3, 2),
+      homeport: cell(3, 6),
+      imoNo: cell(5, 2),
+      type: cell(5, 6),
+      dateOfArrival: excelSerialToIso(cell(7, 2)),
+      dateOfDeparture: excelSerialToIso(cell(9, 2)),
+      portOfCall: cell(11, 2),
+      lastPortOfCall: cell(13, 2),
+      nextPortOfCall: cell(15, 2),
+      charterer: cell(17, 2),
+    };
+
+    const crew: CrewMember[] = [];
+    for (let r = 5; r <= 18; r++) {
+      const name = cell(r, 10);
+      if (!name) continue;
+      crew.push(this.parseMember(rows, r, false));
+    }
+
+    for (let r = 22; r < rows.length; r++) {
+      const name = cell(r, 10);
+      if (!name || name === 'Present Crew Details' || name === 'Previous Crew Details') continue;
+      if (crew.some((m) => formatMemberName(m) === name)) continue;
+      crew.push(this.parseMember(rows, r, true));
+    }
+
+    const ports = mergePorts(
+      DEFAULT_PORTS,
+      ship.portOfCall,
+      ship.lastPortOfCall,
+      ship.nextPortOfCall,
+      ship.homeport,
+      ...crew.map((c) => c.joiningPort),
+    );
+    const ranks = mergeUniqueList(DEFAULT_RANKS, ...crew.map((c) => c.rank));
+
+    return {
+      ship,
+      crew,
+      crewArr: createDefaultCrewArrSettings(),
+      ports,
+      ranks,
+      seedVersion: 4,
+    };
+  }
+
+  private parseMember(rows: unknown[][], r: number, archived: boolean): CrewMember {
+    const cell = (row: number, c: number) => String(rows[row]?.[c] ?? '').trim();
+    const { familyName, givenNames } = parseCrewName(cell(r, 10));
+    return {
+      ...createEmptyCrewMember(),
+      id: crypto.randomUUID(),
+      familyName,
+      givenNames,
+      rank: cell(r, 11),
+      nationality: cell(r, 12),
+      dateOfBirth: excelSerialToIso(cell(r, 14)),
+      placeOfBirth: cell(r, 15),
+      passport: cell(r, 17),
+      seamansBook: cell(r, 18),
+      passportValidity: cell(r, 19),
+      sbookValidity: cell(r, 20),
+      cyprusSeamansBook: cell(r, 21),
+      cyprusValidity: cell(r, 22),
+      visa: cell(r, 23),
+      visaValidity: cell(r, 24),
+      joiningDate: excelSerialToIso(cell(r, 25)),
+      joiningPort: cell(r, 26),
+      archived,
+    };
+  }
+}
+
+function formatMemberName(m: CrewMember): string {
+  if (m.familyName && m.givenNames) return `${m.familyName}, ${m.givenNames}`;
+  return m.familyName || m.givenNames;
+}

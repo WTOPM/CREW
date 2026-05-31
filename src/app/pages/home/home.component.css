@@ -1,0 +1,38 @@
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.section-desc {
+  margin: -0.5rem 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.voyage-card {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #f8fcff 0%, var(--surface) 100%);
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.muted {
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
