@@ -42,6 +42,23 @@ function parseDotDate(value: string): string {
   return isNaN(Date.parse(iso)) ? value : iso;
 }
 
+/** Parse legacy range "dd.MM.yyyy-dd.MM.yyyy" → ISO issue/expiry dates. */
+export function parseValidityRange(value: string | undefined | null): { issue: string; expiry: string } {
+  const v = value?.trim() ?? '';
+  if (!v) return { issue: '', expiry: '' };
+
+  const match = v.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+  if (match) {
+    return {
+      issue: excelSerialToIso(match[1].trim()),
+      expiry: excelSerialToIso(match[2].trim()),
+    };
+  }
+
+  const single = excelSerialToIso(v);
+  return { issue: '', expiry: single };
+}
+
 /** Display as dd.MM.yyyy */
 export function formatDisplayDate(value: string | undefined | null): string {
   if (!value) return '';

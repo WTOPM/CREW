@@ -1,117 +1,253 @@
-<div class="page">
-  <header class="page-header">
-    <div>
-      <a routerLink="/" class="back-link">← Главная</a>
-      <h1>Settings</h1>
-      <p class="subtitle">Информация о судне и справочники</p>
-    </div>
-  </header>
-
-  <section class="card">
-    <h2>Информация о судне</h2>
-    <p class="section-desc">Порты и даты рейса редактируются на главной странице.</p>
-    <div class="form-grid">
-      <label>
-        <span>Name</span>
-        <input [ngModel]="ship().name" (ngModelChange)="onShipChange('name', $event)" />
-      </label>
-      <label>
-        <span>Call Sign</span>
-        <input [ngModel]="ship().callSign" (ngModelChange)="onShipChange('callSign', $event)" />
-      </label>
-      <label>
-        <span>Nationality</span>
-        <input [ngModel]="ship().nationality" (ngModelChange)="onShipChange('nationality', $event)" />
-      </label>
-      <label>
-        <span>Homeport</span>
-        <app-port-select
-          [value]="ship().homeport"
-          [ports]="ports()"
-          (valueChange)="onShipChange('homeport', $event)"
-        />
-      </label>
-      <label>
-        <span>IMO No</span>
-        <input [ngModel]="ship().imoNo" (ngModelChange)="onShipChange('imoNo', $event)" />
-      </label>
-      <label>
-        <span>Type</span>
-        <input [ngModel]="ship().type" (ngModelChange)="onShipChange('type', $event)" />
-      </label>
-      <label>
-        <span>Charterer</span>
-        <input [ngModel]="ship().charterer" (ngModelChange)="onShipChange('charterer', $event)" />
-      </label>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Справочники</h2>
-    <p class="section-desc">Порт: название и UN/LOCODE для документов (Port of Call).</p>
-    <div class="settings-tiles">
-      <button type="button" class="settings-tile" (click)="openPorts()">
-        <span class="tile-icon" aria-hidden="true">⚓</span>
-        <span class="tile-title">Ports</span>
-        <span class="tile-count">{{ ports().length }} записей</span>
-      </button>
-      <button type="button" class="settings-tile" (click)="openRanks()">
-        <span class="tile-icon" aria-hidden="true">★</span>
-        <span class="tile-title">Ranks</span>
-        <span class="tile-count">{{ ranks().length }} записей</span>
-      </button>
-    </div>
-  </section>
-</div>
-
-@if (showPortsModal()) {
-  <div class="modal-backdrop" (click)="closePorts()">
-    <div class="modal modal-narrow" (click)="$event.stopPropagation()">
-      <h3>Ports — редактирование</h3>
-      <div class="list-add port-add">
-        <input placeholder="Название (Napoli)" [ngModel]="newPortName()" (ngModelChange)="newPortName.set($event)" />
-        <input placeholder="Код (ITNAP)" [ngModel]="newPortCode()" (ngModelChange)="newPortCode.set($event)" (keyup.enter)="addPortItem()" />
-        <button type="button" class="btn btn-primary" (click)="addPortItem()">+</button>
-      </div>
-      <ul class="ref-list ref-list-tall">
-        @for (p of ports(); track p.name) {
-          <li>
-            <span>{{ p.name }}@if (p.code) { <em class="port-code">{{ p.code }}</em> }</span>
-            <button type="button" class="btn-link warn" (click)="removePortItem(p.name)">×</button>
-          </li>
-        }
-      </ul>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-primary" (click)="closePorts()">Готово</button>
-      </div>
-    </div>
-  </div>
-}
-
-@if (showRanksModal()) {
-  <div class="modal-backdrop" (click)="closeRanks()">
-    <div class="modal modal-narrow" (click)="$event.stopPropagation()">
-      <h3>Ranks — редактирование</h3>
-      <div class="list-add">
-        <input
-          placeholder="Новая должность..."
-          [ngModel]="newRank()"
-          (ngModelChange)="newRank.set($event)"
-          (keyup.enter)="addRankItem()"
-        />
-        <button type="button" class="btn btn-primary" (click)="addRankItem()">+</button>
-      </div>
-      <ul class="ref-list ref-list-tall">
-        @for (r of ranks(); track r) {
-          <li>
-            <span>{{ r }}</span>
-            <button type="button" class="btn-link warn" (click)="removeRankItem(r)">×</button>
-          </li>
-        }
-      </ul>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-primary" (click)="closeRanks()">Готово</button>
-      </div>
-    </div>
-  </div>
-}
+<div class="page">
+  <header class="page-header">
+    <div>
+      <a routerLink="/" class="back-link">← Главная</a>
+      <h1>Settings</h1>
+      <p class="subtitle">Информация о судне и справочники</p>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>Информация о судне</h2>
+    <p class="section-desc">Порты и даты рейса редактируются на главной странице.</p>
+    <div class="form-grid">
+      <label>
+        <span>Name</span>
+        <input [ngModel]="ship().name" (ngModelChange)="onShipChange('name', $event)" />
+      </label>
+      <label>
+        <span>Call Sign</span>
+        <input [ngModel]="ship().callSign" (ngModelChange)="onShipChange('callSign', $event)" />
+      </label>
+      <label>
+        <span>Nationality</span>
+        <app-lookup-select
+          [value]="ship().nationality"
+          [options]="nationalities()"
+          (valueChange)="onShipChange('nationality', $event)"
+        />
+      </label>
+      <label>
+        <span>Homeport</span>
+        <app-port-select
+          [value]="ship().homeport"
+          [ports]="ports()"
+          (valueChange)="onShipChange('homeport', $event)"
+        />
+      </label>
+      <label>
+        <span>IMO No</span>
+        <input [ngModel]="ship().imoNo" (ngModelChange)="onShipChange('imoNo', $event)" />
+      </label>
+      <label>
+        <span>Type</span>
+        <input [ngModel]="ship().type" (ngModelChange)="onShipChange('type', $event)" />
+      </label>
+      <label>
+        <span>Charterer</span>
+        <input [ngModel]="ship().charterer" (ngModelChange)="onShipChange('charterer', $event)" />
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Справочники</h2>
+    <p class="section-desc">Справочник портов (название, код, страна) и история заходов для формы Port of Call.</p>
+    <div class="settings-tiles">
+      <button type="button" class="settings-tile" (click)="openPortOfCall()">
+        <span class="tile-icon" aria-hidden="true">📋</span>
+        <span class="tile-title">Port of Call</span>
+        <span class="tile-count">{{ portCallHistory().length }} заходов · {{ portOfCall().pdfRowCount }} в PDF</span>
+      </button>
+      <button type="button" class="settings-tile" (click)="openPorts()">
+        <span class="tile-icon" aria-hidden="true">⚓</span>
+        <span class="tile-title">Ports</span>
+        <span class="tile-count">{{ ports().length }} записей</span>
+      </button>
+      <button type="button" class="settings-tile" (click)="openRanks()">
+        <span class="tile-icon" aria-hidden="true">★</span>
+        <span class="tile-title">Ranks</span>
+        <span class="tile-count">{{ ranks().length }} записей</span>
+      </button>
+      <button type="button" class="settings-tile" (click)="openNationalities()">
+        <span class="tile-icon" aria-hidden="true">🌍</span>
+        <span class="tile-title">Nationalities</span>
+        <span class="tile-count">{{ nationalities().length }} записей</span>
+      </button>
+    </div>
+  </section>
+</div>
+
+@if (showPortsModal()) {
+  <div class="modal-backdrop" (click)="closePorts()">
+    <div class="modal modal-narrow" (click)="$event.stopPropagation()">
+      <h3>Ports — редактирование</h3>
+      <div class="list-add port-add">
+        <input placeholder="Название (Napoli)" [ngModel]="newPortName()" (ngModelChange)="newPortName.set($event)" />
+        <input placeholder="Код (ITNAP)" [ngModel]="newPortCode()" (ngModelChange)="newPortCode.set($event)" />
+        <input placeholder="Страна (ITALY)" [ngModel]="newPortCountry()" (ngModelChange)="newPortCountry.set($event)" (keyup.enter)="addPortItem()" />
+        <button type="button" class="btn btn-primary" (click)="addPortItem()">+</button>
+      </div>
+      <ul class="ref-list ref-list-tall">
+        @for (p of ports(); track p.name) {
+          <li>
+            <span>{{ p.name }}@if (p.code) { <em class="port-code">{{ p.code }}</em> }@if (p.country) { <em class="port-code">{{ p.country }}</em> }</span>
+            <button type="button" class="btn-link warn" (click)="removePortItem(p.name)">×</button>
+          </li>
+        }
+      </ul>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closePorts()">Готово</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showRanksModal()) {
+  <div class="modal-backdrop" (click)="closeRanks()">
+    <div class="modal modal-narrow" (click)="$event.stopPropagation()">
+      <h3>Ranks — редактирование</h3>
+      <div class="list-add">
+        <input
+          placeholder="Новая должность..."
+          [ngModel]="newRank()"
+          (ngModelChange)="newRank.set($event)"
+          (keyup.enter)="addRankItem()"
+        />
+        <button type="button" class="btn btn-primary" (click)="addRankItem()">+</button>
+      </div>
+      <ul class="ref-list ref-list-tall">
+        @for (r of ranks(); track r) {
+          <li>
+            <span>{{ r }}</span>
+            <button type="button" class="btn-link warn" (click)="removeRankItem(r)">×</button>
+          </li>
+        }
+      </ul>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closeRanks()">Готово</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showNationalitiesModal()) {
+  <div class="modal-backdrop" (click)="closeNationalities()">
+    <div class="modal modal-narrow" (click)="$event.stopPropagation()">
+      <h3>Nationalities — редактирование</h3>
+      <div class="list-add">
+        <input
+          placeholder="Новая национальность..."
+          [ngModel]="newNationality()"
+          (ngModelChange)="newNationality.set($event)"
+          (keyup.enter)="addNationalityItem()"
+        />
+        <button type="button" class="btn btn-primary" (click)="addNationalityItem()">+</button>
+      </div>
+      <ul class="ref-list ref-list-tall">
+        @for (n of nationalities(); track n) {
+          <li>
+            <span>{{ n }}</span>
+            <button type="button" class="btn-link warn" (click)="removeNationalityItem(n)">×</button>
+          </li>
+        }
+      </ul>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closeNationalities()">Готово</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showPortOfCallModal()) {
+  <div class="modal-backdrop" (click)="closePortOfCall()">
+    <div class="modal modal-wide" (click)="$event.stopPropagation()">
+      <h3>Port of Call — история заходов</h3>
+      <p class="section-desc">
+        В PDF попадают {{ portOfCall().pdfRowCount }} последних заходов (по дате прихода). Шапка формы — данные судна и текущего рейса с главной.
+      </p>
+      <div class="poc-settings-bar">
+        <label>
+          <span>Строк в PDF</span>
+          <input
+            type="number"
+            [min]="pocMinRows"
+            [max]="pocMaxRows"
+            [ngModel]="portOfCall().pdfRowCount"
+            (ngModelChange)="onPdfRowCountChange($event)"
+          />
+        </label>
+        <button type="button" class="btn btn-primary" (click)="addPortCallRow()">+ Добавить заход</button>
+      </div>
+      <div class="table-wrap poc-history-wrap">
+        <table class="poc-history-table">
+          <thead>
+            <tr>
+              <th>Порт</th>
+              <th>Country</th>
+              <th>Arr. date</th>
+              <th>Arr. time</th>
+              <th>Dep. date</th>
+              <th>Dep. time</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of portCallHistory(); track row.id) {
+              <tr>
+                <td>
+                  <app-port-select
+                    [value]="row.portName"
+                    [ports]="ports()"
+                    (valueChange)="onPortCallPortChange(row.id, $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    [ngModel]="row.country"
+                    (ngModelChange)="updatePortCallField(row.id, 'country', $event)"
+                    placeholder="ITALY"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="date"
+                    [ngModel]="row.arrivalDate"
+                    (ngModelChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    [ngModel]="row.arrivalTime"
+                    (ngModelChange)="updatePortCallField(row.id, 'arrivalTime', $event)"
+                    placeholder="02:00"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="date"
+                    [ngModel]="row.departureDate"
+                    (ngModelChange)="updatePortCallField(row.id, 'departureDate', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    [ngModel]="row.departureTime"
+                    (ngModelChange)="updatePortCallField(row.id, 'departureTime', $event)"
+                    placeholder="09:00"
+                  />
+                </td>
+                <td class="actions">
+                  <button type="button" class="btn-link warn" (click)="removePortCallRow(row.id)">×</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closePortOfCall()">Готово</button>
+      </div>
+    </div>
+  </div>
+}

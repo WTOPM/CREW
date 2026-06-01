@@ -1,19 +1,23 @@
+import { parseValidityRange } from '../utils/date.util';
+
 export interface Port {
   name: string;
   code: string;
+  /** Country name for Port of Call form (e.g. ITALY). */
+  country?: string;
 }
 
 export const DEFAULT_PORTS: Port[] = [
-  { name: 'Napoli', code: 'ITNAP' },
-  { name: 'Marseille', code: 'FRMRS' },
-  { name: 'Alger', code: 'DZALG' },
-  { name: 'La Spezia', code: 'ITSPE' },
-  { name: 'Limassol', code: 'CYLMS' },
-  { name: 'Genoa', code: 'ITGOA' },
-  { name: 'Salerno', code: 'ITSAL' },
-  { name: 'Le Havre', code: 'FRLEH' },
-  { name: 'Bejaia', code: 'DZBJA' },
-  { name: 'Antwerp', code: 'BEANR' },
+  { name: 'Napoli', code: 'ITNAP', country: 'ITALY' },
+  { name: 'Marseille', code: 'FRMRS', country: 'FRANCE' },
+  { name: 'Alger', code: 'DZALG', country: 'ALGERIA' },
+  { name: 'La Spezia', code: 'ITSPE', country: 'ITALY' },
+  { name: 'Limassol', code: 'CYLMS', country: 'CYPRUS' },
+  { name: 'Genoa', code: 'ITGOA', country: 'ITALY' },
+  { name: 'Salerno', code: 'ITSAL', country: 'ITALY' },
+  { name: 'Le Havre', code: 'FRLEH', country: 'FRANCE' },
+  { name: 'Bejaia', code: 'DZBJA', country: 'ALGERIA' },
+  { name: 'Antwerp', code: 'BEANR', country: 'BELGIUM' },
 ];
 
 export const DEFAULT_RANKS = [
@@ -27,6 +31,19 @@ export const DEFAULT_RANKS = [
   'Wiper',
   'Cook',
   'Dcad',
+];
+
+export const DEFAULT_NATIONALITIES = [
+  'Cyprus',
+  'Ukraine',
+  'Philippines',
+  'Russia',
+  'Georgia',
+  'India',
+  'Romania',
+  'Bulgaria',
+  'Poland',
+  'Turkey',
 ];
 
 export interface ShipInfo {
@@ -54,12 +71,16 @@ export interface CrewMember {
   placeOfBirth: string;
   passport: string;
   seamansBook: string;
-  passportValidity: string;
-  sbookValidity: string;
+  passportIssueDate: string;
+  passportExpiryDate: string;
+  sbookIssueDate: string;
+  sbookExpiryDate: string;
   cyprusSeamansBook: string;
-  cyprusValidity: string;
+  cyprusIssueDate: string;
+  cyprusExpiryDate: string;
   visa: string;
-  visaValidity: string;
+  visaIssueDate: string;
+  visaExpiryDate: string;
   joiningDate: string;
   /** Port name (code resolved from ports directory). */
   joiningPort: string;
@@ -73,12 +94,30 @@ export interface CrewArrFormSettings {
   identityDocumentType: string;
 }
 
+export interface PortCallHistoryEntry {
+  id: string;
+  portName: string;
+  country: string;
+  arrivalDate: string;
+  arrivalTime: string;
+  departureDate: string;
+  departureTime: string;
+}
+
+export interface PortOfCallSettings {
+  /** How many latest port calls to print in the PDF (default 10). */
+  pdfRowCount: number;
+}
+
 export interface AppData {
   ship: ShipInfo;
   crew: CrewMember[];
   crewArr: CrewArrFormSettings;
   ports: Port[];
   ranks: string[];
+  nationalities: string[];
+  portCallHistory: PortCallHistoryEntry[];
+  portOfCall: PortOfCallSettings;
   seedVersion?: number;
 }
 
@@ -110,12 +149,16 @@ export function createEmptyCrewMember(): CrewMember {
     placeOfBirth: '',
     passport: '',
     seamansBook: '',
-    passportValidity: '',
-    sbookValidity: '',
+    passportIssueDate: '',
+    passportExpiryDate: '',
+    sbookIssueDate: '',
+    sbookExpiryDate: '',
     cyprusSeamansBook: '',
-    cyprusValidity: '',
+    cyprusIssueDate: '',
+    cyprusExpiryDate: '',
     visa: '',
-    visaValidity: '',
+    visaIssueDate: '',
+    visaExpiryDate: '',
     joiningDate: '',
     joiningPort: '',
     archived: false,
@@ -127,6 +170,22 @@ export function createDefaultCrewArrSettings(): CrewArrFormSettings {
     isArrival: true,
     pageNo: 1,
     identityDocumentType: 'Passport',
+  };
+}
+
+export function createDefaultPortOfCallSettings(): PortOfCallSettings {
+  return { pdfRowCount: 10 };
+}
+
+export function createEmptyPortCallEntry(): PortCallHistoryEntry {
+  return {
+    id: crypto.randomUUID(),
+    portName: '',
+    country: '',
+    arrivalDate: '',
+    arrivalTime: '',
+    departureDate: '',
+    departureTime: '',
   };
 }
 
@@ -158,6 +217,26 @@ export function formatCrewListName(
   return '';
 }
 
+/** Index in crew-list rank order; unknown ranks sort last. */
+export function rankSortIndex(rank: string, ranks: readonly string[]): number {
+  const idx = ranks.indexOf(rank);
+  return idx >= 0 ? idx : ranks.length;
+}
+
+/** Sort members Master → … like IMO crew list (uses ranks directory order). */
+export function sortCrewByRank<T extends Pick<CrewMember, 'rank' | 'familyName' | 'givenNames'>>(
+  members: T[],
+  ranks: readonly string[],
+): T[] {
+  return [...members].sort((a, b) => {
+    const byRank = rankSortIndex(a.rank, ranks) - rankSortIndex(b.rank, ranks);
+    if (byRank !== 0) return byRank;
+    const nameA = `${a.familyName} ${a.givenNames}`.trim();
+    const nameB = `${b.familyName} ${b.givenNames}`.trim();
+    return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+  });
+}
+
 export function portLabel(port: Port): string {
   return port.code ? `${port.name} (${port.code})` : port.name;
 }
@@ -178,6 +257,31 @@ export function portCode(name: string, ports: Port[]): string {
   return ports.find((p) => p.name === name)?.code ?? resolvePortRef(name, ports)?.code ?? '';
 }
 
+export function portCountry(name: string, ports: Port[]): string {
+  if (!name) return '';
+  const resolved = ports.find((p) => p.name === name) ?? resolvePortRef(name, ports);
+  return resolved?.country?.trim() ?? '';
+}
+
+/** Pick N most recent port calls for the PDF (by arrival date, then departure). */
+export function selectPortCallHistoryForPdf(
+  history: PortCallHistoryEntry[],
+  rowCount: number,
+): PortCallHistoryEntry[] {
+  const limit = Math.max(1, Math.min(25, rowCount));
+  return [...history]
+    .sort((a, b) => {
+      const aKey = a.arrivalDate || a.departureDate || '';
+      const bKey = b.arrivalDate || b.departureDate || '';
+      return bKey.localeCompare(aKey);
+    })
+    .slice(0, limit);
+}
+
+export function formatPortCallPortName(name: string): string {
+  return name.trim().toUpperCase();
+}
+
 export function mergePorts(existing: Port[], ...refs: (string | Port | undefined)[]): Port[] {
   const map = new Map<string, Port>();
 
@@ -192,11 +296,19 @@ export function mergePorts(existing: Port[], ...refs: (string | Port | undefined
       if (!resolved?.name) continue;
       const key = resolved.name.toLowerCase();
       const prev = map.get(key);
-      map.set(key, { name: resolved.name, code: resolved.code || prev?.code || '' });
+      map.set(key, {
+        name: resolved.name,
+        code: resolved.code || prev?.code || '',
+        country: resolved.country || prev?.country || '',
+      });
     } else if (ref.name) {
       const key = ref.name.toLowerCase();
       const prev = map.get(key);
-      map.set(key, { name: ref.name, code: ref.code || prev?.code || '' });
+      map.set(key, {
+        name: ref.name,
+        code: ref.code || prev?.code || '',
+        country: ref.country || prev?.country || '',
+      });
     }
   }
 
@@ -211,14 +323,40 @@ export function migratePortsRaw(raw: unknown): Port[] {
   return mergePorts([], ...(raw as string[]));
 }
 
-export function migrateCrewMember(raw: Partial<CrewMember> & { familyNameGivenNames?: string }): CrewMember {
+export function migrateCrewMember(
+  raw: Partial<CrewMember> & {
+    familyNameGivenNames?: string;
+    passportValidity?: string;
+    sbookValidity?: string;
+    cyprusValidity?: string;
+    visaValidity?: string;
+  },
+): CrewMember {
   const base = { ...createEmptyCrewMember(), ...raw };
   if (!base.familyName && !base.givenNames && raw.familyNameGivenNames) {
     const parsed = parseCrewName(raw.familyNameGivenNames);
     base.familyName = parsed.familyName;
     base.givenNames = parsed.givenNames;
   }
+
+  migrateLegacyValidity(base, raw.passportValidity, 'passportIssueDate', 'passportExpiryDate');
+  migrateLegacyValidity(base, raw.sbookValidity, 'sbookIssueDate', 'sbookExpiryDate');
+  migrateLegacyValidity(base, raw.cyprusValidity, 'cyprusIssueDate', 'cyprusExpiryDate');
+  migrateLegacyValidity(base, raw.visaValidity, 'visaIssueDate', 'visaExpiryDate');
+
   return base;
+}
+
+function migrateLegacyValidity(
+  member: CrewMember,
+  legacy: string | undefined,
+  issueKey: 'passportIssueDate' | 'sbookIssueDate' | 'cyprusIssueDate' | 'visaIssueDate',
+  expiryKey: 'passportExpiryDate' | 'sbookExpiryDate' | 'cyprusExpiryDate' | 'visaExpiryDate',
+): void {
+  if (!legacy?.trim() || member[issueKey] || member[expiryKey]) return;
+  const { issue, expiry } = parseValidityRange(legacy);
+  member[issueKey] = issue;
+  member[expiryKey] = expiry;
 }
 
 export function mergeUniqueList(existing: string[], ...items: (string | undefined)[]): string[] {

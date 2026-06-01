@@ -1,38 +1,84 @@
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.section-head h2 {
-  margin: 0;
-}
-
-.section-desc {
-  margin: -0.5rem 0 1rem;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
-.voyage-card {
-  border-color: var(--accent);
-  background: linear-gradient(180deg, #f8fcff 0%, var(--surface) 100%);
-}
-
-.field-hint {
-  display: block;
-  margin-top: 0.25rem;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-.actions {
-  white-space: nowrap;
-}
-
-.muted {
-  opacity: 0.75;
-  font-size: 0.85rem;
-}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.page-header-docs {
+  margin-bottom: 1.25rem;
+}
+
+.page-header-docs app-documents-nav ::ng-deep .nav-docs {
+  gap: 0.75rem;
+}
+
+.page-header-docs app-documents-nav ::ng-deep .nav-doc-btn {
+  padding: 0.65rem 1.15rem;
+  font-size: 0.95rem;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.section-desc {
+  margin: -0.5rem 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.voyage-card {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #f8fcff 0%, var(--surface) 100%);
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.muted {
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
+
+.col-drag {
+  width: 2rem;
+  padding: 0;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  text-align: center;
+  user-select: none;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.crew-table tbody.cdk-drop-list-dragging tr:not(.cdk-drag-placeholder) {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.crew-table tr.cdk-drag-preview {
+  display: table;
+  background: var(--surface);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+}
+
+.crew-table tr.cdk-drag-placeholder {
+  opacity: 0.35;
+  background: var(--accent-soft, #e8f4fc);
+}

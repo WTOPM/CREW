@@ -33,6 +33,9 @@ export class CrewArrComponent {
       crewArr: this.crewArr(),
       ports: this.storage.ports(),
       ranks: this.storage.ranks(),
+      nationalities: this.storage.nationalities(),
+      portCallHistory: this.storage.portCallHistory(),
+      portOfCall: this.storage.portOfCall(),
     };
   }
 

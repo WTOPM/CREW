@@ -1,0 +1,107 @@
+.nav-docs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-doc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nav-doc-btn:hover,
+.nav-doc-btn:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.nav-doc-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.nav-doc-primary:hover,
+.nav-doc-primary:focus-visible {
+  background: #025a87;
+  border-color: #025a87;
+  color: #fff;
+}
+
+.doc-menu {
+  position: relative;
+}
+
+.doc-menu-chevron {
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.doc-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 30;
+  min-width: 9rem;
+  padding: 0.35rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s;
+}
+
+.doc-menu::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 0.5rem;
+}
+
+.doc-menu:hover .doc-menu-panel,
+.doc-menu:focus-within .doc-menu-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.doc-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.doc-menu-item:hover,
+.doc-menu-item:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}

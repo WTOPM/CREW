@@ -1,0 +1,18 @@
+<div class="nav-docs">
+  <div class="doc-menu">
+    <button type="button" class="nav-doc-btn nav-doc-primary" aria-haspopup="true">
+      CREW LIST
+      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+    </button>
+    <div class="doc-menu-panel" role="menu">
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(true)">
+        Arrival
+      </button>
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(false)">
+        Departure
+      </button>
+    </div>
+  </div>
+  <button type="button" class="nav-doc-btn" (click)="openPortOfCall()">PORT OF CALL</button>
+  <button type="button" class="nav-doc-btn" (click)="openMdh()">MDH</button>
+</div>

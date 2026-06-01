@@ -3,16 +3,19 @@ import * as XLSX from 'xlsx';
 import {
   AppData,
   CrewMember,
+  DEFAULT_NATIONALITIES,
   DEFAULT_PORTS,
   DEFAULT_RANKS,
   createDefaultCrewArrSettings,
+  createDefaultPortOfCallSettings,
   createEmptyCrewMember,
   createEmptyShip,
   mergePorts,
   mergeUniqueList,
   parseCrewName,
 } from '../models/crew.models';
-import { excelSerialToIso } from '../utils/date.util';
+import { excelSerialToIso, parseValidityRange } from '../utils/date.util';
+import { SEED_VERSION } from '../data/default-crew.seed';
 
 @Injectable({ providedIn: 'root' })
 export class ExcelImportService {
@@ -63,6 +66,11 @@ export class ExcelImportService {
       ...crew.map((c) => c.joiningPort),
     );
     const ranks = mergeUniqueList(DEFAULT_RANKS, ...crew.map((c) => c.rank));
+    const nationalities = mergeUniqueList(
+      DEFAULT_NATIONALITIES,
+      ship.nationality,
+      ...crew.map((c) => c.nationality),
+    );
 
     return {
       ship,
@@ -70,13 +78,21 @@ export class ExcelImportService {
       crewArr: createDefaultCrewArrSettings(),
       ports,
       ranks,
-      seedVersion: 4,
+      nationalities,
+      portCallHistory: [],
+      portOfCall: createDefaultPortOfCallSettings(),
+      seedVersion: SEED_VERSION,
     };
   }
 
   private parseMember(rows: unknown[][], r: number, archived: boolean): CrewMember {
     const cell = (row: number, c: number) => String(rows[row]?.[c] ?? '').trim();
     const { familyName, givenNames } = parseCrewName(cell(r, 10));
+    const passport = parseValidityRange(cell(r, 19));
+    const sbook = parseValidityRange(cell(r, 20));
+    const cyprus = parseValidityRange(cell(r, 22));
+    const visa = parseValidityRange(cell(r, 24));
+
     return {
       ...createEmptyCrewMember(),
       id: crypto.randomUUID(),
@@ -88,12 +104,16 @@ export class ExcelImportService {
       placeOfBirth: cell(r, 15),
       passport: cell(r, 17),
       seamansBook: cell(r, 18),
-      passportValidity: cell(r, 19),
-      sbookValidity: cell(r, 20),
+      passportIssueDate: passport.issue,
+      passportExpiryDate: passport.expiry,
+      sbookIssueDate: sbook.issue,
+      sbookExpiryDate: sbook.expiry,
       cyprusSeamansBook: cell(r, 21),
-      cyprusValidity: cell(r, 22),
+      cyprusIssueDate: cyprus.issue,
+      cyprusExpiryDate: cyprus.expiry,
       visa: cell(r, 23),
-      visaValidity: cell(r, 24),
+      visaIssueDate: visa.issue,
+      visaExpiryDate: visa.expiry,
       joiningDate: excelSerialToIso(cell(r, 25)),
       joiningPort: cell(r, 26),
       archived,

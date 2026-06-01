@@ -13,7 +13,7 @@ import {
   CREW_LIST_ROW_COUNT,
   CREW_LIST_ROW_LINE_GRAY,
   CREW_LIST_ROW_LINE_PT,
-  CREW_LIST_SIDE_LABEL_X_PT,
+  CREW_LIST_SIDE_LABEL_GAP_FROM_TABLE_PT,
   CREW_LIST_STATIC_LABELS,
   CREW_LIST_TITLE_OFFSET_UP_PT,
   CREW_LIST_TITLE_Y,
@@ -85,7 +85,12 @@ export class PdfCrewArrService {
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6);
-    doc.text(CREW_LIST_FRAME_LABELS.sideVertical, CREW_LIST_SIDE_LABEL_X_PT, bodyMidY, { angle: 90 });
+    doc.text(
+      CREW_LIST_FRAME_LABELS.sideVertical,
+      tableLeft - CREW_LIST_SIDE_LABEL_GAP_FROM_TABLE_PT,
+      bodyMidY,
+      { angle: 90 },
+    );
 
     this.drawFalFormLabel(doc, s);
 

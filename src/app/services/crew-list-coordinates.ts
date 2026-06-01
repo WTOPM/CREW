@@ -12,7 +12,8 @@ export const CREW_LIST_MARGIN_LEFT_PT = 40;
 export const CREW_LIST_MARGIN_RIGHT_PT = 28;
 export const CREW_LIST_MARGIN_BOTTOM_PT = 28;
 
-export const CREW_LIST_SIDE_LABEL_X_PT = 12;
+/** Vertical side label — offset left from table edge (pt). */
+export const CREW_LIST_SIDE_LABEL_GAP_FROM_TABLE_PT = 5;
 export const CREW_LIST_FAL_FORM_X_PT = 14;
 
 /** Fine-tune frame labels (CSS px → pt at 96 dpi). */

@@ -2,20 +2,27 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import {
   AppData,
   CrewMember,
+  DEFAULT_NATIONALITIES,
   DEFAULT_PORTS,
   DEFAULT_RANKS,
   Port,
+  PortCallHistoryEntry,
   createDefaultCrewArrSettings,
+  createDefaultPortOfCallSettings,
   createEmptyCrewMember,
+  createEmptyPortCallEntry,
   createEmptyShip,
   mergePorts,
   mergeUniqueList,
   migrateCrewMember,
   migratePortsRaw,
   resolvePortRef,
+  sortCrewByRank,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
 import { SEED_SHIP, SEED_VERSION, createSeedCrew } from '../data/default-crew.seed';
+import { SEED_PORT_CALL_HISTORY } from '../data/default-port-call.seed';
+import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
 
 const STORAGE_KEY = 'crew-app-data';
 
@@ -25,6 +32,9 @@ const DEFAULT_DATA: AppData = {
   crewArr: createDefaultCrewArrSettings(),
   ports: [...DEFAULT_PORTS],
   ranks: [...DEFAULT_RANKS],
+  nationalities: [...DEFAULT_NATIONALITIES],
+  portCallHistory: SEED_PORT_CALL_HISTORY.map((e) => ({ ...e })),
+  portOfCall: createDefaultPortOfCallSettings(),
   seedVersion: SEED_VERSION,
 };
 
@@ -37,8 +47,16 @@ export class StorageService {
   readonly crewArr = computed(() => this.data().crewArr);
   readonly ports = computed(() => this.data().ports);
   readonly ranks = computed(() => this.data().ranks);
+  readonly nationalities = computed(() => this.data().nationalities);
+  readonly portCallHistory = computed(() => this.data().portCallHistory);
+  readonly portOfCall = computed(() => this.data().portOfCall);
   readonly activeCrew = computed(() => this.data().crew.filter((m) => !m.archived));
-  readonly archivedCrew = computed(() => this.data().crew.filter((m) => m.archived));
+  readonly archivedCrew = computed(() =>
+    sortCrewByRank(
+      this.data().crew.filter((m) => m.archived),
+      this.data().ranks,
+    ),
+  );
   readonly allCrew = computed(() => this.data().crew);
 
   private loadInitial(): AppData {
@@ -47,6 +65,9 @@ export class StorageService {
       crew: [...DEFAULT_DATA.crew],
       ports: [...DEFAULT_DATA.ports],
       ranks: [...DEFAULT_DATA.ranks],
+      nationalities: [...DEFAULT_DATA.nationalities],
+      portCallHistory: [...DEFAULT_DATA.portCallHistory],
+      portOfCall: { ...DEFAULT_DATA.portOfCall },
       crewArr: { ...DEFAULT_DATA.crewArr },
     };
   }
@@ -109,13 +130,55 @@ export class StorageService {
       raw.ranks ?? DEFAULT_RANKS,
       ...crew.map((c) => c.rank),
     );
+    const nationalities = mergeUniqueList(
+      raw.nationalities ?? DEFAULT_NATIONALITIES,
+      ship.nationality,
+      ...crew.map((c) => c.nationality),
+    );
+    const portCallHistory = this.normalizePortCallHistory(raw, ports);
+    ports = mergePorts(ports, ...portCallHistory.map((e) => e.portName));
+    const portOfCall = this.normalizePortOfCallSettings(raw.portOfCall);
     return {
       ship,
       crew,
       crewArr,
       ports,
       ranks: mergeUniqueList(ranks),
+      nationalities: mergeUniqueList(nationalities),
+      portCallHistory,
+      portOfCall,
       seedVersion: SEED_VERSION,
+    };
+  }
+
+  private normalizePortCallHistory(
+    raw: Partial<AppData>,
+    ports: Port[],
+  ): PortCallHistoryEntry[] {
+    let history: PortCallHistoryEntry[];
+    if (raw.portCallHistory?.length) {
+      history = raw.portCallHistory.map((entry) => ({
+        ...createEmptyPortCallEntry(),
+        ...entry,
+        id: entry.id || crypto.randomUUID(),
+      }));
+    } else if ((raw.seedVersion ?? 0) < 6) {
+      history = SEED_PORT_CALL_HISTORY.map((e) => ({ ...e }));
+    } else {
+      history = [];
+    }
+
+    return history.map((entry) => ({
+      ...entry,
+      portName: resolvePortRef(entry.portName, ports)?.name ?? entry.portName,
+    }));
+  }
+
+  private normalizePortOfCallSettings(raw: Partial<AppData['portOfCall']> | undefined): AppData['portOfCall'] {
+    const defaults = createDefaultPortOfCallSettings();
+    const count = raw?.pdfRowCount ?? defaults.pdfRowCount;
+    return {
+      pdfRowCount: Math.min(POC_MAX_ROW_COUNT, Math.max(POC_MIN_ROW_COUNT, count)),
     };
   }
 
@@ -153,22 +216,23 @@ export class StorageService {
         ship.nextPortOfCall,
         ship.homeport,
       );
-      return { ...d, ship, ports };
+      const nationalities = mergeUniqueList(d.nationalities, ship.nationality);
+      return { ...d, ship, ports, nationalities };
     });
     void this.persist('debounced');
   }
 
-  updateCrewArr(partial: Partial<AppData['crewArr']>): void {
+  updateCrewArr(partial: Partial<AppData['crewArr']>, notify: 'silent' | 'saved' = 'saved'): void {
     this.data.update((d) => ({ ...d, crewArr: { ...d.crewArr, ...partial } }));
-    void this.persist('saved');
+    void this.persist(notify);
   }
 
-  addPort(name: string, code: string): void {
+  addPort(name: string, code: string, country = ''): void {
     const n = name.trim();
     if (!n) return;
     this.data.update((d) => ({
       ...d,
-      ports: mergePorts(d.ports, { name: n, code: code.trim() }),
+      ports: mergePorts(d.ports, { name: n, code: code.trim(), country: country.trim() }),
     }));
     void this.persist('saved');
   }
@@ -190,12 +254,61 @@ export class StorageService {
     void this.persist('saved');
   }
 
+  addNationality(name: string): void {
+    const v = name.trim();
+    if (!v) return;
+    this.data.update((d) => ({ ...d, nationalities: mergeUniqueList(d.nationalities, v) }));
+    void this.persist('saved');
+  }
+
+  removeNationality(name: string): void {
+    this.data.update((d) => ({ ...d, nationalities: d.nationalities.filter((n) => n !== name) }));
+    void this.persist('saved');
+  }
+
+  updatePortOfCallSettings(partial: Partial<AppData['portOfCall']>): void {
+    this.data.update((d) => ({
+      ...d,
+      portOfCall: this.normalizePortOfCallSettings({ ...d.portOfCall, ...partial }),
+    }));
+    void this.persist('saved');
+  }
+
+  addPortCallEntry(entry?: Partial<PortCallHistoryEntry>): PortCallHistoryEntry {
+    const newEntry = { ...createEmptyPortCallEntry(), ...entry };
+    this.data.update((d) => {
+      const ports = mergePorts(d.ports, newEntry.portName);
+      return { ...d, portCallHistory: [newEntry, ...d.portCallHistory], ports };
+    });
+    void this.persist('saved');
+    return newEntry;
+  }
+
+  updatePortCallEntry(id: string, partial: Partial<PortCallHistoryEntry>): void {
+    this.data.update((d) => {
+      const portCallHistory = d.portCallHistory.map((e) => (e.id === id ? { ...e, ...partial } : e));
+      const updated = portCallHistory.find((e) => e.id === id);
+      const ports = mergePorts(d.ports, updated?.portName);
+      return { ...d, portCallHistory, ports };
+    });
+    void this.persist('saved');
+  }
+
+  removePortCallEntry(id: string): void {
+    this.data.update((d) => ({
+      ...d,
+      portCallHistory: d.portCallHistory.filter((e) => e.id !== id),
+    }));
+    void this.persist('saved');
+  }
+
   addCrewMember(member?: Partial<CrewMember>): CrewMember {
     const newMember = { ...createEmptyCrewMember(), ...member, archived: false };
     this.data.update((d) => {
       const ports = mergePorts(d.ports, newMember.joiningPort);
       const ranks = mergeUniqueList(d.ranks, newMember.rank);
-      return { ...d, crew: [...d.crew, newMember], ports, ranks };
+      const nationalities = mergeUniqueList(d.nationalities, newMember.nationality);
+      return { ...d, crew: [...d.crew, newMember], ports, ranks, nationalities };
     });
     void this.persist('silent');
     return newMember;
@@ -207,7 +320,8 @@ export class StorageService {
       const updated = crew.find((m) => m.id === id);
       const ports = mergePorts(d.ports, updated?.joiningPort);
       const ranks = mergeUniqueList(d.ranks, updated?.rank);
-      return { ...d, crew, ports, ranks };
+      const nationalities = mergeUniqueList(d.nationalities, updated?.nationality);
+      return { ...d, crew, ports, ranks, nationalities };
     });
     void this.persist('saved');
   }
@@ -223,6 +337,19 @@ export class StorageService {
   removeCrewMember(id: string): void {
     this.data.update((d) => ({ ...d, crew: d.crew.filter((m) => m.id !== id) }));
     void this.persist('saved');
+  }
+
+  reorderActiveCrew(fromIndex: number, toIndex: number): void {
+    if (fromIndex === toIndex) return;
+    this.data.update((d) => {
+      const active = d.crew.filter((m) => !m.archived);
+      const archived = d.crew.filter((m) => m.archived);
+      const reordered = [...active];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+      return { ...d, crew: [...reordered, ...archived] };
+    });
+    void this.persist('debounced');
   }
 
   replaceAll(data: AppData): void {
