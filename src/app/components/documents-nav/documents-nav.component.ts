@@ -13,6 +13,7 @@ import { PortSelectComponent } from '../port-select/port-select.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
 import { defaultIsoDateInCurrentMonth } from '../../utils/partial-date.util';
 import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
+import { PdfMdhService } from '../../services/pdf-mdh.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
@@ -27,6 +28,7 @@ import { ToastService } from '../../services/toast.service';
 export class DocumentsNavComponent {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
+  private readonly mdhPdf = inject(PdfMdhService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
   private readonly toast = inject(ToastService);
 
@@ -129,7 +131,13 @@ export class DocumentsNavComponent {
   }
 
   protected openMdh(): void {
-    this.toast.show('MDH (Maritime Declaration of Health) — coming soon');
+    void this.mdhPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open MDH preview');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to generate MDH');
+    });
   }
 
   private appData(isArrival?: boolean): AppData {

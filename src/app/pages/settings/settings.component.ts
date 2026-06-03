@@ -2,13 +2,14 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { LookupSelectComponent } from '../../components/lookup-select/lookup-select.component';
+import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { ShipInfo } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, PortSelectComponent, LookupSelectComponent],
+  imports: [FormsModule, RouterLink, PortSelectComponent, LookupSelectComponent, DatePickerComponent],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
 })

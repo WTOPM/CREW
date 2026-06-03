@@ -163,10 +163,13 @@ export class StorageService {
       ship.nextPortOfCall,
       ship.homeport,
       ship.waterTestPort,
+      ship.sanitationCertificateIssuedAt,
       ...crew.map((c) => c.joiningPort),
     );
     ship.homeport = resolvePortRef(ship.homeport, ports)?.name ?? ship.homeport;
     ship.waterTestPort = resolvePortRef(ship.waterTestPort, ports)?.name ?? ship.waterTestPort;
+    ship.sanitationCertificateIssuedAt =
+      resolvePortRef(ship.sanitationCertificateIssuedAt, ports)?.name ?? ship.sanitationCertificateIssuedAt;
     ship.portOfCall = resolvePortRef(ship.portOfCall, ports)?.name ?? ship.portOfCall;
     ship.lastPortOfCall = resolvePortRef(ship.lastPortOfCall, ports)?.name ?? ship.lastPortOfCall;
     ship.nextPortOfCall = resolvePortRef(ship.nextPortOfCall, ports)?.name ?? ship.nextPortOfCall;
@@ -283,6 +286,7 @@ export class StorageService {
         ship.nextPortOfCall,
         ship.homeport,
         ship.waterTestPort,
+        ship.sanitationCertificateIssuedAt,
       );
       const nationalities = mergeUniqueList(d.nationalities, ship.nationality);
       return { ...d, ship, ports, nationalities };

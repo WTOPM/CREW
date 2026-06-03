@@ -9,39 +9,51 @@
 
   <section class="card voyage-card">
     <h2>CURRENT VOYAGE DATA</h2>
-    <div class="form-grid">
-      <label>
-        <span>Last Port of Call</span>
-        <app-port-select
-          [value]="ship().lastPortOfCall"
-          [ports]="ports()"
-          (valueChange)="onShipChange('lastPortOfCall', $event)"
-        />
-      </label>
-      <label>
-        <span>Port of Call</span>
-        <app-port-select
-          [value]="ship().portOfCall"
-          [ports]="ports()"
-          (valueChange)="onShipChange('portOfCall', $event)"
-        />
-      </label>
-      <label>
-        <span>Next Port of Call</span>
-        <app-port-select
-          [value]="ship().nextPortOfCall"
-          [ports]="ports()"
-          (valueChange)="onShipChange('nextPortOfCall', $event)"
-        />
-      </label>
-      <label>
-        <span>Arrival Date</span>
-        <input type="date" [ngModel]="ship().dateOfArrival" (ngModelChange)="onShipChange('dateOfArrival', $event)" />
-      </label>
-      <label>
-        <span>Departure Date</span>
-        <input type="date" [ngModel]="ship().dateOfDeparture" (ngModelChange)="onShipChange('dateOfDeparture', $event)" />
-      </label>
+    <div class="voyage-layout">
+      <div class="voyage-row voyage-row--ports">
+        <label class="voyage-field voyage-field--port">
+          <span>Last Port of Call</span>
+          <app-port-select
+            [value]="ship().lastPortOfCall"
+            [ports]="ports()"
+            (valueChange)="onShipChange('lastPortOfCall', $event)"
+          />
+        </label>
+        <label class="voyage-field voyage-field--port voyage-field--current">
+          <span>Port of Call</span>
+          <app-port-select
+            [value]="ship().portOfCall"
+            [ports]="ports()"
+            (valueChange)="onShipChange('portOfCall', $event)"
+          />
+        </label>
+        <label class="voyage-field voyage-field--port">
+          <span>Next Port of Call</span>
+          <app-port-select
+            [value]="ship().nextPortOfCall"
+            [ports]="ports()"
+            (valueChange)="onShipChange('nextPortOfCall', $event)"
+          />
+        </label>
+      </div>
+      <div class="voyage-row voyage-row--dates">
+        <label class="voyage-field voyage-field--date voyage-field--arrival">
+          <span>Arrival Date</span>
+          <app-date-picker
+            size="lg"
+            [value]="ship().dateOfArrival"
+            (valueChange)="onShipChange('dateOfArrival', $event)"
+          />
+        </label>
+        <label class="voyage-field voyage-field--date voyage-field--departure">
+          <span>Departure Date</span>
+          <app-date-picker
+            size="lg"
+            [value]="ship().dateOfDeparture"
+            (valueChange)="onShipChange('dateOfDeparture', $event)"
+          />
+        </label>
+      </div>
     </div>
   </section>
 
@@ -449,7 +461,7 @@
               </label>
               <label>
                 <span>Date of birth</span>
-                <input type="date" [ngModel]="draft.dateOfBirth" (ngModelChange)="updateDraft('dateOfBirth', $event)" />
+                <app-date-picker [value]="draft.dateOfBirth" (valueChange)="updateDraft('dateOfBirth', $event)" />
               </label>
               <label>
                 <span>Place of birth</span>
@@ -471,11 +483,11 @@
               </label>
               <label>
                 <span>Issue date</span>
-                <input type="date" [ngModel]="draft.passportIssueDate" (ngModelChange)="updateDraft('passportIssueDate', $event)" />
+                <app-date-picker [value]="draft.passportIssueDate" (valueChange)="updateDraft('passportIssueDate', $event)" />
               </label>
               <label>
                 <span>Expiry date</span>
-                <input type="date" [ngModel]="draft.passportExpiryDate" (ngModelChange)="updateDraft('passportExpiryDate', $event)" />
+                <app-date-picker [value]="draft.passportExpiryDate" (valueChange)="updateDraft('passportExpiryDate', $event)" />
               </label>
             </div>
           </section>
@@ -493,11 +505,11 @@
               </label>
               <label>
                 <span>Issue date</span>
-                <input type="date" [ngModel]="draft.sbookIssueDate" (ngModelChange)="updateDraft('sbookIssueDate', $event)" />
+                <app-date-picker [value]="draft.sbookIssueDate" (valueChange)="updateDraft('sbookIssueDate', $event)" />
               </label>
               <label>
                 <span>Expiry date</span>
-                <input type="date" [ngModel]="draft.sbookExpiryDate" (ngModelChange)="updateDraft('sbookExpiryDate', $event)" />
+                <app-date-picker [value]="draft.sbookExpiryDate" (valueChange)="updateDraft('sbookExpiryDate', $event)" />
               </label>
             </div>
           </section>
@@ -511,11 +523,11 @@
               </label>
               <label>
                 <span>{{ flagStateBookIssueLabel() }}</span>
-                <input type="date" [ngModel]="draft.cyprusIssueDate" (ngModelChange)="updateDraft('cyprusIssueDate', $event)" />
+                <app-date-picker [value]="draft.cyprusIssueDate" (valueChange)="updateDraft('cyprusIssueDate', $event)" />
               </label>
               <label>
                 <span>{{ flagStateBookExpiryLabel() }}</span>
-                <input type="date" [ngModel]="draft.cyprusExpiryDate" (ngModelChange)="updateDraft('cyprusExpiryDate', $event)" />
+                <app-date-picker [value]="draft.cyprusExpiryDate" (valueChange)="updateDraft('cyprusExpiryDate', $event)" />
               </label>
             </div>
           </section>
@@ -529,11 +541,11 @@
               </label>
               <label>
                 <span>Issue date</span>
-                <input type="date" [ngModel]="draft.visaIssueDate" (ngModelChange)="updateDraft('visaIssueDate', $event)" />
+                <app-date-picker [value]="draft.visaIssueDate" (valueChange)="updateDraft('visaIssueDate', $event)" />
               </label>
               <label>
                 <span>Expiry date</span>
-                <input type="date" [ngModel]="draft.visaExpiryDate" (ngModelChange)="updateDraft('visaExpiryDate', $event)" />
+                <app-date-picker [value]="draft.visaExpiryDate" (valueChange)="updateDraft('visaExpiryDate', $event)" />
               </label>
             </div>
           </section>
@@ -543,7 +555,7 @@
             <div class="form-grid">
               <label>
                 <span>Joining date</span>
-                <input type="date" [ngModel]="draft.joiningDate" (ngModelChange)="updateDraft('joiningDate', $event)" />
+                <app-date-picker [value]="draft.joiningDate" (valueChange)="updateDraft('joiningDate', $event)" />
               </label>
               <label>
                 <span>Joining port</span>
@@ -600,7 +612,7 @@
               </label>
               <label>
                 <span>Date of birth</span>
-                <input type="date" [ngModel]="draft.dateOfBirth" (ngModelChange)="updatePassengerDraft('dateOfBirth', $event)" />
+                <app-date-picker [value]="draft.dateOfBirth" (valueChange)="updatePassengerDraft('dateOfBirth', $event)" />
               </label>
               <label>
                 <span>Place of birth</span>
@@ -618,11 +630,11 @@
               </label>
               <label>
                 <span>Issue date</span>
-                <input type="date" [ngModel]="draft.passportIssueDate" (ngModelChange)="updatePassengerDraft('passportIssueDate', $event)" />
+                <app-date-picker [value]="draft.passportIssueDate" (valueChange)="updatePassengerDraft('passportIssueDate', $event)" />
               </label>
               <label>
                 <span>Expiry date</span>
-                <input type="date" [ngModel]="draft.passportExpiryDate" (ngModelChange)="updatePassengerDraft('passportExpiryDate', $event)" />
+                <app-date-picker [value]="draft.passportExpiryDate" (valueChange)="updatePassengerDraft('passportExpiryDate', $event)" />
               </label>
             </div>
           </section>

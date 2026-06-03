@@ -121,12 +121,15 @@
   outline: none;
 }
 
+/* —— Port of Call Settings modal —— */
+
 .poc-modal.modal-wide {
-  max-width: 960px;
-  width: min(960px, 95vw);
+  max-width: 1140px;
+  width: min(1140px, 97vw);
+  padding: 1.25rem 1.5rem 1.35rem;
 }
 
-.poc-settings-bar {
+.poc-modal-head {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -135,34 +138,186 @@
   margin-bottom: 1rem;
 }
 
-.poc-settings-bar label {
+.poc-modal-head h3 {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.poc-settings-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+}
+
+.poc-pdf-count {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.85rem;
+  margin: 0;
 }
 
-.poc-settings-bar input[type='number'] {
-  width: 5rem;
+.poc-pdf-count input[type='number'] {
+  width: 4.5rem;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 6px;
 }
 
 .poc-history-wrap {
-  max-height: 420px;
+  max-height: min(58vh, 520px);
   overflow: auto;
-}
-
-.poc-history-table input {
-  width: 100%;
-  min-width: 5.5rem;
-  padding: 0.35rem 0.45rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 0.8rem;
+  border-radius: 10px;
+  background: #fff;
 }
 
-.poc-history-table td {
+.poc-history-table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.poc-col-port {
+  width: 25%;
+}
+
+.poc-col-country {
+  width: 16%;
+}
+
+.poc-col-date {
+  width: 17%;
+}
+
+.poc-col-time {
+  width: 8%;
+}
+
+.poc-col-actions {
+  width: 2.75rem;
+}
+
+.poc-history-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.55rem 0.5rem;
+  background: #f1f5f9;
+  border-bottom: 2px solid #cbd5e1;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.poc-history-table tbody tr {
+  background: #f8fafc;
+  transition: background 0.12s ease;
+}
+
+.poc-history-table tbody tr.poc-row--stripe-b {
+  background: #eef6ff;
+}
+
+.poc-history-table tbody tr:hover {
+  background: #dbeafe;
+}
+
+.poc-history-table .poc-cell {
+  padding: 0.45rem 0.4rem;
   vertical-align: middle;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.poc-cell--port ::ng-deep .port-select {
+  width: 100%;
+  max-width: 100%;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.poc-country-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  background: #fff;
+}
+
+.poc-cell--date ::ng-deep .date-picker-row {
+  gap: 0.2rem;
+}
+
+.poc-cell--date ::ng-deep .date-picker-input {
+  min-width: 0;
+  padding: 0.38rem 0.4rem;
+  font-size: 0.82rem;
+}
+
+.poc-cell--date ::ng-deep .date-picker-btn {
+  width: 1.85rem;
+  min-width: 1.85rem;
+  padding: 0;
+}
+
+.poc-cell--date ::ng-deep .date-picker-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.poc-cell--time {
+  text-align: center;
+}
+
+.poc-cell--time ::ng-deep .time-input {
+  width: 100%;
+  max-width: 4.25rem;
+  min-width: 0;
+  margin: 0 auto;
+  display: block;
+  padding: 0.38rem 0.25rem;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.poc-cell--actions {
+  text-align: center;
+  padding-inline: 0.2rem;
+}
+
+.poc-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--danger);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.poc-remove:hover {
+  background: rgb(220 38 38 / 12%);
+}
+
+.poc-modal .modal-actions {
+  margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .poc-history-wrap {
+    overflow-x: auto;
+  }
+
+  .poc-history-table {
+    min-width: 820px;
+  }
 }

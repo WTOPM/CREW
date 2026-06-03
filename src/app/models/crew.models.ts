@@ -56,6 +56,7 @@ export interface ShipInfo {
   type: string;
   charterer: string;
   sanitationCertificateNo: string;
+  sanitationCertificateIssuedAt: string;
   sanitationCertificateIssueDate: string;
   waterTestPort: string;
   waterTestDate: string;
@@ -161,6 +162,7 @@ export function createEmptyShip(): ShipInfo {
     type: '',
     charterer: '',
     sanitationCertificateNo: '',
+    sanitationCertificateIssuedAt: '',
     sanitationCertificateIssueDate: '',
     waterTestPort: '',
     waterTestDate: '',

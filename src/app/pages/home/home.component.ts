@@ -8,6 +8,7 @@ import { DocumentsNavComponent } from '../../components/documents-nav/documents-
 
 import { LookupSelectComponent } from '../../components/lookup-select/lookup-select.component';
 
+import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 
 import { CrewListKind, CrewMember, ShipInfo } from '../../models/crew.models';
@@ -30,7 +31,14 @@ export type HomeListTab =
 
   selector: 'app-home',
 
-  imports: [FormsModule, DragDropModule, DocumentsNavComponent, LookupSelectComponent, PortSelectComponent],
+  imports: [
+    FormsModule,
+    DragDropModule,
+    DocumentsNavComponent,
+    LookupSelectComponent,
+    PortSelectComponent,
+    DatePickerComponent,
+  ],
 
   templateUrl: './home.component.html',
 

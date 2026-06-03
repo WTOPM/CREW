@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-hidden="true">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="55%" stop-color="#0369a1"/>
+      <stop offset="100%" stop-color="#0c4a6e"/>
+    </linearGradient>
+    <linearGradient id="hull" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+  </defs>
+  <rect width="56" height="56" rx="14" fill="url(#bg)"/>
+  <path fill="url(#hull)" d="M10 36.5 28 22l18 14.5-2.8 2.5H12.8L10 36.5Z"/>
+  <path fill="#fff" opacity="0.35" d="M12 35.5 28 23.5 44 35.5"/>
+  <path fill="#e0f2fe" d="M24 22.5V15h8v7.5l-4 2.5-4-2.5Z"/>
+  <rect x="18" y="9" width="16" height="18" rx="2.5" fill="#fff" stroke="#7dd3fc" stroke-width="1.2"/>
+  <path fill="#0369a1" d="M21 13h10v1.6H21V13Zm0 3.4h8.5v1.6H21v-1.6Zm0 3.4h7v1.6h-7v-1.6Z"/>
+  <path fill="#38bdf8" d="M26 40.5h4v2h-4v-2Z"/>
+  <circle cx="28" cy="39" r="2" fill="#7dd3fc"/>
+</svg>

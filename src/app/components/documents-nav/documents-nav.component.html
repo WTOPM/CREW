@@ -57,22 +57,33 @@
 @if (showPortOfCallSettings()) {
   <div class="modal-backdrop" (click)="closePortOfCallSettings()">
     <div class="modal modal-wide poc-modal" (click)="$event.stopPropagation()">
-      <h3>Port of Call Settings</h3>
-      <div class="poc-settings-bar">
-        <label>
-          <span>Ports in PDF</span>
-          <input
-            type="number"
-            [min]="pocMinPorts"
-            [max]="pocMaxPorts"
-            [ngModel]="portOfCall().pdfRowCount"
-            (ngModelChange)="onPdfPortCountChange($event)"
-          />
-        </label>
-        <button type="button" class="btn btn-primary" (click)="addPortCallRow()">+ Add port call</button>
-      </div>
-      <div class="table-wrap poc-history-wrap">
+      <header class="poc-modal-head">
+        <h3>Port of Call Settings</h3>
+        <div class="poc-settings-bar">
+          <label class="poc-pdf-count">
+            <span>Ports in PDF</span>
+            <input
+              type="number"
+              [min]="pocMinPorts"
+              [max]="pocMaxPorts"
+              [ngModel]="portOfCall().pdfRowCount"
+              (ngModelChange)="onPdfPortCountChange($event)"
+            />
+          </label>
+          <button type="button" class="btn btn-primary" (click)="addPortCallRow()">+ Add port call</button>
+        </div>
+      </header>
+      <div class="poc-history-wrap">
         <table class="poc-history-table">
+          <colgroup>
+            <col class="poc-col-port" />
+            <col class="poc-col-country" />
+            <col class="poc-col-date" />
+            <col class="poc-col-time" />
+            <col class="poc-col-date" />
+            <col class="poc-col-time" />
+            <col class="poc-col-actions" />
+          </colgroup>
           <thead>
             <tr>
               <th>Port</th>
@@ -81,52 +92,60 @@
               <th>Arr. time</th>
               <th>Dep. date</th>
               <th>Dep. time</th>
-              <th></th>
+              <th aria-label="Remove"></th>
             </tr>
           </thead>
           <tbody>
-            @for (row of portCallHistory(); track row.id) {
-              <tr>
-                <td>
+            @for (row of portCallHistory(); track row.id; let i = $index) {
+              <tr [class.poc-row--stripe-b]="i % 2 === 1">
+                <td class="poc-cell poc-cell--port">
                   <app-port-select
                     [value]="row.portName"
                     [ports]="ports()"
                     (valueChange)="onPortCallPortChange(row.id, $event)"
                   />
                 </td>
-                <td>
+                <td class="poc-cell poc-cell--country">
                   <input
+                    class="poc-country-input"
                     [ngModel]="row.country"
                     (ngModelChange)="updatePortCallField(row.id, 'country', $event)"
                     placeholder="ITALY"
                   />
                 </td>
-                <td>
+                <td class="poc-cell poc-cell--date">
                   <app-partial-date-input
                     [value]="row.arrivalDate"
                     (valueChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
                   />
                 </td>
-                <td>
+                <td class="poc-cell poc-cell--time">
                   <app-time-input
                     [value]="row.arrivalTime"
                     (valueChange)="updatePortCallField(row.id, 'arrivalTime', $event)"
                   />
                 </td>
-                <td>
+                <td class="poc-cell poc-cell--date">
                   <app-partial-date-input
                     [value]="row.departureDate"
                     (valueChange)="updatePortCallField(row.id, 'departureDate', $event)"
                   />
                 </td>
-                <td>
+                <td class="poc-cell poc-cell--time">
                   <app-time-input
                     [value]="row.departureTime"
                     (valueChange)="updatePortCallField(row.id, 'departureTime', $event)"
                   />
                 </td>
-                <td class="actions">
-                  <button type="button" class="btn-link warn" (click)="removePortCallRow(row.id)">×</button>
+                <td class="poc-cell poc-cell--actions">
+                  <button
+                    type="button"
+                    class="poc-remove"
+                    title="Remove port call"
+                    (click)="removePortCallRow(row.id)"
+                  >
+                    ×
+                  </button>
                 </td>
               </tr>
             }
