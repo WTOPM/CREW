@@ -3,14 +3,12 @@
     <div>
       <a routerLink="/" class="back-link">← Home</a>
       <h1>Settings</h1>
-      <p class="subtitle">Ship information and reference data</p>
     </div>
   </header>
 
   <section class="card ship-settings-card">
     <div class="ship-settings-head">
-      <h2>Ship information</h2>
-      <p class="section-desc">Voyage ports and dates are on the <a routerLink="/">home page</a>.</p>
+      <h2>SHIP INFORMATION</h2>
     </div>
 
     <div class="ship-settings-layout">
@@ -121,6 +119,12 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <section class="card stamp-settings-card">
+    <h2>Ship stamp &amp; captain signature</h2>
+    <p class="section-desc">Upload files here. Turn stamp/signature on per document in each menu Settings on Home.</p>
+    <app-document-stamp-upload />
   </section>
 
   <section class="card ref-settings-card">

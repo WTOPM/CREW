@@ -38,6 +38,8 @@ export class CrewArrComponent {
       nationalities: this.storage.nationalities(),
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
+      documentOverlay: this.storage.documentOverlay(),
+      shipAssets: this.storage.shipAssets(),
     };
   }
 
@@ -45,17 +47,17 @@ export class CrewArrComponent {
     const crew = this.crewArr().isArrival
       ? this.storage.activeCrewArrival()
       : this.storage.activeCrewDeparture();
-    const ok = this.pdf.openPreview(this.appData(), crew);
-    if (!ok) {
-      this.toast.showError('Allow pop-ups to open Crew List preview');
-    }
+    void this.pdf.openPreview(this.appData(), crew).then((ok) => {
+      if (!ok) this.toast.showError('Allow pop-ups to open Crew List preview');
+    });
   }
 
   protected generatePdf(): void {
     const crew = this.crewArr().isArrival
       ? this.storage.activeCrewArrival()
       : this.storage.activeCrewDeparture();
-    this.pdf.generate(this.appData(), crew);
-    this.toast.showPdfGenerated();
+    void this.pdf.generate(this.appData(), crew).then(() => {
+      this.toast.showPdfGenerated();
+    });
   }
 }

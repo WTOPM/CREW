@@ -13,4 +13,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   crewPdfExists: (crewId, docType) => ipcRenderer.invoke('crew-pdf-exists', crewId, docType),
   deleteCrewPdf: (crewId, docType) => ipcRenderer.invoke('delete-crew-pdf', crewId, docType),
   deleteCrewDocuments: (crewId) => ipcRenderer.invoke('delete-crew-documents', crewId),
+  pickShipAssetFile: () => ipcRenderer.invoke('pick-ship-asset-file'),
+  saveShipAssetFromPath: (kind, sourcePath) =>
+    ipcRenderer.invoke('save-ship-asset-from-path', kind, sourcePath),
+  saveShipAssetBytes: (kind, base64, fileName) =>
+    ipcRenderer.invoke('save-ship-asset-bytes', kind, base64, fileName),
+  readShipAsset: (kind) => ipcRenderer.invoke('read-ship-asset', kind),
+  deleteShipAsset: (kind) => ipcRenderer.invoke('delete-ship-asset', kind),
 });

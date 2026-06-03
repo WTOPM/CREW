@@ -1,6 +1,12 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import {
   AppData,
+  createDefaultDocumentOverlayPrefs,
+  normalizeCrewListType,
+  createEmptyShipAssetsMeta,
+  DocumentOverlayId,
+  DocumentOverlayPrefs,
+  DocumentStampOptions,
   CrewMember,
   DEFAULT_NATIONALITIES,
   DEFAULT_PORTS,
@@ -55,6 +61,8 @@ const DEFAULT_DATA: AppData = {
   nationalities: [...DEFAULT_NATIONALITIES],
   portCallHistory: SEED_PORT_CALL_HISTORY.map((e) => ({ ...e })),
   portOfCall: createDefaultPortOfCallSettings(),
+  documentOverlay: createDefaultDocumentOverlayPrefs(),
+  shipAssets: createEmptyShipAssetsMeta(),
   seedVersion: SEED_VERSION,
 };
 
@@ -70,6 +78,8 @@ export class StorageService {
   readonly nationalities = computed(() => this.data().nationalities);
   readonly portCallHistory = computed(() => this.data().portCallHistory);
   readonly portOfCall = computed(() => this.data().portOfCall);
+  readonly documentOverlay = computed(() => this.data().documentOverlay);
+  readonly shipAssets = computed(() => this.data().shipAssets);
   readonly activeCrewArrival = computed(() =>
     this.data().crew.filter((m) => !m.archived && m.onArrivalList),
   );
@@ -105,6 +115,13 @@ export class StorageService {
       nationalities: [...DEFAULT_DATA.nationalities],
       portCallHistory: [...DEFAULT_DATA.portCallHistory],
       portOfCall: { ...DEFAULT_DATA.portOfCall },
+      documentOverlay: {
+        crewList: { ...createDefaultDocumentOverlayPrefs().crewList },
+        pax: { ...DEFAULT_DATA.documentOverlay.pax },
+        portOfCall: { ...DEFAULT_DATA.documentOverlay.portOfCall },
+        mdh: { ...DEFAULT_DATA.documentOverlay.mdh },
+      },
+      shipAssets: { ...DEFAULT_DATA.shipAssets },
       crewArr: { ...DEFAULT_DATA.crewArr },
       passengers: [],
       paxArr: { ...DEFAULT_DATA.paxArr },
@@ -198,6 +215,8 @@ export class StorageService {
     const portCallHistory = this.normalizePortCallHistory(raw, ports);
     ports = mergePorts(ports, ...portCallHistory.map((e) => e.portName));
     const portOfCall = this.normalizePortOfCallSettings(raw.portOfCall);
+    const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay);
+    const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     return {
       ship,
       crew,
@@ -209,8 +228,35 @@ export class StorageService {
       nationalities: mergeUniqueList(nationalities),
       portCallHistory,
       portOfCall,
+      documentOverlay,
+      shipAssets,
       seedVersion: SEED_VERSION,
     };
+  }
+
+  private normalizeDocumentOverlay(
+    raw: Partial<AppData['documentOverlay']> | undefined,
+  ): AppData['documentOverlay'] {
+    const defaults = createDefaultDocumentOverlayPrefs();
+    const crewDefaults = defaults.crewList;
+    const stampKeys = ['pax', 'portOfCall', 'mdh'] as const;
+    const out: AppData['documentOverlay'] = {
+      crewList: {
+        useStamp: raw?.crewList?.useStamp ?? crewDefaults.useStamp,
+        useSignature: raw?.crewList?.useSignature ?? crewDefaults.useSignature,
+        listType: normalizeCrewListType(raw?.crewList ?? {}),
+      },
+      pax: { ...defaults.pax },
+      portOfCall: { ...defaults.portOfCall },
+      mdh: { ...defaults.mdh },
+    };
+    for (const key of stampKeys) {
+      out[key] = {
+        useStamp: raw?.[key]?.useStamp ?? defaults[key].useStamp,
+        useSignature: raw?.[key]?.useSignature ?? defaults[key].useSignature,
+      };
+    }
+    return out;
   }
 
   private normalizePortCallHistory(
@@ -349,6 +395,28 @@ export class StorageService {
     this.data.update((d) => ({ ...d, nationalities: d.nationalities.filter((n) => n !== name) }));
     void this.persist('silent');
     this.toast.showNationalityDeleted();
+  }
+
+  updateDocumentOverlay(
+    documentId: DocumentOverlayId,
+    partial: Partial<DocumentOverlayPrefs[DocumentOverlayId]>,
+  ): void {
+    this.data.update((d) => ({
+      ...d,
+      documentOverlay: {
+        ...d.documentOverlay,
+        [documentId]: { ...d.documentOverlay[documentId], ...partial },
+      },
+    }));
+    void this.persist('saved');
+  }
+
+  updateShipAssets(partial: Partial<AppData['shipAssets']>): void {
+    this.data.update((d) => ({
+      ...d,
+      shipAssets: { ...d.shipAssets, ...partial },
+    }));
+    void this.persist('saved');
   }
 
   updatePortOfCallSettings(partial: Partial<AppData['portOfCall']>): void {

@@ -7,7 +7,9 @@ import {
   DEFAULT_PORTS,
   DEFAULT_RANKS,
   createDefaultCrewArrSettings,
+  createDefaultDocumentOverlayPrefs,
   createDefaultPortOfCallSettings,
+  createEmptyShipAssetsMeta,
   createEmptyCrewMember,
   createEmptyShip,
   mergePorts,
@@ -84,6 +86,8 @@ export class ExcelImportService {
       nationalities,
       portCallHistory: [],
       portOfCall: createDefaultPortOfCallSettings(),
+      documentOverlay: createDefaultDocumentOverlayPrefs(),
+      shipAssets: createEmptyShipAssetsMeta(),
       seedVersion: SEED_VERSION,
     };
   }

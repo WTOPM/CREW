@@ -1,5 +1,26 @@
 import { parseValidityRange } from '../utils/date.util';
 import { PassengerMember, PaxArrFormSettings } from './passenger.models';
+import type { DocumentOverlayPrefs, ShipAssetsMeta } from './document-overlay.models';
+import { createDefaultDocumentOverlayPrefs, createEmptyShipAssetsMeta } from './document-overlay.models';
+
+export type {
+  DocumentOverlayPrefs,
+  DocumentOverlayId,
+  CrewListDocumentPrefs,
+  CrewListTypeId,
+  DocumentStampOptions,
+  ShipAssetsMeta,
+  ShipAssetKind,
+} from './document-overlay.models';
+export {
+  createDefaultCrewListPrefs,
+  createDefaultDocumentOverlayPrefs,
+  CREW_LIST_TYPE_LABELS,
+  CREW_LIST_TYPE_IDS,
+  normalizeCrewListType,
+  createEmptyShipAssetsMeta,
+  DOCUMENT_OVERLAY_LABELS,
+} from './document-overlay.models';
 
 export interface Port {
   name: string;
@@ -166,6 +187,8 @@ export interface AppData {
   nationalities: string[];
   portCallHistory: PortCallHistoryEntry[];
   portOfCall: PortOfCallSettings;
+  documentOverlay: DocumentOverlayPrefs;
+  shipAssets: ShipAssetsMeta;
   seedVersion?: number;
 }
 

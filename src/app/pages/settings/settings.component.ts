@@ -6,10 +6,18 @@ import { DatePickerComponent } from '../../components/date-picker/date-picker.co
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { ShipInfo } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
+import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, PortSelectComponent, LookupSelectComponent, DatePickerComponent],
+  imports: [
+    FormsModule,
+    RouterLink,
+    PortSelectComponent,
+    LookupSelectComponent,
+    DatePickerComponent,
+    DocumentStampUploadComponent,
+  ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
 })

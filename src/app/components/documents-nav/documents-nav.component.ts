@@ -18,10 +18,19 @@ import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
+import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
+import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-settings.component';
 
 @Component({
   selector: 'app-documents-nav',
-  imports: [FormsModule, PortSelectComponent, PartialDateInputComponent, TimeInputComponent],
+  imports: [
+    FormsModule,
+    PortSelectComponent,
+    PartialDateInputComponent,
+    TimeInputComponent,
+    DocumentStampOptionsComponent,
+    CrewListSettingsComponent,
+  ],
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',
 })
@@ -41,27 +50,28 @@ export class DocumentsNavComponent {
   protected readonly portOfCall = this.storage.portOfCall;
 
   protected showPortOfCallSettings = signal(false);
+  protected showCrewListSettings = signal(false);
+  protected showPaxSettings = signal(false);
+  protected showMdhSettings = signal(false);
 
   protected openPassengerList(isArrival: boolean): void {
     this.storage.updatePaxArr({ isArrival }, 'silent');
     const passengers = isArrival
       ? this.storage.activePassengersArrival()
       : this.storage.activePassengersDeparture();
-    const ok = this.crewPdf.openPassengerPreview(this.appData(), passengers);
-    if (!ok) {
-      this.toast.showError('Allow pop-ups to open Passenger List preview');
-    }
+    void this.crewPdf.openPassengerPreview(this.appData(), passengers).then((ok) => {
+      if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');
+    });
   }
 
-  protected openCrewListPassport(isArrival: boolean): void {
-    this.openCrewListWithIdentity(isArrival, CREW_IDENTITY_PASSPORT);
+  protected openCrewList(isArrival: boolean): void {
+    const listType = this.storage.documentOverlay().crewList.listType;
+    const identityDocumentType =
+      listType === 'type1SeamansBook' ? CREW_IDENTITY_SEAMANS_BOOK : CREW_IDENTITY_PASSPORT;
+    void this.openCrewListPdf(isArrival, identityDocumentType);
   }
 
-  protected openCrewListSeamansBook(isArrival: boolean): void {
-    this.openCrewListWithIdentity(isArrival, CREW_IDENTITY_SEAMANS_BOOK);
-  }
-
-  private openCrewListWithIdentity(isArrival: boolean, identityDocumentType: string): void {
+  private async openCrewListPdf(isArrival: boolean, identityDocumentType: string): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const base = this.appData(isArrival);
@@ -71,7 +81,7 @@ export class DocumentsNavComponent {
     };
     const { ship } = base;
     const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
-    const ok = this.crewPdf.openPreview(pdfData, crew, {
+    const ok = await this.crewPdf.openPreview(pdfData, crew, {
       fileName: crewListIdentityPdfFileName(
         ship.name,
         ship.portOfCall,
@@ -85,11 +95,34 @@ export class DocumentsNavComponent {
     }
   }
 
+  protected openCrewListSettings(): void {
+    this.showCrewListSettings.set(true);
+  }
+
+  protected closeCrewListSettings(): void {
+    this.showCrewListSettings.set(false);
+  }
+
+  protected openPaxSettings(): void {
+    this.showPaxSettings.set(true);
+  }
+
+  protected closePaxSettings(): void {
+    this.showPaxSettings.set(false);
+  }
+
+  protected openMdhSettings(): void {
+    this.showMdhSettings.set(true);
+  }
+
+  protected closeMdhSettings(): void {
+    this.showMdhSettings.set(false);
+  }
+
   protected openPortOfCallPdf(): void {
-    const ok = this.portOfCallPdf.openPreview(this.appData());
-    if (!ok) {
-      this.toast.showError('Allow pop-ups to open Port of Call preview');
-    }
+    void this.portOfCallPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) this.toast.showError('Allow pop-ups to open Port of Call preview');
+    });
   }
 
   protected openPortOfCallSettings(): void {
@@ -153,6 +186,8 @@ export class DocumentsNavComponent {
       nationalities: this.storage.nationalities(),
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
+      documentOverlay: this.storage.documentOverlay(),
+      shipAssets: this.storage.shipAssets(),
     };
   }
 }

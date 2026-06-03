@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { PdfOverlayService } from './pdf-overlay.service';
 import type { PDFPage, RGB } from 'pdf-lib';
 import {
   AppData,
@@ -28,12 +29,15 @@ const MDH_FONT_SIZE = 9;
 
 @Injectable({ providedIn: 'root' })
 export class PdfMdhService {
+  private readonly overlay = inject(PdfOverlayService);
+
   private templateBytes: Uint8Array | null = null;
   private templatePage2Bytes: Uint8Array | null = null;
   private templateVersion = 3;
 
   async openPreview(data: AppData): Promise<boolean> {
-    const bytes = await this.build(data);
+    let bytes = await this.build(data);
+    bytes = await this.overlay.applyMdhOverlay(bytes, data.documentOverlay.mdh);
     return openPdfBlobPreview(bytes);
   }
 
@@ -127,7 +131,7 @@ export class PdfMdhService {
     return doc.save();
   }
 
-  /** Page 2+ — static schedule/attachment, no overlay. */
+  /** Page 2+ — static schedule/attachment (stamp overlay applied in applyMdhOverlay). */
   private async appendStaticPages(doc: Awaited<ReturnType<typeof import('pdf-lib').PDFDocument.load>>): Promise<void> {
     const { PDFDocument } = await import('pdf-lib');
     const page2 = await this.loadTemplatePage2();

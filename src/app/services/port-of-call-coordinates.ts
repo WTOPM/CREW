@@ -145,6 +145,40 @@ export const POC_FRAME_LABELS = {
   signature: '15. Date and signature by master, authorised agent or officer',
 } as const;
 
+/** Overlay stamp/signature above field 15 signature line (pdf-lib, origin bottom-left). */
+export function pocStampBoxPdfLib(pageW = 595.28, pageH = 842): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  const s = createPocScale(pageW, pageH);
+  const cells = buildPocGridCells();
+  const footer = pocCellById(cells, POC_SIGNATURE_CELL_ID);
+  const r = footer
+    ? s.rect(footer.x1, footer.y1, footer.x2, footer.y2)
+    : s.rect(POC_SRC.minX, 1918, POC_SRC.maxX, POC_SRC.maxY);
+  const pad = 8;
+  const text = POC_FRAME_LABELS.signature;
+  const textY = r.y + r.h - pad;
+  const lineY = textY - POC_SIGNATURE_LINE_GAP_PT;
+  const textX = r.x + r.w - pad;
+  const textW = text.length * 2.35;
+  const lineW = Math.max(textW * 1.05, r.w * 0.38);
+  const lineX2 = textX;
+  const lineX1 = lineX2 - lineW;
+  const gapAboveLine = 5;
+  const stampH = Math.min(105, Math.max(72, lineY - r.y - 12));
+  const stampW = lineX2 - lineX1;
+  const lineFromTop = lineY - gapAboveLine;
+  return {
+    x: lineX1,
+    y: pageH - lineFromTop,
+    width: stampW,
+    height: stampH,
+  };
+}
+
 export const POC_STATIC_LABELS = {
   shipName: '1.Name of Ship',
   callSign: 'Call Sign',

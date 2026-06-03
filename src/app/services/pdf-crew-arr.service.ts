@@ -1,5 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { jsPDF } from 'jspdf';
+import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { DocumentOverlayId } from '../models/document-overlay.models';
+import { PdfOverlayService } from './pdf-overlay.service';
 import {
   AppData,
   CREW_IDENTITY_PASSPORT,
@@ -39,10 +42,14 @@ export const IMO_PASSENGER_LIST_TITLE = 'IMO PASSENGER LIST';
 export interface CrewListPdfOptions {
   title?: string;
   fileName?: string;
+  /** Which document menu toggles apply (default crew list). */
+  overlayId?: DocumentOverlayId;
 }
 
 @Injectable({ providedIn: 'root' })
 export class PdfCrewArrService {
+  private readonly overlay = inject(PdfOverlayService);
+
   build(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): jsPDF {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     this.drawPageBackground(doc);
@@ -55,17 +62,31 @@ export class PdfCrewArrService {
     return doc;
   }
 
-  generate(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): void {
-    const doc = this.build(data, crew, options);
-    doc.save(this.fileName(data, options));
+  private overlayOptions(data: AppData, options?: CrewListPdfOptions) {
+    const id = options?.overlayId ?? 'crewList';
+    return data.documentOverlay[id];
   }
 
-  openPreview(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): boolean {
+  async generate(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): Promise<void> {
     const doc = this.build(data, crew, options);
-    return openPdfPreview(doc, this.fileName(data, options));
+    const bytes = await this.overlay.applyToJsPdf(doc, this.overlayOptions(data, options));
+    const name = this.fileName(data, options);
+    const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
-  openPassengerPreview(data: AppData, passengers: PassengerMember[]): boolean {
+  async openPreview(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): Promise<boolean> {
+    const doc = this.build(data, crew, options);
+    const bytes = await this.overlay.applyToJsPdf(doc, this.overlayOptions(data, options));
+    return openPdfBlobPreview(bytes);
+  }
+
+  async openPassengerPreview(data: AppData, passengers: PassengerMember[]): Promise<boolean> {
     const { ship, paxArr } = data;
     const voyageDate = paxArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
     const pdfData: AppData = {
@@ -75,6 +96,7 @@ export class PdfCrewArrService {
     return this.openPreview(pdfData, passengersToCrewRows(passengers), {
       title: IMO_PASSENGER_LIST_TITLE,
       fileName: passengerListPdfFileName(ship.name, ship.portOfCall, voyageDate, paxArr.isArrival),
+      overlayId: 'pax',
     });
   }
 

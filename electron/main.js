@@ -19,6 +19,45 @@ function getDocumentsDir() {
   return path.join(getDataDir(), 'documents');
 }
 
+function getAssetsDir() {
+  return path.join(getDataDir(), 'assets');
+}
+
+const SHIP_ASSET_EXTS = ['.png', '.jpg', '.jpeg', '.pdf'];
+
+function findShipAssetPath(kind) {
+  const dir = getAssetsDir();
+  if (!fs.existsSync(dir)) return null;
+  for (const ext of SHIP_ASSET_EXTS) {
+    const p = path.join(dir, `${kind}${ext}`);
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+function removeShipAssetFiles(kind) {
+  const dir = getAssetsDir();
+  if (!fs.existsSync(dir)) return;
+  for (const ext of SHIP_ASSET_EXTS) {
+    const p = path.join(dir, `${kind}${ext}`);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+  }
+}
+
+function saveShipAssetFromPath(kind, sourcePath) {
+  ensureDataDir();
+  const ext = path.extname(sourcePath).toLowerCase() || '.png';
+  if (!SHIP_ASSET_EXTS.includes(ext)) {
+    throw new Error('Unsupported file type');
+  }
+  const dir = getAssetsDir();
+  fs.mkdirSync(dir, { recursive: true });
+  removeShipAssetFiles(kind);
+  const dest = path.join(dir, `${kind}${ext}`);
+  fs.copyFileSync(sourcePath, dest);
+  return { fileName: path.basename(dest) };
+}
+
 function crewDocPath(crewId, docType) {
   return path.join(getDocumentsDir(), crewId, `${docType}.pdf`);
 }
@@ -119,6 +158,46 @@ ipcMain.handle('delete-crew-documents', (_event, crewId) => {
   if (fs.existsSync(dir)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+  return true;
+});
+
+ipcMain.handle('pick-ship-asset-file', async () => {
+  const win = BrowserWindow.getFocusedWindow();
+  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+    title: 'Select stamp or signature',
+    filters: [{ name: 'Image or PDF', extensions: ['png', 'jpg', 'jpeg', 'pdf'] }],
+    properties: ['openFile'],
+  });
+  if (canceled || !filePaths?.[0]) return null;
+  return filePaths[0];
+});
+
+ipcMain.handle('save-ship-asset-from-path', (_event, kind, sourcePath) =>
+  saveShipAssetFromPath(kind, sourcePath),
+);
+
+ipcMain.handle('save-ship-asset-bytes', (_event, kind, base64, fileName) => {
+  ensureDataDir();
+  const ext = path.extname(fileName).toLowerCase() || '.png';
+  if (!SHIP_ASSET_EXTS.includes(ext)) {
+    throw new Error('Unsupported file type');
+  }
+  const dir = getAssetsDir();
+  fs.mkdirSync(dir, { recursive: true });
+  removeShipAssetFiles(kind);
+  const dest = path.join(dir, `${kind}${ext}`);
+  fs.writeFileSync(dest, Buffer.from(base64, 'base64'));
+  return { fileName: path.basename(dest) };
+});
+
+ipcMain.handle('read-ship-asset', (_event, kind) => {
+  const file = findShipAssetPath(kind);
+  if (!file) return null;
+  return fs.readFileSync(file).toString('base64');
+});
+
+ipcMain.handle('delete-ship-asset', (_event, kind) => {
+  removeShipAssetFiles(kind);
   return true;
 });
 

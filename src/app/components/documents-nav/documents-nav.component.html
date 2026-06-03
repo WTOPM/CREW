@@ -5,17 +5,15 @@
       <span class="doc-menu-chevron" aria-hidden="true">▾</span>
     </button>
     <div class="doc-menu-panel doc-menu-panel--crew" role="menu">
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewListPassport(true)">
-        Passport Arrival
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(true)">
+        Arrival
       </button>
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewListPassport(false)">
-        Passport Departure
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(false)">
+        Departure
       </button>
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewListSeamansBook(true)">
-        Seaman's Book Arrival
-      </button>
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewListSeamansBook(false)">
-        Seaman's Book Departure
+      <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openCrewListSettings()">
+        <span class="nav-doc-port-icon" aria-hidden="true">⚓</span>
+        Settings
       </button>
     </div>
   </div>
@@ -31,6 +29,10 @@
       </button>
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPassengerList(false)">
         Passenger list — Departure
+      </button>
+      <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openPaxSettings()">
+        <span class="nav-doc-port-icon" aria-hidden="true">⚓</span>
+        Settings
       </button>
     </div>
   </div>
@@ -51,8 +53,58 @@
     </div>
   </div>
 
-  <button type="button" class="nav-doc-btn" (click)="openMdh()">MDH</button>
+  <div class="doc-menu">
+    <button type="button" class="nav-doc-btn" aria-haspopup="true">
+      MDH
+      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+    </button>
+    <div class="doc-menu-panel" role="menu">
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openMdh()">
+        Maritime Declaration of Health
+      </button>
+      <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openMdhSettings()">
+        <span class="nav-doc-port-icon" aria-hidden="true">⚓</span>
+        Settings
+      </button>
+    </div>
+  </div>
 </div>
+
+@if (showCrewListSettings()) {
+  <div class="modal-backdrop" (click)="closeCrewListSettings()">
+    <div class="modal modal-narrow doc-overlay-modal" (click)="$event.stopPropagation()">
+      <h3>Crew list settings</h3>
+      <app-crew-list-settings />
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closeCrewListSettings()">Done</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showPaxSettings()) {
+  <div class="modal-backdrop" (click)="closePaxSettings()">
+    <div class="modal modal-narrow doc-overlay-modal" (click)="$event.stopPropagation()">
+      <h3>Passenger list settings</h3>
+      <app-document-stamp-options documentId="pax" />
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closePaxSettings()">Done</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showMdhSettings()) {
+  <div class="modal-backdrop" (click)="closeMdhSettings()">
+    <div class="modal modal-narrow doc-overlay-modal" (click)="$event.stopPropagation()">
+      <h3>MDH settings</h3>
+      <app-document-stamp-options documentId="mdh" />
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closeMdhSettings()">Done</button>
+      </div>
+    </div>
+  </div>
+}
 
 @if (showPortOfCallSettings()) {
   <div class="modal-backdrop" (click)="closePortOfCallSettings()">
@@ -73,6 +125,7 @@
           <button type="button" class="btn btn-primary" (click)="addPortCallRow()">+ Add port call</button>
         </div>
       </header>
+      <app-document-stamp-options documentId="portOfCall" />
       <div class="poc-history-wrap">
         <table class="poc-history-table">
           <colgroup>
