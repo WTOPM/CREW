@@ -50,9 +50,10 @@
   opacity: 0.9;
 }
 
-.nav-doc-port-icon {
-  font-size: 1.05rem;
-  line-height: 1;
+.nav-doc-settings-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
 }
 
 .doc-menu-item--icon {
