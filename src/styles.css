@@ -101,6 +101,15 @@ textarea {
   background: #fff;
 }
 
+/* Rank, nationality, port, gender, etc. — placeholder — select — */
+select:has(option[value='']:checked) {
+  color: var(--danger);
+}
+
+select option[value=''] {
+  color: var(--danger);
+}
+
 input:focus {
   outline: 2px solid var(--accent-soft);
   border-color: var(--accent);

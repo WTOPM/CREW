@@ -150,6 +150,13 @@ export interface CrewMember {
 
 export type CrewListKind = 'arrival' | 'departure';
 
+/** Summary shown before departure → arrival list sync. */
+export interface DepartureToArrivalSyncPreview {
+  onDeparture: number;
+  /** On arrival but not departure — will be moved to archive. */
+  arrivalOnlyToArchive: number;
+}
+
 /** Field 6 label and row values for crew-list PDF (passport vs seaman's book). */
 export const CREW_IDENTITY_PASSPORT = 'Passport';
 export const CREW_IDENTITY_SEAMANS_BOOK = "Seaman's Book";

@@ -14,7 +14,12 @@ import { DatePickerComponent } from '../../components/date-picker/date-picker.co
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { CrewDocumentService } from '../../services/crew-document.service';
 
-import { CrewListKind, CrewMember, ShipInfo } from '../../models/crew.models';
+import {
+  CrewListKind,
+  CrewMember,
+  DepartureToArrivalSyncPreview,
+  ShipInfo,
+} from '../../models/crew.models';
 
 import { PASSENGER_RANK, PassengerMember, PaxListKind } from '../../models/passenger.models';
 
@@ -22,6 +27,7 @@ import { StorageService } from '../../services/storage.service';
 
 import { ToastService } from '../../services/toast.service';
 
+import { filterCrewArchive, filterPassengerArchive } from '../../utils/archive-search.util';
 import { formatDisplayDate } from '../../utils/date.util';
 
 export type HomeListTab =
@@ -106,7 +112,16 @@ export class HomeComponent {
     this.paxListKind() === 'arrival' ? this.activePassengersArrival() : this.activePassengersDeparture(),
   );
 
+  protected readonly crewArchiveSearch = signal('');
+  protected readonly paxArchiveSearch = signal('');
 
+  protected readonly filteredArchivedCrew = computed(() =>
+    filterCrewArchive(this.archivedCrew(), this.crewArchiveSearch()),
+  );
+
+  protected readonly filteredArchivedPassengers = computed(() =>
+    filterPassengerArchive(this.archivedPassengers(), this.paxArchiveSearch()),
+  );
 
   protected editingId = signal<string | null>(null);
 
@@ -134,6 +149,23 @@ export class HomeComponent {
 
   protected formatDate = formatDisplayDate;
   protected readonly passengerRank = PASSENGER_RANK;
+
+  protected crewArchiveCountLabel(): string {
+    return this.archiveCountLabel(this.archivedCrew().length, this.filteredArchivedCrew().length, this.crewArchiveSearch());
+  }
+
+  protected paxArchiveCountLabel(): string {
+    return this.archiveCountLabel(
+      this.archivedPassengers().length,
+      this.filteredArchivedPassengers().length,
+      this.paxArchiveSearch(),
+    );
+  }
+
+  private archiveCountLabel(total: number, shown: number, query: string): string {
+    if (!query.trim()) return String(total);
+    return `${shown} / ${total}`;
+  }
 
 
 
@@ -310,7 +342,26 @@ export class HomeComponent {
 
 
   protected setListTab(tab: HomeListTab): void {
+    const prev = this.listTab();
     this.listTab.set(tab);
+    if (prev === 'crew-departure' && tab === 'crew-arrival') {
+      const n = this.storage.archiveArrivalOnlyCrew();
+      if (n > 0) {
+        this.toast.show(
+          `${n} crew moved to archive (on arrival, not on departure)`,
+          'info',
+        );
+      }
+    }
+    if (prev === 'pax-departure' && tab === 'pax-arrival') {
+      const n = this.storage.archiveArrivalOnlyPassengers();
+      if (n > 0) {
+        this.toast.show(
+          `${n} passengers moved to archive (on arrival, not on departure)`,
+          'info',
+        );
+      }
+    }
   }
 
 
@@ -420,27 +471,13 @@ export class HomeComponent {
 
 
   protected applyDepartureToArrival(): void {
-
-    if (
-
-      !confirm(
-
-        'Copy departure crew into arrival? People only on arrival (not on departure) will be removed from arrival.',
-
-      )
-
-    ) {
-
+    const preview = this.storage.previewDepartureToArrival();
+    if (!this.confirmDepartureToArrival(preview, 'crew')) {
       return;
-
     }
-
     this.storage.applyDepartureToArrival();
-
     this.listTab.set('crew-arrival');
-
-    this.toast.show('Arrival list updated from departure', 'success');
-
+    this.toast.show(this.departureToArrivalToast(preview, 'Crew'), 'success');
   }
 
 
@@ -454,27 +491,45 @@ export class HomeComponent {
 
 
   protected applyPassengerDepartureToArrival(): void {
-
-    if (
-
-      !confirm(
-
-        'Copy departure passengers into arrival? People only on arrival (not on departure) will be removed from arrival.',
-
-      )
-
-    ) {
-
+    const preview = this.storage.previewPassengerDepartureToArrival();
+    if (!this.confirmDepartureToArrival(preview, 'passengers')) {
       return;
-
     }
-
     this.storage.applyPassengerDepartureToArrival();
-
     this.listTab.set('pax-arrival');
+    this.toast.show(this.departureToArrivalToast(preview, 'Passengers'), 'success');
+  }
 
-    this.toast.show('Arrival list updated from departure', 'success');
+  private confirmDepartureToArrival(
+    preview: DepartureToArrivalSyncPreview,
+    label: 'crew' | 'passengers',
+  ): boolean {
+    if (preview.onDeparture === 0 && preview.arrivalOnlyToArchive === 0) {
+      this.toast.showError(`No active ${label} on departure or arrival`);
+      return false;
+    }
+    const lines = [
+      'Update arrival list for the next port?',
+      '',
+      `• On departure: ${preview.onDeparture} → will be on arrival`,
+    ];
+    if (preview.arrivalOnlyToArchive > 0) {
+      lines.push(
+        `• Only on arrival (not on departure): ${preview.arrivalOnlyToArchive} → moved to archive`,
+      );
+    }
+    return confirm(lines.join('\n'));
+  }
 
+  private departureToArrivalToast(
+    preview: DepartureToArrivalSyncPreview,
+    label: string,
+  ): string {
+    const parts = [`${label}: ${preview.onDeparture} from departure → arrival`];
+    if (preview.arrivalOnlyToArchive > 0) {
+      parts.push(`${preview.arrivalOnlyToArchive} to archive`);
+    }
+    return parts.join('; ');
   }
 
 

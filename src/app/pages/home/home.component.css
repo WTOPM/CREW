@@ -296,6 +296,39 @@
   box-shadow: 0 4px 12px rgb(100 116 139 / 20%);
 }
 
+.section-head--archive {
+  justify-content: flex-start;
+}
+
+.section-head--archive h2 {
+  flex-shrink: 0;
+}
+
+.archive-search-slot {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  padding: 0 0.75rem;
+}
+
+.archive-search-input {
+  width: 11rem;
+  max-width: min(11rem, 40vw);
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.82rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.archive-search-input:focus {
+  outline: 2px solid #93c5fd;
+  border-color: #3b82f6;
+}
+
 .crew-action--archive {
   color: #d97706;
 }

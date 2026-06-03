@@ -21,6 +21,7 @@ import {
   mergePorts,
   mergeUniqueList,
   CrewListKind,
+  DepartureToArrivalSyncPreview,
   CrewDocumentType,
   migrateCrewListFlags,
   normalizeCrewDocuments,
@@ -533,17 +534,57 @@ export class StorageService {
     void this.persist('saved');
   }
 
-  /** After leaving port: arrival crew becomes the departure list (for the next port). */
-  applyDepartureToArrival(): void {
+  /** Who would be affected by departure → arrival sync (active crew only). */
+  previewDepartureToArrival(): DepartureToArrivalSyncPreview {
+    const active = this.data().crew.filter((m) => !m.archived);
+    return {
+      onDeparture: active.filter((m) => m.onDepartureList).length,
+      arrivalOnlyToArchive: active.filter((m) => m.onArrivalList && !m.onDepartureList).length,
+    };
+  }
+
+  /**
+   * Next port: departure list → new arrival baseline.
+   * On arrival but not on departure → archive (not left in limbo).
+   */
+  applyDepartureToArrival(): DepartureToArrivalSyncPreview {
+    const preview = this.previewDepartureToArrival();
+    this.data.update((d) => ({
+      ...d,
+      crew: d.crew.map((m) => this.mapCrewDepartureToArrival(m)),
+    }));
+    void this.persist('saved');
+    return preview;
+  }
+
+  /** Active crew on arrival but not departure → archive. Returns count archived. */
+  archiveArrivalOnlyCrew(notify: 'silent' | 'saved' = 'saved'): number {
+    let count = 0;
     this.data.update((d) => ({
       ...d,
       crew: d.crew.map((m) => {
-        if (m.archived) return m;
-        const onList = m.onDepartureList;
-        return { ...m, onArrivalList: onList, onDepartureList: onList };
+        const patch = this.archiveIfArrivalOnly(m);
+        if (patch) count++;
+        return patch ?? m;
       }),
     }));
-    void this.persist('saved');
+    if (count > 0) void this.persist(notify);
+    return count;
+  }
+
+  private mapCrewDepartureToArrival(m: CrewMember): CrewMember {
+    if (m.archived) return m;
+    const archived = this.archiveIfArrivalOnly(m);
+    if (archived) return archived;
+    if (m.onDepartureList) {
+      return { ...m, onArrivalList: true, onDepartureList: true };
+    }
+    return m;
+  }
+
+  private archiveIfArrivalOnly(m: CrewMember): CrewMember | null {
+    if (m.archived || m.onDepartureList || !m.onArrivalList) return null;
+    return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
   }
 
   /**
@@ -675,16 +716,51 @@ export class StorageService {
     void this.persist('saved');
   }
 
-  applyPassengerDepartureToArrival(): void {
+  previewPassengerDepartureToArrival(): DepartureToArrivalSyncPreview {
+    const active = this.data().passengers.filter((m) => !m.archived);
+    return {
+      onDeparture: active.filter((m) => m.onDepartureList).length,
+      arrivalOnlyToArchive: active.filter((m) => m.onArrivalList && !m.onDepartureList).length,
+    };
+  }
+
+  applyPassengerDepartureToArrival(): DepartureToArrivalSyncPreview {
+    const preview = this.previewPassengerDepartureToArrival();
+    this.data.update((d) => ({
+      ...d,
+      passengers: d.passengers.map((m) => this.mapPassengerDepartureToArrival(m)),
+    }));
+    void this.persist('saved');
+    return preview;
+  }
+
+  archiveArrivalOnlyPassengers(notify: 'silent' | 'saved' = 'saved'): number {
+    let count = 0;
     this.data.update((d) => ({
       ...d,
       passengers: d.passengers.map((m) => {
-        if (m.archived) return m;
-        const onList = m.onDepartureList;
-        return { ...m, onArrivalList: onList, onDepartureList: onList };
+        const patch = this.archivePassengerIfArrivalOnly(m);
+        if (patch) count++;
+        return patch ?? m;
       }),
     }));
-    void this.persist('saved');
+    if (count > 0) void this.persist(notify);
+    return count;
+  }
+
+  private mapPassengerDepartureToArrival(m: PassengerMember): PassengerMember {
+    if (m.archived) return m;
+    const archived = this.archivePassengerIfArrivalOnly(m);
+    if (archived) return archived;
+    if (m.onDepartureList) {
+      return { ...m, onArrivalList: true, onDepartureList: true };
+    }
+    return m;
+  }
+
+  private archivePassengerIfArrivalOnly(m: PassengerMember): PassengerMember | null {
+    if (m.archived || m.onDepartureList || !m.onArrivalList) return null;
+    return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
   }
 
   removePassengerFromDepartureList(id: string): void {

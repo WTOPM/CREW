@@ -306,8 +306,20 @@
 
   @if (isCrewTab()) {
   <section class="card">
-    <div class="section-head">
-      <h2>Crew archive ({{ archivedCrew().length }})</h2>
+    <div class="section-head section-head--archive">
+      <h2>Crew archive ({{ crewArchiveCountLabel() }})</h2>
+      <div class="archive-search-slot">
+        @if (showArchive()) {
+          <input
+            type="search"
+            class="archive-search-input"
+            placeholder="Search"
+            aria-label="Search crew archive"
+            [ngModel]="crewArchiveSearch()"
+            (ngModelChange)="crewArchiveSearch.set($event)"
+          />
+        }
+      </div>
       <div class="section-head-actions">
         <button type="button" class="btn btn-primary" (click)="addMemberToArchive()">+ Add crew member</button>
         <button type="button" class="btn btn-secondary" (click)="showArchive.set(!showArchive())">
@@ -330,7 +342,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (member of archivedCrew(); track member.id) {
+            @for (member of filteredArchivedCrew(); track member.id) {
               <tr>
                 <td>{{ member.familyName }}</td>
                 <td>{{ member.givenNames }}</td>
@@ -376,8 +388,20 @@
   </section>
   } @else {
   <section class="card">
-    <div class="section-head">
-      <h2>Passenger archive ({{ archivedPassengers().length }})</h2>
+    <div class="section-head section-head--archive">
+      <h2>Passenger archive ({{ paxArchiveCountLabel() }})</h2>
+      <div class="archive-search-slot">
+        @if (showPaxArchive()) {
+          <input
+            type="search"
+            class="archive-search-input"
+            placeholder="Search"
+            aria-label="Search passenger archive"
+            [ngModel]="paxArchiveSearch()"
+            (ngModelChange)="paxArchiveSearch.set($event)"
+          />
+        }
+      </div>
       <div class="section-head-actions">
         <button type="button" class="btn btn-primary" (click)="addPassengerToArchive()">+ Add passenger</button>
         <button type="button" class="btn btn-secondary" (click)="showPaxArchive.set(!showPaxArchive())">
@@ -398,7 +422,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (member of archivedPassengers(); track member.id) {
+            @for (member of filteredArchivedPassengers(); track member.id) {
               <tr>
                 <td>{{ member.familyName }}</td>
                 <td>{{ member.givenNames }}</td>
