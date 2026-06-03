@@ -47,6 +47,41 @@
         <span>Charterer</span>
         <input [ngModel]="ship().charterer" (ngModelChange)="onShipChange('charterer', $event)" />
       </label>
+      <label>
+        <span>Sanitation Certificate No.</span>
+        <input
+          [ngModel]="ship().sanitationCertificateNo"
+          (ngModelChange)="onShipChange('sanitationCertificateNo', $event)"
+        />
+      </label>
+      <label>
+        <span>Sanitation certificate issue date</span>
+        <input
+          type="date"
+          [ngModel]="ship().sanitationCertificateIssueDate"
+          (ngModelChange)="onShipChange('sanitationCertificateIssueDate', $event)"
+        />
+      </label>
+      <label>
+        <span>Water test — port</span>
+        <app-port-select
+          [value]="ship().waterTestPort"
+          [ports]="ports()"
+          (valueChange)="onShipChange('waterTestPort', $event)"
+        />
+      </label>
+      <label>
+        <span>Water test — date</span>
+        <input type="date" [ngModel]="ship().waterTestDate" (ngModelChange)="onShipChange('waterTestDate', $event)" />
+      </label>
+      <label>
+        <span>Gross tonnage</span>
+        <input [ngModel]="ship().grossTonnage" (ngModelChange)="onShipChange('grossTonnage', $event)" />
+      </label>
+      <label>
+        <span>Net tonnage</span>
+        <input [ngModel]="ship().netTonnage" (ngModelChange)="onShipChange('netTonnage', $event)" />
+      </label>
     </div>
   </section>
 

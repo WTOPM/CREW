@@ -55,6 +55,12 @@ export interface ShipInfo {
   imoNo: string;
   type: string;
   charterer: string;
+  sanitationCertificateNo: string;
+  sanitationCertificateIssueDate: string;
+  waterTestPort: string;
+  waterTestDate: string;
+  grossTonnage: string;
+  netTonnage: string;
   dateOfArrival: string;
   dateOfDeparture: string;
   portOfCall: string;
@@ -62,16 +68,27 @@ export interface ShipInfo {
   nextPortOfCall: string;
 }
 
+export type PersonGender = 'MALE' | 'FEMALE';
+
+export function normalizePersonGender(value: unknown): PersonGender | '' {
+  const v = String(value ?? '').trim().toUpperCase();
+  if (v === 'MALE' || v === 'FEMALE') return v;
+  return '';
+}
+
 export interface CrewMember {
   id: string;
   familyName: string;
   givenNames: string;
   rank: string;
+  gender: PersonGender | '';
   nationality: string;
   dateOfBirth: string;
   placeOfBirth: string;
   passport: string;
+  passportPlaceOfIssue: string;
   seamansBook: string;
+  seamansBookPlaceOfIssue: string;
   passportIssueDate: string;
   passportExpiryDate: string;
   sbookIssueDate: string;
@@ -93,6 +110,10 @@ export interface CrewMember {
 }
 
 export type CrewListKind = 'arrival' | 'departure';
+
+/** Field 6 label and row values for crew-list PDF (passport vs seaman's book). */
+export const CREW_IDENTITY_PASSPORT = 'Passport';
+export const CREW_IDENTITY_SEAMANS_BOOK = "Seaman's Book";
 
 export interface CrewArrFormSettings {
   isArrival: boolean;
@@ -139,6 +160,12 @@ export function createEmptyShip(): ShipInfo {
     imoNo: '',
     type: '',
     charterer: '',
+    sanitationCertificateNo: '',
+    sanitationCertificateIssueDate: '',
+    waterTestPort: '',
+    waterTestDate: '',
+    grossTonnage: '',
+    netTonnage: '',
     dateOfArrival: '',
     dateOfDeparture: '',
     portOfCall: '',
@@ -153,11 +180,14 @@ export function createEmptyCrewMember(): CrewMember {
     familyName: '',
     givenNames: '',
     rank: '',
+    gender: '',
     nationality: '',
     dateOfBirth: '',
     placeOfBirth: '',
     passport: '',
+    passportPlaceOfIssue: '',
     seamansBook: '',
+    seamansBookPlaceOfIssue: '',
     passportIssueDate: '',
     passportExpiryDate: '',
     sbookIssueDate: '',
@@ -198,7 +228,7 @@ export function createDefaultCrewArrSettings(): CrewArrFormSettings {
   return {
     isArrival: true,
     pageNo: 1,
-    identityDocumentType: 'Passport',
+    identityDocumentType: CREW_IDENTITY_PASSPORT,
   };
 }
 
@@ -417,6 +447,7 @@ export function migrateCrewMember(
   migrateLegacyValidity(base, raw.sbookValidity, 'sbookIssueDate', 'sbookExpiryDate');
   migrateLegacyValidity(base, raw.cyprusValidity, 'cyprusIssueDate', 'cyprusExpiryDate');
   migrateLegacyValidity(base, raw.visaValidity, 'visaIssueDate', 'visaExpiryDate');
+  base.gender = normalizePersonGender(base.gender);
 
   return base;
 }

@@ -1,3 +1,4 @@
+import { normalizePersonGender, PersonGender } from './crew.models';
 import { parseValidityRange } from '../utils/date.util';
 
 /** Rank on IMO passenger list (field 9). */
@@ -24,6 +25,7 @@ export interface PassengerMember {
   id: string;
   familyName: string;
   givenNames: string;
+  gender: PersonGender | '';
   nationality: string;
   dateOfBirth: string;
   placeOfBirth: string;
@@ -48,6 +50,7 @@ export function createEmptyPassenger(): PassengerMember {
     id: crypto.randomUUID(),
     familyName: '',
     givenNames: '',
+    gender: '',
     nationality: '',
     dateOfBirth: '',
     placeOfBirth: '',
@@ -111,6 +114,7 @@ export function migratePassengerMember(
     base.passportIssueDate = issue;
     base.passportExpiryDate = expiry;
   }
+  base.gender = normalizePersonGender(base.gender);
   return base;
 }
 

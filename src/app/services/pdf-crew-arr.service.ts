@@ -1,6 +1,11 @@
 import { Injectable } from '@angular/core';
 import { jsPDF } from 'jspdf';
-import { AppData, CrewMember, formatCrewListName } from '../models/crew.models';
+import {
+  AppData,
+  CREW_IDENTITY_PASSPORT,
+  CrewMember,
+  formatCrewListName,
+} from '../models/crew.models';
 import { crewListPdfFileName, passengerListPdfFileName } from '../utils/pdf-filename.util';
 import { PassengerMember } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
@@ -65,7 +70,7 @@ export class PdfCrewArrService {
     const voyageDate = paxArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
     const pdfData: AppData = {
       ...data,
-      crewArr: { ...data.crewArr, isArrival: paxArr.isArrival, identityDocumentType: 'Passport' },
+      crewArr: { ...data.crewArr, isArrival: paxArr.isArrival, identityDocumentType: CREW_IDENTITY_PASSPORT },
     };
     return this.openPreview(pdfData, passengersToCrewRows(passengers), {
       title: IMO_PASSENGER_LIST_TITLE,

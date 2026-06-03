@@ -20,7 +20,11 @@ import { ToastService } from '../../services/toast.service';
 
 import { formatDisplayDate } from '../../utils/date.util';
 
-
+export type HomeListTab =
+  | 'crew-arrival'
+  | 'crew-departure'
+  | 'pax-arrival'
+  | 'pax-departure';
 
 @Component({
 
@@ -64,22 +68,27 @@ export class HomeComponent {
 
 
 
-  protected readonly crewTab = signal<CrewListKind>('arrival');
+  protected readonly listTab = signal<HomeListTab>('crew-arrival');
 
-  protected readonly listCrew = computed(() =>
+  protected readonly isCrewTab = computed(() => {
+    const t = this.listTab();
+    return t === 'crew-arrival' || t === 'crew-departure';
+  });
 
-    this.crewTab() === 'arrival' ? this.activeCrewArrival() : this.activeCrewDeparture(),
-
+  protected readonly crewListKind = computed((): CrewListKind =>
+    this.listTab() === 'crew-departure' ? 'departure' : 'arrival',
   );
 
+  protected readonly paxListKind = computed((): PaxListKind =>
+    this.listTab() === 'pax-departure' ? 'departure' : 'arrival',
+  );
 
-
-  protected readonly paxTab = signal<PaxListKind>('arrival');
+  protected readonly listCrew = computed(() =>
+    this.crewListKind() === 'arrival' ? this.activeCrewArrival() : this.activeCrewDeparture(),
+  );
 
   protected readonly listPassengers = computed(() =>
-
-    this.paxTab() === 'arrival' ? this.activePassengersArrival() : this.activePassengersDeparture(),
-
+    this.paxListKind() === 'arrival' ? this.activePassengersArrival() : this.activePassengersDeparture(),
   );
 
 
@@ -285,18 +294,8 @@ export class HomeComponent {
 
 
 
-  protected setCrewTab(tab: CrewListKind): void {
-
-    this.crewTab.set(tab);
-
-  }
-
-
-
-  protected setPaxTab(tab: PaxListKind): void {
-
-    this.paxTab.set(tab);
-
+  protected setListTab(tab: HomeListTab): void {
+    this.listTab.set(tab);
   }
 
 
@@ -307,7 +306,7 @@ export class HomeComponent {
 
     if (
 
-      this.crewTab() === 'departure' &&
+      this.crewListKind() === 'departure' &&
 
       member &&
 
@@ -345,7 +344,7 @@ export class HomeComponent {
 
     if (
 
-      this.paxTab() === 'departure' &&
+      this.paxListKind() === 'departure' &&
 
       member &&
 
@@ -379,7 +378,7 @@ export class HomeComponent {
 
   protected restoreFromArchive(id: string): void {
 
-    this.storage.restoreCrewMemberToList(id, this.crewTab());
+    this.storage.restoreCrewMemberToList(id, this.crewListKind());
 
     this.toast.showRestored();
 
@@ -389,7 +388,7 @@ export class HomeComponent {
 
   protected restorePassengerFromArchive(id: string): void {
 
-    this.storage.restorePassengerToList(id, this.paxTab());
+    this.storage.restorePassengerToList(id, this.paxListKind());
 
     this.toast.showRestored();
 
@@ -423,7 +422,7 @@ export class HomeComponent {
 
     this.storage.applyDepartureToArrival();
 
-    this.crewTab.set('arrival');
+    this.listTab.set('crew-arrival');
 
     this.toast.show('Arrival list updated from departure', 'success');
 
@@ -457,7 +456,7 @@ export class HomeComponent {
 
     this.storage.applyPassengerDepartureToArrival();
 
-    this.paxTab.set('arrival');
+    this.listTab.set('pax-arrival');
 
     this.toast.show('Arrival list updated from departure', 'success');
 
@@ -535,7 +534,7 @@ export class HomeComponent {
 
   protected dropCrew(event: CdkDragDrop<CrewMember[]>): void {
 
-    this.storage.reorderCrewList(this.crewTab(), event.previousIndex, event.currentIndex);
+    this.storage.reorderCrewList(this.crewListKind(), event.previousIndex, event.currentIndex);
 
   }
 
@@ -543,7 +542,7 @@ export class HomeComponent {
 
   protected dropPassengers(event: CdkDragDrop<PassengerMember[]>): void {
 
-    this.storage.reorderPassengerList(this.paxTab(), event.previousIndex, event.currentIndex);
+    this.storage.reorderPassengerList(this.paxListKind(), event.previousIndex, event.currentIndex);
 
   }
 
@@ -551,7 +550,7 @@ export class HomeComponent {
 
   protected restoreListLabel(): string {
 
-    return this.crewTab() === 'arrival' ? 'Add to arrival list' : 'Add to departure list';
+    return this.crewListKind() === 'arrival' ? 'Add to arrival list' : 'Add to departure list';
 
   }
 
@@ -559,7 +558,7 @@ export class HomeComponent {
 
   protected restorePassengerListLabel(): string {
 
-    return this.paxTab() === 'arrival' ? 'Add to arrival list' : 'Add to departure list';
+    return this.paxListKind() === 'arrival' ? 'Add to arrival list' : 'Add to departure list';
 
   }
 

@@ -1,9 +1,16 @@
-import { CrewMember, ShipInfo, parseCrewName } from '../models/crew.models';
+import {
+  CrewMember,
+  ShipInfo,
+  createEmptyShip,
+  normalizePersonGender,
+  parseCrewName,
+} from '../models/crew.models';
 
 /** Ship + 13 crew from reference-crew-list.xlsx (IMO FAL Form 5 sample). */
 export const SEED_VERSION = 7;
 
 export const SEED_SHIP: ShipInfo = {
+  ...createEmptyShip(),
   name: 'HANNA',
   callSign: '5BGV2',
   nationality: 'Cyprus',
@@ -18,8 +25,21 @@ export const SEED_SHIP: ShipInfo = {
   nextPortOfCall: 'La Spezia',
 };
 
-type SeedRow = Omit<CrewMember, 'id' | 'familyName' | 'givenNames' | 'onArrivalList' | 'onDepartureList'> & {
+type SeedRow = Omit<
+  CrewMember,
+  | 'id'
+  | 'familyName'
+  | 'givenNames'
+  | 'onArrivalList'
+  | 'onDepartureList'
+  | 'passportPlaceOfIssue'
+  | 'seamansBookPlaceOfIssue'
+  | 'gender'
+> & {
   fullName: string;
+  passportPlaceOfIssue?: string;
+  seamansBookPlaceOfIssue?: string;
+  gender?: string;
 };
 
 const SEED_CREW_RAW: SeedRow[] = [
@@ -316,6 +336,9 @@ export function createSeedCrew(): CrewMember[] {
     const { familyName, givenNames } = parseCrewName(fullName);
     return {
       ...rest,
+      passportPlaceOfIssue: rest.passportPlaceOfIssue ?? '',
+      seamansBookPlaceOfIssue: rest.seamansBookPlaceOfIssue ?? '',
+      gender: normalizePersonGender(rest.gender),
       familyName,
       givenNames,
       id: crypto.randomUUID(),

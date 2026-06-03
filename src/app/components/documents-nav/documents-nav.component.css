@@ -61,6 +61,10 @@
   gap: 0.45rem;
 }
 
+.doc-menu-panel--crew {
+  min-width: 13.5rem;
+}
+
 .doc-menu-panel {
   position: absolute;
   top: calc(100% + 0.25rem);

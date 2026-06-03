@@ -22,6 +22,25 @@
   border-radius: 8px;
 }
 
+.crew-tabs--four {
+  flex-wrap: wrap;
+}
+
+.crew-tabs--four .crew-tab {
+  flex: 1 1 calc(50% - 0.2rem);
+  min-width: 0;
+  font-size: 0.72rem;
+  padding: 0.5rem 0.35rem;
+}
+
+@media (min-width: 960px) {
+  .crew-tabs--four .crew-tab {
+    flex: 1;
+    font-size: 0.78rem;
+    padding: 0.55rem 0.5rem;
+  }
+}
+
 .crew-tab {
   flex: 1;
   display: inline-flex;

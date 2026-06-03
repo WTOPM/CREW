@@ -4,12 +4,18 @@
       CREW LIST
       <span class="doc-menu-chevron" aria-hidden="true">▾</span>
     </button>
-    <div class="doc-menu-panel" role="menu">
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(true)">
-        Arrival
+    <div class="doc-menu-panel doc-menu-panel--crew" role="menu">
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewListPassport(true)">
+        Passport Arrival
       </button>
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(false)">
-        Departure
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewListPassport(false)">
+        Passport Departure
+      </button>
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewListSeamansBook(true)">
+        Seaman's Book Arrival
+      </button>
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewListSeamansBook(false)">
+        Seaman's Book Departure
       </button>
     </div>
   </div>

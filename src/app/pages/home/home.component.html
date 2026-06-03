@@ -46,14 +46,14 @@
   </section>
 
   <section class="card crew-lists-card">
-    <div class="crew-tabs" role="tablist">
+    <div class="crew-tabs crew-tabs--four" role="tablist">
       <button
         type="button"
         class="crew-tab"
         role="tab"
-        [class.crew-tab--active]="crewTab() === 'arrival'"
-        [attr.aria-selected]="crewTab() === 'arrival'"
-        (click)="setCrewTab('arrival')"
+        [class.crew-tab--active]="listTab() === 'crew-arrival'"
+        [attr.aria-selected]="listTab() === 'crew-arrival'"
+        (click)="setListTab('crew-arrival')"
       >
         CREW LIST ARRIVAL
         <span class="crew-tab-count">{{ activeCrewArrival().length }}</span>
@@ -62,25 +62,48 @@
         type="button"
         class="crew-tab"
         role="tab"
-        [class.crew-tab--active]="crewTab() === 'departure'"
-        [attr.aria-selected]="crewTab() === 'departure'"
-        (click)="setCrewTab('departure')"
+        [class.crew-tab--active]="listTab() === 'crew-departure'"
+        [attr.aria-selected]="listTab() === 'crew-departure'"
+        (click)="setListTab('crew-departure')"
       >
         CREW LIST DEPARTURE
         <span class="crew-tab-count">{{ activeCrewDeparture().length }}</span>
       </button>
+      <button
+        type="button"
+        class="crew-tab"
+        role="tab"
+        [class.crew-tab--active]="listTab() === 'pax-arrival'"
+        [attr.aria-selected]="listTab() === 'pax-arrival'"
+        (click)="setListTab('pax-arrival')"
+      >
+        PASSENGER LIST ARRIVAL
+        <span class="crew-tab-count">{{ activePassengersArrival().length }}</span>
+      </button>
+      <button
+        type="button"
+        class="crew-tab"
+        role="tab"
+        [class.crew-tab--active]="listTab() === 'pax-departure'"
+        [attr.aria-selected]="listTab() === 'pax-departure'"
+        (click)="setListTab('pax-departure')"
+      >
+        PASSENGER LIST DEPARTURE
+        <span class="crew-tab-count">{{ activePassengersDeparture().length }}</span>
+      </button>
     </div>
 
+    @if (isCrewTab()) {
     <div class="section-head">
       <h2>
-        @if (crewTab() === 'arrival') {
+        @if (crewListKind() === 'arrival') {
           Crew list — Arrival ({{ listCrew().length }})
         } @else {
           Crew list — Departure ({{ listCrew().length }})
         }
       </h2>
       <div class="section-head-actions">
-        @if (crewTab() === 'arrival') {
+        @if (crewListKind() === 'arrival') {
           <button type="button" class="btn btn-primary" (click)="addMemberToArrival()">+ Add crew member</button>
         } @else {
           <button type="button" class="btn btn-secondary" (click)="syncDepartureFromArrival()">
@@ -133,7 +156,7 @@
                     <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </button>
-                @if (crewTab() === 'departure') {
+                @if (crewListKind() === 'departure') {
                   <button
                     type="button"
                     class="crew-action crew-action--off-departure"
@@ -146,7 +169,7 @@
                     </svg>
                   </button>
                 }
-                @if (crewTab() === 'arrival' || !member.onArrivalList) {
+                @if (crewListKind() === 'arrival' || !member.onArrivalList) {
                   <button
                     type="button"
                     class="crew-action crew-action--archive"
@@ -165,44 +188,17 @@
         </tbody>
       </table>
     </div>
-  </section>
-
-  <section class="card crew-lists-card">
-    <div class="crew-tabs" role="tablist">
-      <button
-        type="button"
-        class="crew-tab"
-        role="tab"
-        [class.crew-tab--active]="paxTab() === 'arrival'"
-        [attr.aria-selected]="paxTab() === 'arrival'"
-        (click)="setPaxTab('arrival')"
-      >
-        PASSENGER LIST ARRIVAL
-        <span class="crew-tab-count">{{ activePassengersArrival().length }}</span>
-      </button>
-      <button
-        type="button"
-        class="crew-tab"
-        role="tab"
-        [class.crew-tab--active]="paxTab() === 'departure'"
-        [attr.aria-selected]="paxTab() === 'departure'"
-        (click)="setPaxTab('departure')"
-      >
-        PASSENGER LIST DEPARTURE
-        <span class="crew-tab-count">{{ activePassengersDeparture().length }}</span>
-      </button>
-    </div>
-
+    } @else {
     <div class="section-head">
       <h2>
-        @if (paxTab() === 'arrival') {
+        @if (paxListKind() === 'arrival') {
           Passenger list — Arrival ({{ listPassengers().length }})
         } @else {
           Passenger list — Departure ({{ listPassengers().length }})
         }
       </h2>
       <div class="section-head-actions">
-        @if (paxTab() === 'arrival') {
+        @if (paxListKind() === 'arrival') {
           <button type="button" class="btn btn-primary" (click)="addPassengerToArrival()">+ Add passenger</button>
         } @else {
           <button type="button" class="btn btn-secondary" (click)="syncPassengerDepartureFromArrival()">
@@ -251,7 +247,7 @@
                     <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </button>
-                @if (paxTab() === 'departure') {
+                @if (paxListKind() === 'departure') {
                   <button
                     type="button"
                     class="crew-action crew-action--off-departure"
@@ -264,7 +260,7 @@
                     </svg>
                   </button>
                 }
-                @if (paxTab() === 'arrival' || !member.onArrivalList) {
+                @if (paxListKind() === 'arrival' || !member.onArrivalList) {
                   <button
                     type="button"
                     class="crew-action crew-action--archive"
@@ -283,8 +279,10 @@
         </tbody>
       </table>
     </div>
+    }
   </section>
 
+  @if (isCrewTab()) {
   <section class="card">
     <div class="section-head">
       <h2>Crew archive ({{ archivedCrew().length }})</h2>
@@ -346,7 +344,7 @@
       </div>
     }
   </section>
-
+  } @else {
   <section class="card">
     <div class="section-head">
       <h2>Passenger archive ({{ archivedPassengers().length }})</h2>
@@ -406,6 +404,7 @@
       </div>
     }
   </section>
+  }
 
   @if (editDraft(); as draft) {
     <div class="modal-backdrop" (click)="cancelEdit()">
@@ -441,6 +440,14 @@
                 />
               </label>
               <label>
+                <span>Gender</span>
+                <select [ngModel]="draft.gender" (ngModelChange)="updateDraft('gender', $event)">
+                  <option value="">— select —</option>
+                  <option value="MALE">MALE</option>
+                  <option value="FEMALE">FEMALE</option>
+                </select>
+              </label>
+              <label>
                 <span>Date of birth</span>
                 <input type="date" [ngModel]="draft.dateOfBirth" (ngModelChange)="updateDraft('dateOfBirth', $event)" />
               </label>
@@ -459,6 +466,10 @@
                 <input [ngModel]="draft.passport" (ngModelChange)="updateDraft('passport', $event)" />
               </label>
               <label>
+                <span>Place of issue</span>
+                <input [ngModel]="draft.passportPlaceOfIssue" (ngModelChange)="updateDraft('passportPlaceOfIssue', $event)" />
+              </label>
+              <label>
                 <span>Issue date</span>
                 <input type="date" [ngModel]="draft.passportIssueDate" (ngModelChange)="updateDraft('passportIssueDate', $event)" />
               </label>
@@ -475,6 +486,10 @@
               <label>
                 <span>S/book No.</span>
                 <input [ngModel]="draft.seamansBook" (ngModelChange)="updateDraft('seamansBook', $event)" />
+              </label>
+              <label>
+                <span>Place of issue</span>
+                <input [ngModel]="draft.seamansBookPlaceOfIssue" (ngModelChange)="updateDraft('seamansBookPlaceOfIssue', $event)" />
               </label>
               <label>
                 <span>Issue date</span>
@@ -574,6 +589,14 @@
                   [options]="nationalities()"
                   (valueChange)="updatePassengerDraft('nationality', $event)"
                 />
+              </label>
+              <label>
+                <span>Gender</span>
+                <select [ngModel]="draft.gender" (ngModelChange)="updatePassengerDraft('gender', $event)">
+                  <option value="">— select —</option>
+                  <option value="MALE">MALE</option>
+                  <option value="FEMALE">FEMALE</option>
+                </select>
               </label>
               <label>
                 <span>Date of birth</span>

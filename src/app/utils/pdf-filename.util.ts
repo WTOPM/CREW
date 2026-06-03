@@ -30,6 +30,18 @@ export function crewListPdfFileName(
   return `Crew_List_${kind}_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function crewListIdentityPdfFileName(
+  shipName: string,
+  portOfCall: string,
+  voyageDate: string,
+  isArrival: boolean,
+  identityDocumentType: string,
+): string {
+  const kind = isArrival ? 'Arrival' : 'Departure';
+  const doc = identityDocumentType.toLowerCase().includes('seaman') ? 'Seamans_Book' : 'Passport';
+  return `Crew_List_${doc}_${kind}_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function portOfCallPdfFileName(shipName: string, voyageDate: string): string {
   return `Port_of_Call_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
 }

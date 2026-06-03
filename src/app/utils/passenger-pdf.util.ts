@@ -9,6 +9,7 @@ export function passengersToCrewRows(passengers: PassengerMember[]): CrewMember[
     familyName: p.familyName,
     givenNames: p.givenNames,
     rank: PASSENGER_RANK,
+    gender: p.gender,
     nationality: p.nationality,
     dateOfBirth: p.dateOfBirth,
     placeOfBirth: p.placeOfBirth,

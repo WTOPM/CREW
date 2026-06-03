@@ -1,6 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { AppData, PortCallHistoryEntry, portCountry } from '../../models/crew.models';
+import {
+  AppData,
+  CREW_IDENTITY_PASSPORT,
+  CREW_IDENTITY_SEAMANS_BOOK,
+  PortCallHistoryEntry,
+  portCountry,
+} from '../../models/crew.models';
+import { crewListIdentityPdfFileName } from '../../utils/pdf-filename.util';
 import { PartialDateInputComponent } from '../partial-date-input/partial-date-input.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
@@ -44,10 +51,33 @@ export class DocumentsNavComponent {
     }
   }
 
-  protected openCrewList(isArrival: boolean): void {
+  protected openCrewListPassport(isArrival: boolean): void {
+    this.openCrewListWithIdentity(isArrival, CREW_IDENTITY_PASSPORT);
+  }
+
+  protected openCrewListSeamansBook(isArrival: boolean): void {
+    this.openCrewListWithIdentity(isArrival, CREW_IDENTITY_SEAMANS_BOOK);
+  }
+
+  private openCrewListWithIdentity(isArrival: boolean, identityDocumentType: string): void {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
-    const ok = this.crewPdf.openPreview(this.appData(isArrival), crew);
+    const base = this.appData(isArrival);
+    const pdfData: AppData = {
+      ...base,
+      crewArr: { ...base.crewArr, isArrival, identityDocumentType },
+    };
+    const { ship } = base;
+    const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const ok = this.crewPdf.openPreview(pdfData, crew, {
+      fileName: crewListIdentityPdfFileName(
+        ship.name,
+        ship.portOfCall,
+        voyageDate,
+        isArrival,
+        identityDocumentType,
+      ),
+    });
     if (!ok) {
       this.toast.showError('Allow pop-ups to open Crew List preview');
     }
