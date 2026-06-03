@@ -83,9 +83,29 @@
               <td>{{ member.passport }}</td>
               <td>{{ formatDate(member.joiningDate) }}</td>
               <td>{{ member.joiningPort }}</td>
-              <td class="actions">
-                <button type="button" class="btn-link" (click)="startEdit(member)">Изменить</button>
-                <button type="button" class="btn-link warn" (click)="archive(member.id)">В архив</button>
+              <td class="actions actions-icons">
+                <button
+                  type="button"
+                  class="crew-action crew-action--edit"
+                  title="Edit"
+                  aria-label="Edit"
+                  (click)="startEdit(member)"
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="crew-action crew-action--archive"
+                  title="Archive"
+                  aria-label="Archive"
+                  (click)="archive(member.id)"
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
               </td>
             </tr>
           }
@@ -122,9 +142,29 @@
                 <td>{{ member.givenNames }}</td>
                 <td>{{ member.rank }}</td>
                 <td>{{ member.nationality }}</td>
-                <td class="actions">
-                  <button type="button" class="btn-link" (click)="restore(member.id)">Вернуть в экипаж</button>
-                  <button type="button" class="btn-link warn" (click)="remove(member.id)">Удалить</button>
+                <td class="actions actions-icons">
+                  <button
+                    type="button"
+                    class="crew-action crew-action--restore"
+                    title="Restore to crew"
+                    aria-label="Restore to crew"
+                    (click)="restore(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M3 10h10a4 4 0 0 1 4 4v0a4 4 0 0 1-4 4H5M3 10l4-4M3 10l4 4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="crew-action crew-action--delete"
+                    title="Delete permanently"
+                    aria-label="Delete permanently"
+                    (click)="remove(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
                 </td>
               </tr>
             }
@@ -189,7 +229,7 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Отмена</button>
-          <button type="button" class="btn btn-primary" (click)="saveEdit()">Сохранить</button>
+          <button type="button" class="btn btn-save" (click)="saveEdit()">Сохранить</button>
         </div>
       </div>
     </div>

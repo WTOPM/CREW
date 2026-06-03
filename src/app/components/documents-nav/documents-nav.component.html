@@ -13,6 +13,116 @@
       </button>
     </div>
   </div>
-  <button type="button" class="nav-doc-btn" (click)="openPortOfCall()">PORT OF CALL</button>
+
+  <div class="doc-menu">
+    <button type="button" class="nav-doc-btn" aria-haspopup="true">
+      PORT OF CALL
+      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+    </button>
+    <div class="doc-menu-panel" role="menu">
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openPortOfCallPdf()">
+        Port of Call
+      </button>
+      <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openPortOfCallSettings()">
+        <span class="nav-doc-port-icon" aria-hidden="true">⚓</span>
+        Settings
+      </button>
+    </div>
+  </div>
+
   <button type="button" class="nav-doc-btn" (click)="openMdh()">MDH</button>
 </div>
+
+@if (showPortOfCallSettings()) {
+  <div class="modal-backdrop" (click)="closePortOfCallSettings()">
+    <div class="modal modal-wide poc-modal" (click)="$event.stopPropagation()">
+      <h3>Port of Call Settings</h3>
+      <p class="section-desc">
+        PDF includes the {{ portOfCall().pdfRowCount }} most recent port calls (newest first).
+        {{ pocRowsPerPage }} rows per page; extra calls continue on the next page. Header comes from the home screen.
+      </p>
+      <div class="poc-settings-bar">
+        <label>
+          <span>Ports in PDF</span>
+          <input
+            type="number"
+            [min]="pocMinPorts"
+            [max]="pocMaxPorts"
+            [ngModel]="portOfCall().pdfRowCount"
+            (ngModelChange)="onPdfPortCountChange($event)"
+          />
+        </label>
+        <button type="button" class="btn btn-primary" (click)="addPortCallRow()">+ Add port call</button>
+      </div>
+      <div class="table-wrap poc-history-wrap">
+        <table class="poc-history-table">
+          <thead>
+            <tr>
+              <th>Port</th>
+              <th>Country</th>
+              <th>Arr. date</th>
+              <th>Arr. time</th>
+              <th>Dep. date</th>
+              <th>Dep. time</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of portCallHistory(); track row.id) {
+              <tr>
+                <td>
+                  <app-port-select
+                    [value]="row.portName"
+                    [ports]="ports()"
+                    (valueChange)="onPortCallPortChange(row.id, $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    [ngModel]="row.country"
+                    (ngModelChange)="updatePortCallField(row.id, 'country', $event)"
+                    placeholder="ITALY"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="date"
+                    [ngModel]="row.arrivalDate"
+                    (ngModelChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    [ngModel]="row.arrivalTime"
+                    (ngModelChange)="updatePortCallField(row.id, 'arrivalTime', $event)"
+                    placeholder="02:00"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="date"
+                    [ngModel]="row.departureDate"
+                    (ngModelChange)="updatePortCallField(row.id, 'departureDate', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    [ngModel]="row.departureTime"
+                    (ngModelChange)="updatePortCallField(row.id, 'departureTime', $event)"
+                    placeholder="09:00"
+                  />
+                </td>
+                <td class="actions">
+                  <button type="button" class="btn-link warn" (click)="removePortCallRow(row.id)">×</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closePortOfCallSettings()">Done</button>
+      </div>
+    </div>
+  </div>
+}

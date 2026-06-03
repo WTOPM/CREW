@@ -52,13 +52,8 @@
 
   <section class="card">
     <h2>Справочники</h2>
-    <p class="section-desc">Справочник портов (название, код, страна) и история заходов для формы Port of Call.</p>
+    <p class="section-desc">Справочник портов (название, код, страна).</p>
     <div class="settings-tiles">
-      <button type="button" class="settings-tile" (click)="openPortOfCall()">
-        <span class="tile-icon" aria-hidden="true">📋</span>
-        <span class="tile-title">Port of Call</span>
-        <span class="tile-count">{{ portCallHistory().length }} заходов · {{ portOfCall().pdfRowCount }} в PDF</span>
-      </button>
       <button type="button" class="settings-tile" (click)="openPorts()">
         <span class="tile-icon" aria-hidden="true">⚓</span>
         <span class="tile-title">Ports</span>
@@ -80,12 +75,12 @@
 
 @if (showPortsModal()) {
   <div class="modal-backdrop" (click)="closePorts()">
-    <div class="modal modal-narrow" (click)="$event.stopPropagation()">
-      <h3>Ports — редактирование</h3>
-      <div class="list-add port-add">
-        <input placeholder="Название (Napoli)" [ngModel]="newPortName()" (ngModelChange)="newPortName.set($event)" />
-        <input placeholder="Код (ITNAP)" [ngModel]="newPortCode()" (ngModelChange)="newPortCode.set($event)" />
-        <input placeholder="Страна (ITALY)" [ngModel]="newPortCountry()" (ngModelChange)="newPortCountry.set($event)" (keyup.enter)="addPortItem()" />
+    <div class="modal modal-ports" (click)="$event.stopPropagation()">
+      <h3>Ports</h3>
+      <div class="port-add">
+        <input placeholder="NAME" [ngModel]="newPortName()" (ngModelChange)="newPortName.set($event)" />
+        <input placeholder="UN/LOCODE" [ngModel]="newPortCode()" (ngModelChange)="newPortCode.set($event)" />
+        <input placeholder="COUNTRY" [ngModel]="newPortCountry()" (ngModelChange)="newPortCountry.set($event)" (keyup.enter)="addPortItem()" />
         <button type="button" class="btn btn-primary" (click)="addPortItem()">+</button>
       </div>
       <ul class="ref-list ref-list-tall">
@@ -159,95 +154,3 @@
   </div>
 }
 
-@if (showPortOfCallModal()) {
-  <div class="modal-backdrop" (click)="closePortOfCall()">
-    <div class="modal modal-wide" (click)="$event.stopPropagation()">
-      <h3>Port of Call — история заходов</h3>
-      <p class="section-desc">
-        В PDF попадают {{ portOfCall().pdfRowCount }} последних заходов (по дате прихода). Шапка формы — данные судна и текущего рейса с главной.
-      </p>
-      <div class="poc-settings-bar">
-        <label>
-          <span>Строк в PDF</span>
-          <input
-            type="number"
-            [min]="pocMinRows"
-            [max]="pocMaxRows"
-            [ngModel]="portOfCall().pdfRowCount"
-            (ngModelChange)="onPdfRowCountChange($event)"
-          />
-        </label>
-        <button type="button" class="btn btn-primary" (click)="addPortCallRow()">+ Добавить заход</button>
-      </div>
-      <div class="table-wrap poc-history-wrap">
-        <table class="poc-history-table">
-          <thead>
-            <tr>
-              <th>Порт</th>
-              <th>Country</th>
-              <th>Arr. date</th>
-              <th>Arr. time</th>
-              <th>Dep. date</th>
-              <th>Dep. time</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of portCallHistory(); track row.id) {
-              <tr>
-                <td>
-                  <app-port-select
-                    [value]="row.portName"
-                    [ports]="ports()"
-                    (valueChange)="onPortCallPortChange(row.id, $event)"
-                  />
-                </td>
-                <td>
-                  <input
-                    [ngModel]="row.country"
-                    (ngModelChange)="updatePortCallField(row.id, 'country', $event)"
-                    placeholder="ITALY"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="date"
-                    [ngModel]="row.arrivalDate"
-                    (ngModelChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
-                  />
-                </td>
-                <td>
-                  <input
-                    [ngModel]="row.arrivalTime"
-                    (ngModelChange)="updatePortCallField(row.id, 'arrivalTime', $event)"
-                    placeholder="02:00"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="date"
-                    [ngModel]="row.departureDate"
-                    (ngModelChange)="updatePortCallField(row.id, 'departureDate', $event)"
-                  />
-                </td>
-                <td>
-                  <input
-                    [ngModel]="row.departureTime"
-                    (ngModelChange)="updatePortCallField(row.id, 'departureTime', $event)"
-                    placeholder="09:00"
-                  />
-                </td>
-                <td class="actions">
-                  <button type="button" class="btn-link warn" (click)="removePortCallRow(row.id)">×</button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-primary" (click)="closePortOfCall()">Готово</button>
-      </div>
-    </div>
-  </div>
-}

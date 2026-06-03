@@ -3,42 +3,62 @@ import { jsPDF } from 'jspdf';
 import {
   AppData,
   PortCallHistoryEntry,
+  chunkPortCallHistoryForPdf,
   formatPortCallPortName,
   selectPortCallHistoryForPdf,
 } from '../models/crew.models';
 import { formatDisplayDate } from '../utils/date.util';
 import {
-  POC_BODY_BOTTOM,
-  POC_BODY_TOP,
-  POC_COL_BOUNDS,
+  POC_BORDER_WIDTH_PX,
+  POC_DATA_COL_COUNT,
+  POC_DATA_COL_KEYS,
+  POC_DATA_FIRST_CELL_ID,
+  POC_DATA_ROW_COUNT,
   POC_FRAME_LABELS,
-  POC_HEADER_ROWS,
-  POC_LINE_PT,
-  POC_PAGE,
-  POC_ROW_LINE_GRAY,
-  POC_ROW_LINE_PT,
-  POC_SIGNATURE_Y,
+  POC_HEADER_LABEL_SHIFT_UP_PT,
+  POC_HEADER_VALUE_SHIFT_DOWN_PT,
+  POC_HEADER_VALUE_CELLS,
+  POC_LOCAL_TIME_SHIFT_DOWN_PT,
   POC_STATIC_LABELS,
-  POC_TABLE,
-  pocColRect,
-  pocRect,
-  type PocRect,
+  POC_VOY_NO_8_SHIFT_UP_PT,
+  POC_VOY_NO_BOTTOM_SHIFT_DOWN_PT,
+  POC_H_LINES,
+  POC_LABEL_SPECS,
+  POC_SIGNATURE_CELL_ID,
+  POC_SIGNATURE_LINE_GAP_PT,
+  POC_SIGNATURE_LINE_WIDTH_PT,
+  POC_SRC,
+  POC_TEMPLATE_ROW_COUNT,
+  POC_TITLE_FONT_PT,
+  POC_TITLE_Y_SRC,
+  POC_V_LINES,
+  buildPocGridCells,
+  createPocScale,
+  pocCellById,
+  pocPortDataCellId,
+  type PocCellTextLine,
+  type PocGridCell,
+  type PocLineH,
+  type PocScale,
 } from './port-of-call-coordinates';
+
+/** Set true to overlay red cell IDs for layout checks. */
+const POC_SHOW_CELL_NUMBERS = false;
 
 @Injectable({ providedIn: 'root' })
 export class PdfPortOfCallService {
   build(data: AppData): jsPDF {
-    const rowCount = data.portOfCall.pdfRowCount;
-    const rows = selectPortCallHistoryForPdf(data.portCallHistory, rowCount);
-
+    const selected = selectPortCallHistoryForPdf(data.portCallHistory, data.portOfCall.pdfRowCount);
+    const pages = chunkPortCallHistoryForPdf(selected, POC_TEMPLATE_ROW_COUNT);
+    const s = createPocScale();
+    const cells = buildPocGridCells();
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    this.drawPageBackground(doc);
-    this.drawTitle(doc);
-    this.drawGrid(doc, rowCount);
-    this.drawStaticLabels(doc);
-    this.fillHeader(doc, data);
-    this.fillHistoryRows(doc, rows, rowCount);
-    this.drawSignatureLabel(doc);
+
+    pages.forEach((pageRows, pageIndex) => {
+      if (pageIndex > 0) doc.addPage();
+      this.drawPage(doc, s, cells, data, pageRows, pageIndex * POC_DATA_ROW_COUNT);
+    });
+
     return doc;
   }
 
@@ -54,161 +74,272 @@ export class PdfPortOfCallService {
     return true;
   }
 
+  private drawPage(
+    doc: jsPDF,
+    s: PocScale,
+    cells: PocGridCell[],
+    data: AppData,
+    pageRows: PortCallHistoryEntry[],
+    voyRowOffset: number,
+  ): void {
+    this.drawPageBackground(doc);
+    this.drawTitle(doc, s);
+    this.drawGrid(doc, s);
+    this.drawStaticLabels(doc, s, cells);
+    this.fillHeaderValues(doc, s, cells, data);
+    this.fillPortRows(doc, s, cells, pageRows, voyRowOffset);
+    if (POC_SHOW_CELL_NUMBERS) {
+      this.drawCellNumbers(doc, s, cells);
+    }
+    this.drawSignatureLabel(doc, s, cells);
+  }
+
   private drawPageBackground(doc: jsPDF): void {
+    const w = doc.internal.pageSize.getWidth();
+    const h = doc.internal.pageSize.getHeight();
     doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, POC_PAGE.w, POC_PAGE.h, 'F');
+    doc.rect(0, 0, w, h, 'F');
   }
 
-  private drawTitle(doc: jsPDF): void {
-    const centerX = (POC_TABLE.left + POC_TABLE.right) / 2;
+  private drawTitle(doc: jsPDF, s: PocScale): void {
+    const centerX = s.sx((POC_SRC.minX + POC_SRC.maxX) / 2);
+    const y = s.sy(POC_TITLE_Y_SRC);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text(POC_FRAME_LABELS.title, centerX, 93, { align: 'center' });
-  }
-
-  private drawGrid(doc: jsPDF, rowCount: number): void {
-    const { left, right, top, bottom } = POC_TABLE;
+    doc.setFontSize(POC_TITLE_FONT_PT);
+    doc.text(POC_FRAME_LABELS.title, centerX, y, { align: 'center' });
+    const w = doc.getTextWidth(POC_FRAME_LABELS.title);
+    doc.setLineWidth(0.75);
     doc.setDrawColor(0);
-    doc.setLineWidth(POC_LINE_PT);
-    doc.rect(left, top, right - left, bottom - top);
+    doc.line(centerX - w / 2, y + 3, centerX + w / 2, y + 3);
+  }
 
-    const colXs = [82, 205, 304, 368, 432, 496];
-    for (const x of colXs) {
-      doc.line(x, POC_HEADER_ROWS.row1.top, x, bottom);
-    }
-
-    for (const y of [POC_HEADER_ROWS.row1.top, POC_HEADER_ROWS.row2.top, POC_HEADER_ROWS.tableHead.top, POC_BODY_TOP]) {
-      doc.line(left, y, right, y);
-    }
-
-    const rowH = (POC_BODY_BOTTOM - POC_BODY_TOP) / rowCount;
-    doc.setDrawColor(POC_ROW_LINE_GRAY);
-    doc.setLineWidth(POC_ROW_LINE_PT);
-    for (let i = 1; i < rowCount; i++) {
-      const y = POC_BODY_TOP + rowH * i;
-      doc.line(left, y, right, y);
-    }
-
+  private drawGrid(doc: jsPDF, s: PocScale): void {
     doc.setDrawColor(0);
-    doc.setLineWidth(POC_LINE_PT);
-    doc.line(left, POC_BODY_BOTTOM, right, POC_BODY_BOTTOM);
+    doc.setFillColor(0, 0, 0);
+
+    const outer = s.rect(POC_SRC.minX, POC_SRC.minY, POC_SRC.maxX, POC_SRC.maxY);
+    doc.setLineWidth(s.linePt(POC_BORDER_WIDTH_PX));
+    doc.rect(outer.x, outer.y, outer.w, outer.h, 'S');
+
+    for (const line of POC_H_LINES) {
+      this.drawHorizontalBand(doc, s, line);
+    }
+    for (const line of POC_V_LINES) {
+      this.drawVerticalBand(doc, s, line);
+    }
   }
 
-  private drawStaticLabels(doc: jsPDF): void {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-
-    this.labelInRect(doc, pocRect(63, 118, 205, 132), POC_STATIC_LABELS.shipName);
-    this.labelInRect(doc, pocRect(205, 118, 304, 132), POC_STATIC_LABELS.callSign);
-    this.labelInRect(doc, pocRect(304, 118, 432, 132), POC_STATIC_LABELS.portOfArrival);
-    this.labelInRect(doc, pocRect(432, 118, 560, 132), POC_STATIC_LABELS.dateOfArrival);
-
-    this.labelInRect(doc, pocRect(63, 143, 205, 156), POC_STATIC_LABELS.nationality);
-    this.labelInRect(doc, pocRect(205, 143, 304, 156), POC_STATIC_LABELS.homeport);
-    this.labelInRect(doc, pocRect(304, 143, 432, 156), POC_STATIC_LABELS.arrivedFrom);
-    this.labelInRect(doc, pocRect(432, 143, 560, 156), POC_STATIC_LABELS.sailingTo);
-
-    this.labelInRect(doc, pocColRect('voy', 166, 178), POC_STATIC_LABELS.voyNo);
-    this.labelInRect(doc, pocColRect('port', 166, 178), POC_STATIC_LABELS.lastPort);
-    this.labelInRect(doc, pocColRect('country', 166, 178), POC_STATIC_LABELS.country);
-    this.labelInRect(doc, pocColRect('arrDate', 166, 178), POC_STATIC_LABELS.arrDate);
-    this.labelInRect(doc, pocColRect('arrTime', 166, 178), POC_STATIC_LABELS.arrTime);
-    this.labelInRect(doc, pocColRect('arrTime', 178, 188), POC_STATIC_LABELS.arrTimeSub, 7);
-    this.labelInRect(doc, pocColRect('depDate', 166, 178), POC_STATIC_LABELS.depDate);
-    this.labelInRect(doc, pocColRect('depTime', 166, 178), POC_STATIC_LABELS.depTime);
-    this.labelInRect(doc, pocColRect('depTime', 178, 188), POC_STATIC_LABELS.depTimeSub, 7);
+  private drawHorizontalBand(doc: jsPDF, s: PocScale, line: PocLineH): void {
+    const r = s.rect(POC_SRC.minX, line.y1, POC_SRC.maxX, line.y2);
+    if (r.h < 0.25) return;
+    doc.rect(r.x, r.y, r.w, r.h, 'F');
   }
 
-  private drawSignatureLabel(doc: jsPDF): void {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.text(POC_FRAME_LABELS.signature, POC_TABLE.left + 4, POC_SIGNATURE_Y);
+  private drawVerticalBand(
+    doc: jsPDF,
+    s: PocScale,
+    line: { x1: number; x2: number; y1: number; y2: number },
+  ): void {
+    const r = s.rect(line.x1, line.y1, line.x2, line.y2);
+    if (r.w < 0.25) return;
+    doc.rect(r.x, r.y, r.w, r.h, 'F');
   }
 
-  private fillHeader(doc: jsPDF, data: AppData): void {
+  private drawStaticLabels(doc: jsPDF, s: PocScale, cells: PocGridCell[]): void {
+    for (let cellId = 2; cellId < POC_LABEL_SPECS.length; cellId++) {
+      const spec = POC_LABEL_SPECS[cellId];
+      if (!spec?.length) continue;
+      const cell = pocCellById(cells, cellId);
+      if (!cell) continue;
+      this.drawCellTextLines(doc, s, cell, spec, 'label');
+    }
+  }
+
+  private fillHeaderValues(doc: jsPDF, s: PocScale, cells: PocGridCell[], data: AppData): void {
     const { ship } = data;
-    this.valueInRect(doc, pocRect(63, 132, 205, 143), ship.name);
-    this.valueInRect(doc, pocRect(205, 132, 304, 143), ship.callSign);
-    this.valueInRect(doc, pocRect(304, 132, 432, 143), ship.portOfCall);
-    this.valueInRect(doc, pocRect(432, 132, 560, 143), formatDisplayDate(ship.dateOfArrival));
+    const values: Record<keyof typeof POC_HEADER_VALUE_CELLS, string> = {
+      shipName: ship.name,
+      callSign: ship.callSign,
+      portOfArrival: ship.portOfCall,
+      dateOfArrival: formatDisplayDate(ship.dateOfArrival),
+      nationality: ship.nationality,
+      homeport: ship.homeport,
+      arrivedFrom: ship.lastPortOfCall,
+      sailingTo: ship.nextPortOfCall,
+    };
 
-    this.valueInRect(doc, pocRect(63, 156, 205, 166), ship.nationality);
-    this.valueInRect(doc, pocRect(205, 156, 304, 166), ship.homeport);
-    this.valueInRect(doc, pocRect(304, 156, 432, 166), ship.lastPortOfCall);
-    this.valueInRect(doc, pocRect(432, 156, 560, 166), ship.nextPortOfCall);
+    for (const [key, cellId] of Object.entries(POC_HEADER_VALUE_CELLS)) {
+      const text = values[key as keyof typeof POC_HEADER_VALUE_CELLS];
+      const cell = pocCellById(cells, cellId);
+      if (!cell || !text) continue;
+      this.drawCellTextLines(doc, s, cell, [{ text, placement: 'valueBottomCenter' }], 'value');
+    }
   }
 
-  private fillHistoryRows(doc: jsPDF, rows: PortCallHistoryEntry[], rowCount: number): void {
-    const rowH = (POC_BODY_BOTTOM - POC_BODY_TOP) / rowCount;
-    const fontSize = Math.max(6, Math.min(8, rowH * 0.38));
-
-    for (let i = 0; i < rowCount; i++) {
-      const entry = rows[i];
+  private fillPortRows(
+    doc: jsPDF,
+    s: PocScale,
+    cells: PocGridCell[],
+    pageRows: PortCallHistoryEntry[],
+    voyOffset: number,
+  ): void {
+    for (let row = 0; row < POC_DATA_ROW_COUNT; row++) {
+      const entry = pageRows[row];
       if (!entry) continue;
 
-      const yMid = POC_BODY_TOP + rowH * i + rowH * 0.62;
-      this.dataAt(doc, POC_COL_BOUNDS.voy[0], POC_COL_BOUNDS.voy[1], yMid, String(i + 1), fontSize, 'center');
-      this.dataAt(
-        doc,
-        POC_COL_BOUNDS.port[0],
-        POC_COL_BOUNDS.port[1],
-        yMid,
-        formatPortCallPortName(entry.portName),
-        fontSize,
-      );
-      this.dataAt(doc, POC_COL_BOUNDS.country[0], POC_COL_BOUNDS.country[1], yMid, entry.country, fontSize);
-      this.dataAt(
-        doc,
-        POC_COL_BOUNDS.arrDate[0],
-        POC_COL_BOUNDS.arrDate[1],
-        yMid,
-        formatDisplayDate(entry.arrivalDate),
-        fontSize,
-      );
-      this.dataAt(doc, POC_COL_BOUNDS.arrTime[0], POC_COL_BOUNDS.arrTime[1], yMid, entry.arrivalTime, fontSize);
-      this.dataAt(
-        doc,
-        POC_COL_BOUNDS.depDate[0],
-        POC_COL_BOUNDS.depDate[1],
-        yMid,
-        formatDisplayDate(entry.departureDate),
-        fontSize,
-      );
-      this.dataAt(doc, POC_COL_BOUNDS.depTime[0], POC_COL_BOUNDS.depTime[1], yMid, entry.departureTime, fontSize);
+      const voyCell = pocCellById(cells, pocPortDataCellId(row, 0));
+      if (voyCell) {
+        this.drawCellTextLines(
+          doc,
+          s,
+          voyCell,
+          [{ text: String(voyOffset + row + 1), placement: 'middleCenter' }],
+          'value',
+        );
+      }
+
+      const rowValues: Record<(typeof POC_DATA_COL_KEYS)[number], string> = {
+        voy: '',
+        port: formatPortCallPortName(entry.portName),
+        country: entry.country,
+        arrDate: formatDisplayDate(entry.arrivalDate),
+        arrTime: entry.arrivalTime,
+        depDate: formatDisplayDate(entry.departureDate),
+        depTime: entry.departureTime,
+      };
+
+      for (let col = 1; col < POC_DATA_COL_COUNT; col++) {
+        const key = POC_DATA_COL_KEYS[col];
+        const text = rowValues[key];
+        if (!text) continue;
+        const cell = pocCellById(cells, pocPortDataCellId(row, col));
+        if (!cell) continue;
+        this.drawCellTextLines(doc, s, cell, [{ text, placement: 'middleLeft' }], 'value');
+      }
     }
   }
 
-  private labelInRect(doc: jsPDF, r: PocRect, text: string, fontSize = 6.5): void {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(fontSize);
-    doc.text(text, r.x + 2, r.y + 8, { maxWidth: r.w - 4 });
-  }
-
-  private valueInRect(doc: jsPDF, r: PocRect, text: string): void {
-    if (!text) return;
-    doc.setFont('times', 'bolditalic');
-    doc.setFontSize(9);
-    doc.text(text, r.x + 3, r.y + r.h * 0.72, { maxWidth: r.w - 6 });
-  }
-
-  private dataAt(
+  private drawCellTextLines(
     doc: jsPDF,
-    x1: number,
-    x2: number,
-    y: number,
-    text: string,
-    fontSize: number,
-    align: 'left' | 'center' = 'left',
+    s: PocScale,
+    cell: PocGridCell,
+    lines: PocCellTextLine[],
+    kind: 'label' | 'value',
   ): void {
-    if (!text) return;
-    const w = x2 - x1;
-    doc.setFont('times', 'bolditalic');
-    doc.setFontSize(fontSize);
-    const line = doc.splitTextToSize(text, w - 4)[0] ?? text;
-    if (align === 'center') {
-      doc.text(line, x1 + w / 2, y, { align: 'center' });
-    } else {
-      doc.text(line, x1 + 2, y);
+    const r = s.rect(cell.x1, cell.y1, cell.x2, cell.y2);
+    const padX = 3;
+    const padY = 4;
+    const isHeaderCell = cell.id >= 2 && cell.id <= 9;
+    const isVoyNoCell = cell.id === 10;
+
+    for (const line of lines) {
+      const isValue =
+        kind === 'value' || line.placement === 'valueBottom' || line.placement === 'valueBottomCenter';
+      const fontSize = isValue
+        ? Math.max(7, Math.min(10, r.h * 0.45))
+        : Math.max(4.5, Math.min(6.5, Math.min(r.w, r.h) * 0.38));
+      const subSize = fontSize * 0.85;
+
+      const isLocalTime =
+        kind === 'label' &&
+        line.placement === 'bottomCenter' &&
+        line.text === POC_STATIC_LABELS.arrTimeSub;
+      doc.setFont('helvetica', isValue || isLocalTime ? 'bold' : 'normal');
+      const isSubLabel = kind === 'label' && line.placement === 'bottomCenter' && lines.length > 1;
+      doc.setFontSize(isSubLabel ? subSize : fontSize);
+
+      const textLines = doc.splitTextToSize(line.text, r.w - 6);
+      const blockH = textLines.length * fontSize * 1.05;
+      let x = r.x + padX;
+      let y: number;
+      let align: 'left' | 'center' = 'left';
+
+      switch (line.placement) {
+        case 'topCenter':
+          align = 'center';
+          x = r.x + r.w / 2;
+          y = r.y + padY + fontSize;
+          if (isVoyNoCell && line.text === '8.') {
+            y -= POC_VOY_NO_8_SHIFT_UP_PT;
+          }
+          break;
+        case 'middleCenter':
+          align = 'center';
+          x = r.x + r.w / 2;
+          y = r.y + r.h / 2 + fontSize * 0.35;
+          break;
+        case 'bottomCenter':
+          align = 'center';
+          x = r.x + r.w / 2;
+          y = r.y + r.h - padY - fontSize * 0.2;
+          if (isLocalTime) {
+            y += POC_LOCAL_TIME_SHIFT_DOWN_PT;
+          } else if (isVoyNoCell && line.text === 'No.') {
+            y += POC_VOY_NO_BOTTOM_SHIFT_DOWN_PT;
+          }
+          break;
+        case 'middleLeft':
+          y = r.y + (r.h - blockH) / 2 + fontSize;
+          break;
+        case 'valueBottom':
+          y = r.y + r.h - padY - fontSize * 0.15;
+          break;
+        case 'valueBottomCenter':
+          align = 'center';
+          x = r.x + r.w / 2;
+          y = r.y + r.h - padY - fontSize * 0.15 + (isHeaderCell ? POC_HEADER_VALUE_SHIFT_DOWN_PT : 0);
+          break;
+        case 'topLeft':
+        default:
+          y = r.y + padY + fontSize;
+          if (isHeaderCell && kind === 'label') {
+            y -= POC_HEADER_LABEL_SHIFT_UP_PT;
+          }
+          break;
+      }
+
+      doc.text(textLines, x, y, { align, maxWidth: r.w - 6 });
     }
+  }
+
+  private drawCellNumbers(doc: jsPDF, s: PocScale, cells: PocGridCell[]): void {
+    for (const cell of cells) {
+      const r = s.rect(cell.x1, cell.y1, cell.x2, cell.y2);
+      const text = String(cell.id);
+      const fontSize = Math.max(5, Math.min(11, Math.min(r.w, r.h) * 0.42));
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(fontSize);
+      doc.setTextColor(180, 0, 0);
+      doc.text(text, r.x + r.w / 2, r.y + r.h / 2, { align: 'center', baseline: 'middle' });
+    }
+    doc.setTextColor(0, 0, 0);
+  }
+
+  private drawSignatureLabel(doc: jsPDF, s: PocScale, cells: PocGridCell[]): void {
+    const footer = pocCellById(cells, POC_SIGNATURE_CELL_ID);
+    const r = footer
+      ? s.rect(footer.x1, footer.y1, footer.x2, footer.y2)
+      : s.rect(POC_SRC.minX, 1918, POC_SRC.maxX, POC_SRC.maxY);
+    const pad = 8;
+    const text = POC_FRAME_LABELS.signature;
+    const textX = r.x + r.w - pad;
+    const textY = r.y + r.h - pad;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    const textW = doc.getTextWidth(text);
+    const lineX2 = textX;
+    const lineX1 = lineX2 - Math.max(textW * 1.05, r.w * 0.38);
+    const lineY = textY - POC_SIGNATURE_LINE_GAP_PT;
+
+    doc.setDrawColor(0);
+    doc.setLineWidth(POC_SIGNATURE_LINE_WIDTH_PT);
+    doc.line(lineX1, lineY, lineX2, lineY);
+
+    doc.text(text, textX, textY, {
+      align: 'right',
+      baseline: 'bottom',
+      maxWidth: r.w - pad * 2,
+    });
   }
 }

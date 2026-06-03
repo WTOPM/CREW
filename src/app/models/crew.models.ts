@@ -105,7 +105,7 @@ export interface PortCallHistoryEntry {
 }
 
 export interface PortOfCallSettings {
-  /** How many latest port calls to print in the PDF (default 10). */
+  /** How many latest port calls to print in the PDF (pages of 11 rows each). */
   pdfRowCount: number;
 }
 
@@ -263,19 +263,38 @@ export function portCountry(name: string, ports: Port[]): string {
   return resolved?.country?.trim() ?? '';
 }
 
-/** Pick N most recent port calls for the PDF (by arrival date, then departure). */
+/** Newest port calls first (row 1 = latest visit). */
+export function orderPortCallHistoryForPdf(history: PortCallHistoryEntry[]): PortCallHistoryEntry[] {
+  return [...history].sort((a, b) => {
+    const aKey = a.arrivalDate || a.departureDate || '';
+    const bKey = b.arrivalDate || b.departureDate || '';
+    return bKey.localeCompare(aKey);
+  });
+}
+
+/** Split history into PDF pages (11 rows per page; last page may have empty slots). */
+export function chunkPortCallHistoryForPdf(
+  history: PortCallHistoryEntry[],
+  rowsPerPage: number,
+): PortCallHistoryEntry[][] {
+  const pageSize = Math.max(1, rowsPerPage);
+  const ordered = orderPortCallHistoryForPdf(history);
+  if (ordered.length === 0) return [[]];
+  const pages: PortCallHistoryEntry[][] = [];
+  for (let i = 0; i < ordered.length; i += pageSize) {
+    pages.push(ordered.slice(i, i + pageSize));
+  }
+  return pages;
+}
+
+/** N newest port calls for PDF (0 = none). */
 export function selectPortCallHistoryForPdf(
   history: PortCallHistoryEntry[],
-  rowCount: number,
+  portCount: number,
 ): PortCallHistoryEntry[] {
-  const limit = Math.max(1, Math.min(25, rowCount));
-  return [...history]
-    .sort((a, b) => {
-      const aKey = a.arrivalDate || a.departureDate || '';
-      const bKey = b.arrivalDate || b.departureDate || '';
-      return bKey.localeCompare(aKey);
-    })
-    .slice(0, limit);
+  const limit = Math.max(0, portCount);
+  if (limit === 0) return [];
+  return orderPortCallHistoryForPdf(history).slice(0, limit);
 }
 
 export function formatPortCallPortName(name: string): string {

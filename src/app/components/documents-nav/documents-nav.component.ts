@@ -1,12 +1,16 @@
-import { Component, inject } from '@angular/core';
-import { AppData } from '../../models/crew.models';
+import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { AppData, PortCallHistoryEntry, portCountry } from '../../models/crew.models';
+import { PortSelectComponent } from '../port-select/port-select.component';
 import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
+import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-documents-nav',
+  imports: [FormsModule, PortSelectComponent],
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',
 })
@@ -16,6 +20,16 @@ export class DocumentsNavComponent {
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
   private readonly toast = inject(ToastService);
 
+  protected readonly pocMinPorts = POC_MIN_ROW_COUNT;
+  protected readonly pocMaxPorts = POC_MAX_ROW_COUNT;
+  protected readonly pocRowsPerPage = POC_TEMPLATE_ROW_COUNT;
+
+  protected readonly ports = this.storage.ports;
+  protected readonly portCallHistory = this.storage.portCallHistory;
+  protected readonly portOfCall = this.storage.portOfCall;
+
+  protected showPortOfCallSettings = signal(false);
+
   protected openCrewList(isArrival: boolean): void {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const ok = this.crewPdf.openPreview(this.appData(isArrival), this.storage.activeCrew());
@@ -24,11 +38,45 @@ export class DocumentsNavComponent {
     }
   }
 
-  protected openPortOfCall(): void {
+  protected openPortOfCallPdf(): void {
     const ok = this.portOfCallPdf.openPreview(this.appData());
     if (!ok) {
       this.toast.showError('Allow pop-ups to open Port of Call preview');
     }
+  }
+
+  protected openPortOfCallSettings(): void {
+    this.showPortOfCallSettings.set(true);
+  }
+
+  protected closePortOfCallSettings(): void {
+    this.showPortOfCallSettings.set(false);
+  }
+
+  protected onPdfPortCountChange(value: string | number): void {
+    const n = typeof value === 'number' ? value : parseInt(String(value), 10);
+    if (isNaN(n)) return;
+    this.storage.updatePortOfCallSettings({ pdfRowCount: n });
+  }
+
+  protected addPortCallRow(): void {
+    this.storage.addPortCallEntry();
+  }
+
+  protected removePortCallRow(id: string): void {
+    this.storage.removePortCallEntry(id);
+  }
+
+  protected updatePortCallField(id: string, field: keyof PortCallHistoryEntry, value: string): void {
+    this.storage.updatePortCallEntry(id, { [field]: value });
+  }
+
+  protected onPortCallPortChange(id: string, portName: string): void {
+    const country = portCountry(portName, this.ports());
+    this.storage.updatePortCallEntry(id, {
+      portName,
+      ...(country ? { country } : {}),
+    });
   }
 
   protected openMdh(): void {

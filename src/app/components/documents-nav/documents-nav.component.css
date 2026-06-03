@@ -50,6 +50,17 @@
   opacity: 0.9;
 }
 
+.nav-doc-port-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.doc-menu-item--icon {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .doc-menu-panel {
   position: absolute;
   top: calc(100% + 0.25rem);
@@ -104,4 +115,50 @@
 .doc-menu-item:focus-visible {
   background: var(--accent-soft);
   outline: none;
+}
+
+.poc-modal.modal-wide {
+  max-width: 960px;
+  width: min(960px, 95vw);
+}
+
+.poc-settings-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.poc-settings-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.poc-settings-bar input[type='number'] {
+  width: 5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.poc-history-wrap {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.poc-history-table input {
+  width: 100%;
+  min-width: 5.5rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.poc-history-table td {
+  vertical-align: middle;
 }

@@ -1,13 +1,19 @@
 import { Component, inject } from '@angular/core';
-import { ToastService } from '../../services/toast.service';
+import { ToastService, ToastVariant } from '../../services/toast.service';
 
 @Component({
   selector: 'app-toast',
   template: `
     <div class="toast-container" aria-live="polite">
       @for (toast of toasts(); track toast.id) {
-        <div class="toast" [class.error]="toast.type === 'error'" (click)="dismiss(toast.id)">
-          {{ toast.text }}
+        <div
+          class="toast"
+          [class]="'toast toast--' + toast.type"
+          role="status"
+          (click)="dismiss(toast.id)"
+        >
+          <span class="toast-icon" aria-hidden="true">{{ icon(toast.type) }}</span>
+          <span class="toast-text">{{ toast.text }}</span>
         </div>
       }
     </div>
@@ -15,40 +21,114 @@ import { ToastService } from '../../services/toast.service';
   styles: `
     .toast-container {
       position: fixed;
-      bottom: 1.25rem;
-      right: 1.25rem;
+      bottom: 1.5rem;
+      right: 1.5rem;
       z-index: 9999;
       display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
+      flex-direction: column-reverse;
+      gap: 0.65rem;
       pointer-events: none;
+      max-width: min(22rem, calc(100vw - 2rem));
     }
 
     .toast {
       pointer-events: auto;
-      background: #0f172a;
-      color: #f8fafc;
-      padding: 0.65rem 1.1rem;
-      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.75rem 1rem 0.75rem 0.85rem;
+      border-radius: 12px;
       font-size: 0.9rem;
-      font-weight: 500;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+      font-weight: 600;
+      letter-spacing: 0.02em;
       cursor: pointer;
-      animation: slide-in 0.25s ease;
+      border: 1px solid transparent;
+      backdrop-filter: blur(12px);
+      box-shadow:
+        0 10px 40px rgb(15 23 42 / 14%),
+        0 2px 8px rgb(15 23 42 / 8%);
+      animation: toast-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .toast.error {
-      background: #b91c1c;
+    .toast:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow:
+        0 14px 48px rgb(15 23 42 / 18%),
+        0 4px 12px rgb(15 23 42 / 10%);
     }
 
-    @keyframes slide-in {
+    .toast-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+
+    .toast-text {
+      flex: 1;
+      text-transform: uppercase;
+      font-size: 0.82rem;
+    }
+
+    .toast--success {
+      background: linear-gradient(135deg, rgb(240 253 244 / 96%) 0%, rgb(220 252 231 / 96%) 100%);
+      color: #14532d;
+      border-color: rgb(34 197 94 / 35%);
+    }
+
+    .toast--success .toast-icon {
+      background: rgb(34 197 94 / 18%);
+      color: #16a34a;
+    }
+
+    .toast--warning {
+      background: linear-gradient(135deg, rgb(255 251 235 / 96%) 0%, rgb(254 243 199 / 96%) 100%);
+      color: #78350f;
+      border-color: rgb(245 158 11 / 40%);
+    }
+
+    .toast--warning .toast-icon {
+      background: rgb(245 158 11 / 22%);
+      color: #d97706;
+    }
+
+    .toast--info {
+      background: linear-gradient(135deg, rgb(239 246 255 / 96%) 0%, rgb(219 234 254 / 96%) 100%);
+      color: #1e3a8a;
+      border-color: rgb(59 130 246 / 35%);
+    }
+
+    .toast--info .toast-icon {
+      background: rgb(59 130 246 / 18%);
+      color: #2563eb;
+    }
+
+    .toast--deleted,
+    .toast--error {
+      background: linear-gradient(135deg, rgb(254 242 242 / 96%) 0%, rgb(254 226 226 / 96%) 100%);
+      color: #7f1d1d;
+      border-color: rgb(239 68 68 / 40%);
+    }
+
+    .toast--deleted .toast-icon,
+    .toast--error .toast-icon {
+      background: rgb(239 68 68 / 20%);
+      color: #dc2626;
+    }
+
+    @keyframes toast-in {
       from {
         opacity: 0;
-        transform: translateY(0.5rem);
+        transform: translateX(1.25rem) scale(0.92);
       }
       to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateX(0) scale(1);
       }
     }
   `,
@@ -56,6 +136,22 @@ import { ToastService } from '../../services/toast.service';
 export class ToastComponent {
   private readonly toastService = inject(ToastService);
   protected readonly toasts = this.toastService.toasts;
+
+  protected icon(type: ToastVariant): string {
+    switch (type) {
+      case 'success':
+        return '✓';
+      case 'warning':
+        return '▣';
+      case 'info':
+        return '↩';
+      case 'deleted':
+      case 'error':
+        return '✕';
+      default:
+        return '•';
+    }
+  }
 
   protected dismiss(id: number): void {
     this.toastService.dismiss(id);

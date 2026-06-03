@@ -6,6 +6,7 @@ import { LookupSelectComponent } from '../../components/lookup-select/lookup-sel
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { CrewMember, ShipInfo, portCode, portLabel } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
+import { ToastService } from '../../services/toast.service';
 import { formatDisplayDate } from '../../utils/date.util';
 
 @Component({
@@ -16,6 +17,7 @@ import { formatDisplayDate } from '../../utils/date.util';
 })
 export class HomeComponent {
   protected readonly storage = inject(StorageService);
+  private readonly toast = inject(ToastService);
 
   protected readonly ship = this.storage.ship;
   protected readonly ports = this.storage.ports;
@@ -58,8 +60,9 @@ export class HomeComponent {
     const draft = this.editDraft();
     const id = this.editingId();
     if (!draft || !id) return;
-    this.storage.updateCrewMember(id, draft);
+    this.storage.updateCrewMember(id, draft, 'silent');
     this.cancelEdit();
+    this.toast.showSaved();
   }
 
   protected addMember(): void {
@@ -70,15 +73,18 @@ export class HomeComponent {
   protected archive(id: string): void {
     this.storage.archiveCrewMember(id);
     if (this.editingId() === id) this.cancelEdit();
+    this.toast.showArchived();
   }
 
   protected restore(id: string): void {
     this.storage.restoreCrewMember(id);
+    this.toast.showRestored();
   }
 
   protected remove(id: string): void {
     if (confirm('Удалить запись безвозвратно?')) {
       this.storage.removeCrewMember(id);
+      this.toast.showDeleted();
     }
   }
 

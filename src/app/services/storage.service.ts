@@ -234,36 +234,42 @@ export class StorageService {
       ...d,
       ports: mergePorts(d.ports, { name: n, code: code.trim(), country: country.trim() }),
     }));
-    void this.persist('saved');
+    void this.persist('silent');
+    this.toast.showPortAdded();
   }
 
   removePort(name: string): void {
     this.data.update((d) => ({ ...d, ports: d.ports.filter((p) => p.name !== name) }));
-    void this.persist('saved');
+    void this.persist('silent');
+    this.toast.showPortDeleted();
   }
 
   addRank(name: string): void {
     const v = name.trim();
     if (!v) return;
     this.data.update((d) => ({ ...d, ranks: mergeUniqueList(d.ranks, v) }));
-    void this.persist('saved');
+    void this.persist('silent');
+    this.toast.showRankAdded();
   }
 
   removeRank(name: string): void {
     this.data.update((d) => ({ ...d, ranks: d.ranks.filter((r) => r !== name) }));
-    void this.persist('saved');
+    void this.persist('silent');
+    this.toast.showRankDeleted();
   }
 
   addNationality(name: string): void {
     const v = name.trim();
     if (!v) return;
     this.data.update((d) => ({ ...d, nationalities: mergeUniqueList(d.nationalities, v) }));
-    void this.persist('saved');
+    void this.persist('silent');
+    this.toast.showNationalityAdded();
   }
 
   removeNationality(name: string): void {
     this.data.update((d) => ({ ...d, nationalities: d.nationalities.filter((n) => n !== name) }));
-    void this.persist('saved');
+    void this.persist('silent');
+    this.toast.showNationalityDeleted();
   }
 
   updatePortOfCallSettings(partial: Partial<AppData['portOfCall']>): void {
@@ -280,7 +286,8 @@ export class StorageService {
       const ports = mergePorts(d.ports, newEntry.portName);
       return { ...d, portCallHistory: [newEntry, ...d.portCallHistory], ports };
     });
-    void this.persist('saved');
+    void this.persist('silent');
+    this.toast.showPortAdded();
     return newEntry;
   }
 
@@ -299,7 +306,8 @@ export class StorageService {
       ...d,
       portCallHistory: d.portCallHistory.filter((e) => e.id !== id),
     }));
-    void this.persist('saved');
+    void this.persist('silent');
+    this.toast.showPortDeleted();
   }
 
   addCrewMember(member?: Partial<CrewMember>): CrewMember {
@@ -314,7 +322,11 @@ export class StorageService {
     return newMember;
   }
 
-  updateCrewMember(id: string, partial: Partial<CrewMember>): void {
+  updateCrewMember(
+    id: string,
+    partial: Partial<CrewMember>,
+    notify: 'silent' | 'saved' = 'saved',
+  ): void {
     this.data.update((d) => {
       const crew = d.crew.map((m) => (m.id === id ? { ...m, ...partial } : m));
       const updated = crew.find((m) => m.id === id);
@@ -323,20 +335,20 @@ export class StorageService {
       const nationalities = mergeUniqueList(d.nationalities, updated?.nationality);
       return { ...d, crew, ports, ranks, nationalities };
     });
-    void this.persist('saved');
+    void this.persist(notify);
   }
 
   archiveCrewMember(id: string): void {
-    this.updateCrewMember(id, { archived: true });
+    this.updateCrewMember(id, { archived: true }, 'silent');
   }
 
   restoreCrewMember(id: string): void {
-    this.updateCrewMember(id, { archived: false });
+    this.updateCrewMember(id, { archived: false }, 'silent');
   }
 
   removeCrewMember(id: string): void {
     this.data.update((d) => ({ ...d, crew: d.crew.filter((m) => m.id !== id) }));
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   reorderActiveCrew(fromIndex: number, toIndex: number): void {
