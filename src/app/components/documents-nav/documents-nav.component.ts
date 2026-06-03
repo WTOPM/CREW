@@ -1,7 +1,10 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AppData, PortCallHistoryEntry, portCountry } from '../../models/crew.models';
+import { PartialDateInputComponent } from '../partial-date-input/partial-date-input.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
+import { TimeInputComponent } from '../time-input/time-input.component';
+import { defaultIsoDateInCurrentMonth } from '../../utils/partial-date.util';
 import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
@@ -10,7 +13,7 @@ import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-documents-nav',
-  imports: [FormsModule, PortSelectComponent],
+  imports: [FormsModule, PortSelectComponent, PartialDateInputComponent, TimeInputComponent],
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',
 })
@@ -60,7 +63,11 @@ export class DocumentsNavComponent {
   }
 
   protected addPortCallRow(): void {
-    this.storage.addPortCallEntry();
+    const todayInMonth = defaultIsoDateInCurrentMonth();
+    this.storage.addPortCallEntry({
+      arrivalDate: todayInMonth,
+      departureDate: todayInMonth,
+    });
   }
 
   protected removePortCallRow(id: string): void {

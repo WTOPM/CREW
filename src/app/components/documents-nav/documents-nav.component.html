@@ -85,31 +85,27 @@
                   />
                 </td>
                 <td>
-                  <input
-                    type="date"
-                    [ngModel]="row.arrivalDate"
-                    (ngModelChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
+                  <app-partial-date-input
+                    [value]="row.arrivalDate"
+                    (valueChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
                   />
                 </td>
                 <td>
-                  <input
-                    [ngModel]="row.arrivalTime"
-                    (ngModelChange)="updatePortCallField(row.id, 'arrivalTime', $event)"
-                    placeholder="02:00"
+                  <app-time-input
+                    [value]="row.arrivalTime"
+                    (valueChange)="updatePortCallField(row.id, 'arrivalTime', $event)"
                   />
                 </td>
                 <td>
-                  <input
-                    type="date"
-                    [ngModel]="row.departureDate"
-                    (ngModelChange)="updatePortCallField(row.id, 'departureDate', $event)"
+                  <app-partial-date-input
+                    [value]="row.departureDate"
+                    (valueChange)="updatePortCallField(row.id, 'departureDate', $event)"
                   />
                 </td>
                 <td>
-                  <input
-                    [ngModel]="row.departureTime"
-                    (ngModelChange)="updatePortCallField(row.id, 'departureTime', $event)"
-                    placeholder="09:00"
+                  <app-time-input
+                    [value]="row.departureTime"
+                    (valueChange)="updatePortCallField(row.id, 'departureTime', $event)"
                   />
                 </td>
                 <td class="actions">
