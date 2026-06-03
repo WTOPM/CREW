@@ -128,6 +128,8 @@
       </div>
     </div>
 
+    <app-crew-doc-drop-zone [crew]="allCrew()" (attached)="onCrewDocAttached()" />
+
     <div class="table-wrap">
       <table class="crew-table">
         <thead>
@@ -139,6 +141,7 @@
             <th>Rank</th>
             <th>Nationality</th>
             <th>Passport</th>
+            <th class="col-scans" title="P passport · S seaman's book · CY Cyprus book">Scans</th>
             <th>Joining Date</th>
             <th>Joining Port</th>
             <th></th>
@@ -154,6 +157,13 @@
               <td>{{ member.rank }}</td>
               <td>{{ member.nationality }}</td>
               <td>{{ member.passport }}</td>
+              <td class="col-scans">
+                <div class="crew-doc-icons">
+                  <app-crew-doc-icon [member]="member" docType="passport" (attached)="onCrewDocAttached()" />
+                  <app-crew-doc-icon [member]="member" docType="seamansBook" (attached)="onCrewDocAttached()" />
+                  <app-crew-doc-icon [member]="member" docType="cyprusPassport" (attached)="onCrewDocAttached()" />
+                </div>
+              </td>
               <td>{{ formatDate(member.joiningDate) }}</td>
               <td>{{ member.joiningPort }}</td>
               <td class="actions actions-icons">
@@ -315,6 +325,7 @@
               <th>Given Names</th>
               <th>Rank</th>
               <th>Nationality</th>
+              <th class="col-scans">Scans</th>
               <th></th>
             </tr>
           </thead>
@@ -325,6 +336,13 @@
                 <td>{{ member.givenNames }}</td>
                 <td>{{ member.rank }}</td>
                 <td>{{ member.nationality }}</td>
+                <td class="col-scans">
+                  <div class="crew-doc-icons">
+                    <app-crew-doc-icon [member]="member" docType="passport" (attached)="onCrewDocAttached()" />
+                    <app-crew-doc-icon [member]="member" docType="seamansBook" (attached)="onCrewDocAttached()" />
+                    <app-crew-doc-icon [member]="member" docType="cyprusPassport" (attached)="onCrewDocAttached()" />
+                  </div>
+                </td>
                 <td class="actions actions-icons">
                   <button
                     type="button"

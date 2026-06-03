@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -13,6 +13,14 @@ function getDataDir() {
 
 function getDataFilePath() {
   return path.join(getDataDir(), DATA_FILE);
+}
+
+function getDocumentsDir() {
+  return path.join(getDataDir(), 'documents');
+}
+
+function crewDocPath(crewId, docType) {
+  return path.join(getDocumentsDir(), crewId, `${docType}.pdf`);
 }
 
 function ensureDataDir() {
@@ -60,6 +68,59 @@ ipcMain.handle('write-data', (_event, data) => {
 });
 
 ipcMain.handle('get-data-path', () => getDataFilePath());
+
+ipcMain.handle('pick-pdf-file', async () => {
+  const win = BrowserWindow.getFocusedWindow();
+  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+    title: 'Select PDF document',
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    properties: ['openFile'],
+  });
+  if (canceled || !filePaths?.[0]) return null;
+  return filePaths[0];
+});
+
+ipcMain.handle('save-crew-pdf', (_event, crewId, docType, sourcePath) => {
+  ensureDataDir();
+  const dir = path.join(getDocumentsDir(), crewId);
+  fs.mkdirSync(dir, { recursive: true });
+  const dest = crewDocPath(crewId, docType);
+  fs.copyFileSync(sourcePath, dest);
+  return true;
+});
+
+ipcMain.handle('save-crew-pdf-bytes', (_event, crewId, docType, base64) => {
+  ensureDataDir();
+  const dir = path.join(getDocumentsDir(), crewId);
+  fs.mkdirSync(dir, { recursive: true });
+  const dest = crewDocPath(crewId, docType);
+  fs.writeFileSync(dest, Buffer.from(base64, 'base64'));
+  return true;
+});
+
+ipcMain.handle('read-crew-pdf', (_event, crewId, docType) => {
+  const file = crewDocPath(crewId, docType);
+  if (!fs.existsSync(file)) return null;
+  return fs.readFileSync(file).toString('base64');
+});
+
+ipcMain.handle('crew-pdf-exists', (_event, crewId, docType) => {
+  return fs.existsSync(crewDocPath(crewId, docType));
+});
+
+ipcMain.handle('delete-crew-pdf', (_event, crewId, docType) => {
+  const file = crewDocPath(crewId, docType);
+  if (fs.existsSync(file)) fs.unlinkSync(file);
+  return true;
+});
+
+ipcMain.handle('delete-crew-documents', (_event, crewId) => {
+  const dir = path.join(getDocumentsDir(), crewId);
+  if (fs.existsSync(dir)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  return true;
+});
 
 app.whenReady().then(() => {
   createWindow();

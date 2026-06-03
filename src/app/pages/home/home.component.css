@@ -267,6 +267,17 @@
   transform: scale(0.96);
 }
 
+.col-scans {
+  width: 5.5rem;
+  white-space: nowrap;
+}
+
+.crew-doc-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .crew-action--edit {
   color: #16a34a;
 }

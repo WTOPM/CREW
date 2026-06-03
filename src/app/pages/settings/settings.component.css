@@ -1,3 +1,272 @@
+.settings-page-header h1 {
+  color: #0c4a6e;
+}
+
+.ship-settings-card {
+  border-color: #7dd3fc;
+  background: linear-gradient(180deg, #f0f9ff 0%, #fff 35%);
+}
+
+.ship-settings-card h2 {
+  margin: 0;
+  color: #0369a1;
+  letter-spacing: 0.02em;
+}
+
+.ship-settings-head {
+  margin-bottom: 1.1rem;
+}
+
+.ship-settings-head .section-desc {
+  margin: 0.35rem 0 0;
+}
+
+.ship-settings-head .section-desc a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.ship-settings-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.ship-block {
+  padding: 0.85rem 1rem 1rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+}
+
+.ship-block-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ship-block--vessel {
+  background: linear-gradient(180deg, #e0e7ff 0%, #f5f7ff 100%);
+  border-color: #a5b4fc;
+}
+
+.ship-block--vessel .ship-block-title {
+  color: #3730a3;
+}
+
+.ship-block--sanitation {
+  background: linear-gradient(180deg, #ccfbf1 0%, #f0fdfa 100%);
+  border-color: #5eead4;
+}
+
+.ship-block--sanitation .ship-block-title {
+  color: #0f766e;
+}
+
+.ship-block--water {
+  flex: 1.4;
+  background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+  border-color: #93c5fd;
+}
+
+.ship-block--water .ship-block-title {
+  color: #1d4ed8;
+}
+
+.ship-block--tonnage {
+  flex: 0.85;
+  background: linear-gradient(180deg, #ffedd5 0%, #fff7ed 100%);
+  border-color: #fdba74;
+}
+
+.ship-block--tonnage .ship-block-title {
+  color: #9a3412;
+}
+
+.ship-settings-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+
+.ship-block-grid {
+  display: grid;
+  gap: 0.65rem 0.85rem;
+}
+
+.ship-block-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ship-block-grid--3 {
+  grid-template-columns: minmax(7rem, 0.75fr) minmax(0, 1.6fr) minmax(10rem, 1fr);
+}
+
+.ship-block-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ship-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.ship-field > span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: inherit;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ship-block--vessel .ship-field > span {
+  color: #4338ca;
+}
+
+.ship-block--sanitation .ship-field > span {
+  color: #0d9488;
+}
+
+.ship-block--water .ship-field > span {
+  color: #1e40af;
+}
+
+.ship-block--tonnage .ship-field > span {
+  color: #c2410c;
+}
+
+.ship-field--span2 {
+  grid-column: span 2;
+}
+
+.ship-field--wide {
+  min-width: 0;
+}
+
+.ship-field input,
+.ship-field ::ng-deep .port-select,
+.ship-field ::ng-deep .lookup-select,
+.ship-field ::ng-deep select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.35rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgb(15 23 42 / 14%);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.92rem;
+  box-sizing: border-box;
+}
+
+.ship-block--sanitation ::ng-deep .date-picker-btn {
+  background: #ccfbf1;
+  color: #0f766e;
+  border-color: #2dd4bf;
+}
+
+.ship-block--water ::ng-deep .date-picker-btn {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #60a5fa;
+}
+
+/* Reference data */
+.ref-settings-card h2 {
+  color: #334155;
+}
+
+.ref-settings-card .section-desc {
+  margin: -0.35rem 0 1rem;
+}
+
+.settings-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.settings-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.settings-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 10%);
+}
+
+.settings-tile--ports {
+  border-color: #93c5fd;
+  background: linear-gradient(160deg, #eff6ff 0%, #fff 55%);
+}
+
+.settings-tile--ports:hover {
+  border-color: #3b82f6;
+}
+
+.settings-tile--ports .tile-title {
+  color: #1d4ed8;
+}
+
+.settings-tile--ranks {
+  border-color: #fcd34d;
+  background: linear-gradient(160deg, #fffbeb 0%, #fff 55%);
+}
+
+.settings-tile--ranks:hover {
+  border-color: #f59e0b;
+}
+
+.settings-tile--ranks .tile-title {
+  color: #b45309;
+}
+
+.settings-tile--nationalities {
+  border-color: #86efac;
+  background: linear-gradient(160deg, #ecfdf5 0%, #fff 55%);
+}
+
+.settings-tile--nationalities:hover {
+  border-color: #22c55e;
+}
+
+.settings-tile--nationalities .tile-title {
+  color: #15803d;
+}
+
+.tile-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.tile-title {
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.tile-count {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
 .back-link {
   display: inline-block;
   margin-bottom: 0.5rem;
@@ -11,50 +280,8 @@
 }
 
 .section-desc {
-  margin: -0.5rem 0 1rem;
   color: var(--text-muted);
   font-size: 0.9rem;
-}
-
-.settings-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
-.settings-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
-  padding: 1.25rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #fff;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.settings-tile:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.1);
-}
-
-.tile-icon {
-  font-size: 1.5rem;
-  line-height: 1;
-}
-
-.tile-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.tile-count {
-  font-size: 0.85rem;
-  color: var(--text-muted);
 }
 
 .modal-narrow {
@@ -105,4 +332,35 @@
   color: var(--text-muted);
   font-style: normal;
   font-size: 0.85rem;
+}
+
+@media (max-width: 960px) {
+  .ship-block-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ship-field--span2 {
+    grid-column: span 2;
+  }
+
+  .ship-block-grid--3 {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .ship-block-grid--4,
+  .ship-block-grid--2,
+  .ship-settings-split {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .ship-field--span2 {
+    grid-column: span 1;
+  }
 }

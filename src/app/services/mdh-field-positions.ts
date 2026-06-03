@@ -98,12 +98,16 @@ export const MDH_PORT_COL = {
   code: { x: 461, lift: 2 },
 } as const;
 
-/** Health questions — default answer "No". */
+/**
+ * Health questions — default answer "No" (7 lines per MDH Hanna.pdf).
+ * Q1–Q5: one each; Q6 has two answer lines (576 / 586 block).
+ */
 export const MDH_HEALTH_NO: readonly MdhPlacement[] = [
-  { x: 524, lineY: 382, lift: 1 },
-  { x: 524, lineY: 412, lift: 1 },
-  { x: 524, lineY: 441, lift: 1 },
-  { x: 524, lineY: 471, lift: 1 },
-  { x: 524, lineY: 490, lift: 1 },
-  { x: 524, lineY: 569, lift: 1 },
+  { x: 524, lineY: 379, lift: 1 }, // 1. plague / cholera / …
+  { x: 524, lineY: 409, lift: 1 }, // 2. rats / mice
+  { x: 524, lineY: 438, lift: 1 }, // 3. deaths
+  { x: 524, lineY: 468, lift: 1 }, // 4. infectious illness
+  { x: 524, lineY: 487, lift: 1 }, // 5. sick person on board
+  { x: 524, lineY: 566, lift: 1 }, // 6. other conditions (line 1)
+  { x: 524, lineY: 596, lift: 1 }, // 6. other conditions (line 2)
 ];

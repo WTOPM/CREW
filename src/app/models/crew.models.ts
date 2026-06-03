@@ -77,6 +77,21 @@ export function normalizePersonGender(value: unknown): PersonGender | '' {
   return '';
 }
 
+/** Scanned PDF attachments (stored locally; see CrewDocumentService). */
+export type CrewDocumentType = 'passport' | 'seamansBook' | 'cyprusPassport';
+
+export const CREW_DOCUMENT_TYPES: readonly {
+  id: CrewDocumentType;
+  label: string;
+  short: string;
+}[] = [
+  { id: 'passport', label: 'Passport scan', short: 'P' },
+  { id: 'seamansBook', label: "Seaman's book scan", short: 'S' },
+  { id: 'cyprusPassport', label: 'Cyprus book scan', short: 'CY' },
+] as const;
+
+export type CrewDocumentFlags = Partial<Record<CrewDocumentType, boolean>>;
+
 export interface CrewMember {
   id: string;
   familyName: string;
@@ -108,6 +123,8 @@ export interface CrewMember {
   onArrivalList: boolean;
   /** Shown on CREW LIST DEPARTURE tab and Departure PDF. */
   onDepartureList: boolean;
+  /** Which PDF scans exist on disk (experimental). */
+  documents?: CrewDocumentFlags;
 }
 
 export type CrewListKind = 'arrival' | 'departure';
@@ -205,10 +222,32 @@ export function createEmptyCrewMember(): CrewMember {
     archived: false,
     onArrivalList: false,
     onDepartureList: false,
+    documents: {},
   };
 }
 
+export function crewMemberLabel(member: Pick<CrewMember, 'familyName' | 'givenNames' | 'rank'>): string {
+  const name = [member.familyName, member.givenNames].filter(Boolean).join(' ');
+  return member.rank ? `${name} — ${member.rank}` : name || 'Unnamed';
+}
+
+export function hasCrewDocument(member: CrewMember, type: CrewDocumentType): boolean {
+  return !!member.documents?.[type];
+}
+
 /** Migrate legacy crew rows (active = arrival list only). */
+export function normalizeCrewDocuments(member: CrewMember): CrewMember {
+  const raw = member.documents ?? {};
+  return {
+    ...member,
+    documents: {
+      passport: !!raw.passport,
+      seamansBook: !!raw.seamansBook,
+      cyprusPassport: !!raw.cyprusPassport,
+    },
+  };
+}
+
 export function migrateCrewListFlags(member: CrewMember): CrewMember {
   const raw = member as CrewMember & { onArrivalList?: boolean; onDepartureList?: boolean };
   if (raw.onArrivalList !== undefined && raw.onDepartureList !== undefined) {

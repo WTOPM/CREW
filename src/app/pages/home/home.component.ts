@@ -8,8 +8,11 @@ import { DocumentsNavComponent } from '../../components/documents-nav/documents-
 
 import { LookupSelectComponent } from '../../components/lookup-select/lookup-select.component';
 
+import { CrewDocDropZoneComponent } from '../../components/crew-doc-drop-zone/crew-doc-drop-zone.component';
+import { CrewDocIconComponent } from '../../components/crew-doc-icon/crew-doc-icon.component';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
+import { CrewDocumentService } from '../../services/crew-document.service';
 
 import { CrewListKind, CrewMember, ShipInfo } from '../../models/crew.models';
 
@@ -38,6 +41,8 @@ export type HomeListTab =
     LookupSelectComponent,
     PortSelectComponent,
     DatePickerComponent,
+    CrewDocIconComponent,
+    CrewDocDropZoneComponent,
   ],
 
   templateUrl: './home.component.html',
@@ -51,6 +56,7 @@ export class HomeComponent {
   protected readonly storage = inject(StorageService);
 
   private readonly toast = inject(ToastService);
+  private readonly crewDocs = inject(CrewDocumentService);
 
 
 
@@ -67,6 +73,7 @@ export class HomeComponent {
   protected readonly activeCrewDeparture = this.storage.activeCrewDeparture;
 
   protected readonly archivedCrew = this.storage.archivedCrew;
+  protected readonly allCrew = this.storage.allCrew;
 
   protected readonly activePassengersArrival = this.storage.activePassengersArrival;
 
@@ -512,14 +519,17 @@ export class HomeComponent {
 
 
 
+  protected onCrewDocAttached(): void {
+    /* storage signal refresh */
+  }
+
   protected remove(id: string): void {
 
     if (confirm('Delete this crew member permanently?')) {
-
-      this.storage.removeCrewMember(id);
-
-      this.toast.showDeleted();
-
+      void this.crewDocs.deleteAllForCrew(id).then(() => {
+        this.storage.removeCrewMember(id);
+        this.toast.showDeleted();
+      });
     }
 
   }

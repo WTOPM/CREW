@@ -15,7 +15,9 @@ import {
   mergePorts,
   mergeUniqueList,
   CrewListKind,
+  CrewDocumentType,
   migrateCrewListFlags,
+  normalizeCrewDocuments,
   migrateCrewMember,
   migratePortsRaw,
   resolvePortRef,
@@ -253,7 +255,7 @@ export class StorageService {
     if (member.joiningPort) {
       member.joiningPort = resolvePortRef(member.joiningPort, ports)?.name ?? member.joiningPort;
     }
-    return migrateCrewListFlags(member);
+    return normalizeCrewDocuments(migrateCrewListFlags(member));
   }
 
   private normalizePassenger(
@@ -516,6 +518,21 @@ export class StorageService {
   removeCrewMember(id: string): void {
     this.data.update((d) => ({ ...d, crew: d.crew.filter((m) => m.id !== id) }));
     void this.persist('silent');
+  }
+
+  setCrewDocumentAttached(crewId: string, docType: CrewDocumentType, attached: boolean): void {
+    this.data.update((d) => ({
+      ...d,
+      crew: d.crew.map((m) =>
+        m.id === crewId
+          ? {
+              ...m,
+              documents: { ...m.documents, [docType]: attached },
+            }
+          : m,
+      ),
+    }));
+    void this.persist('debounced');
   }
 
   addPassenger(member?: Partial<PassengerMember>): PassengerMember {
