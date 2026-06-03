@@ -1,8 +1,9 @@
+import { DecimalPipe, NgStyle } from '@angular/common';
 import {
-  AfterViewInit,
+  afterNextRender,
   Component,
-  ElementRef,
   computed,
+  ElementRef,
   inject,
   input,
   OnDestroy,
@@ -17,8 +18,22 @@ import {
   DocumentOverlayId,
   DocumentStampOptions,
 } from '../../models/document-overlay.models';
+import {
+  DocumentOverlayPreviewService,
+  MdhOverlayPreviewPage,
+} from '../../services/document-overlay-preview.service';
+import { ShipAssetsService } from '../../services/ship-assets.service';
 import { StorageService } from '../../services/storage.service';
 import {
+  CREW_LIST_PREVIEW_CSS_PX_PER_PT,
+  openPdfJsPageView,
+  pdfJsPointerDeltaPdf,
+  pdfJsScreenStepToPdf,
+  type PdfJsPageView,
+} from '../../utils/crew-list-pdfjs.util';
+import {
+  A4_HEIGHT_PT,
+  A4_WIDTH_PT,
   OverlayRotation,
   OVERLAY_ROTATIONS,
   PdfStampBox,
@@ -30,20 +45,20 @@ import {
   defaultStampSize,
   normalizeOverlayRotation,
   nudgeStampBox,
-  A4_HEIGHT_PT,
-  A4_WIDTH_PT,
-  pageDimensions,
-  previewClickToPdfPoint,
+  resizeStampBox,
+  scaleStampBoxToPage,
   stampBoxCenteredOn,
-  stampBoxToPreviewPercents,
+  stampBoxToRefCoordinates,
+  STAMP_RESIZE_HANDLES,
+  type StampResizeHandle,
 } from '../../utils/overlay-stamp-box.util';
 
-type MdhPickerPage = 'form' | 'attachment';
 type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
+type ResizeTarget = 'stamp' | 'signature';
 
 @Component({
   selector: 'app-overlay-placement-picker',
-  imports: [FormsModule],
+  imports: [FormsModule, DecimalPipe, NgStyle],
   template: `
     <div class="modal-backdrop placement-backdrop" (click)="close.emit()">
       <div
@@ -113,42 +128,97 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
 
         <p class="placement-hint">{{ placementHint() }}</p>
 
-        <div class="placement-stage" [style.aspect-ratio]="stageAspectRatio()">
-          <div
-            class="placement-sheet"
-            [class.placement-sheet--draggable]="placementMode() !== 'none'"
-            [class.placement-sheet--dragging]="pointerDragging()"
-            #placementSheet
-            (pointerdown)="onSheetPointerDown($event)"
-            (pointermove)="onSheetPointerMove($event)"
-            (pointerup)="onSheetPointerUp($event)"
-            (pointercancel)="onSheetPointerUp($event)"
-          >
-            <div
-              class="placement-marker placement-marker--stamp"
-              [class.placement-marker--on]="options().useStamp"
-              [class.placement-marker--active]="canMoveStamp()"
-              [style.left]="stampMarkerStyle().left"
-              [style.top]="stampMarkerStyle().top"
-              [style.width]="stampMarkerStyle().width"
-              [style.height]="stampMarkerStyle().height"
-              [style.transform]="markerRotateTransform()"
-            ></div>
-            <div
-              class="placement-marker placement-marker--sig"
-              [class.placement-marker--on]="options().useSignature"
-              [class.placement-marker--active]="canMoveSignature()"
-              [style.left]="signatureMarkerStyle().left"
-              [style.top]="signatureMarkerStyle().top"
-              [style.width]="signatureMarkerStyle().width"
-              [style.height]="signatureMarkerStyle().height"
-              [style.transform]="markerRotateTransform()"
-            ></div>
+        @if (loadError()) {
+          <p class="placement-error">{{ loadError() }}</p>
+        } @else {
+          <div class="placement-readout" aria-live="polite">
+            @if (cursorPt()) {
+              <span>Cursor: x {{ cursorPt()!.x }}, y {{ cursorPt()!.y }}</span>
+            }
+            @if (stampBoxOnPage(); as stamp) {
+              <span>
+                Stamp: x {{ stamp.x | number: '1.0-1' }}, y {{ stamp.y | number: '1.0-1' }},
+                {{ stamp.width | number: '1.0-1' }}×{{ stamp.height | number: '1.0-1' }} pt
+              </span>
+            }
+            @if (signatureBoxOnPage(); as sig) {
+              <span>
+                Signature: x {{ sig.x | number: '1.0-1' }}, y {{ sig.y | number: '1.0-1' }},
+                {{ sig.width | number: '1.0-1' }}×{{ sig.height | number: '1.0-1' }} pt
+              </span>
+            }
           </div>
-        </div>
+
+          <div class="placement-scroll">
+            @if (loading()) {
+              <p class="placement-loading">Loading document…</p>
+            }
+            <div
+              class="placement-page"
+              [class.placement-page--hidden]="loading()"
+              [style.width.px]="pageCssWidth()"
+              [style.height.px]="pageCssHeight()"
+            >
+              <canvas #pdfCanvas class="placement-canvas"></canvas>
+              <div
+                class="placement-overlay"
+                #placementOverlay
+                [class.placement-overlay--draggable]="placementMode() !== 'none' && !resizing()"
+                [class.placement-overlay--dragging]="pointerDragging()"
+                [class.placement-overlay--resizing]="resizing()"
+                (pointerdown)="onOverlayPointerDown($event)"
+                (pointermove)="onOverlayPointerMove($event)"
+                (pointerup)="onOverlayPointerUp($event)"
+                (pointercancel)="onOverlayPointerUp($event)"
+                (pointerleave)="onOverlayPointerLeave()"
+              >
+                <div
+                  class="placement-marker placement-marker--stamp"
+                  [class.placement-marker--on]="options().useStamp"
+                  [class.placement-marker--active]="canMoveStamp()"
+                  [class.placement-marker--resizable]="canResizeStamp()"
+                  [ngStyle]="stampOverlayStyle()"
+                >
+                  @if (stampPreviewUrl()) {
+                    <img [src]="stampPreviewUrl()" alt="" class="placement-marker-img" />
+                  }
+                  @if (canResizeStamp()) {
+                    @for (h of resizeHandles; track h) {
+                      <span
+                        class="placement-handle placement-handle--stamp placement-handle--{{ h }}"
+                        [attr.aria-label]="'Resize stamp ' + h"
+                        (pointerdown)="onHandlePointerDown($event, 'stamp', h)"
+                      ></span>
+                    }
+                  }
+                </div>
+                <div
+                  class="placement-marker placement-marker--sig"
+                  [class.placement-marker--on]="options().useSignature"
+                  [class.placement-marker--active]="canMoveSignature()"
+                  [class.placement-marker--resizable]="canResizeSignature()"
+                  [ngStyle]="signatureOverlayStyle()"
+                >
+                  @if (signaturePreviewUrl()) {
+                    <img [src]="signaturePreviewUrl()" alt="" class="placement-marker-img" />
+                  }
+                  @if (canResizeSignature()) {
+                    @for (h of resizeHandles; track h) {
+                      <span
+                        class="placement-handle placement-handle--sig placement-handle--{{ h }}"
+                        [attr.aria-label]="'Resize signature ' + h"
+                        (pointerdown)="onHandlePointerDown($event, 'signature', h)"
+                      ></span>
+                    }
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        }
 
         <p class="placement-coords">
-          Rotation {{ rotation() }}° — {{ moveTargetLabel() }}
+          Real size (96 dpi) — {{ moveTargetLabel() }}, rotation {{ rotation() }}°
         </p>
 
         <div class="placement-actions">
@@ -160,16 +230,16 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
   `,
   styles: `
     .placement-backdrop {
-      z-index: 120;
+      z-index: 130;
     }
 
     .placement-modal {
       background: var(--surface);
       border-radius: 12px;
       padding: 1.25rem 1.5rem;
-      max-width: 640px;
+      max-width: min(96vw, 1200px);
       width: 100%;
-      max-height: 92vh;
+      max-height: 94vh;
       overflow-y: auto;
       box-shadow: 0 20px 50px rgb(0 0 0 / 20%);
       outline: none;
@@ -284,35 +354,71 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
       line-height: 1.45;
     }
 
-    .placement-stage {
-      width: min(520px, 92vw);
-      margin: 0 auto 0.65rem;
+    .placement-readout {
+      margin: 0 0 0.5rem;
+      padding: 0.4rem 0.6rem;
+      background: #f1f5f9;
+      border-radius: 6px;
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+      font-size: 0.78rem;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #e2e8f0;
-      border-radius: 8px;
-      box-sizing: border-box;
+      flex-direction: column;
+      gap: 0.15rem;
+      color: #334155;
     }
 
-    .placement-sheet {
-      width: 50%;
-      height: 50%;
-      background: #fff;
-      border: 1px solid #cbd5e1;
-      box-shadow: 0 2px 10px rgb(15 23 42 / 12%);
+    .placement-scroll {
+      overflow: auto;
+      max-height: min(68vh, 820px);
+      margin: 0 0 0.65rem;
+      background: #e2e8f0;
+      border-radius: 8px;
+      padding: 0.75rem;
+      display: flex;
+      justify-content: center;
+      min-height: 120px;
+    }
+
+    .placement-loading {
+      margin: 2rem auto;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .placement-page {
       position: relative;
+      flex-shrink: 0;
+    }
+
+    .placement-page--hidden {
+      visibility: hidden;
+      position: absolute;
+      pointer-events: none;
+    }
+
+    .placement-canvas {
+      display: block;
+      box-shadow: 0 2px 12px rgb(15 23 42 / 18%);
+    }
+
+    .placement-overlay {
+      position: absolute;
+      inset: 0;
       cursor: default;
       touch-action: none;
       user-select: none;
     }
 
-    .placement-sheet--draggable {
-      cursor: grab;
+    .placement-overlay--draggable {
+      cursor: crosshair;
     }
 
-    .placement-sheet--dragging {
+    .placement-overlay--dragging {
       cursor: grabbing;
+    }
+
+    .placement-overlay--resizing {
+      cursor: default;
     }
 
     .placement-marker {
@@ -320,11 +426,15 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
       pointer-events: none;
       box-sizing: border-box;
       transform-origin: center center;
-      opacity: 0.28;
+      overflow: hidden;
+      opacity: 0.35;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .placement-marker--on {
-      opacity: 0.5;
+      opacity: 0.55;
     }
 
     .placement-marker--active {
@@ -333,21 +443,118 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
 
     .placement-marker--stamp {
       border: 2px dashed #dc2626;
-      background: rgb(220 38 38 / 8%);
-      border-radius: 2px;
+      background: rgb(220 38 38 / 6%);
     }
 
     .placement-marker--sig {
       border: 1px dashed #0369a1;
-      background: rgb(3 105 161 / 10%);
-      border-radius: 2px;
+      background: rgb(3 105 161 / 8%);
+    }
+
+    .placement-marker-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .placement-marker--resizable {
+      pointer-events: none;
+    }
+
+    .placement-handle {
+      position: absolute;
+      pointer-events: auto;
+      z-index: 3;
+      box-sizing: border-box;
+    }
+
+    .placement-handle--stamp {
+      background: #dc2626;
+      border: 1px solid #fff;
+    }
+
+    .placement-handle--sig {
+      background: #0369a1;
+      border: 1px solid #fff;
+    }
+
+    .placement-handle--n,
+    .placement-handle--s {
+      left: 50%;
+      width: 14px;
+      height: 7px;
+      margin-left: -7px;
+      cursor: ns-resize;
+    }
+
+    .placement-handle--n {
+      top: -4px;
+    }
+
+    .placement-handle--s {
+      bottom: -4px;
+    }
+
+    .placement-handle--e,
+    .placement-handle--w {
+      top: 50%;
+      width: 7px;
+      height: 14px;
+      margin-top: -7px;
+      cursor: ew-resize;
+    }
+
+    .placement-handle--e {
+      right: -4px;
+    }
+
+    .placement-handle--w {
+      left: -4px;
+    }
+
+    .placement-handle--nw,
+    .placement-handle--ne,
+    .placement-handle--sw,
+    .placement-handle--se {
+      width: 9px;
+      height: 9px;
+    }
+
+    .placement-handle--nw {
+      top: -5px;
+      left: -5px;
+      cursor: nwse-resize;
+    }
+
+    .placement-handle--ne {
+      top: -5px;
+      right: -5px;
+      cursor: nesw-resize;
+    }
+
+    .placement-handle--sw {
+      bottom: -5px;
+      left: -5px;
+      cursor: nesw-resize;
+    }
+
+    .placement-handle--se {
+      bottom: -5px;
+      right: -5px;
+      cursor: nwse-resize;
     }
 
     .placement-coords {
       margin: 0 0 1rem;
-      text-align: center;
       font-size: 0.78rem;
       color: var(--text-muted);
+    }
+
+    .placement-error {
+      color: #b91c1c;
+      font-size: 0.88rem;
+      margin: 0 0 1rem;
     }
 
     .placement-actions {
@@ -358,45 +565,74 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
     }
   `,
 })
-export class OverlayPlacementPickerComponent implements OnInit, AfterViewInit, OnDestroy {
+export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   readonly documentId = input.required<DocumentOverlayId>();
   readonly close = output<void>();
 
   protected readonly rotations = OVERLAY_ROTATIONS;
+  protected readonly resizeHandles = STAMP_RESIZE_HANDLES;
 
   private readonly storage = inject(StorageService);
+  private readonly previewSvc = inject(DocumentOverlayPreviewService);
+  private readonly assets = inject(ShipAssetsService);
   private readonly modalHost = viewChild<ElementRef<HTMLElement>>('modalHost');
-  private readonly placementSheet = viewChild<ElementRef<HTMLElement>>('placementSheet');
+  private readonly pdfCanvas = viewChild<ElementRef<HTMLCanvasElement>>('pdfCanvas');
+  private readonly placementOverlay = viewChild<ElementRef<HTMLElement>>('placementOverlay');
 
-  protected readonly mdhPage = signal<MdhPickerPage>('form');
+  protected readonly mdhPage = signal<MdhOverlayPreviewPage>('form');
   protected readonly rotation = signal<OverlayRotation>(0);
   protected readonly pointerDragging = signal(false);
+  protected readonly resizing = signal(false);
+  private readonly activeResize = signal<{
+    target: ResizeTarget;
+    handle: StampResizeHandle;
+  } | null>(null);
+  protected readonly loading = signal(true);
+  protected readonly loadError = signal<string | null>(null);
+  protected readonly cursorPt = signal<{ x: number; y: number } | null>(null);
+  protected readonly stampPreviewUrl = signal<string | null>(null);
+  protected readonly signaturePreviewUrl = signal<string | null>(null);
 
-  /** Live positions while dragging (avoid storage write per pixel). */
-  private readonly dragStampBox = signal<PdfStampBox | null>(null);
-  private readonly dragSignatureBox = signal<PdfStampBox | null>(null);
+  private readonly pageSizePt = signal({ widthPt: A4_WIDTH_PT, heightPt: A4_HEIGHT_PT });
+  protected readonly pageCssWidth = signal(0);
+  protected readonly pageCssHeight = signal(0);
+
+  private pageView: PdfJsPageView | null = null;
+  private pdfBytes: Uint8Array | null = null;
+  private renderStarted = false;
+
+  private readonly dragStampBoxPage = signal<PdfStampBox | null>(null);
+  private readonly dragSignatureBoxPage = signal<PdfStampBox | null>(null);
   private lastPointerClient: { x: number; y: number } | null = null;
   private pointerDidMove = false;
 
-  ngOnInit(): void {
-    this.syncRotationFromStorage();
+  constructor() {
+    afterNextRender(() => {
+      if (this.renderStarted) return;
+      this.renderStarted = true;
+      void this.loadDocumentPreview();
+      queueMicrotask(() => this.modalHost()?.nativeElement.focus());
+    });
   }
 
-  ngAfterViewInit(): void {
-    queueMicrotask(() => this.modalHost()?.nativeElement.focus());
+  ngOnInit(): void {
+    this.syncRotationFromStorage();
+    void this.loadAssetPreviews();
   }
 
   ngOnDestroy(): void {
+    this.endResize(false);
     this.endPointerDrag(false);
+    this.pageView?.destroy();
+    this.pageView = null;
+    this.revokePreviewUrls();
   }
-
-  protected readonly pageDims = computed(() => pageDimensions());
-  protected readonly stageAspectRatio = computed(() => `${A4_WIDTH_PT} / ${A4_HEIGHT_PT}`);
-  protected markerRotateTransform = computed(() => `rotate(${this.rotation()}deg)`);
 
   protected readonly mdhAttachment = computed(
     () => this.documentId() === 'mdh' && this.mdhPage() === 'attachment',
   );
+
+  protected markerRotateTransform = computed(() => `rotate(${this.rotation()}deg)`);
 
   protected placementMode = computed((): PlacementMode => {
     const o = this.options();
@@ -416,16 +652,24 @@ export class OverlayPlacementPickerComponent implements OnInit, AfterViewInit, O
     return this.options().useSignature && (m === 'signature' || m === 'both');
   });
 
+  protected canResizeStamp = computed(
+    () => this.options().useStamp && this.placementMode() !== 'none',
+  );
+
+  protected canResizeSignature = computed(
+    () => this.options().useSignature && this.placementMode() !== 'none',
+  );
+
   protected placementHint = computed(() => {
     switch (this.placementMode()) {
       case 'both':
-        return 'Both frames are visible. Drag on the page or use arrow keys to move stamp and signature together (checked items).';
+        return 'Drag to move; drag edges/corners of a frame to resize. Arrow keys nudge position.';
       case 'stamp':
-        return 'Both frames are visible. Drag or use arrow keys to move the stamp (signature preview only).';
+        return 'Drag to move the stamp; drag its edges/corners to resize (signature for reference).';
       case 'signature':
-        return 'Both frames are visible. Drag or use arrow keys to move the signature (stamp preview only).';
+        return 'Drag to move the signature; drag its edges/corners to resize.';
       default:
-        return 'Both frames are visible for preview. Enable stamp and/or signature to move them.';
+        return 'Enable stamp and/or signature. Drag frames to move; drag edges/corners to resize.';
     }
   });
 
@@ -450,49 +694,45 @@ export class OverlayPlacementPickerComponent implements OnInit, AfterViewInit, O
     return DOCUMENT_OVERLAY_LABELS[this.documentId()];
   }
 
-  protected stampBoxStored = computed(() => {
+  protected stampBoxRef = computed(() => {
     const opts = this.options();
-    const { widthPt, heightPt } = this.pageDims();
     const raw = this.mdhAttachment() ? opts.stampBoxAttachment : opts.stampBox;
-    const box =
-      raw ?? defaultStampBoxForDocument(this.documentId(), this.mdhAttachment() ? 'attachment' : 'form');
-    return clampStampBox(box, widthPt, heightPt);
+    return raw ?? defaultStampBoxForDocument(this.documentId(), this.mdhAttachment() ? 'attachment' : 'form');
   });
 
-  protected signatureBoxStored = computed(() => {
+  protected signatureBoxRef = computed(() => {
     const opts = this.options();
-    const { widthPt, heightPt } = this.pageDims();
-    const stamp = this.stampBoxStored();
+    const stamp = this.stampBoxRef();
     const raw = this.mdhAttachment() ? opts.signatureBoxAttachment : opts.signatureBox;
-    const box = raw ?? defaultSignatureBoxFromStamp(stamp, heightPt);
-    return clampStampBox(box, widthPt, heightPt);
+    return raw ?? defaultSignatureBoxFromStamp(stamp, A4_HEIGHT_PT);
   });
 
-  protected displayStampBox = computed(
-    () => this.dragStampBox() ?? this.stampBoxStored(),
-  );
-
-  protected displaySignatureBox = computed(
-    () => this.dragSignatureBox() ?? this.signatureBoxStored(),
-  );
-
-  protected stampMarkerStyle = computed(() => {
-    const { widthPt, heightPt } = this.pageDims();
-    return stampBoxToPreviewPercents(this.displayStampBox(), widthPt, heightPt);
+  protected stampBoxOnPage = computed(() => {
+    const { widthPt, heightPt } = this.pageSizePt();
+    const ref = this.dragStampBoxPage() ?? this.stampBoxRef();
+    return clampStampBox(scaleStampBoxToPage(ref, widthPt, heightPt), widthPt, heightPt);
   });
 
-  protected signatureMarkerStyle = computed(() => {
-    const { widthPt, heightPt } = this.pageDims();
-    return stampBoxToPreviewPercents(this.displaySignatureBox(), widthPt, heightPt);
+  protected signatureBoxOnPage = computed(() => {
+    const { widthPt, heightPt } = this.pageSizePt();
+    const stampRef = this.stampBoxRef();
+    const ref = this.dragSignatureBoxPage() ?? this.signatureBoxRef();
+    const scaled = scaleStampBoxToPage(ref, widthPt, heightPt);
+    return clampStampBox(scaled, widthPt, heightPt);
   });
+
+  protected stampOverlayStyle = computed(() => this.markerStyle(this.stampBoxOnPage()));
+  protected signatureOverlayStyle = computed(() => this.markerStyle(this.signatureBoxOnPage()));
 
   protected onToggle(field: 'useStamp' | 'useSignature', value: boolean): void {
     this.storage.updateDocumentOverlay(this.documentId(), { [field]: value });
   }
 
-  protected setMdhPage(page: MdhPickerPage): void {
+  protected async setMdhPage(page: MdhOverlayPreviewPage): Promise<void> {
+    if (this.mdhPage() === page) return;
     this.mdhPage.set(page);
     this.syncRotationFromStorage();
+    await this.rerenderPdfPage();
   }
 
   protected setRotation(deg: OverlayRotation): void {
@@ -500,58 +740,109 @@ export class OverlayPlacementPickerComponent implements OnInit, AfterViewInit, O
     this.persistRotation(deg);
   }
 
-  protected onSheetPointerDown(event: PointerEvent): void {
+  protected onHandlePointerDown(
+    event: PointerEvent,
+    target: ResizeTarget,
+    handle: StampResizeHandle,
+  ): void {
     if (event.button !== 0) return;
+    event.stopPropagation();
+    event.preventDefault();
+
+    const overlay = this.placementOverlay()?.nativeElement;
+    if (!overlay) return;
+    overlay.setPointerCapture(event.pointerId);
+
+    this.activeResize.set({ target, handle });
+    this.resizing.set(true);
+    this.pointerDidMove = false;
+    this.lastPointerClient = { x: event.clientX, y: event.clientY };
+
+    if (target === 'stamp') {
+      this.dragStampBoxPage.set(this.stampBoxOnPage());
+    } else {
+      this.dragSignatureBoxPage.set(this.signatureBoxOnPage());
+    }
+  }
+
+  protected onOverlayPointerDown(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    if (this.resizing()) return;
     const mode = this.placementMode();
     if (mode === 'none') return;
 
-    const el = this.placementSheet()?.nativeElement;
-    if (!el) return;
+    const el = this.placementOverlay()?.nativeElement;
+    if (!el || !this.pageView) return;
 
     event.preventDefault();
     el.setPointerCapture(event.pointerId);
     this.pointerDragging.set(true);
     this.pointerDidMove = false;
     this.lastPointerClient = { x: event.clientX, y: event.clientY };
-    this.dragStampBox.set(this.stampBoxStored());
-    this.dragSignatureBox.set(this.signatureBoxStored());
+    this.dragStampBoxPage.set(this.stampBoxOnPage());
+    this.dragSignatureBoxPage.set(this.signatureBoxOnPage());
   }
 
-  protected onSheetPointerMove(event: PointerEvent): void {
-    if (!this.pointerDragging() || !this.lastPointerClient) return;
+  protected onOverlayPointerMove(event: PointerEvent): void {
+    this.updateCursor(event);
+    if (!this.lastPointerClient || !this.pageView) return;
 
-    const dxPx = event.clientX - this.lastPointerClient.x;
-    const dyPx = event.clientY - this.lastPointerClient.y;
-    if (dxPx === 0 && dyPx === 0) return;
+    const el = this.placementOverlay()?.nativeElement;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const { dx, dy } = pdfJsPointerDeltaPdf(
+      this.pageView,
+      rect,
+      event.clientX,
+      event.clientY,
+      this.lastPointerClient.x,
+      this.lastPointerClient.y,
+    );
+    if (dx === 0 && dy === 0) return;
 
     this.pointerDidMove = true;
     this.lastPointerClient = { x: event.clientX, y: event.clientY };
 
-    const step = this.nudgeStepPdf();
-    this.nudgeLive(this.placementMode(), dxPx * step.dx, -dyPx * step.dy);
+    const resize = this.activeResize();
+    if (resize && this.resizing()) {
+      this.resizeLive(resize.target, resize.handle, dx, dy);
+      return;
+    }
+
+    if (!this.pointerDragging()) return;
+    this.nudgeLive(this.placementMode(), dx, dy);
   }
 
-  protected onSheetPointerUp(event: PointerEvent): void {
+  protected onOverlayPointerLeave(): void {
+    this.cursorPt.set(null);
+  }
+
+  protected onOverlayPointerUp(event: PointerEvent): void {
+    if (this.resizing()) {
+      const el = this.placementOverlay()?.nativeElement;
+      if (el?.hasPointerCapture(event.pointerId)) {
+        el.releasePointerCapture(event.pointerId);
+      }
+      this.endResize(true);
+      return;
+    }
+
     if (!this.pointerDragging()) return;
 
     const mode = this.placementMode();
-    const el = this.placementSheet()?.nativeElement;
+    const el = this.placementOverlay()?.nativeElement;
     if (el?.hasPointerCapture(event.pointerId)) {
       el.releasePointerCapture(event.pointerId);
     }
 
-    if (!this.pointerDidMove && mode !== 'none' && el) {
+    if (!this.pointerDidMove && mode !== 'none' && el && this.pageView) {
       const rect = el.getBoundingClientRect();
-      const { widthPt, heightPt } = this.pageDims();
-      const { x, y } = previewClickToPdfPoint(
+      const pt = this.pageView.convertToPdfPoint(
         event.clientX - rect.left,
         event.clientY - rect.top,
-        rect.width,
-        rect.height,
-        widthPt,
-        heightPt,
       );
-      this.placeAt(mode, x, y);
+      this.placeAt(mode, pt.x, pt.y);
       this.endPointerDrag(false);
       return;
     }
@@ -563,77 +854,201 @@ export class OverlayPlacementPickerComponent implements OnInit, AfterViewInit, O
     const mode = this.placementMode();
     if (mode === 'none') return;
 
-    let dx = 0;
-    let dy = 0;
     switch (event.key) {
       case 'ArrowLeft':
-        dx = -1;
-        break;
       case 'ArrowRight':
-        dx = 1;
-        break;
       case 'ArrowUp':
-        dy = 1;
-        break;
       case 'ArrowDown':
-        dy = -1;
         break;
       default:
         return;
     }
 
     event.preventDefault();
-    const step = this.nudgeStepPdf();
-    this.nudgeBy(mode, dx * step.dx, dy * step.dy, true);
+    const el = this.placementOverlay()?.nativeElement;
+    const view = this.pageView;
+    if (!el || !view) return;
+
+    const rect = el.getBoundingClientRect();
+    const stepPx = 8;
+    let cssDx = 0;
+    let cssDy = 0;
+    switch (event.key) {
+      case 'ArrowLeft':
+        cssDx = -stepPx;
+        break;
+      case 'ArrowRight':
+        cssDx = stepPx;
+        break;
+      case 'ArrowUp':
+        cssDy = -stepPx;
+        break;
+      case 'ArrowDown':
+        cssDy = stepPx;
+        break;
+      default:
+        return;
+    }
+    const { dx: pdfDx, dy: pdfDy } = pdfJsScreenStepToPdf(view, rect, cssDx, cssDy);
+    this.nudgeBy(mode, pdfDx, pdfDy, true);
   }
 
   protected resetToDefault(): void {
-    const { widthPt, heightPt } = pageDimensions();
-    const stamp = clampStampBox(
-      defaultStampBoxForDocument(this.documentId(), this.mdhAttachment() ? 'attachment' : 'form'),
-      widthPt,
-      heightPt,
+    const stamp = defaultStampBoxForDocument(
+      this.documentId(),
+      this.mdhAttachment() ? 'attachment' : 'form',
     );
-    const signature = clampStampBox(defaultSignatureBoxFromStamp(stamp, heightPt), widthPt, heightPt);
+    const signature = defaultSignatureBoxFromStamp(stamp, A4_HEIGHT_PT);
     this.persistBoxes(stamp, signature);
 
     const rot: OverlayRotation = this.mdhAttachment() ? 180 : 0;
     this.rotation.set(rot);
     this.persistRotation(rot);
+    this.dragStampBoxPage.set(null);
+    this.dragSignatureBoxPage.set(null);
+  }
+
+  private markerStyle(box: PdfStampBox): Record<string, string> {
+    const view = this.pageView;
+    if (!view) return { display: 'none' };
+    const r = view.boxToViewportCss(box);
+    return {
+      left: `${r.left}px`,
+      top: `${r.top}px`,
+      width: `${r.width}px`,
+      height: `${r.height}px`,
+      transform: this.markerRotateTransform(),
+    };
+  }
+
+  private async loadDocumentPreview(): Promise<void> {
+    this.loading.set(true);
+    this.loadError.set(null);
+    try {
+      this.pdfBytes = await this.previewSvc.build(this.documentId());
+      await this.rerenderPdfPage();
+    } catch (err) {
+      this.loadError.set(err instanceof Error ? err.message : 'Failed to load document');
+      this.loading.set(false);
+    }
+  }
+
+  private async rerenderPdfPage(): Promise<void> {
+    const canvas = this.pdfCanvas()?.nativeElement;
+    if (!canvas || !this.pdfBytes) return;
+
+    this.pageView?.destroy();
+    this.pageView = null;
+    this.loading.set(true);
+
+    try {
+      const pageNum = this.previewSvc.pdfJsPageNumber(this.documentId(), this.mdhPage());
+      this.pageView = await openPdfJsPageView(
+        this.pdfBytes,
+        CREW_LIST_PREVIEW_CSS_PX_PER_PT,
+        pageNum,
+      );
+      this.pageSizePt.set({
+        widthPt: this.pageView.pageWidthPt,
+        heightPt: this.pageView.pageHeightPt,
+      });
+      this.pageCssWidth.set(this.pageView.width);
+      this.pageCssHeight.set(this.pageView.height);
+      await this.pageView.render(canvas);
+      this.dragStampBoxPage.set(null);
+      this.dragSignatureBoxPage.set(null);
+      this.loading.set(false);
+    } catch (err) {
+      this.loadError.set(err instanceof Error ? err.message : 'Failed to render page');
+      this.loading.set(false);
+    }
+  }
+
+  private async loadAssetPreviews(): Promise<void> {
+    this.revokePreviewUrls();
+    const stamp = await this.assets.loadBytes('stamp');
+    const signature = await this.assets.loadBytes('signature');
+    if (stamp?.length) {
+      this.stampPreviewUrl.set(URL.createObjectURL(new Blob([stamp.slice()])));
+    }
+    if (signature?.length) {
+      this.signaturePreviewUrl.set(
+        URL.createObjectURL(new Blob([signature.slice()])),
+      );
+    }
+  }
+
+  private revokePreviewUrls(): void {
+    const stamp = this.stampPreviewUrl();
+    const sig = this.signaturePreviewUrl();
+    if (stamp) URL.revokeObjectURL(stamp);
+    if (sig) URL.revokeObjectURL(sig);
+    this.stampPreviewUrl.set(null);
+    this.signaturePreviewUrl.set(null);
+  }
+
+  private updateCursor(event: PointerEvent): void {
+    const el = this.placementOverlay()?.nativeElement;
+    const view = this.pageView;
+    if (!el || !view) return;
+    const rect = el.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+      this.cursorPt.set(null);
+      return;
+    }
+    this.cursorPt.set(view.convertToPdfPoint(x, y));
   }
 
   private endPointerDrag(persist: boolean): void {
     if (persist) {
       const mode = this.placementMode();
-      if (mode === 'stamp') {
-        this.persistBoxes(this.dragStampBox() ?? undefined, undefined);
-      } else if (mode === 'signature') {
-        this.persistBoxes(undefined, this.dragSignatureBox() ?? undefined);
+      const { widthPt, heightPt } = this.pageSizePt();
+      if (mode === 'stamp' && this.dragStampBoxPage()) {
+        this.persistBoxes(
+          stampBoxToRefCoordinates(this.dragStampBoxPage()!, widthPt, heightPt),
+          undefined,
+        );
+      } else if (mode === 'signature' && this.dragSignatureBoxPage()) {
+        this.persistBoxes(
+          undefined,
+          stampBoxToRefCoordinates(this.dragSignatureBoxPage()!, widthPt, heightPt),
+        );
       } else if (mode === 'both') {
-        this.persistBoxes(this.dragStampBox() ?? undefined, this.dragSignatureBox() ?? undefined);
+        this.persistBoxes(
+          this.dragStampBoxPage()
+            ? stampBoxToRefCoordinates(this.dragStampBoxPage()!, widthPt, heightPt)
+            : undefined,
+          this.dragSignatureBoxPage()
+            ? stampBoxToRefCoordinates(this.dragSignatureBoxPage()!, widthPt, heightPt)
+            : undefined,
+        );
       }
     }
     this.pointerDragging.set(false);
     this.lastPointerClient = null;
-    this.dragStampBox.set(null);
-    this.dragSignatureBox.set(null);
+    this.dragStampBoxPage.set(null);
+    this.dragSignatureBoxPage.set(null);
     this.pointerDidMove = false;
   }
 
   private placeAt(mode: PlacementMode, pdfX: number, pdfY: number): void {
-    const { widthPt, heightPt } = this.pageDims();
-    const stamp = this.stampBoxStored();
-    const signature = this.signatureBoxStored();
+    const { widthPt, heightPt } = this.pageSizePt();
+    const stamp = this.stampBoxOnPage();
+    const signature = this.signatureBoxOnPage();
 
     if (mode === 'stamp') {
       const size = defaultStampSize(widthPt, heightPt);
-      this.persistBoxes(stampBoxCenteredOn(pdfX, pdfY, size, widthPt, heightPt), undefined);
+      const onPage = stampBoxCenteredOn(pdfX, pdfY, size, widthPt, heightPt);
+      this.persistBoxes(stampBoxToRefCoordinates(onPage, widthPt, heightPt), undefined);
       return;
     }
 
     if (mode === 'signature') {
       const size = defaultSignatureSize(widthPt, heightPt);
-      this.persistBoxes(undefined, stampBoxCenteredOn(pdfX, pdfY, size, widthPt, heightPt));
+      const onPage = stampBoxCenteredOn(pdfX, pdfY, size, widthPt, heightPt);
+      this.persistBoxes(undefined, stampBoxToRefCoordinates(onPage, widthPt, heightPt));
       return;
     }
 
@@ -641,52 +1056,92 @@ export class OverlayPlacementPickerComponent implements OnInit, AfterViewInit, O
     const dx = pdfX - stampCenter.x;
     const dy = pdfY - stampCenter.y;
     this.persistBoxes(
-      nudgeStampBox(stamp, dx, dy, widthPt, heightPt),
-      nudgeStampBox(signature, dx, dy, widthPt, heightPt),
+      stampBoxToRefCoordinates(nudgeStampBox(stamp, dx, dy, widthPt, heightPt), widthPt, heightPt),
+      stampBoxToRefCoordinates(
+        nudgeStampBox(signature, dx, dy, widthPt, heightPt),
+        widthPt,
+        heightPt,
+      ),
     );
   }
 
-  /** Smooth drag: update in-memory boxes only. */
+  private resizeLive(target: ResizeTarget, handle: StampResizeHandle, dx: number, dy: number): void {
+    const { widthPt, heightPt } = this.pageSizePt();
+    if (target === 'stamp') {
+      const box = this.dragStampBoxPage() ?? this.stampBoxOnPage();
+      this.dragStampBoxPage.set(resizeStampBox(box, handle, dx, dy, widthPt, heightPt));
+      return;
+    }
+    const box = this.dragSignatureBoxPage() ?? this.signatureBoxOnPage();
+    this.dragSignatureBoxPage.set(resizeStampBox(box, handle, dx, dy, widthPt, heightPt));
+  }
+
+  private endResize(persist: boolean): void {
+    if (persist && this.pointerDidMove) {
+      const { widthPt, heightPt } = this.pageSizePt();
+      const target = this.activeResize()?.target;
+      if (target === 'stamp' && this.dragStampBoxPage()) {
+        this.persistBoxes(
+          stampBoxToRefCoordinates(this.dragStampBoxPage()!, widthPt, heightPt),
+          undefined,
+        );
+      } else if (target === 'signature' && this.dragSignatureBoxPage()) {
+        this.persistBoxes(
+          undefined,
+          stampBoxToRefCoordinates(this.dragSignatureBoxPage()!, widthPt, heightPt),
+        );
+      }
+    }
+    this.resizing.set(false);
+    this.activeResize.set(null);
+    this.lastPointerClient = null;
+    this.pointerDidMove = false;
+    if (!persist) {
+      this.dragStampBoxPage.set(null);
+      this.dragSignatureBoxPage.set(null);
+    }
+  }
+
   private nudgeLive(mode: PlacementMode, dx: number, dy: number): void {
-    const { widthPt, heightPt } = this.pageDims();
-    let stamp = this.dragStampBox() ?? this.stampBoxStored();
-    let signature = this.dragSignatureBox() ?? this.signatureBoxStored();
+    const { widthPt, heightPt } = this.pageSizePt();
+    let stamp = this.dragStampBoxPage() ?? this.stampBoxOnPage();
+    let signature = this.dragSignatureBoxPage() ?? this.signatureBoxOnPage();
 
     if (mode === 'stamp' && this.canMoveStamp()) {
-      stamp = nudgeStampBox(stamp, dx, dy, widthPt, heightPt);
-      this.dragStampBox.set(stamp);
+      this.dragStampBoxPage.set(nudgeStampBox(stamp, dx, dy, widthPt, heightPt));
       return;
     }
     if (mode === 'signature' && this.canMoveSignature()) {
-      signature = nudgeStampBox(signature, dx, dy, widthPt, heightPt);
-      this.dragSignatureBox.set(signature);
+      this.dragSignatureBoxPage.set(nudgeStampBox(signature, dx, dy, widthPt, heightPt));
       return;
     }
     if (mode === 'both') {
       if (this.canMoveStamp()) {
-        stamp = nudgeStampBox(stamp, dx, dy, widthPt, heightPt);
-        this.dragStampBox.set(stamp);
+        this.dragStampBoxPage.set(nudgeStampBox(stamp, dx, dy, widthPt, heightPt));
       }
       if (this.canMoveSignature()) {
-        signature = nudgeStampBox(signature, dx, dy, widthPt, heightPt);
-        this.dragSignatureBox.set(signature);
+        this.dragSignatureBoxPage.set(nudgeStampBox(signature, dx, dy, widthPt, heightPt));
       }
     }
   }
 
   private nudgeBy(mode: PlacementMode, dx: number, dy: number, persist = true): void {
-    const { widthPt, heightPt } = this.pageDims();
-    const stamp = this.stampBoxStored();
-    const signature = this.signatureBoxStored();
+    const { widthPt, heightPt } = this.pageSizePt();
+    const stamp = this.stampBoxOnPage();
+    const signature = this.signatureBoxOnPage();
 
     if (mode === 'stamp' && this.canMoveStamp()) {
-      const next = nudgeStampBox(stamp, dx, dy, widthPt, heightPt);
-      if (persist) this.persistBoxes(next, undefined);
+      const onPage = nudgeStampBox(stamp, dx, dy, widthPt, heightPt);
+      if (persist) {
+        this.persistBoxes(stampBoxToRefCoordinates(onPage, widthPt, heightPt), undefined);
+      }
       return;
     }
     if (mode === 'signature' && this.canMoveSignature()) {
-      const next = nudgeStampBox(signature, dx, dy, widthPt, heightPt);
-      if (persist) this.persistBoxes(undefined, next);
+      const onPage = nudgeStampBox(signature, dx, dy, widthPt, heightPt);
+      if (persist) {
+        this.persistBoxes(undefined, stampBoxToRefCoordinates(onPage, widthPt, heightPt));
+      }
       return;
     }
     if (mode === 'both') {
@@ -696,38 +1151,29 @@ export class OverlayPlacementPickerComponent implements OnInit, AfterViewInit, O
       const nextSig = this.canMoveSignature()
         ? nudgeStampBox(signature, dx, dy, widthPt, heightPt)
         : signature;
-      if (persist) this.persistBoxes(nextStamp, nextSig);
-    }
-  }
-
-  /** One screen pixel on the miniature sheet → PDF points. */
-  private nudgeStepPdf(): { dx: number; dy: number } {
-    const el = this.placementSheet()?.nativeElement;
-    const { widthPt, heightPt } = this.pageDims();
-    if (!el) {
-      return { dx: 1, dy: 1 };
-    }
-    const rect = el.getBoundingClientRect();
-    return {
-      dx: widthPt / Math.max(1, rect.width),
-      dy: heightPt / Math.max(1, rect.height),
-    };
-  }
-
-  private persistBoxes(stamp?: PdfStampBox, signature?: PdfStampBox): void {
-    const patch: Partial<DocumentStampOptions> = {};
-    if (stamp) {
-      if (this.mdhAttachment()) {
-        patch.stampBoxAttachment = stamp;
-      } else {
-        patch.stampBox = stamp;
+      if (persist) {
+        this.persistBoxes(
+          stampBoxToRefCoordinates(nextStamp, widthPt, heightPt),
+          stampBoxToRefCoordinates(nextSig, widthPt, heightPt),
+        );
       }
     }
-    if (signature) {
+  }
+
+  private persistBoxes(stampRef?: PdfStampBox, signatureRef?: PdfStampBox): void {
+    const patch: Partial<DocumentStampOptions> = {};
+    if (stampRef) {
       if (this.mdhAttachment()) {
-        patch.signatureBoxAttachment = signature;
+        patch.stampBoxAttachment = stampRef;
       } else {
-        patch.signatureBox = signature;
+        patch.stampBox = stampRef;
+      }
+    }
+    if (signatureRef) {
+      if (this.mdhAttachment()) {
+        patch.signatureBoxAttachment = signatureRef;
+      } else {
+        patch.signatureBox = signatureRef;
       }
     }
     if (Object.keys(patch).length) {

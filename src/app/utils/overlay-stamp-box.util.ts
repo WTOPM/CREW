@@ -146,6 +146,71 @@ export function scaleStampBoxToPage(
   };
 }
 
+/** Inverse of {@link scaleStampBoxToPage} — page coords → stored A4 reference. */
+export function stampBoxToRefCoordinates(
+  box: PdfStampBox,
+  pageW: number,
+  pageH: number,
+  refW = A4_WIDTH_PT,
+  refH = A4_HEIGHT_PT,
+): PdfStampBox {
+  const sx = refW / pageW;
+  const sy = refH / pageH;
+  return {
+    x: box.x * sx,
+    y: box.y * sy,
+    width: box.width * sx,
+    height: box.height * sy,
+  };
+}
+
+export type StampResizeHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
+export const STAMP_RESIZE_HANDLES: readonly StampResizeHandle[] = [
+  'nw',
+  'n',
+  'ne',
+  'w',
+  'e',
+  'sw',
+  's',
+  'se',
+];
+
+/** Resize in pdf-lib space (origin bottom-left). dx/dy from pointer delta. */
+export function resizeStampBox(
+  box: PdfStampBox,
+  handle: StampResizeHandle,
+  dx: number,
+  dy: number,
+  pageW = A4_WIDTH_PT,
+  pageH = A4_HEIGHT_PT,
+): PdfStampBox {
+  let { x, y, width, height } = box;
+
+  if (handle.includes('e')) width += dx;
+  if (handle.includes('w')) {
+    x += dx;
+    width -= dx;
+  }
+  if (handle.includes('n')) height += dy;
+  if (handle.includes('s')) {
+    y += dy;
+    height -= dy;
+  }
+
+  if (width < 0) {
+    x += width;
+    width = -width;
+  }
+  if (height < 0) {
+    y += height;
+    height = -height;
+  }
+
+  return clampStampBox({ x, y, width, height }, pageW, pageH);
+}
+
 export function clampStampBox(
   box: PdfStampBox,
   pageW = A4_WIDTH_PT,

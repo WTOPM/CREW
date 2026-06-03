@@ -67,6 +67,11 @@ export class PdfPortOfCallService {
     return doc;
   }
 
+  buildPdfBytes(data: AppData): Uint8Array {
+    const doc = this.build(data);
+    return new Uint8Array(doc.output('arraybuffer') as ArrayBuffer);
+  }
+
   async openPreview(data: AppData): Promise<boolean> {
     const doc = this.build(data);
     const bytes = await this.overlay.applyToJsPdf(doc, data.documentOverlay.portOfCall, 'portOfCall');
