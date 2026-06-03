@@ -7,6 +7,8 @@ import {
   formatPortCallPortName,
   selectPortCallHistoryForPdf,
 } from '../models/crew.models';
+import { openPdfPreview } from '../utils/pdf-download.util';
+import { portOfCallPdfFileName } from '../utils/pdf-filename.util';
 import { formatDisplayDate } from '../utils/date.util';
 import {
   POC_BORDER_WIDTH_PX,
@@ -63,15 +65,14 @@ export class PdfPortOfCallService {
   }
 
   openPreview(data: AppData): boolean {
-    const blob = this.build(data).output('blob');
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if (!win) {
-      URL.revokeObjectURL(url);
-      return false;
-    }
-    win.addEventListener('beforeunload', () => URL.revokeObjectURL(url));
-    return true;
+    const doc = this.build(data);
+    return openPdfPreview(doc, this.fileName(data));
+  }
+
+  fileName(data: AppData): string {
+    const { ship } = data;
+    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    return portOfCallPdfFileName(ship.name, voyageDate);
   }
 
   private drawPage(

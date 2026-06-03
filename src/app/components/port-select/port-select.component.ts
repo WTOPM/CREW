@@ -7,7 +7,7 @@ import { Port, portLabel } from '../../models/crew.models';
   imports: [FormsModule],
   template: `
     <select class="port-select" [ngModel]="value()" (ngModelChange)="valueChange.emit($event)">
-      <option value="">— выберите —</option>
+      <option value="">— select —</option>
       @for (p of ports(); track p.name) {
         <option [value]="p.name">{{ label(p) }}</option>
       }

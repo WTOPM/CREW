@@ -15,6 +15,7 @@ import {
   parseCrewName,
 } from '../models/crew.models';
 import { excelSerialToIso, parseValidityRange } from '../utils/date.util';
+import { createDefaultPaxArrSettings } from '../models/passenger.models';
 import { SEED_VERSION } from '../data/default-crew.seed';
 
 @Injectable({ providedIn: 'root' })
@@ -22,7 +23,7 @@ export class ExcelImportService {
   parseDocument(file: ArrayBuffer): AppData {
     const wb = XLSX.read(file, { type: 'array' });
     const ws = wb.Sheets['Input'];
-    if (!ws) throw new Error('Лист "Input" не найден в файле');
+    if (!ws) throw new Error('Sheet "Input" not found in file');
 
     const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
     const cell = (r: number, c: number) => String(rows[r]?.[c] ?? '').trim();
@@ -76,6 +77,8 @@ export class ExcelImportService {
       ship,
       crew,
       crewArr: createDefaultCrewArrSettings(),
+      passengers: [],
+      paxArr: createDefaultPaxArrSettings(),
       ports,
       ranks,
       nationalities,

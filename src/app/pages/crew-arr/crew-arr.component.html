@@ -1,9 +1,9 @@
 <div class="page">
   <header class="page-header">
     <div>
-      <a routerLink="/" class="back-link">← Главная</a>
+      <a routerLink="/" class="back-link">← Home</a>
       <h1>Crew Arr. — IMO CREW LIST</h1>
-      <p class="subtitle">IMO FAL Form 5 — 23 строки, данные с главной страницы</p>
+      <p class="subtitle">IMO FAL Form 5 — 23 rows, data from the home page</p>
     </div>
     <div class="header-actions">
       <button type="button" class="btn btn-primary" (click)="openPreview()">Open Crew List</button>
@@ -12,7 +12,7 @@
   </header>
 
   <section class="card">
-    <h2>Параметры формы</h2>
+    <h2>Form options</h2>
     <div class="form-grid">
       <label class="checkbox-row">
         <input
@@ -21,7 +21,7 @@
           [checked]="crewArr().isArrival"
           (change)="updateSetting('isArrival', true)"
         />
-        <span>Arrival (прибытие)</span>
+        <span>Arrival</span>
       </label>
       <label class="checkbox-row">
         <input
@@ -30,14 +30,14 @@
           [checked]="!crewArr().isArrival"
           (change)="updateSetting('isArrival', false)"
         />
-        <span>Departure (отбытие)</span>
+        <span>Departure</span>
       </label>
       <label>
         <span>Page No.</span>
         <input type="number" min="1" [ngModel]="crewArr().pageNo" (ngModelChange)="updateSetting('pageNo', +$event)" />
       </label>
       <label>
-        <span>Identity document (поле 6)</span>
+        <span>Identity document (field 6)</span>
         <input
           [ngModel]="crewArr().identityDocumentType"
           (ngModelChange)="updateSetting('identityDocumentType', $event)"
@@ -46,9 +46,10 @@
       </label>
     </div>
     <p class="hint">
-      Судно, порты, даты и экипаж (до 23 человек) берутся с
-      <a routerLink="/">главной страницы</a>.
-      Нажмите <strong>Open Crew List</strong> — откроется PDF-предпросмотр в новом окне браузера.
+      Ship, ports, dates, and crew (up to 23 people) come from the
+      <a routerLink="/">home page</a>.
+      Click <strong>Open Crew List</strong> to open a PDF preview in a new browser window.
     </p>
   </section>
 </div>
+

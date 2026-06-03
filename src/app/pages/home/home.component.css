@@ -253,12 +253,6 @@
   text-transform: uppercase;
 }
 
-.crew-form-block-hint {
-  margin: -0.35rem 0 0.6rem;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
 .crew-form-block--passport {
   background: #eff6ff;
   border-color: #93c5fd;

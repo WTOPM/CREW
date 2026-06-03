@@ -12,7 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const xlsxPath = process.argv[2] ?? path.join(root, 'DOCUMENT.xlsx');
 
-const SEED_VERSION = 6;
+const SEED_VERSION = 7;
 
 function excelSerialToIso(value) {
   if (value === undefined || value === null || value === '') return '';
@@ -143,7 +143,56 @@ function parseDocument(filePath) {
   return { ship, crew, present: crew.filter((m) => !m.archived).length, archive: crew.filter((m) => m.archived).length };
 }
 
+function parsePortOfCallHistory() {
+  const pocPath = path.join(root, 'PORT OF CALL.xlsx');
+  if (!fs.existsSync(pocPath)) return [];
+
+  const wb = XLSX.readFile(pocPath);
+  const ws = wb.Sheets['Port of Call List'];
+  if (!ws) return [];
+
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  const cell = (r, c) => String(rows[r]?.[c] ?? '').trim();
+  const entries = [];
+
+  const portNameFromExcel = (raw) => {
+    const key = raw.trim().toLowerCase();
+    const map = {
+      alger: 'Alger',
+      marseille: 'Marseille',
+      'la spezia': 'La Spezia',
+      genoa: 'Genoa',
+      salerno: 'Salerno',
+      napoli: 'Napoli',
+      'le havre': 'Le Havre',
+      antwerp: 'Antwerp',
+      bejaia: 'Bejaia',
+    };
+    if (map[key]) return map[key];
+    return key.replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
+  };
+
+  for (let r = 9; r < rows.length; r++) {
+    const portRaw = cell(r, 1);
+    const country = cell(r, 2);
+    if (!portRaw || !country || portRaw === 'Local Time') continue;
+
+    entries.push({
+      id: randomUUID(),
+      portName: portNameFromExcel(portRaw),
+      country: cell(r, 2).toUpperCase(),
+      arrivalDate: excelSerialToIso(cell(r, 3)),
+      arrivalTime: cell(r, 4),
+      departureDate: excelSerialToIso(cell(r, 5)),
+      departureTime: cell(r, 6),
+    });
+  }
+
+  return entries;
+}
+
 const { ship, crew, present, archive } = parseDocument(xlsxPath);
+const portCallFromXlsx = parsePortOfCallHistory();
 
 const dataDir = path.join(root, 'data');
 const publicDir = path.join(root, 'public');
@@ -169,7 +218,12 @@ const payload = {
   ports: existing.ports,
   ranks: existing.ranks,
   nationalities: existing.nationalities,
-  portCallHistory: existing.portCallHistory ?? [],
+  portCallHistory:
+    existing.portCallHistory?.length >= 10
+      ? existing.portCallHistory
+      : portCallFromXlsx.length >= 10
+        ? portCallFromXlsx
+        : [],
   portOfCall: existing.portOfCall ?? { pdfRowCount: 10 },
   seedVersion: SEED_VERSION,
 };
@@ -183,3 +237,4 @@ console.log(`  Ship: ${ship.name}`);
 console.log(`  Arrival list: ${present} | Archive: ${archive} | Total: ${crew.length}`);
 console.log(`  Written: ${outPath}`);
 console.log(`  Written: ${publicPath}`);
+console.log(`  Port of call rows: ${payload.portCallHistory.length}`);

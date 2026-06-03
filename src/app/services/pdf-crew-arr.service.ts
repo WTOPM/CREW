@@ -1,6 +1,10 @@
 import { Injectable } from '@angular/core';
 import { jsPDF } from 'jspdf';
 import { AppData, CrewMember, formatCrewListName } from '../models/crew.models';
+import { crewListPdfFileName, passengerListPdfFileName } from '../utils/pdf-filename.util';
+import { PassengerMember } from '../models/passenger.models';
+import { passengersToCrewRows } from '../utils/passenger-pdf.util';
+import { openPdfPreview } from '../utils/pdf-download.util';
 import { formatBirthDateShort, formatDisplayDate } from '../utils/date.util';
 import {
   BODY_BOTTOM_Y,
@@ -25,14 +29,20 @@ import {
 export { CREW_LIST_ROW_COUNT } from './crew-list-coordinates';
 
 const CREW_LIST_PAGE_NO = 1;
+export const IMO_PASSENGER_LIST_TITLE = 'IMO PASSENGER LIST';
+
+export interface CrewListPdfOptions {
+  title?: string;
+  fileName?: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class PdfCrewArrService {
-  build(data: AppData, crew: CrewMember[]): jsPDF {
+  build(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): jsPDF {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     this.drawPageBackground(doc);
     const scale = createCoordScale();
-    this.drawTitle(doc, scale);
+    this.drawTitle(doc, scale, options?.title);
     this.drawCoordinateGrid(doc, scale);
     this.drawStaticExtras(doc, scale, data.crewArr.identityDocumentType, data.crewArr.isArrival);
     this.fillDynamicData(doc, scale, data, crew);
@@ -40,26 +50,34 @@ export class PdfCrewArrService {
     return doc;
   }
 
-  generate(data: AppData, crew: CrewMember[]): void {
-    this.build(data, crew).save(this.fileName(data));
+  generate(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): void {
+    const doc = this.build(data, crew, options);
+    doc.save(this.fileName(data, options));
   }
 
-  openPreview(data: AppData, crew: CrewMember[]): boolean {
-    const blob = this.build(data, crew).output('blob');
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if (!win) {
-      URL.revokeObjectURL(url);
-      return false;
-    }
-    win.addEventListener('beforeunload', () => URL.revokeObjectURL(url));
-    return true;
+  openPreview(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): boolean {
+    const doc = this.build(data, crew, options);
+    return openPdfPreview(doc, this.fileName(data, options));
   }
 
-  private fileName(data: AppData): string {
+  openPassengerPreview(data: AppData, passengers: PassengerMember[]): boolean {
+    const { ship, paxArr } = data;
+    const voyageDate = paxArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const pdfData: AppData = {
+      ...data,
+      crewArr: { ...data.crewArr, isArrival: paxArr.isArrival, identityDocumentType: 'Passport' },
+    };
+    return this.openPreview(pdfData, passengersToCrewRows(passengers), {
+      title: IMO_PASSENGER_LIST_TITLE,
+      fileName: passengerListPdfFileName(ship.name, ship.portOfCall, voyageDate, paxArr.isArrival),
+    });
+  }
+
+  fileName(data: AppData, options?: CrewListPdfOptions): string {
+    if (options?.fileName) return options.fileName;
     const { ship, crewArr } = data;
-    const date = formatDisplayDate(crewArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
-    return `Crew_Arr_${ship.name || 'ship'}_${ship.portOfCall || 'port'}_${date.replace(/\./g, '-')}.pdf`;
+    const voyageDate = crewArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    return crewListPdfFileName(ship.name, ship.portOfCall, voyageDate, crewArr.isArrival);
   }
 
   private drawPageBackground(doc: jsPDF): void {
@@ -69,11 +87,12 @@ export class PdfCrewArrService {
     doc.rect(0, 0, w, h, 'F');
   }
 
-  private drawTitle(doc: jsPDF, s: CoordScale): void {
+  private drawTitle(doc: jsPDF, s: CoordScale, title?: string): void {
+    const heading = title ?? CREW_LIST_FRAME_LABELS.title;
     const centerX = (s.sx(152) + s.sx(1871)) / 2;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
-    doc.text(CREW_LIST_FRAME_LABELS.title, centerX, s.sy(CREW_LIST_TITLE_Y) - CREW_LIST_TITLE_OFFSET_UP_PT, {
+    doc.text(heading, centerX, s.sy(CREW_LIST_TITLE_Y) - CREW_LIST_TITLE_OFFSET_UP_PT, {
       align: 'center',
     });
   }
@@ -99,7 +118,7 @@ export class PdfCrewArrService {
     doc.text(CREW_LIST_FRAME_LABELS.field12, tableLeft, field12Y);
   }
 
-  /** IMO FAL / Form 5 — слева напротив строки 23. */
+  /** IMO FAL / Form 5 — left of row 23. */
   private drawFalFormLabel(doc: jsPDF, s: CoordScale): void {
     const rowH = (BODY_BOTTOM_Y - BODY_TOP_Y) / CREW_LIST_ROW_COUNT;
     const row23MidY = s.sy(BODY_TOP_Y + rowH * 22 + rowH * 0.42);

@@ -31,6 +31,8 @@ export class CrewArrComponent {
       ship: this.storage.ship(),
       crew: this.storage.allCrew(),
       crewArr: this.crewArr(),
+      passengers: this.storage.allPassengers(),
+      paxArr: this.storage.paxArr(),
       ports: this.storage.ports(),
       ranks: this.storage.ranks(),
       nationalities: this.storage.nationalities(),

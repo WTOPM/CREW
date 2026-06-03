@@ -1,4 +1,5 @@
 import { parseValidityRange } from '../utils/date.util';
+import { PassengerMember, PaxArrFormSettings } from './passenger.models';
 
 export interface Port {
   name: string;
@@ -119,6 +120,8 @@ export interface AppData {
   ship: ShipInfo;
   crew: CrewMember[];
   crewArr: CrewArrFormSettings;
+  passengers: PassengerMember[];
+  paxArr: PaxArrFormSettings;
   ports: Port[];
   ranks: string[];
   nationalities: string[];

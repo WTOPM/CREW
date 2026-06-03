@@ -33,6 +33,17 @@ export class DocumentsNavComponent {
 
   protected showPortOfCallSettings = signal(false);
 
+  protected openPassengerList(isArrival: boolean): void {
+    this.storage.updatePaxArr({ isArrival }, 'silent');
+    const passengers = isArrival
+      ? this.storage.activePassengersArrival()
+      : this.storage.activePassengersDeparture();
+    const ok = this.crewPdf.openPassengerPreview(this.appData(), passengers);
+    if (!ok) {
+      this.toast.showError('Allow pop-ups to open Passenger List preview');
+    }
+  }
+
   protected openCrewList(isArrival: boolean): void {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -88,7 +99,7 @@ export class DocumentsNavComponent {
   }
 
   protected openMdh(): void {
-    this.toast.show('MDH (Maritime Declaration of Health) — в разработке');
+    this.toast.show('MDH (Maritime Declaration of Health) — coming soon');
   }
 
   private appData(isArrival?: boolean): AppData {
@@ -97,6 +108,8 @@ export class DocumentsNavComponent {
       ship: this.storage.ship(),
       crew: this.storage.allCrew(),
       crewArr: isArrival === undefined ? crewArr : { ...crewArr, isArrival },
+      passengers: this.storage.allPassengers(),
+      paxArr: this.storage.paxArr(),
       ports: this.storage.ports(),
       ranks: this.storage.ranks(),
       nationalities: this.storage.nationalities(),

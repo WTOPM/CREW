@@ -4,7 +4,7 @@
   </header>
 
   @if (dataPath()) {
-    <div class="notice muted">Файл данных: {{ dataPath() }}</div>
+    <div class="notice muted">Data file: {{ dataPath() }}</div>
   }
 
   <section class="card voyage-card">
@@ -84,22 +84,14 @@
           <button type="button" class="btn btn-primary" (click)="addMemberToArrival()">+ Add crew member</button>
         } @else {
           <button type="button" class="btn btn-secondary" (click)="syncDepartureFromArrival()">
-            Match arrival list
+            FROM ARRIVAL
           </button>
           <button type="button" class="btn btn-primary" (click)="applyDepartureToArrival()">
-            Apply to arrival (leave port)
+            INTO ARRIVAL
           </button>
         }
       </div>
     </div>
-
-    @if (crewTab() === 'departure') {
-      <p class="section-desc">
-        Starts the same as arrival. To swap 1–3 people: use × (off departure, stays on arrival), then
-        <strong>{{ restoreListLabel() }}</strong> from the archive for replacements. When you leave the port, use
-        <strong>Apply to arrival (leave port)</strong>.
-      </p>
-    }
 
     <div class="table-wrap">
       <table class="crew-table">
@@ -120,7 +112,7 @@
         <tbody cdkDropList (cdkDropListDropped)="dropCrew($event)">
           @for (member of listCrew(); track member.id; let i = $index) {
             <tr cdkDrag>
-              <td class="drag-handle" cdkDragHandle title="Перетащите для изменения порядка">⠿</td>
+              <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
               <td>{{ i + 1 }}</td>
               <td>{{ member.familyName }}</td>
               <td>{{ member.givenNames }}</td>
@@ -175,6 +167,124 @@
     </div>
   </section>
 
+  <section class="card crew-lists-card">
+    <div class="crew-tabs" role="tablist">
+      <button
+        type="button"
+        class="crew-tab"
+        role="tab"
+        [class.crew-tab--active]="paxTab() === 'arrival'"
+        [attr.aria-selected]="paxTab() === 'arrival'"
+        (click)="setPaxTab('arrival')"
+      >
+        PASSENGER LIST ARRIVAL
+        <span class="crew-tab-count">{{ activePassengersArrival().length }}</span>
+      </button>
+      <button
+        type="button"
+        class="crew-tab"
+        role="tab"
+        [class.crew-tab--active]="paxTab() === 'departure'"
+        [attr.aria-selected]="paxTab() === 'departure'"
+        (click)="setPaxTab('departure')"
+      >
+        PASSENGER LIST DEPARTURE
+        <span class="crew-tab-count">{{ activePassengersDeparture().length }}</span>
+      </button>
+    </div>
+
+    <div class="section-head">
+      <h2>
+        @if (paxTab() === 'arrival') {
+          Passenger list — Arrival ({{ listPassengers().length }})
+        } @else {
+          Passenger list — Departure ({{ listPassengers().length }})
+        }
+      </h2>
+      <div class="section-head-actions">
+        @if (paxTab() === 'arrival') {
+          <button type="button" class="btn btn-primary" (click)="addPassengerToArrival()">+ Add passenger</button>
+        } @else {
+          <button type="button" class="btn btn-secondary" (click)="syncPassengerDepartureFromArrival()">
+            FROM ARRIVAL
+          </button>
+          <button type="button" class="btn btn-primary" (click)="applyPassengerDepartureToArrival()">
+            INTO ARRIVAL
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="crew-table">
+        <thead>
+          <tr>
+            <th class="col-drag" aria-hidden="true"></th>
+            <th>#</th>
+            <th>Family Name</th>
+            <th>Given Names</th>
+            <th>Rank</th>
+            <th>Nationality</th>
+            <th>Passport</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody cdkDropList (cdkDropListDropped)="dropPassengers($event)">
+          @for (member of listPassengers(); track member.id; let i = $index) {
+            <tr cdkDrag>
+              <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
+              <td>{{ i + 1 }}</td>
+              <td>{{ member.familyName }}</td>
+              <td>{{ member.givenNames }}</td>
+              <td>{{ passengerRank }}</td>
+              <td>{{ member.nationality }}</td>
+              <td>{{ member.passport }}</td>
+              <td class="actions actions-icons">
+                <button
+                  type="button"
+                  class="crew-action crew-action--edit"
+                  title="Edit"
+                  aria-label="Edit"
+                  (click)="startPassengerEdit(member)"
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                @if (paxTab() === 'departure') {
+                  <button
+                    type="button"
+                    class="crew-action crew-action--off-departure"
+                    [title]="member.onArrivalList ? 'Remove from departure (stays on arrival)' : 'Remove from departure (to archive)'"
+                    [attr.aria-label]="member.onArrivalList ? 'Remove from departure only' : 'Remove from departure to archive'"
+                    (click)="removePassengerFromDeparture(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                }
+                @if (paxTab() === 'arrival' || !member.onArrivalList) {
+                  <button
+                    type="button"
+                    class="crew-action crew-action--archive"
+                    title="Move to archive"
+                    aria-label="Move to archive"
+                    (click)="archivePassenger(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="card">
     <div class="section-head">
       <h2>Crew archive ({{ archivedCrew().length }})</h2>
@@ -187,11 +297,6 @@
     </div>
 
     @if (showArchive()) {
-      <p class="section-desc">
-        Always sorted by rank (Master → …). Restore to
-        <strong>{{ crewTab() === 'arrival' ? 'arrival + departure' : 'departure only' }}</strong>
-        (shared archive for both lists).
-      </p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -228,6 +333,66 @@
                     title="Delete permanently"
                     aria-label="Delete permanently"
                     (click)="remove(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Passenger archive ({{ archivedPassengers().length }})</h2>
+      <div class="section-head-actions">
+        <button type="button" class="btn btn-primary" (click)="addPassengerToArchive()">+ Add passenger</button>
+        <button type="button" class="btn btn-secondary" (click)="showPaxArchive.set(!showPaxArchive())">
+          {{ showPaxArchive() ? 'Hide' : 'Show' }}
+        </button>
+      </div>
+    </div>
+
+    @if (showPaxArchive()) {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Family Name</th>
+              <th>Given Names</th>
+              <th>Nationality</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (member of archivedPassengers(); track member.id) {
+              <tr>
+                <td>{{ member.familyName }}</td>
+                <td>{{ member.givenNames }}</td>
+                <td>{{ member.nationality }}</td>
+                <td class="actions actions-icons">
+                  <button
+                    type="button"
+                    class="crew-action crew-action--restore"
+                    [title]="restorePassengerListLabel()"
+                    [attr.aria-label]="restorePassengerListLabel()"
+                    (click)="restorePassengerFromArchive(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M3 10h10a4 4 0 0 1 4 4v0a4 4 0 0 1-4 4H5M3 10l4-4M3 10l4 4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="crew-action crew-action--delete"
+                    title="Delete permanently"
+                    aria-label="Delete permanently"
+                    (click)="removePassenger(member.id)"
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                       <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
@@ -324,7 +489,6 @@
 
           <section class="crew-form-block crew-form-block--flag">
             <h4 class="crew-form-block-title">{{ flagStateBookSectionTitle() }}</h4>
-            <p class="crew-form-block-hint">Uses ship nationality: {{ flagStateName() }}</p>
             <div class="form-grid">
               <label>
                 <span>{{ flagStateBookNumberLabel() }}</span>
@@ -381,6 +545,69 @@
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Cancel</button>
           <button type="button" class="btn btn-save" (click)="saveEdit()">Save</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (passengerEditDraft(); as draft) {
+    <div class="modal-backdrop" (click)="cancelPassengerEdit()">
+      <div class="modal modal-crew-edit" (click)="$event.stopPropagation()">
+        <h3>{{ editingPassengerId() ? 'Edit passenger' : 'Add passenger' }}</h3>
+
+        <div class="crew-form-layout">
+          <section class="crew-form-block">
+            <h4 class="crew-form-block-title">Personal details</h4>
+            <div class="form-grid">
+              <label>
+                <span>Family name</span>
+                <input [ngModel]="draft.familyName" (ngModelChange)="updatePassengerDraft('familyName', $event)" />
+              </label>
+              <label>
+                <span>Given names</span>
+                <input [ngModel]="draft.givenNames" (ngModelChange)="updatePassengerDraft('givenNames', $event)" />
+              </label>
+              <label>
+                <span>Nationality</span>
+                <app-lookup-select
+                  [value]="draft.nationality"
+                  [options]="nationalities()"
+                  (valueChange)="updatePassengerDraft('nationality', $event)"
+                />
+              </label>
+              <label>
+                <span>Date of birth</span>
+                <input type="date" [ngModel]="draft.dateOfBirth" (ngModelChange)="updatePassengerDraft('dateOfBirth', $event)" />
+              </label>
+              <label>
+                <span>Place of birth</span>
+                <input [ngModel]="draft.placeOfBirth" (ngModelChange)="updatePassengerDraft('placeOfBirth', $event)" />
+              </label>
+            </div>
+          </section>
+
+          <section class="crew-form-block crew-form-block--passport">
+            <h4 class="crew-form-block-title">Passport</h4>
+            <div class="form-grid">
+              <label>
+                <span>Passport No.</span>
+                <input [ngModel]="draft.passport" (ngModelChange)="updatePassengerDraft('passport', $event)" />
+              </label>
+              <label>
+                <span>Issue date</span>
+                <input type="date" [ngModel]="draft.passportIssueDate" (ngModelChange)="updatePassengerDraft('passportIssueDate', $event)" />
+              </label>
+              <label>
+                <span>Expiry date</span>
+                <input type="date" [ngModel]="draft.passportExpiryDate" (ngModelChange)="updatePassengerDraft('passportExpiryDate', $event)" />
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" (click)="cancelPassengerEdit()">Cancel</button>
+          <button type="button" class="btn btn-save" (click)="savePassengerEdit()">Save</button>
         </div>
       </div>
     </div>

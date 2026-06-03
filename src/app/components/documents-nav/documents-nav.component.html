@@ -16,6 +16,21 @@
 
   <div class="doc-menu">
     <button type="button" class="nav-doc-btn" aria-haspopup="true">
+      PAX
+      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+    </button>
+    <div class="doc-menu-panel" role="menu">
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openPassengerList(true)">
+        Passenger list — Arrival
+      </button>
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openPassengerList(false)">
+        Passenger list — Departure
+      </button>
+    </div>
+  </div>
+
+  <div class="doc-menu">
+    <button type="button" class="nav-doc-btn" aria-haspopup="true">
       PORT OF CALL
       <span class="doc-menu-chevron" aria-hidden="true">▾</span>
     </button>
@@ -37,10 +52,6 @@
   <div class="modal-backdrop" (click)="closePortOfCallSettings()">
     <div class="modal modal-wide poc-modal" (click)="$event.stopPropagation()">
       <h3>Port of Call Settings</h3>
-      <p class="section-desc">
-        PDF includes the {{ portOfCall().pdfRowCount }} most recent port calls (newest first).
-        {{ pocRowsPerPage }} rows per page; extra calls continue on the next page. Header comes from the home screen.
-      </p>
       <div class="poc-settings-bar">
         <label>
           <span>Ports in PDF</span>

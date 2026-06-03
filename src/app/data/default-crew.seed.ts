@@ -1,7 +1,7 @@
 import { CrewMember, ShipInfo, parseCrewName } from '../models/crew.models';
 
 /** Ship + 13 crew from reference-crew-list.xlsx (IMO FAL Form 5 sample). */
-export const SEED_VERSION = 6;
+export const SEED_VERSION = 7;
 
 export const SEED_SHIP: ShipInfo = {
   name: 'HANNA',

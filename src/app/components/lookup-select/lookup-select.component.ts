@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
   imports: [FormsModule],
   template: `
     <select class="lookup-select" [ngModel]="value()" (ngModelChange)="valueChange.emit($event)">
-      <option value="">— выберите —</option>
+      <option value="">— select —</option>
       @for (opt of options(); track opt) {
         <option [value]="opt">{{ opt }}</option>
       }

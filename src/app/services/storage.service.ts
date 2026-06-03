@@ -23,19 +23,31 @@ import {
   sortCrewByRank,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
+import {
+  PassengerMember,
+  PaxListKind,
+  createDefaultPaxArrSettings,
+  PASSENGER_RANK,
+  createEmptyPassenger,
+  migratePassengerListFlags,
+  migratePassengerMember,
+  sortPassengersByName,
+} from '../models/passenger.models';
 import { SEED_SHIP, SEED_VERSION, createSeedCrew } from '../data/default-crew.seed';
 import { SEED_PORT_CALL_HISTORY } from '../data/default-port-call.seed';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
 
 const STORAGE_KEY = 'crew-app-data';
 /** Bump when public/crew-data.json is regenerated from DOCUMENT.xlsx */
-const DOCUMENT_IMPORT_ID = 'document-xlsx-2026-06-03';
+const DOCUMENT_IMPORT_ID = 'document-xlsx-2026-06-04';
 const DOCUMENT_IMPORT_KEY = 'crew-last-document-import';
 
 const DEFAULT_DATA: AppData = {
   ship: { ...SEED_SHIP },
   crew: createSeedCrew(),
   crewArr: createDefaultCrewArrSettings(),
+  passengers: [],
+  paxArr: createDefaultPaxArrSettings(),
   ports: [...DEFAULT_PORTS],
   ranks: [...DEFAULT_RANKS],
   nationalities: [...DEFAULT_NATIONALITIES],
@@ -70,6 +82,17 @@ export class StorageService {
     return sortCrewByRank(archived, rankOrder);
   });
   readonly allCrew = computed(() => this.data().crew);
+  readonly paxArr = computed(() => this.data().paxArr);
+  readonly activePassengersArrival = computed(() =>
+    this.data().passengers.filter((m) => !m.archived && m.onArrivalList),
+  );
+  readonly activePassengersDeparture = computed(() =>
+    this.data().passengers.filter((m) => !m.archived && m.onDepartureList),
+  );
+  readonly archivedPassengers = computed(() =>
+    sortPassengersByName(this.data().passengers.filter((m) => m.archived)),
+  );
+  readonly allPassengers = computed(() => this.data().passengers);
 
   private loadInitial(): AppData {
     return {
@@ -81,6 +104,8 @@ export class StorageService {
       portCallHistory: [...DEFAULT_DATA.portCallHistory],
       portOfCall: { ...DEFAULT_DATA.portOfCall },
       crewArr: { ...DEFAULT_DATA.crewArr },
+      passengers: [],
+      paxArr: { ...DEFAULT_DATA.paxArr },
     };
   }
 
@@ -148,6 +173,10 @@ export class StorageService {
     }));
     crew = this.ensureDepartureBaseline(crew);
     crew = this.rescueOrphanCrew(crew);
+    let passengers = (raw.passengers ?? []).map((m) => this.normalizePassenger(m, raw.ports));
+    passengers = this.ensureDepartureBaselinePassengers(passengers);
+    passengers = this.rescueOrphanPassengers(passengers);
+    const paxArr = { ...createDefaultPaxArrSettings(), ...raw.paxArr };
     const ranks = mergeUniqueList(
       raw.ranks ?? DEFAULT_RANKS,
       ...crew.map((c) => c.rank),
@@ -156,6 +185,7 @@ export class StorageService {
       raw.nationalities ?? DEFAULT_NATIONALITIES,
       ship.nationality,
       ...crew.map((c) => c.nationality),
+      ...passengers.map((p) => p.nationality),
     );
     const portCallHistory = this.normalizePortCallHistory(raw, ports);
     ports = mergePorts(ports, ...portCallHistory.map((e) => e.portName));
@@ -164,6 +194,8 @@ export class StorageService {
       ship,
       crew,
       crewArr,
+      passengers,
+      paxArr,
       ports,
       ranks: mergeUniqueList(ranks),
       nationalities: mergeUniqueList(nationalities),
@@ -177,17 +209,19 @@ export class StorageService {
     raw: Partial<AppData>,
     ports: Port[],
   ): PortCallHistoryEntry[] {
+    const useSeed =
+      !raw.portCallHistory?.length ||
+      (raw.portCallHistory.length < 10 && (raw.seedVersion ?? 0) < SEED_VERSION);
+
     let history: PortCallHistoryEntry[];
-    if (raw.portCallHistory?.length) {
-      history = raw.portCallHistory.map((entry) => ({
+    if (useSeed) {
+      history = SEED_PORT_CALL_HISTORY.map((e) => ({ ...e, id: e.id || crypto.randomUUID() }));
+    } else {
+      history = raw.portCallHistory!.map((entry) => ({
         ...createEmptyPortCallEntry(),
         ...entry,
         id: entry.id || crypto.randomUUID(),
       }));
-    } else if ((raw.seedVersion ?? 0) < 6) {
-      history = SEED_PORT_CALL_HISTORY.map((e) => ({ ...e }));
-    } else {
-      history = [];
     }
 
     return history.map((entry) => ({
@@ -214,6 +248,14 @@ export class StorageService {
       member.joiningPort = resolvePortRef(member.joiningPort, ports)?.name ?? member.joiningPort;
     }
     return migrateCrewListFlags(member);
+  }
+
+  private normalizePassenger(
+    raw: Partial<PassengerMember> & { familyNameGivenNames?: string },
+    portsRaw?: unknown,
+  ): PassengerMember {
+    const ports = migratePortsRaw(portsRaw);
+    return migratePassengerMember(raw);
   }
 
   private async persist(notify: 'silent' | 'saved' | 'debounced' = 'debounced'): Promise<void> {
@@ -246,6 +288,11 @@ export class StorageService {
 
   updateCrewArr(partial: Partial<AppData['crewArr']>, notify: 'silent' | 'saved' = 'saved'): void {
     this.data.update((d) => ({ ...d, crewArr: { ...d.crewArr, ...partial } }));
+    void this.persist(notify);
+  }
+
+  updatePaxArr(partial: Partial<AppData['paxArr']>, notify: 'silent' | 'saved' = 'saved'): void {
+    this.data.update((d) => ({ ...d, paxArr: { ...d.paxArr, ...partial } }));
     void this.persist(notify);
   }
 
@@ -461,6 +508,156 @@ export class StorageService {
   removeCrewMember(id: string): void {
     this.data.update((d) => ({ ...d, crew: d.crew.filter((m) => m.id !== id) }));
     void this.persist('silent');
+  }
+
+  addPassenger(member?: Partial<PassengerMember>): PassengerMember {
+    const newMember = migratePassengerListFlags({
+      ...createEmptyPassenger(),
+      ...member,
+    });
+    this.data.update((d) => {
+      const nationalities = mergeUniqueList(d.nationalities, newMember.nationality);
+      const ranks = mergeUniqueList(d.ranks, PASSENGER_RANK);
+      return { ...d, passengers: [...d.passengers, newMember], ranks, nationalities };
+    });
+    void this.persist('silent');
+    return newMember;
+  }
+
+  updatePassenger(
+    id: string,
+    partial: Partial<PassengerMember>,
+    notify: 'silent' | 'saved' = 'saved',
+  ): void {
+    this.data.update((d) => {
+      const passengers = d.passengers.map((m) => (m.id === id ? { ...m, ...partial } : m));
+      const updated = passengers.find((m) => m.id === id);
+      const nationalities = mergeUniqueList(d.nationalities, updated?.nationality);
+      return { ...d, passengers, nationalities };
+    });
+    void this.persist(notify);
+  }
+
+  addPassengerToArrival(member?: Partial<PassengerMember>): PassengerMember {
+    return this.addPassenger({
+      ...member,
+      archived: false,
+      onArrivalList: true,
+      onDepartureList: true,
+    });
+  }
+
+  addPassengerToArchive(member?: Partial<PassengerMember>): PassengerMember {
+    return this.addPassenger({
+      ...member,
+      archived: true,
+      onArrivalList: false,
+      onDepartureList: false,
+    });
+  }
+
+  archivePassenger(id: string): void {
+    this.updatePassenger(
+      id,
+      { archived: true, onArrivalList: false, onDepartureList: false },
+      'silent',
+    );
+  }
+
+  restorePassengerToList(id: string, list: PaxListKind): void {
+    const patch =
+      list === 'arrival'
+        ? { archived: false, onArrivalList: true, onDepartureList: true }
+        : { archived: false, onArrivalList: false, onDepartureList: true };
+    this.updatePassenger(id, patch, 'silent');
+  }
+
+  syncPassengerDepartureFromArrival(): void {
+    this.data.update((d) => ({
+      ...d,
+      passengers: d.passengers.map((m) =>
+        m.archived ? m : { ...m, onDepartureList: m.onArrivalList },
+      ),
+    }));
+    void this.persist('saved');
+  }
+
+  applyPassengerDepartureToArrival(): void {
+    this.data.update((d) => ({
+      ...d,
+      passengers: d.passengers.map((m) => {
+        if (m.archived) return m;
+        const onList = m.onDepartureList;
+        return { ...m, onArrivalList: onList, onDepartureList: onList };
+      }),
+    }));
+    void this.persist('saved');
+  }
+
+  removePassengerFromDepartureList(id: string): void {
+    const member = this.data().passengers.find((m) => m.id === id);
+    if (!member) return;
+
+    if (member.archived) {
+      this.updatePassenger(id, { onDepartureList: false }, 'silent');
+      return;
+    }
+
+    if (member.onArrivalList) {
+      this.updatePassenger(id, { onDepartureList: false }, 'silent');
+      return;
+    }
+
+    this.archivePassenger(id);
+  }
+
+  private rescueOrphanPassengers(passengers: PassengerMember[]): PassengerMember[] {
+    return passengers.map((m) => {
+      if (m.archived || m.onArrivalList || m.onDepartureList) return m;
+      return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
+    });
+  }
+
+  private ensureDepartureBaselinePassengers(passengers: PassengerMember[]): PassengerMember[] {
+    const hasArrival = passengers.some((m) => !m.archived && m.onArrivalList);
+    const hasDeparture = passengers.some((m) => !m.archived && m.onDepartureList);
+    if (!hasArrival || hasDeparture) return passengers;
+    return passengers.map((m) =>
+      !m.archived && m.onArrivalList ? { ...m, onDepartureList: true } : m,
+    );
+  }
+
+  removePassenger(id: string): void {
+    this.data.update((d) => ({ ...d, passengers: d.passengers.filter((m) => m.id !== id) }));
+    void this.persist('silent');
+  }
+
+  reorderPassengerList(list: PaxListKind, fromIndex: number, toIndex: number): void {
+    if (fromIndex === toIndex) return;
+    const inList = (m: PassengerMember) =>
+      list === 'arrival'
+        ? !m.archived && m.onArrivalList
+        : !m.archived && m.onDepartureList;
+
+    this.data.update((d) => {
+      const indices: number[] = [];
+      const members: PassengerMember[] = [];
+      d.passengers.forEach((m, i) => {
+        if (inList(m)) {
+          indices.push(i);
+          members.push(m);
+        }
+      });
+      const reordered = [...members];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+      const passengers = [...d.passengers];
+      indices.forEach((idx, j) => {
+        passengers[idx] = reordered[j];
+      });
+      return { ...d, passengers };
+    });
+    void this.persist('debounced');
   }
 
   reorderCrewList(list: CrewListKind, fromIndex: number, toIndex: number): void {
