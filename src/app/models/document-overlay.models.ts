@@ -1,7 +1,19 @@
-/** Per-document PDF overlay toggles (stamp / signature). */
+import type { PdfStampBox } from '../utils/overlay-stamp-box.util';
+
+/** Per-document PDF overlay toggles (stamp / signature) and placement. */
 export interface DocumentStampOptions {
   useStamp: boolean;
   useSignature: boolean;
+  /** Stamp/signature rotation: 0, 90, 180, 270 degrees. */
+  overlayRotation?: number;
+  /** Stamp anchor on page (pdf-lib pt, origin bottom-left). */
+  stampBox?: PdfStampBox;
+  /** Signature area (optional; otherwise derived from stamp). */
+  signatureBox?: PdfStampBox;
+  /** MDH pages 2+ */
+  overlayRotationAttachment?: number;
+  stampBoxAttachment?: PdfStampBox;
+  signatureBoxAttachment?: PdfStampBox;
 }
 
 /** Active crew list variant (only one at a time). */

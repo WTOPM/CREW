@@ -463,9 +463,10 @@ export class HomeComponent {
 
 
   protected syncDepartureFromArrival(): void {
-
-    this.storage.syncDepartureFromArrival();
-
+    const archived = this.storage.syncDepartureFromArrival();
+    if (archived > 0) {
+      this.toast.showArchived();
+    }
   }
 
 
@@ -483,9 +484,10 @@ export class HomeComponent {
 
 
   protected syncPassengerDepartureFromArrival(): void {
-
-    this.storage.syncPassengerDepartureFromArrival();
-
+    const archived = this.storage.syncPassengerDepartureFromArrival();
+    if (archived > 0) {
+      this.toast.showArchived();
+    }
   }
 
 

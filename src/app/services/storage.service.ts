@@ -45,6 +45,7 @@ import {
 import { SEED_SHIP, SEED_VERSION, createSeedCrew } from '../data/default-crew.seed';
 import { SEED_PORT_CALL_HISTORY } from '../data/default-port-call.seed';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
+import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 
 const STORAGE_KEY = 'crew-app-data';
 /** Bump when public/crew-data.json is regenerated from DOCUMENT.xlsx */
@@ -240,24 +241,39 @@ export class StorageService {
   ): AppData['documentOverlay'] {
     const defaults = createDefaultDocumentOverlayPrefs();
     const crewDefaults = defaults.crewList;
-    const stampKeys = ['pax', 'portOfCall', 'mdh'] as const;
     const out: AppData['documentOverlay'] = {
-      crewList: {
-        useStamp: raw?.crewList?.useStamp ?? crewDefaults.useStamp,
-        useSignature: raw?.crewList?.useSignature ?? crewDefaults.useSignature,
+      crewList: this.normalizeStampDocumentPrefs(raw?.crewList, crewDefaults, {
         listType: normalizeCrewListType(raw?.crewList ?? {}),
-      },
-      pax: { ...defaults.pax },
-      portOfCall: { ...defaults.portOfCall },
-      mdh: { ...defaults.mdh },
+      }),
+      pax: this.normalizeStampDocumentPrefs(raw?.pax, defaults.pax),
+      portOfCall: this.normalizeStampDocumentPrefs(raw?.portOfCall, defaults.portOfCall),
+      mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
     };
-    for (const key of stampKeys) {
-      out[key] = {
-        useStamp: raw?.[key]?.useStamp ?? defaults[key].useStamp,
-        useSignature: raw?.[key]?.useSignature ?? defaults[key].useSignature,
-      };
-    }
     return out;
+  }
+
+  private normalizeStampDocumentPrefs<T extends DocumentStampOptions>(
+    raw: Partial<T> | undefined,
+    defaults: T,
+    extra?: Omit<T, keyof DocumentStampOptions>,
+  ): T {
+    const base: DocumentStampOptions = {
+      useStamp: raw?.useStamp ?? defaults.useStamp,
+      useSignature: raw?.useSignature ?? defaults.useSignature,
+      ...(typeof raw?.overlayRotation === 'number' ? { overlayRotation: raw.overlayRotation } : {}),
+      ...(typeof raw?.overlayRotationAttachment === 'number'
+        ? { overlayRotationAttachment: raw.overlayRotationAttachment }
+        : {}),
+      ...(isValidStampBox(raw?.stampBox) ? { stampBox: { ...raw!.stampBox! } } : {}),
+      ...(isValidStampBox(raw?.stampBoxAttachment)
+        ? { stampBoxAttachment: { ...raw!.stampBoxAttachment! } }
+        : {}),
+      ...(isValidStampBox(raw?.signatureBox) ? { signatureBox: { ...raw!.signatureBox! } } : {}),
+      ...(isValidStampBox(raw?.signatureBoxAttachment)
+        ? { signatureBoxAttachment: { ...raw!.signatureBoxAttachment! } }
+        : {}),
+    };
+    return { ...defaults, ...extra, ...base } as T;
   }
 
   private normalizePortCallHistory(
@@ -523,15 +539,23 @@ export class StorageService {
     this.updateCrewMember(id, patch, 'silent');
   }
 
-  /** Departure list = arrival list (same people for this port). */
-  syncDepartureFromArrival(): void {
+  /** Departure list = arrival list (same people for this port). Departure-only → archive. */
+  syncDepartureFromArrival(): number {
+    let archived = 0;
     this.data.update((d) => ({
       ...d,
-      crew: d.crew.map((m) =>
-        m.archived ? m : { ...m, onDepartureList: m.onArrivalList },
+      crew: this.rescueOrphanCrew(
+        d.crew.map((m) => {
+          const next = this.mapCrewArrivalToDepartureSync(m);
+          if (!m.archived && next.archived && m.onDepartureList && !m.onArrivalList) {
+            archived++;
+          }
+          return next;
+        }),
       ),
     }));
     void this.persist('saved');
+    return archived;
   }
 
   /** Who would be affected by departure → arrival sync (active crew only). */
@@ -584,6 +608,21 @@ export class StorageService {
 
   private archiveIfArrivalOnly(m: CrewMember): CrewMember | null {
     if (m.archived || m.onDepartureList || !m.onArrivalList) return null;
+    return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
+  }
+
+  private mapCrewArrivalToDepartureSync(m: CrewMember): CrewMember {
+    if (m.archived) return m;
+    const archived = this.archiveIfDepartureOnly(m);
+    if (archived) return archived;
+    if (m.onArrivalList) {
+      return { ...m, onDepartureList: true };
+    }
+    return m;
+  }
+
+  private archiveIfDepartureOnly(m: CrewMember): CrewMember | null {
+    if (m.archived || m.onArrivalList || !m.onDepartureList) return null;
     return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
   }
 
@@ -706,14 +745,22 @@ export class StorageService {
     this.updatePassenger(id, patch, 'silent');
   }
 
-  syncPassengerDepartureFromArrival(): void {
+  syncPassengerDepartureFromArrival(): number {
+    let archived = 0;
     this.data.update((d) => ({
       ...d,
-      passengers: d.passengers.map((m) =>
-        m.archived ? m : { ...m, onDepartureList: m.onArrivalList },
+      passengers: this.rescueOrphanPassengers(
+        d.passengers.map((m) => {
+          const next = this.mapPassengerArrivalToDepartureSync(m);
+          if (!m.archived && next.archived && m.onDepartureList && !m.onArrivalList) {
+            archived++;
+          }
+          return next;
+        }),
       ),
     }));
     void this.persist('saved');
+    return archived;
   }
 
   previewPassengerDepartureToArrival(): DepartureToArrivalSyncPreview {
@@ -760,6 +807,21 @@ export class StorageService {
 
   private archivePassengerIfArrivalOnly(m: PassengerMember): PassengerMember | null {
     if (m.archived || m.onDepartureList || !m.onArrivalList) return null;
+    return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
+  }
+
+  private mapPassengerArrivalToDepartureSync(m: PassengerMember): PassengerMember {
+    if (m.archived) return m;
+    const archived = this.archivePassengerIfDepartureOnly(m);
+    if (archived) return archived;
+    if (m.onArrivalList) {
+      return { ...m, onDepartureList: true };
+    }
+    return m;
+  }
+
+  private archivePassengerIfDepartureOnly(m: PassengerMember): PassengerMember | null {
+    if (m.archived || m.onArrivalList || !m.onDepartureList) return null;
     return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
   }
 
