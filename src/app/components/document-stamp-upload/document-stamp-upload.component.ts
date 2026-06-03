@@ -1,15 +1,21 @@
-import { Component, inject, signal } from '@angular/core';
-import { ShipAssetKind } from '../../models/document-overlay.models';
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import {
+  DocumentOverlayPrefs,
+  ShipAssetKind,
+} from '../../models/document-overlay.models';
 import { ShipAssetsService } from '../../services/ship-assets.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-document-stamp-upload',
+  imports: [FormsModule],
   template: `
     <div class="stamp-upload">
       <p class="stamp-upload-hint">
-        Upload ship stamp and captain signature once (PNG or PDF). Enable each document in its own menu Settings.
+        Upload ship stamp and captain signature once (PNG or PDF). Check Stamp/Signature below and click Set to apply
+        to all documents (Crew list, PAX, Port of Call, MDH).
       </p>
       <div class="stamp-drop-grid">
         <div
@@ -49,6 +55,20 @@ import { ToastService } from '../../services/toast.service';
             <span class="stamp-drop-placeholder">Drop PNG/PDF or click to upload</span>
           }
         </div>
+      </div>
+
+      <div class="stamp-bulk">
+        <div class="stamp-bulk-toggles">
+          <label class="stamp-bulk-check">
+            <input type="checkbox" [(ngModel)]="bulkUseStamp" />
+            <span class="stamp-bulk-check-label">Stamp</span>
+          </label>
+          <label class="stamp-bulk-check">
+            <input type="checkbox" [(ngModel)]="bulkUseSignature" />
+            <span class="stamp-bulk-check-label">Signature</span>
+          </label>
+        </div>
+        <button type="button" class="btn btn-primary stamp-bulk-set" (click)="applyBulkToggles()">Set</button>
       </div>
     </div>
   `,
@@ -121,9 +141,52 @@ import { ToastService } from '../../services/toast.service';
       align-self: flex-start;
       font-size: 0.78rem;
     }
+
+    .stamp-bulk {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 0.75rem 1rem;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .stamp-bulk-toggles {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.3rem;
+    }
+
+    .stamp-bulk-check {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.45rem;
+      margin: 0;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .stamp-bulk-check input[type='checkbox'] {
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .stamp-bulk-check-label {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .stamp-bulk-set {
+      min-width: 4.5rem;
+      font-size: 0.88rem;
+      padding: 0.4rem 1rem;
+    }
   `,
 })
-export class DocumentStampUploadComponent {
+export class DocumentStampUploadComponent implements OnInit {
   private readonly storage = inject(StorageService);
   private readonly assets = inject(ShipAssetsService);
   private readonly toast = inject(ToastService);
@@ -131,6 +194,27 @@ export class DocumentStampUploadComponent {
   protected readonly meta = this.storage.shipAssets;
   protected readonly stampDrag = signal(false);
   protected readonly signatureDrag = signal(false);
+
+  protected bulkUseStamp = false;
+  protected bulkUseSignature = false;
+
+  ngOnInit(): void {
+    this.syncBulkFromDocuments();
+  }
+
+  protected applyBulkToggles(): void {
+    this.storage.applyStampTogglesToAllDocuments(this.bulkUseStamp, this.bulkUseSignature);
+    const parts: string[] = [];
+    parts.push(this.bulkUseStamp ? 'Stamp on' : 'Stamp off');
+    parts.push(this.bulkUseSignature ? 'Signature on' : 'Signature off');
+    this.toast.show(`All documents: ${parts.join('; ')}`, 'success');
+  }
+
+  private syncBulkFromDocuments(): void {
+    const o = this.storage.documentOverlay();
+    this.bulkUseStamp = allDocumentsUse(o, 'useStamp');
+    this.bulkUseSignature = allDocumentsUse(o, 'useSignature');
+  }
 
   protected async pickAsset(kind: ShipAssetKind): Promise<void> {
     try {
@@ -172,4 +256,16 @@ export class DocumentStampUploadComponent {
     await this.assets.remove(kind);
     this.toast.show(kind === 'stamp' ? 'Stamp removed' : 'Signature removed', 'success');
   }
+}
+
+function allDocumentsUse(
+  overlay: DocumentOverlayPrefs,
+  field: 'useStamp' | 'useSignature',
+): boolean {
+  return (
+    overlay.crewList[field] &&
+    overlay.pax[field] &&
+    overlay.portOfCall[field] &&
+    overlay.mdh[field]
+  );
 }

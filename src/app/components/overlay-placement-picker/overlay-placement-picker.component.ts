@@ -62,7 +62,7 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
               [ngModel]="options().useStamp"
               (ngModelChange)="onToggle('useStamp', $event)"
             />
-            Put stamp on {{ docLabel() }}
+            <span class="placement-check-label">Stamp</span>
           </label>
           <label class="placement-check">
             <input
@@ -70,7 +70,7 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
               [ngModel]="options().useSignature"
               (ngModelChange)="onToggle('useSignature', $event)"
             />
-            Put captain signature on {{ docLabel() }}
+            <span class="placement-check-label">Signature</span>
           </label>
         </div>
 
@@ -189,18 +189,31 @@ type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
     .placement-toggles {
       display: flex;
       flex-direction: column;
-      gap: 0.55rem;
-      margin-bottom: 0.85rem;
-      padding-bottom: 0.85rem;
+      align-items: flex-start;
+      gap: 0.3rem;
+      margin-bottom: 0.65rem;
+      padding-bottom: 0.65rem;
       border-bottom: 1px solid var(--border);
     }
 
     .placement-check {
-      display: flex;
+      display: inline-flex;
+      flex-direction: row;
       align-items: center;
       gap: 0.45rem;
-      font-size: 0.9rem;
+      margin: 0;
+      font-size: 0.88rem;
       cursor: pointer;
+    }
+
+    .placement-check input[type='checkbox'] {
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .placement-check-label {
+      color: var(--text);
+      font-weight: 500;
     }
 
     .placement-mdh-tabs {

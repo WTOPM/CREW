@@ -428,6 +428,24 @@ export class StorageService {
     void this.persist('saved');
   }
 
+  /** Apply stamp/signature toggles to crew list, PAX, Port of Call, and MDH at once. */
+  applyStampTogglesToAllDocuments(useStamp: boolean, useSignature: boolean): void {
+    const patch: Pick<DocumentStampOptions, 'useStamp' | 'useSignature'> = {
+      useStamp,
+      useSignature,
+    };
+    this.data.update((d) => ({
+      ...d,
+      documentOverlay: {
+        crewList: { ...d.documentOverlay.crewList, ...patch },
+        pax: { ...d.documentOverlay.pax, ...patch },
+        portOfCall: { ...d.documentOverlay.portOfCall, ...patch },
+        mdh: { ...d.documentOverlay.mdh, ...patch },
+      },
+    }));
+    void this.persist('saved');
+  }
+
   updateShipAssets(partial: Partial<AppData['shipAssets']>): void {
     this.data.update((d) => ({
       ...d,
