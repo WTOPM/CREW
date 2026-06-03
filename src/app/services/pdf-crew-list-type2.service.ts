@@ -1,0 +1,175 @@
+import { Injectable, inject } from '@angular/core';
+import {
+  AppData,
+  CrewMember,
+  CREW_IDENTITY_PASSPORT,
+  CREW_IDENTITY_SEAMANS_BOOK,
+  formatCrewListName,
+  formatPortCallPortName,
+  portCode,
+} from '../models/crew.models';
+import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { formatBirthDateShort, formatDisplayDate } from '../utils/date.util';
+import { crewListType2PdfFileName } from '../utils/pdf-filename.util';
+import {
+  CREW_LIST_ALGER_COL_TEXT_MAX_PT,
+  CREW_LIST_ALGER_FONT_ROW,
+  CREW_LIST_ALGER_HEADER,
+  CREW_LIST_ALGER_FONT_HEADER,
+  CREW_LIST_ALGER_MAX_ROWS,
+  CREW_LIST_ALGER_ROW_Y,
+  CREW_LIST_ALGER_TEXT_ROTATION,
+  crewListAlgerColX,
+  crewListAlgerFontSizeToFit,
+  randomCrewTemperature,
+  type AlgerRowField,
+  type AlgerTextPlacement,
+} from './crew-list-alger-coordinates';
+import { PdfOverlayService } from './pdf-overlay.service';
+
+const CREW_LIST_ALGER_TEMPLATE_URL = '/crew-list-alger-empty.pdf';
+
+/** Crew list Type 2 — Alger (arrival only, landscape /Rotate 90). */
+@Injectable({ providedIn: 'root' })
+export class PdfCrewListType2Service {
+  private readonly overlay = inject(PdfOverlayService);
+
+  private templateBytes: Uint8Array | null = null;
+  private loadedVersion = 0;
+  private readonly templateVersion = 8;
+
+  async buildPreviewBytes(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
+    let bytes = await this.build(data, crew);
+    return this.overlay.applyToPdfBytes(bytes, data.documentOverlay.crewList);
+  }
+
+  async openPreview(data: AppData, crew: CrewMember[]): Promise<boolean> {
+    const bytes = await this.buildPreviewBytes(data, crew);
+    return openPdfBlobPreview(bytes);
+  }
+
+  fileName(data: AppData): string {
+    const { ship } = data;
+    return crewListType2PdfFileName(
+      ship.name,
+      ship.portOfCall,
+      ship.dateOfArrival,
+      true,
+    );
+  }
+
+  async build(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
+    const { PDFDocument, StandardFonts, rgb, degrees } = await import('pdf-lib');
+    const template = await this.loadTemplate();
+    const doc = await PDFDocument.load(template);
+    const page = doc.getPages()[0];
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const black = rgb(0, 0, 0);
+    const textRotate = degrees(CREW_LIST_ALGER_TEXT_ROTATION);
+
+    const draw = (
+      text: string,
+      placement: AlgerTextPlacement,
+      useBold = false,
+      allowWrap = false,
+    ) => {
+      const value = text.trim();
+      if (!value) return;
+      page.drawText(value, {
+        x: placement.x,
+        y: placement.y,
+        size: placement.fontSize ?? CREW_LIST_ALGER_FONT_HEADER,
+        font: useBold ? bold : font,
+        color: black,
+        rotate: textRotate,
+        ...(allowWrap && placement.maxWidth != null ? { maxWidth: placement.maxWidth } : {}),
+      });
+    };
+
+    const rowAt = (colX: number, field: AlgerRowField): AlgerTextPlacement => ({
+      x: colX,
+      y: CREW_LIST_ALGER_ROW_Y[field].y,
+      fontSize: CREW_LIST_ALGER_ROW_Y[field].fontSize,
+    });
+
+    const drawFit = (text: string, placement: AlgerTextPlacement) => {
+      const value = text.trim();
+      if (!value) return;
+      const base = placement.fontSize ?? CREW_LIST_ALGER_FONT_ROW;
+      const size = crewListAlgerFontSizeToFit(
+        (s) => font.widthOfTextAtSize(value, s),
+        base,
+        CREW_LIST_ALGER_COL_TEXT_MAX_PT,
+      );
+      draw(value, { ...placement, fontSize: size });
+    };
+
+    this.drawHeader(draw, data);
+    this.drawCrewBody(draw, drawFit, data, crew, rowAt);
+
+    return doc.save();
+  }
+
+  private drawHeader(
+    draw: (text: string, placement: AlgerTextPlacement, useBold?: boolean) => void,
+    data: AppData,
+  ): void {
+    const { ship } = data;
+    const voyageDate = formatDisplayDate(ship.dateOfArrival);
+    const portsFromTo = [ship.lastPortOfCall, ship.nextPortOfCall]
+      .filter(Boolean)
+      .map((p) => formatPortCallPortName(p))
+      .join(' / ');
+
+    draw('1', CREW_LIST_ALGER_HEADER.pageNo);
+    draw('x', CREW_LIST_ALGER_HEADER.arrivalMark);
+    draw(formatPortCallPortName(ship.name), CREW_LIST_ALGER_HEADER.shipName, true);
+    draw(formatPortCallPortName(ship.nationality), CREW_LIST_ALGER_HEADER.shipNationality, true);
+    draw(formatPortCallPortName(ship.portOfCall), CREW_LIST_ALGER_HEADER.portOfCall, true);
+    draw(voyageDate, CREW_LIST_ALGER_HEADER.voyageDate, true);
+    draw(portsFromTo, CREW_LIST_ALGER_HEADER.portsFromTo, true);
+    draw(CREW_IDENTITY_PASSPORT, CREW_LIST_ALGER_HEADER.natureOfDocumentPassport);
+    draw(CREW_IDENTITY_SEAMANS_BOOK, CREW_LIST_ALGER_HEADER.natureOfDocumentSeamans);
+  }
+
+  /** Body: one column per crew member — same order as Arrival list on Home (no rank resort). */
+  private drawCrewBody(
+    draw: (text: string, placement: AlgerTextPlacement, useBold?: boolean) => void,
+    drawFit: (text: string, placement: AlgerTextPlacement) => void,
+    data: AppData,
+    crew: CrewMember[],
+    rowAt: (colX: number, field: AlgerRowField) => AlgerTextPlacement,
+  ): void {
+    crew.slice(0, CREW_LIST_ALGER_MAX_ROWS).forEach((member, index) => {
+      const colX = crewListAlgerColX(index);
+
+      draw(String(index + 1), rowAt(colX, 'no'));
+      draw(formatCrewListName(member), rowAt(colX, 'name'));
+      draw(member.rank, rowAt(colX, 'rank'));
+      drawFit(member.nationality, rowAt(colX, 'nationality'));
+      draw(formatBirthDateShort(member.dateOfBirth), rowAt(colX, 'dateOfBirth'));
+      drawFit(member.placeOfBirth, rowAt(colX, 'placeOfBirth'));
+      draw(member.passport, rowAt(colX, 'passport'));
+      draw(member.seamansBook, rowAt(colX, 'seamansBook'));
+      draw(formatDisplayDate(member.joiningDate), rowAt(colX, 'joiningDate'));
+      draw(portCode(member.joiningPort, data.ports), rowAt(colX, 'joiningPort'));
+      draw(randomCrewTemperature(), rowAt(colX, 'temperature'));
+    });
+  }
+
+  private async loadTemplate(): Promise<Uint8Array> {
+    if (this.templateBytes && this.loadedVersion === this.templateVersion) {
+      return this.templateBytes;
+    }
+    const res = await fetch(`${CREW_LIST_ALGER_TEMPLATE_URL}?v=${this.templateVersion}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      throw new Error('Crew list Alger template not found (public/crew-list-alger-empty.pdf)');
+    }
+    this.templateBytes = new Uint8Array(await res.arrayBuffer());
+    this.loadedVersion = this.templateVersion;
+    return this.templateBytes;
+  }
+}

@@ -17,14 +17,19 @@ export interface DocumentStampOptions {
 }
 
 /** Active crew list variant (only one at a time). */
-export type CrewListTypeId = 'type1Passport' | 'type1SeamansBook';
+export type CrewListTypeId = 'type1Passport' | 'type1SeamansBook' | 'type2Alger';
 
 export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = {
   type1Passport: 'Type 1 — Passport',
   type1SeamansBook: "Type 1 — Seaman's book",
+  type2Alger: 'Type 2 — Alger',
 };
 
-export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = ['type1Passport', 'type1SeamansBook'];
+export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
+  'type1Passport',
+  'type1SeamansBook',
+  'type2Alger',
+];
 
 /** Crew list menu: which identity list variant to print. */
 export interface CrewListDocumentPrefs extends DocumentStampOptions {
@@ -64,7 +69,11 @@ export function normalizeCrewListType(raw: Partial<CrewListDocumentPrefs> & {
   type1Passport?: boolean;
   type1SeamansBook?: boolean;
 }): CrewListTypeId {
-  if (raw.listType === 'type1Passport' || raw.listType === 'type1SeamansBook') {
+  if (
+    raw.listType === 'type1Passport' ||
+    raw.listType === 'type1SeamansBook' ||
+    raw.listType === 'type2Alger'
+  ) {
     return raw.listType;
   }
   if (raw.type1SeamansBook && !raw.type1Passport) {

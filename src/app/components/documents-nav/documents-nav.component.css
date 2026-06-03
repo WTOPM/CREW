@@ -122,6 +122,18 @@
   outline: none;
 }
 
+.doc-menu-item--disabled,
+.doc-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.doc-menu-item--disabled:hover,
+.doc-menu-item:disabled:hover {
+  background: transparent;
+}
+
 /* —— Port of Call Settings modal —— */
 
 .poc-modal.modal-wide {

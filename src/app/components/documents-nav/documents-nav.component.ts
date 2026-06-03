@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   AppData,
@@ -13,6 +13,7 @@ import { PortSelectComponent } from '../port-select/port-select.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
 import { defaultIsoDateInCurrentMonth } from '../../utils/partial-date.util';
 import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
+import { PdfCrewListType2Service } from '../../services/pdf-crew-list-type2.service';
 import { PdfMdhService } from '../../services/pdf-mdh.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
@@ -37,6 +38,7 @@ import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-setti
 export class DocumentsNavComponent {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
+  private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
   private readonly toast = inject(ToastService);
@@ -48,6 +50,11 @@ export class DocumentsNavComponent {
   protected readonly ports = this.storage.ports;
   protected readonly portCallHistory = this.storage.portCallHistory;
   protected readonly portOfCall = this.storage.portOfCall;
+
+  /** Type 2 Alger crew list is arrival-only. */
+  protected readonly crewListType2Alger = computed(
+    () => this.storage.documentOverlay().crewList.listType === 'type2Alger',
+  );
 
   protected showPortOfCallSettings = signal(false);
   protected showCrewListSettings = signal(false);
@@ -66,9 +73,31 @@ export class DocumentsNavComponent {
 
   protected openCrewList(isArrival: boolean): void {
     const listType = this.storage.documentOverlay().crewList.listType;
+    if (listType === 'type2Alger') {
+      if (!isArrival) return;
+      void this.openCrewListType2();
+      return;
+    }
     const identityDocumentType =
       listType === 'type1SeamansBook' ? CREW_IDENTITY_SEAMANS_BOOK : CREW_IDENTITY_PASSPORT;
     void this.openCrewListPdf(isArrival, identityDocumentType);
+  }
+
+  private async openCrewListType2(): Promise<void> {
+    this.storage.updateCrewArr({ isArrival: true }, 'silent');
+    const crew = this.storage.activeCrewArrival();
+    const data: AppData = {
+      ...this.appData(true),
+      crewArr: { ...this.appData(true).crewArr, isArrival: true },
+    };
+    try {
+      const ok = await this.crewListType2Pdf.openPreview(data, crew);
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Crew List preview');
+      }
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Crew list preview failed');
+    }
   }
 
   private async openCrewListPdf(isArrival: boolean, identityDocumentType: string): Promise<void> {

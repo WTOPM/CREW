@@ -8,7 +8,15 @@
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(true)">
         Arrival
       </button>
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(false)">
+      <button
+        type="button"
+        class="doc-menu-item"
+        role="menuitem"
+        [disabled]="crewListType2Alger()"
+        [class.doc-menu-item--disabled]="crewListType2Alger()"
+        [title]="crewListType2Alger() ? 'Type 2 Alger — arrival only' : ''"
+        (click)="openCrewList(false)"
+      >
         Departure
       </button>
       <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openCrewListSettings()">

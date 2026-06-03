@@ -85,7 +85,11 @@ export class PdfCrewArrService {
     URL.revokeObjectURL(url);
   }
 
-  async openPreview(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): Promise<boolean> {
+  async buildPdfBytes(
+    data: AppData,
+    crew: CrewMember[],
+    options?: CrewListPdfOptions,
+  ): Promise<Uint8Array> {
     const doc = this.build(data, crew, options);
     const bytes = await this.overlay.applyToJsPdf(
       doc,
@@ -93,6 +97,11 @@ export class PdfCrewArrService {
       'crewList',
       options?.overlayId ?? 'crewList',
     );
+    return new Uint8Array(bytes);
+  }
+
+  async openPreview(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): Promise<boolean> {
+    const bytes = await this.buildPdfBytes(data, crew, options);
     return openPdfBlobPreview(bytes);
   }
 

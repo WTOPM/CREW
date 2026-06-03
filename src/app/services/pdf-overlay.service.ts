@@ -79,8 +79,8 @@ export class PdfOverlayService {
     const page = pages[pageIndex] ?? pages[0];
     if (!page) return bytes;
 
-    const { width, height } = page.getSize();
-    const rotation = resolveOverlayRotation(options, false);
+    const rotation =
+      resolveOverlayRotation(options, false) + page.getRotation().angle;
     await this.drawOverlayOnPage(pdf, page, options, 'crewList', false, rotation);
     return pdf.save();
   }
