@@ -35,7 +35,8 @@ export class DocumentsNavComponent {
 
   protected openCrewList(isArrival: boolean): void {
     this.storage.updateCrewArr({ isArrival }, 'silent');
-    const ok = this.crewPdf.openPreview(this.appData(isArrival), this.storage.activeCrew());
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
+    const ok = this.crewPdf.openPreview(this.appData(isArrival), crew);
     if (!ok) {
       this.toast.showError('Allow pop-ups to open Crew List preview');
     }

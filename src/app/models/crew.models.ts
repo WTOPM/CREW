@@ -85,7 +85,13 @@ export interface CrewMember {
   /** Port name (code resolved from ports directory). */
   joiningPort: string;
   archived: boolean;
+  /** Shown on CREW LIST ARRIVAL tab and Arrival PDF. */
+  onArrivalList: boolean;
+  /** Shown on CREW LIST DEPARTURE tab and Departure PDF. */
+  onDepartureList: boolean;
 }
+
+export type CrewListKind = 'arrival' | 'departure';
 
 export interface CrewArrFormSettings {
   isArrival: boolean;
@@ -162,6 +168,26 @@ export function createEmptyCrewMember(): CrewMember {
     joiningDate: '',
     joiningPort: '',
     archived: false,
+    onArrivalList: false,
+    onDepartureList: false,
+  };
+}
+
+/** Migrate legacy crew rows (active = arrival list only). */
+export function migrateCrewListFlags(member: CrewMember): CrewMember {
+  const raw = member as CrewMember & { onArrivalList?: boolean; onDepartureList?: boolean };
+  if (raw.onArrivalList !== undefined && raw.onDepartureList !== undefined) {
+    return {
+      ...member,
+      onArrivalList: !!raw.onArrivalList,
+      onDepartureList: !!raw.onDepartureList,
+    };
+  }
+  const onArrival = !member.archived;
+  return {
+    ...member,
+    onArrivalList: onArrival,
+    onDepartureList: onArrival,
   };
 }
 
@@ -217,9 +243,35 @@ export function formatCrewListName(
   return '';
 }
 
+/** IMO crew-list rank order (Master first), then directory extras, then unknown ranks A–Z. */
+export function crewRankOrder(
+  directoryRanks: readonly string[],
+  members: readonly Pick<CrewMember, 'rank'>[],
+): string[] {
+  const order: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (rank: string) => {
+    const v = rank.trim();
+    if (!v || seen.has(v)) return;
+    seen.add(v);
+    order.push(v);
+  };
+
+  for (const r of DEFAULT_RANKS) add(r);
+  for (const r of directoryRanks) add(r);
+
+  const extra = [...new Set(members.map((m) => m.rank.trim()).filter(Boolean))]
+    .filter((r) => !seen.has(r))
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  for (const r of extra) add(r);
+
+  return order;
+}
+
 /** Index in crew-list rank order; unknown ranks sort last. */
 export function rankSortIndex(rank: string, ranks: readonly string[]): number {
-  const idx = ranks.indexOf(rank);
+  const idx = ranks.indexOf(rank.trim());
   return idx >= 0 ? idx : ranks.length;
 }
 

@@ -117,6 +117,8 @@ export class ExcelImportService {
       joiningDate: excelSerialToIso(cell(r, 25)),
       joiningPort: cell(r, 26),
       archived,
+      onArrivalList: !archived,
+      onDepartureList: !archived,
     };
   }
 }

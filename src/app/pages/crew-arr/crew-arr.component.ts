@@ -40,14 +40,20 @@ export class CrewArrComponent {
   }
 
   protected openPreview(): void {
-    const ok = this.pdf.openPreview(this.appData(), this.storage.activeCrew());
+    const crew = this.crewArr().isArrival
+      ? this.storage.activeCrewArrival()
+      : this.storage.activeCrewDeparture();
+    const ok = this.pdf.openPreview(this.appData(), crew);
     if (!ok) {
       this.toast.showError('Allow pop-ups to open Crew List preview');
     }
   }
 
   protected generatePdf(): void {
-    this.pdf.generate(this.appData(), this.storage.activeCrew());
+    const crew = this.crewArr().isArrival
+      ? this.storage.activeCrewArrival()
+      : this.storage.activeCrewDeparture();
+    this.pdf.generate(this.appData(), crew);
     this.toast.showPdfGenerated();
   }
 }

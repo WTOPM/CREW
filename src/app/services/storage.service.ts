@@ -14,9 +14,12 @@ import {
   createEmptyShip,
   mergePorts,
   mergeUniqueList,
+  CrewListKind,
+  migrateCrewListFlags,
   migrateCrewMember,
   migratePortsRaw,
   resolvePortRef,
+  crewRankOrder,
   sortCrewByRank,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
@@ -25,6 +28,9 @@ import { SEED_PORT_CALL_HISTORY } from '../data/default-port-call.seed';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
 
 const STORAGE_KEY = 'crew-app-data';
+/** Bump when public/crew-data.json is regenerated from DOCUMENT.xlsx */
+const DOCUMENT_IMPORT_ID = 'document-xlsx-2026-06-03';
+const DOCUMENT_IMPORT_KEY = 'crew-last-document-import';
 
 const DEFAULT_DATA: AppData = {
   ship: { ...SEED_SHIP },
@@ -50,13 +56,19 @@ export class StorageService {
   readonly nationalities = computed(() => this.data().nationalities);
   readonly portCallHistory = computed(() => this.data().portCallHistory);
   readonly portOfCall = computed(() => this.data().portOfCall);
-  readonly activeCrew = computed(() => this.data().crew.filter((m) => !m.archived));
-  readonly archivedCrew = computed(() =>
-    sortCrewByRank(
-      this.data().crew.filter((m) => m.archived),
-      this.data().ranks,
-    ),
+  readonly activeCrewArrival = computed(() =>
+    this.data().crew.filter((m) => !m.archived && m.onArrivalList),
   );
+  readonly activeCrewDeparture = computed(() =>
+    this.data().crew.filter((m) => !m.archived && m.onDepartureList),
+  );
+  /** @deprecated Use activeCrewArrival — kept for crew-arr page default. */
+  readonly activeCrew = this.activeCrewArrival;
+  readonly archivedCrew = computed(() => {
+    const archived = this.data().crew.filter((m) => m.archived);
+    const rankOrder = crewRankOrder(this.data().ranks, this.data().crew);
+    return sortCrewByRank(archived, rankOrder);
+  });
   readonly allCrew = computed(() => this.data().crew);
 
   private loadInitial(): AppData {
@@ -83,6 +95,14 @@ export class StorageService {
           await this.persist('silent');
         }
         return;
+      }
+      const imported = await this.tryLoadDocumentImport();
+      if (imported) return;
+    } else {
+      const needsImport = localStorage.getItem(DOCUMENT_IMPORT_KEY) !== DOCUMENT_IMPORT_ID;
+      if (needsImport) {
+        const imported = await this.tryLoadDocumentImport();
+        if (imported) return;
       }
     }
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -126,6 +146,8 @@ export class StorageService {
       ...m,
       joiningPort: resolvePortRef(m.joiningPort, ports)?.name ?? m.joiningPort,
     }));
+    crew = this.ensureDepartureBaseline(crew);
+    crew = this.rescueOrphanCrew(crew);
     const ranks = mergeUniqueList(
       raw.ranks ?? DEFAULT_RANKS,
       ...crew.map((c) => c.rank),
@@ -191,7 +213,7 @@ export class StorageService {
     if (member.joiningPort) {
       member.joiningPort = resolvePortRef(member.joiningPort, ports)?.name ?? member.joiningPort;
     }
-    return member;
+    return migrateCrewListFlags(member);
   }
 
   private async persist(notify: 'silent' | 'saved' | 'debounced' = 'debounced'): Promise<void> {
@@ -311,7 +333,10 @@ export class StorageService {
   }
 
   addCrewMember(member?: Partial<CrewMember>): CrewMember {
-    const newMember = { ...createEmptyCrewMember(), ...member, archived: false };
+    const newMember = migrateCrewListFlags({
+      ...createEmptyCrewMember(),
+      ...member,
+    });
     this.data.update((d) => {
       const ports = mergePorts(d.ports, newMember.joiningPort);
       const ranks = mergeUniqueList(d.ranks, newMember.rank);
@@ -338,12 +363,99 @@ export class StorageService {
     void this.persist(notify);
   }
 
-  archiveCrewMember(id: string): void {
-    this.updateCrewMember(id, { archived: true }, 'silent');
+  addCrewMemberToArrival(member?: Partial<CrewMember>): CrewMember {
+    return this.addCrewMember({
+      ...member,
+      archived: false,
+      onArrivalList: true,
+      onDepartureList: true,
+    });
   }
 
-  restoreCrewMember(id: string): void {
-    this.updateCrewMember(id, { archived: false }, 'silent');
+  addCrewMemberToArchive(member?: Partial<CrewMember>): CrewMember {
+    return this.addCrewMember({
+      ...member,
+      archived: true,
+      onArrivalList: false,
+      onDepartureList: false,
+    });
+  }
+
+  archiveCrewMember(id: string): void {
+    this.updateCrewMember(
+      id,
+      { archived: true, onArrivalList: false, onDepartureList: false },
+      'silent',
+    );
+  }
+
+  restoreCrewMemberToList(id: string, list: CrewListKind): void {
+    const patch =
+      list === 'arrival'
+        ? { archived: false, onArrivalList: true, onDepartureList: true }
+        : { archived: false, onArrivalList: false, onDepartureList: true };
+    this.updateCrewMember(id, patch, 'silent');
+  }
+
+  /** Departure list = arrival list (same people for this port). */
+  syncDepartureFromArrival(): void {
+    this.data.update((d) => ({
+      ...d,
+      crew: d.crew.map((m) =>
+        m.archived ? m : { ...m, onDepartureList: m.onArrivalList },
+      ),
+    }));
+    void this.persist('saved');
+  }
+
+  /** After leaving port: arrival crew becomes the departure list (for the next port). */
+  applyDepartureToArrival(): void {
+    this.data.update((d) => ({
+      ...d,
+      crew: d.crew.map((m) => {
+        if (m.archived) return m;
+        const onList = m.onDepartureList;
+        return { ...m, onArrivalList: onList, onDepartureList: onList };
+      }),
+    }));
+    void this.persist('saved');
+  }
+
+  /**
+   * Remove from departure list. If also on arrival — stays on arrival (swap workflow).
+   * Departure-only members go to the archive.
+   */
+  removeFromDepartureList(id: string): void {
+    const member = this.data().crew.find((m) => m.id === id);
+    if (!member) return;
+
+    if (member.archived) {
+      this.updateCrewMember(id, { onDepartureList: false }, 'silent');
+      return;
+    }
+
+    if (member.onArrivalList) {
+      this.updateCrewMember(id, { onDepartureList: false }, 'silent');
+      return;
+    }
+
+    this.archiveCrewMember(id);
+  }
+
+  private rescueOrphanCrew(crew: CrewMember[]): CrewMember[] {
+    return crew.map((m) => {
+      if (m.archived || m.onArrivalList || m.onDepartureList) return m;
+      return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
+    });
+  }
+
+  private ensureDepartureBaseline(crew: CrewMember[]): CrewMember[] {
+    const hasArrival = crew.some((m) => !m.archived && m.onArrivalList);
+    const hasDeparture = crew.some((m) => !m.archived && m.onDepartureList);
+    if (!hasArrival || hasDeparture) return crew;
+    return crew.map((m) =>
+      !m.archived && m.onArrivalList ? { ...m, onDepartureList: true } : m,
+    );
   }
 
   removeCrewMember(id: string): void {
@@ -351,15 +463,30 @@ export class StorageService {
     void this.persist('silent');
   }
 
-  reorderActiveCrew(fromIndex: number, toIndex: number): void {
+  reorderCrewList(list: CrewListKind, fromIndex: number, toIndex: number): void {
     if (fromIndex === toIndex) return;
+    const inList = (m: CrewMember) =>
+      list === 'arrival'
+        ? !m.archived && m.onArrivalList
+        : !m.archived && m.onDepartureList;
+
     this.data.update((d) => {
-      const active = d.crew.filter((m) => !m.archived);
-      const archived = d.crew.filter((m) => m.archived);
-      const reordered = [...active];
+      const indices: number[] = [];
+      const members: CrewMember[] = [];
+      d.crew.forEach((m, i) => {
+        if (inList(m)) {
+          indices.push(i);
+          members.push(m);
+        }
+      });
+      const reordered = [...members];
       const [moved] = reordered.splice(fromIndex, 1);
       reordered.splice(toIndex, 0, moved);
-      return { ...d, crew: [...reordered, ...archived] };
+      const crew = [...d.crew];
+      indices.forEach((idx, j) => {
+        crew[idx] = reordered[j];
+      });
+      return { ...d, crew };
     });
     void this.persist('debounced');
   }
@@ -387,5 +514,21 @@ export class StorageService {
     const text = await file.text();
     const parsed = JSON.parse(text) as AppData;
     this.replaceAll(parsed);
+  }
+
+  /** Load crew-data.json produced by scripts/import-document-xlsx.mjs */
+  private async tryLoadDocumentImport(): Promise<boolean> {
+    try {
+      const res = await fetch('/crew-data.json', { cache: 'no-store' });
+      if (!res.ok) return false;
+      const parsed = (await res.json()) as Partial<AppData>;
+      this.replaceAll(parsed as AppData);
+      if (!window.electronAPI) {
+        localStorage.setItem(DOCUMENT_IMPORT_KEY, DOCUMENT_IMPORT_ID);
+      }
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

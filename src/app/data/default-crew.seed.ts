@@ -18,7 +18,9 @@ export const SEED_SHIP: ShipInfo = {
   nextPortOfCall: 'La Spezia',
 };
 
-type SeedRow = Omit<CrewMember, 'id' | 'familyName' | 'givenNames'> & { fullName: string };
+type SeedRow = Omit<CrewMember, 'id' | 'familyName' | 'givenNames' | 'onArrivalList' | 'onDepartureList'> & {
+  fullName: string;
+};
 
 const SEED_CREW_RAW: SeedRow[] = [
   {
@@ -310,8 +312,16 @@ const SEED_CREW_RAW: SeedRow[] = [
 ];
 
 export function createSeedCrew(): CrewMember[] {
-  return SEED_CREW_RAW.map(({ fullName, ...rest }) => {
+  return SEED_CREW_RAW.map(({ fullName, archived, ...rest }) => {
     const { familyName, givenNames } = parseCrewName(fullName);
-    return { ...rest, familyName, givenNames, id: crypto.randomUUID() };
+    return {
+      ...rest,
+      familyName,
+      givenNames,
+      id: crypto.randomUUID(),
+      archived,
+      onArrivalList: !archived,
+      onDepartureList: false,
+    };
   });
 }

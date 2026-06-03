@@ -8,11 +8,10 @@
   }
 
   <section class="card voyage-card">
-    <h2>Текущий рейс</h2>
-    <p class="section-desc">Порты и даты меняются чаще всего — редактируйте здесь.</p>
+    <h2>CURRENT VOYAGE DATA</h2>
     <div class="form-grid">
       <label>
-        <span>Предыдущий порт</span>
+        <span>Last Port of Call</span>
         <app-port-select
           [value]="ship().lastPortOfCall"
           [ports]="ports()"
@@ -20,18 +19,15 @@
         />
       </label>
       <label>
-        <span>Текущий порт</span>
+        <span>Port of Call</span>
         <app-port-select
           [value]="ship().portOfCall"
           [ports]="ports()"
           (valueChange)="onShipChange('portOfCall', $event)"
         />
-        @if (portCode(ship().portOfCall)) {
-          <small class="field-hint">Код: {{ portCode(ship().portOfCall) }}</small>
-        }
       </label>
       <label>
-        <span>Следующий порт</span>
+        <span>Next Port of Call</span>
         <app-port-select
           [value]="ship().nextPortOfCall"
           [ports]="ports()"
@@ -39,21 +35,71 @@
         />
       </label>
       <label>
-        <span>Дата прихода</span>
+        <span>Arrival Date</span>
         <input type="date" [ngModel]="ship().dateOfArrival" (ngModelChange)="onShipChange('dateOfArrival', $event)" />
       </label>
       <label>
-        <span>Дата отхода</span>
+        <span>Departure Date</span>
         <input type="date" [ngModel]="ship().dateOfDeparture" (ngModelChange)="onShipChange('dateOfDeparture', $event)" />
       </label>
     </div>
   </section>
 
-  <section class="card">
-    <div class="section-head">
-      <h2>Present Crew ({{ activeCrew().length }})</h2>
-      <button type="button" class="btn btn-primary" (click)="addMember()">+ Добавить члена экипажа</button>
+  <section class="card crew-lists-card">
+    <div class="crew-tabs" role="tablist">
+      <button
+        type="button"
+        class="crew-tab"
+        role="tab"
+        [class.crew-tab--active]="crewTab() === 'arrival'"
+        [attr.aria-selected]="crewTab() === 'arrival'"
+        (click)="setCrewTab('arrival')"
+      >
+        CREW LIST ARRIVAL
+        <span class="crew-tab-count">{{ activeCrewArrival().length }}</span>
+      </button>
+      <button
+        type="button"
+        class="crew-tab"
+        role="tab"
+        [class.crew-tab--active]="crewTab() === 'departure'"
+        [attr.aria-selected]="crewTab() === 'departure'"
+        (click)="setCrewTab('departure')"
+      >
+        CREW LIST DEPARTURE
+        <span class="crew-tab-count">{{ activeCrewDeparture().length }}</span>
+      </button>
     </div>
+
+    <div class="section-head">
+      <h2>
+        @if (crewTab() === 'arrival') {
+          Crew list — Arrival ({{ listCrew().length }})
+        } @else {
+          Crew list — Departure ({{ listCrew().length }})
+        }
+      </h2>
+      <div class="section-head-actions">
+        @if (crewTab() === 'arrival') {
+          <button type="button" class="btn btn-primary" (click)="addMemberToArrival()">+ Add crew member</button>
+        } @else {
+          <button type="button" class="btn btn-secondary" (click)="syncDepartureFromArrival()">
+            Match arrival list
+          </button>
+          <button type="button" class="btn btn-primary" (click)="applyDepartureToArrival()">
+            Apply to arrival (leave port)
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (crewTab() === 'departure') {
+      <p class="section-desc">
+        Starts the same as arrival. To swap 1–3 people: use × (off departure, stays on arrival), then
+        <strong>{{ restoreListLabel() }}</strong> from the archive for replacements. When you leave the port, use
+        <strong>Apply to arrival (leave port)</strong>.
+      </p>
+    }
 
     <div class="table-wrap">
       <table class="crew-table">
@@ -72,7 +118,7 @@
           </tr>
         </thead>
         <tbody cdkDropList (cdkDropListDropped)="dropCrew($event)">
-          @for (member of activeCrew(); track member.id; let i = $index) {
+          @for (member of listCrew(); track member.id; let i = $index) {
             <tr cdkDrag>
               <td class="drag-handle" cdkDragHandle title="Перетащите для изменения порядка">⠿</td>
               <td>{{ i + 1 }}</td>
@@ -95,17 +141,32 @@
                     <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  class="crew-action crew-action--archive"
-                  title="Archive"
-                  aria-label="Archive"
-                  (click)="archive(member.id)"
-                >
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
+                @if (crewTab() === 'departure') {
+                  <button
+                    type="button"
+                    class="crew-action crew-action--off-departure"
+                    [title]="member.onArrivalList ? 'Remove from departure (stays on arrival)' : 'Remove from departure (to archive)'"
+                    [attr.aria-label]="member.onArrivalList ? 'Remove from departure only' : 'Remove from departure to archive'"
+                    (click)="removeFromDeparture(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
+                    </svg>
+                  </button>
+                }
+                @if (crewTab() === 'arrival' || !member.onArrivalList) {
+                  <button
+                    type="button"
+                    class="crew-action crew-action--archive"
+                    title="Move to archive"
+                    aria-label="Move to archive"
+                    (click)="archive(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                }
               </td>
             </tr>
           }
@@ -116,14 +177,21 @@
 
   <section class="card">
     <div class="section-head">
-      <h2>Архив экипажа ({{ archivedCrew().length }})</h2>
-      <button type="button" class="btn btn-secondary" (click)="showArchive.set(!showArchive())">
-        {{ showArchive() ? 'Скрыть' : 'Показать' }}
-      </button>
+      <h2>Crew archive ({{ archivedCrew().length }})</h2>
+      <div class="section-head-actions">
+        <button type="button" class="btn btn-primary" (click)="addMemberToArchive()">+ Add crew member</button>
+        <button type="button" class="btn btn-secondary" (click)="showArchive.set(!showArchive())">
+          {{ showArchive() ? 'Hide' : 'Show' }}
+        </button>
+      </div>
     </div>
 
     @if (showArchive()) {
-      <p class="section-desc">Сортировка по должности (как в Crew List).</p>
+      <p class="section-desc">
+        Always sorted by rank (Master → …). Restore to
+        <strong>{{ crewTab() === 'arrival' ? 'arrival + departure' : 'departure only' }}</strong>
+        (shared archive for both lists).
+      </p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -146,9 +214,9 @@
                   <button
                     type="button"
                     class="crew-action crew-action--restore"
-                    title="Restore to crew"
-                    aria-label="Restore to crew"
-                    (click)="restore(member.id)"
+                    [title]="restoreListLabel()"
+                    [attr.aria-label]="restoreListLabel()"
+                    (click)="restoreFromArchive(member.id)"
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                       <path d="M3 10h10a4 4 0 0 1 4 4v0a4 4 0 0 1-4 4H5M3 10l4-4M3 10l4 4" stroke-linecap="round" stroke-linejoin="round" />
@@ -176,60 +244,143 @@
 
   @if (editDraft(); as draft) {
     <div class="modal-backdrop" (click)="cancelEdit()">
-      <div class="modal" (click)="$event.stopPropagation()">
-        <h3>{{ editingId() ? 'Редактирование' : 'Новый член экипажа' }}</h3>
-        <div class="form-grid">
-          <label>
-            <span>Family Name</span>
-            <input [ngModel]="draft.familyName" (ngModelChange)="updateDraft('familyName', $event)" />
-          </label>
-          <label>
-            <span>Given Names</span>
-            <input [ngModel]="draft.givenNames" (ngModelChange)="updateDraft('givenNames', $event)" />
-          </label>
-          <label>
-            <span>Rank</span>
-            <app-lookup-select
-              [value]="draft.rank"
-              [options]="ranks()"
-              (valueChange)="updateDraft('rank', $event)"
-            />
-          </label>
-          <label>
-            <span>Nationality</span>
-            <app-lookup-select
-              [value]="draft.nationality"
-              [options]="nationalities()"
-              (valueChange)="updateDraft('nationality', $event)"
-            />
-          </label>
-          <label><span>Date of Birth</span><input type="date" [ngModel]="draft.dateOfBirth" (ngModelChange)="updateDraft('dateOfBirth', $event)" /></label>
-          <label><span>Place of Birth</span><input [ngModel]="draft.placeOfBirth" (ngModelChange)="updateDraft('placeOfBirth', $event)" /></label>
-          <label><span>Passport</span><input [ngModel]="draft.passport" (ngModelChange)="updateDraft('passport', $event)" /></label>
-          <label><span>Passport Issue Date</span><input type="date" [ngModel]="draft.passportIssueDate" (ngModelChange)="updateDraft('passportIssueDate', $event)" /></label>
-          <label><span>Passport Expiry Date</span><input type="date" [ngModel]="draft.passportExpiryDate" (ngModelChange)="updateDraft('passportExpiryDate', $event)" /></label>
-          <label><span>Seaman's Book</span><input [ngModel]="draft.seamansBook" (ngModelChange)="updateDraft('seamansBook', $event)" /></label>
-          <label><span>S/book Issue Date</span><input type="date" [ngModel]="draft.sbookIssueDate" (ngModelChange)="updateDraft('sbookIssueDate', $event)" /></label>
-          <label><span>S/book Expiry Date</span><input type="date" [ngModel]="draft.sbookExpiryDate" (ngModelChange)="updateDraft('sbookExpiryDate', $event)" /></label>
-          <label><span>Cyprus Seaman's Book</span><input [ngModel]="draft.cyprusSeamansBook" (ngModelChange)="updateDraft('cyprusSeamansBook', $event)" /></label>
-          <label><span>Cyprus Issue Date</span><input type="date" [ngModel]="draft.cyprusIssueDate" (ngModelChange)="updateDraft('cyprusIssueDate', $event)" /></label>
-          <label><span>Cyprus Expiry Date</span><input type="date" [ngModel]="draft.cyprusExpiryDate" (ngModelChange)="updateDraft('cyprusExpiryDate', $event)" /></label>
-          <label><span>Visa</span><input [ngModel]="draft.visa" (ngModelChange)="updateDraft('visa', $event)" /></label>
-          <label><span>Visa Issue Date</span><input type="date" [ngModel]="draft.visaIssueDate" (ngModelChange)="updateDraft('visaIssueDate', $event)" /></label>
-          <label><span>Visa Expiry Date</span><input type="date" [ngModel]="draft.visaExpiryDate" (ngModelChange)="updateDraft('visaExpiryDate', $event)" /></label>
-          <label><span>Joining Date</span><input type="date" [ngModel]="draft.joiningDate" (ngModelChange)="updateDraft('joiningDate', $event)" /></label>
-          <label>
-            <span>Joining Port</span>
-            <app-port-select
-              [value]="draft.joiningPort"
-              [ports]="ports()"
-              (valueChange)="updateDraft('joiningPort', $event)"
-            />
-          </label>
+      <div class="modal modal-crew-edit" (click)="$event.stopPropagation()">
+        <h3>{{ editingId() ? 'Edit crew member' : 'Add crew member' }}</h3>
+
+        <div class="crew-form-layout">
+          <section class="crew-form-block">
+            <h4 class="crew-form-block-title">Personal details</h4>
+            <div class="form-grid">
+              <label>
+                <span>Family name</span>
+                <input [ngModel]="draft.familyName" (ngModelChange)="updateDraft('familyName', $event)" />
+              </label>
+              <label>
+                <span>Given names</span>
+                <input [ngModel]="draft.givenNames" (ngModelChange)="updateDraft('givenNames', $event)" />
+              </label>
+              <label>
+                <span>Rank</span>
+                <app-lookup-select
+                  [value]="draft.rank"
+                  [options]="ranks()"
+                  (valueChange)="updateDraft('rank', $event)"
+                />
+              </label>
+              <label>
+                <span>Nationality</span>
+                <app-lookup-select
+                  [value]="draft.nationality"
+                  [options]="nationalities()"
+                  (valueChange)="updateDraft('nationality', $event)"
+                />
+              </label>
+              <label>
+                <span>Date of birth</span>
+                <input type="date" [ngModel]="draft.dateOfBirth" (ngModelChange)="updateDraft('dateOfBirth', $event)" />
+              </label>
+              <label>
+                <span>Place of birth</span>
+                <input [ngModel]="draft.placeOfBirth" (ngModelChange)="updateDraft('placeOfBirth', $event)" />
+              </label>
+            </div>
+          </section>
+
+          <section class="crew-form-block crew-form-block--passport">
+            <h4 class="crew-form-block-title">Passport</h4>
+            <div class="form-grid">
+              <label>
+                <span>Passport No.</span>
+                <input [ngModel]="draft.passport" (ngModelChange)="updateDraft('passport', $event)" />
+              </label>
+              <label>
+                <span>Issue date</span>
+                <input type="date" [ngModel]="draft.passportIssueDate" (ngModelChange)="updateDraft('passportIssueDate', $event)" />
+              </label>
+              <label>
+                <span>Expiry date</span>
+                <input type="date" [ngModel]="draft.passportExpiryDate" (ngModelChange)="updateDraft('passportExpiryDate', $event)" />
+              </label>
+            </div>
+          </section>
+
+          <section class="crew-form-block crew-form-block--sbook">
+            <h4 class="crew-form-block-title">Seaman's book</h4>
+            <div class="form-grid">
+              <label>
+                <span>S/book No.</span>
+                <input [ngModel]="draft.seamansBook" (ngModelChange)="updateDraft('seamansBook', $event)" />
+              </label>
+              <label>
+                <span>Issue date</span>
+                <input type="date" [ngModel]="draft.sbookIssueDate" (ngModelChange)="updateDraft('sbookIssueDate', $event)" />
+              </label>
+              <label>
+                <span>Expiry date</span>
+                <input type="date" [ngModel]="draft.sbookExpiryDate" (ngModelChange)="updateDraft('sbookExpiryDate', $event)" />
+              </label>
+            </div>
+          </section>
+
+          <section class="crew-form-block crew-form-block--flag">
+            <h4 class="crew-form-block-title">{{ flagStateBookSectionTitle() }}</h4>
+            <p class="crew-form-block-hint">Uses ship nationality: {{ flagStateName() }}</p>
+            <div class="form-grid">
+              <label>
+                <span>{{ flagStateBookNumberLabel() }}</span>
+                <input [ngModel]="draft.cyprusSeamansBook" (ngModelChange)="updateDraft('cyprusSeamansBook', $event)" />
+              </label>
+              <label>
+                <span>{{ flagStateBookIssueLabel() }}</span>
+                <input type="date" [ngModel]="draft.cyprusIssueDate" (ngModelChange)="updateDraft('cyprusIssueDate', $event)" />
+              </label>
+              <label>
+                <span>{{ flagStateBookExpiryLabel() }}</span>
+                <input type="date" [ngModel]="draft.cyprusExpiryDate" (ngModelChange)="updateDraft('cyprusExpiryDate', $event)" />
+              </label>
+            </div>
+          </section>
+
+          <section class="crew-form-block crew-form-block--visa">
+            <h4 class="crew-form-block-title">Visa</h4>
+            <div class="form-grid">
+              <label>
+                <span>Visa / type</span>
+                <input [ngModel]="draft.visa" (ngModelChange)="updateDraft('visa', $event)" />
+              </label>
+              <label>
+                <span>Issue date</span>
+                <input type="date" [ngModel]="draft.visaIssueDate" (ngModelChange)="updateDraft('visaIssueDate', $event)" />
+              </label>
+              <label>
+                <span>Expiry date</span>
+                <input type="date" [ngModel]="draft.visaExpiryDate" (ngModelChange)="updateDraft('visaExpiryDate', $event)" />
+              </label>
+            </div>
+          </section>
+
+          <section class="crew-form-block">
+            <h4 class="crew-form-block-title">Joining</h4>
+            <div class="form-grid">
+              <label>
+                <span>Joining date</span>
+                <input type="date" [ngModel]="draft.joiningDate" (ngModelChange)="updateDraft('joiningDate', $event)" />
+              </label>
+              <label>
+                <span>Joining port</span>
+                <app-port-select
+                  [value]="draft.joiningPort"
+                  [ports]="ports()"
+                  (valueChange)="updateDraft('joiningPort', $event)"
+                />
+              </label>
+            </div>
+          </section>
         </div>
+
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Отмена</button>
-          <button type="button" class="btn btn-save" (click)="saveEdit()">Сохранить</button>
+          <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Cancel</button>
+          <button type="button" class="btn btn-save" (click)="saveEdit()">Save</button>
         </div>
       </div>
     </div>

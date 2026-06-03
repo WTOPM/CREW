@@ -11,7 +11,8 @@
     "test": "ng test",
     "electron:dev": "concurrently -k \"ng serve\" \"wait-on http://localhost:4200 && electron .\"",
     "electron:build": "npm run build:electron && electron-builder --win portable",
-    "electron:pack": "npm run build:electron && electron-builder --dir"
+    "electron:pack": "npm run build:electron && electron-builder --dir",
+    "import:document": "node scripts/import-document-xlsx.mjs DOCUMENT.xlsx"
   },
   "private": true,
   "packageManager": "npm@11.16.0",
