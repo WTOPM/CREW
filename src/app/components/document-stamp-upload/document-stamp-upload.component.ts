@@ -14,8 +14,9 @@ import { ToastService } from '../../services/toast.service';
   template: `
     <div class="stamp-upload">
       <p class="stamp-upload-hint">
-        Upload ship stamp and captain signature once (PNG or PDF). Check Stamp/Signature below and click Set to apply
-        to all documents (Crew list, PAX, Port of Call, MDH).
+        Upload ship stamp and captain signature once (PNG or PDF). Check Stamp and Signature, then click
+        <strong>Set</strong> — the same on/off choice is applied to <strong>every document</strong>: Crew list, PAX,
+        Port of Call, MDH, and Ship Stores.
       </p>
       <div class="stamp-drop-grid">
         <div
@@ -68,7 +69,17 @@ import { ToastService } from '../../services/toast.service';
             <span>Signature</span>
           </label>
         </div>
-        <button type="button" class="btn btn-primary stamp-bulk-set" (click)="applyBulkToggles()">Set</button>
+        <div class="stamp-bulk-actions">
+          <button
+            type="button"
+            class="btn btn-primary stamp-bulk-set"
+            (click)="applyBulkToggles()"
+            title="Apply stamp and signature on/off to all documents"
+          >
+            Set
+          </button>
+          <span class="stamp-bulk-note">Applies to all documents at once</span>
+        </div>
       </div>
     </div>
   `,
@@ -152,10 +163,23 @@ import { ToastService } from '../../services/toast.service';
       border-top: 1px solid var(--border);
     }
 
+    .stamp-bulk-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.2rem;
+    }
+
     .stamp-bulk-set {
       min-width: 4.5rem;
       font-size: 0.88rem;
       padding: 0.4rem 1rem;
+    }
+
+    .stamp-bulk-note {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.3;
     }
   `,
 })
@@ -239,6 +263,7 @@ function allDocumentsUse(
     overlay.crewList[field] &&
     overlay.pax[field] &&
     overlay.portOfCall[field] &&
-    overlay.mdh[field]
+    overlay.mdh[field] &&
+    overlay.shipStores[field]
   );
 }

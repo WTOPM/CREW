@@ -38,6 +38,7 @@ export class CrewArrComponent {
       nationalities: this.storage.nationalities(),
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
+      shipStoresForm: this.storage.shipStoresForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };

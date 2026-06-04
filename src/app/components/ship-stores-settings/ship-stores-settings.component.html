@@ -1,0 +1,100 @@
+<section class="ss-settings">
+  <label class="ss-field">
+    <span class="ss-label">Place of storage (field 8)</span>
+    <input
+      type="text"
+      class="ss-input"
+      [ngModel]="form().placeOfStorage"
+      (ngModelChange)="onPlaceOfStorageChange($event)"
+      placeholder="e.g. Provision Room"
+    />
+  </label>
+
+  <h4 class="ss-section-title">Table — add one row at a time</h4>
+  <div class="ss-row-editor">
+    <label class="ss-field ss-field--narrow">
+      <span class="ss-label">Row</span>
+      <select
+        class="ss-input"
+        [ngModel]="selectedRow()"
+        (ngModelChange)="onRowChange($event)"
+      >
+        @for (n of rowNumbers; track n) {
+          <option [ngValue]="n">{{ n }}</option>
+        }
+      </select>
+    </label>
+    <label class="ss-field ss-field--grow">
+      <span class="ss-label">Article name</span>
+      <input
+        type="text"
+        class="ss-input"
+        [ngModel]="draftName()"
+        (ngModelChange)="draftName.set($event)"
+        placeholder="Article description"
+      />
+    </label>
+    <div class="ss-row-actions">
+      <button type="button" class="btn btn-secondary" (click)="saveArticleName()">
+        Save article name
+      </button>
+    </div>
+  </div>
+
+  <div class="ss-row-editor ss-row-editor--qty">
+    <label class="ss-field ss-field--qty">
+      <span class="ss-label">Quantity</span>
+      <input
+        type="text"
+        class="ss-input"
+        [ngModel]="draftQuantity()"
+        (ngModelChange)="draftQuantity.set($event)"
+        placeholder="0 → NIL in PDF"
+      />
+    </label>
+    <label class="ss-field ss-field--unit">
+      <span class="ss-label">Unit</span>
+      <input
+        type="text"
+        class="ss-input"
+        [ngModel]="draftUnit()"
+        (ngModelChange)="draftUnit.set($event)"
+        placeholder="Ltrs, MT, Pcs…"
+      />
+    </label>
+    <div class="ss-row-actions">
+      <button type="button" class="btn btn-secondary" (click)="saveQuantityAndUnit()">
+        Save quantity &amp; unit
+      </button>
+    </div>
+  </div>
+  <p class="ss-hint">
+    If an article name is saved, empty or zero quantity prints as <strong>NIL</strong> in the quantity column.
+    <strong>Unit</strong> is printed whenever you save it (even with NIL). Rows without a name stay blank.
+  </p>
+
+  <div class="ss-preview-wrap">
+    <table class="ss-preview-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Article</th>
+          <th>Qty</th>
+          <th>Unit</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of form().rows; track $index) {
+          <tr [class.ss-preview-row--active]="selectedRow() === $index + 1">
+            <td>{{ $index + 1 }}</td>
+            <td>{{ row.name || '—' }}</td>
+            <td>{{ row.quantity || '—' }}</td>
+            <td>{{ row.unit || '—' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <app-document-stamp-options documentId="shipStores" />
+</section>

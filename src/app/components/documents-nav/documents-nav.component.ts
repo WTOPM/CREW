@@ -16,11 +16,13 @@ import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfCrewListType2Service } from '../../services/pdf-crew-list-type2.service';
 import { PdfMdhService } from '../../services/pdf-mdh.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
+import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-settings.component';
+import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores-settings.component';
 
 @Component({
   selector: 'app-documents-nav',
@@ -31,6 +33,7 @@ import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-setti
     TimeInputComponent,
     DocumentStampOptionsComponent,
     CrewListSettingsComponent,
+    ShipStoresSettingsComponent,
   ],
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',
@@ -41,6 +44,7 @@ export class DocumentsNavComponent {
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
+  private readonly shipStoresPdf = inject(PdfShipStoresService);
   private readonly toast = inject(ToastService);
 
   protected readonly pocMinPorts = POC_MIN_ROW_COUNT;
@@ -60,6 +64,7 @@ export class DocumentsNavComponent {
   protected showCrewListSettings = signal(false);
   protected showPaxSettings = signal(false);
   protected showMdhSettings = signal(false);
+  protected showShipStoresSettings = signal(false);
 
   protected openPassengerList(isArrival: boolean): void {
     this.storage.updatePaxArr({ isArrival }, 'silent');
@@ -192,6 +197,24 @@ export class DocumentsNavComponent {
     });
   }
 
+  protected openShipStores(): void {
+    void this.shipStoresPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Ship Stores preview');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
+    });
+  }
+
+  protected openShipStoresSettings(): void {
+    this.showShipStoresSettings.set(true);
+  }
+
+  protected closeShipStoresSettings(): void {
+    this.showShipStoresSettings.set(false);
+  }
+
   protected openMdh(): void {
     void this.mdhPdf.openPreview(this.appData()).then((ok) => {
       if (!ok) {
@@ -215,6 +238,7 @@ export class DocumentsNavComponent {
       nationalities: this.storage.nationalities(),
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
+      shipStoresForm: this.storage.shipStoresForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };

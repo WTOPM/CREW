@@ -15,6 +15,7 @@ import {
   PortCallHistoryEntry,
   createDefaultCrewArrSettings,
   createDefaultPortOfCallSettings,
+  createDefaultShipStoresForm,
   createEmptyCrewMember,
   createEmptyPortCallEntry,
   createEmptyShip,
@@ -45,6 +46,11 @@ import {
 import { SEED_SHIP, SEED_VERSION, createSeedCrew } from '../data/default-crew.seed';
 import { SEED_PORT_CALL_HISTORY } from '../data/default-port-call.seed';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
+import {
+  normalizeShipStoresForm,
+  type ShipStoresFormSettings,
+  type ShipStoresRow,
+} from '../models/ship-stores.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 
 const STORAGE_KEY = 'crew-app-data';
@@ -63,6 +69,7 @@ const DEFAULT_DATA: AppData = {
   nationalities: [...DEFAULT_NATIONALITIES],
   portCallHistory: SEED_PORT_CALL_HISTORY.map((e) => ({ ...e })),
   portOfCall: createDefaultPortOfCallSettings(),
+  shipStoresForm: createDefaultShipStoresForm(),
   documentOverlay: createDefaultDocumentOverlayPrefs(),
   shipAssets: createEmptyShipAssetsMeta(),
   seedVersion: SEED_VERSION,
@@ -80,6 +87,7 @@ export class StorageService {
   readonly nationalities = computed(() => this.data().nationalities);
   readonly portCallHistory = computed(() => this.data().portCallHistory);
   readonly portOfCall = computed(() => this.data().portOfCall);
+  readonly shipStoresForm = computed(() => this.data().shipStoresForm);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly activeCrewArrival = computed(() =>
@@ -117,11 +125,16 @@ export class StorageService {
       nationalities: [...DEFAULT_DATA.nationalities],
       portCallHistory: [...DEFAULT_DATA.portCallHistory],
       portOfCall: { ...DEFAULT_DATA.portOfCall },
+      shipStoresForm: {
+        placeOfStorage: DEFAULT_DATA.shipStoresForm.placeOfStorage,
+        rows: DEFAULT_DATA.shipStoresForm.rows.map((r) => ({ ...r })),
+      },
       documentOverlay: {
         crewList: { ...createDefaultDocumentOverlayPrefs().crewList },
         pax: { ...DEFAULT_DATA.documentOverlay.pax },
         portOfCall: { ...DEFAULT_DATA.documentOverlay.portOfCall },
         mdh: { ...DEFAULT_DATA.documentOverlay.mdh },
+        shipStores: { ...DEFAULT_DATA.documentOverlay.shipStores },
       },
       shipAssets: { ...DEFAULT_DATA.shipAssets },
       crewArr: { ...DEFAULT_DATA.crewArr },
@@ -217,6 +230,7 @@ export class StorageService {
     const portCallHistory = this.normalizePortCallHistory(raw, ports);
     ports = mergePorts(ports, ...portCallHistory.map((e) => e.portName));
     const portOfCall = this.normalizePortOfCallSettings(raw.portOfCall);
+    const shipStoresForm = normalizeShipStoresForm(raw.shipStoresForm);
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     return {
@@ -230,6 +244,7 @@ export class StorageService {
       nationalities: mergeUniqueList(nationalities),
       portCallHistory,
       portOfCall,
+      shipStoresForm,
       documentOverlay,
       shipAssets,
       seedVersion: SEED_VERSION,
@@ -248,6 +263,7 @@ export class StorageService {
       pax: this.normalizeStampDocumentPrefs(raw?.pax, defaults.pax),
       portOfCall: this.normalizeStampDocumentPrefs(raw?.portOfCall, defaults.portOfCall),
       mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
+      shipStores: this.normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
     };
     return out;
   }
@@ -428,7 +444,7 @@ export class StorageService {
     void this.persist('saved');
   }
 
-  /** Apply stamp/signature toggles to crew list, PAX, Port of Call, and MDH at once. */
+  /** Apply stamp/signature toggles to all document types at once. */
   applyStampTogglesToAllDocuments(useStamp: boolean, useSignature: boolean): void {
     const patch: Pick<DocumentStampOptions, 'useStamp' | 'useSignature'> = {
       useStamp,
@@ -441,6 +457,7 @@ export class StorageService {
         pax: { ...d.documentOverlay.pax, ...patch },
         portOfCall: { ...d.documentOverlay.portOfCall, ...patch },
         mdh: { ...d.documentOverlay.mdh, ...patch },
+        shipStores: { ...d.documentOverlay.shipStores, ...patch },
       },
     }));
     void this.persist('saved');
@@ -458,6 +475,28 @@ export class StorageService {
     this.data.update((d) => ({
       ...d,
       portOfCall: this.normalizePortOfCallSettings({ ...d.portOfCall, ...partial }),
+    }));
+    void this.persist('saved');
+  }
+
+  updateShipStoresPlaceOfStorage(placeOfStorage: string): void {
+    this.patchShipStoresForm({ placeOfStorage });
+  }
+
+  updateShipStoresRow(rowIndex: number, partial: Partial<ShipStoresRow>): void {
+    if (rowIndex < 0 || rowIndex >= 27) return;
+    this.data.update((d) => {
+      const form = normalizeShipStoresForm(d.shipStoresForm);
+      const rows = form.rows.map((r, i) => (i === rowIndex ? { ...r, ...partial } : r));
+      return { ...d, shipStoresForm: normalizeShipStoresForm({ ...form, rows }) };
+    });
+    void this.persist('saved');
+  }
+
+  private patchShipStoresForm(partial: Partial<ShipStoresFormSettings>): void {
+    this.data.update((d) => ({
+      ...d,
+      shipStoresForm: normalizeShipStoresForm({ ...d.shipStoresForm, ...partial }),
     }));
     void this.persist('saved');
   }

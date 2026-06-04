@@ -64,6 +64,10 @@ export function mdhPdfFileName(
   return `MDH_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function shipStoresPdfFileName(shipName: string, voyageDate: string): string {
+  return `Ship_Stores_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function passengerListPdfFileName(
   shipName: string,
   portOfCall: string,

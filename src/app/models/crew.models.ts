@@ -2,6 +2,8 @@ import { parseValidityRange } from '../utils/date.util';
 import { PassengerMember, PaxArrFormSettings } from './passenger.models';
 import type { DocumentOverlayPrefs, ShipAssetsMeta } from './document-overlay.models';
 import { createDefaultDocumentOverlayPrefs, createEmptyShipAssetsMeta } from './document-overlay.models';
+import type { ShipStoresFormSettings } from './ship-stores.models';
+import { createDefaultShipStoresForm } from './ship-stores.models';
 
 export type {
   DocumentOverlayPrefs,
@@ -194,10 +196,20 @@ export interface AppData {
   nationalities: string[];
   portCallHistory: PortCallHistoryEntry[];
   portOfCall: PortOfCallSettings;
+  /** Ship Stores table (articles, quantities, place of storage). */
+  shipStoresForm: ShipStoresFormSettings;
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
   seedVersion?: number;
 }
+
+export type { ShipStoresFormSettings, ShipStoresRow } from './ship-stores.models';
+export {
+  SHIP_STORES_ROW_COUNT,
+  createDefaultShipStoresForm,
+  formatShipStoresQuantityText,
+  formatShipStoresUnitText,
+} from './ship-stores.models';
 
 export function createEmptyShip(): ShipInfo {
   return {
