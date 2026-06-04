@@ -2,7 +2,6 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SHIP_STORES_ROW_COUNT } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
-import { ToastService } from '../../services/toast.service';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
@@ -13,7 +12,6 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 })
 export class ShipStoresSettingsComponent {
   private readonly storage = inject(StorageService);
-  private readonly toast = inject(ToastService);
 
   protected readonly rowNumbers = Array.from({ length: SHIP_STORES_ROW_COUNT }, (_, i) => i + 1);
 
@@ -41,7 +39,6 @@ export class ShipStoresSettingsComponent {
   protected saveArticleName(): void {
     const idx = this.selectedRow() - 1;
     this.storage.updateShipStoresRow(idx, { name: this.draftName().trim() });
-    this.toast.showSaved();
   }
 
   protected saveQuantityAndUnit(): void {
@@ -50,7 +47,6 @@ export class ShipStoresSettingsComponent {
       quantity: this.draftQuantity().trim(),
       unit: this.draftUnit().trim(),
     });
-    this.toast.showSaved();
   }
 
   private loadDraftFromRow(index: number): void {

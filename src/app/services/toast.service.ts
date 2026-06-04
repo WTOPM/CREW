@@ -76,6 +76,13 @@ export class ToastService {
     }, delayMs);
   }
 
+  cancelDebouncedSaved(): void {
+    if (this.savedTimer) {
+      clearTimeout(this.savedTimer);
+      this.savedTimer = null;
+    }
+  }
+
   showPdfGenerated(): void {
     this.show('PDF generated', 'success');
   }

@@ -30,9 +30,13 @@ export const CREW_EFFECT_COL = {
   rowNo: 65,
   name: 84,
   rank: 252,
-  signature: 397,
+  cigarettes: 298,
+  spirits: 333,
+  wines: 361,
+  others: 400,
   nameMaxWidth: 155,
   rankMaxWidth: 130,
+  effectsMaxWidth: 28,
 } as const;
 
 /** Row baselines (pdf.js top-Y) from reference PDF. */

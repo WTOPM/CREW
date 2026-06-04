@@ -80,6 +80,18 @@ export function shipMoneyPdfFileName(shipName: string, voyageDate: string): stri
   return `Ship_Money_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function cashAdvancePdfFileName(shipName: string, voyageDate: string): string {
+  return `Cash_Advance_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
+export function crewMoneyListPdfFileName(shipName: string, voyageDate: string): string {
+  return `Crew_Money_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
+export function narcoticListPdfFileName(shipName: string, voyageDate: string): string {
+  return `Narcotic_List_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function passengerListPdfFileName(
   shipName: string,
   portOfCall: string,

@@ -56,6 +56,7 @@ export class SettingsComponent {
 
   protected closePorts(): void {
     this.showPortsModal.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openNationalities(): void {
@@ -65,6 +66,7 @@ export class SettingsComponent {
 
   protected closeNationalities(): void {
     this.showNationalitiesModal.set(false);
+    this.storage.finishFormSession();
   }
 
   protected addNationalityItem(): void {
@@ -78,6 +80,7 @@ export class SettingsComponent {
 
   protected closeRanks(): void {
     this.showRanksModal.set(false);
+    this.storage.finishFormSession();
   }
 
   protected addPortItem(): void {

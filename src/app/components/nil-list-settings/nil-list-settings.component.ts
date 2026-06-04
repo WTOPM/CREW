@@ -1,7 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StorageService } from '../../services/storage.service';
-import { ToastService } from '../../services/toast.service';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
@@ -12,7 +11,6 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 })
 export class NilListSettingsComponent {
   private readonly storage = inject(StorageService);
-  private readonly toast = inject(ToastService);
 
   protected form = this.storage.nilListForm;
   protected newPhraseText = signal('');
@@ -30,11 +28,9 @@ export class NilListSettingsComponent {
     if (!text) return;
     this.storage.addNilListPhrase(text);
     this.newPhraseText.set('');
-    this.toast.showSaved();
   }
 
   protected removePhrase(id: string): void {
     this.storage.removeNilListPhrase(id);
-    this.toast.showSaved();
   }
 }

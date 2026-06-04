@@ -1,7 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StorageService } from '../../services/storage.service';
-import { ToastService } from '../../services/toast.service';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
@@ -12,7 +11,6 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 })
 export class ShipMoneySettingsComponent {
   private readonly storage = inject(StorageService);
-  private readonly toast = inject(ToastService);
 
   protected form = this.storage.shipMoneyForm;
   protected draftAmount = signal('');
@@ -33,11 +31,9 @@ export class ShipMoneySettingsComponent {
     this.storage.addShipMoneyEntry(amount, currency);
     this.draftAmount.set('');
     this.draftCurrency.set('');
-    this.toast.showSaved();
   }
 
   protected removeEntry(id: string): void {
     this.storage.removeShipMoneyEntry(id);
-    this.toast.showSaved();
   }
 }

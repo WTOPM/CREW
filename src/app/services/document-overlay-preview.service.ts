@@ -13,6 +13,9 @@ import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
 import { PdfNilListService } from './pdf-nil-list.service';
 import { PdfShipMoneyService } from './pdf-ship-money.service';
+import { PdfCashAdvanceService } from './pdf-cash-advance.service';
+import { PdfCrewMoneyListService } from './pdf-crew-money-list.service';
+import { PdfNarcoticListService } from './pdf-narcotic-list.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
 import { StorageService } from './storage.service';
 
@@ -30,6 +33,9 @@ export class DocumentOverlayPreviewService {
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
   private readonly nilListPdf = inject(PdfNilListService);
   private readonly shipMoneyPdf = inject(PdfShipMoneyService);
+  private readonly cashAdvancePdf = inject(PdfCashAdvanceService);
+  private readonly crewMoneyListPdf = inject(PdfCrewMoneyListService);
+  private readonly narcoticListPdf = inject(PdfNarcoticListService);
 
   async build(documentId: DocumentOverlayId, mdhPage: MdhOverlayPreviewPage = 'form'): Promise<Uint8Array> {
     const data = this.appData();
@@ -50,6 +56,12 @@ export class DocumentOverlayPreviewService {
         return this.nilListPdf.build(data);
       case 'shipMoney':
         return this.shipMoneyPdf.build(data);
+      case 'cashAdvance':
+        return this.cashAdvancePdf.build(data);
+      case 'crewMoney':
+        return this.crewMoneyListPdf.build(data);
+      case 'narcoticList':
+        return this.narcoticListPdf.build(data);
       default:
         throw new Error(`Unknown document: ${documentId}`);
     }
@@ -109,6 +121,9 @@ export class DocumentOverlayPreviewService {
       crewEffectForm: this.storage.crewEffectForm(),
       nilListForm: this.storage.nilListForm(),
       shipMoneyForm: this.storage.shipMoneyForm(),
+      cashAdvanceForm: this.storage.cashAdvanceForm(),
+      crewMoneyListForm: this.storage.crewMoneyListForm(),
+      narcoticListForm: this.storage.narcoticListForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };

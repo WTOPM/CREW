@@ -320,6 +320,9 @@ function allDocumentsUse(
     overlay.shipStores[field] &&
     overlay.crewEffect[field] &&
     overlay.nilList[field] &&
-    overlay.shipMoney[field]
+    overlay.shipMoney[field] &&
+    overlay.cashAdvance[field] &&
+    overlay.crewMoney[field] &&
+    overlay.narcoticList[field]
   );
 }

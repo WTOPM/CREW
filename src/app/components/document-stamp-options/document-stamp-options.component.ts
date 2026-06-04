@@ -1,5 +1,6 @@
 import { Component, inject, input, signal } from '@angular/core';
 import { DocumentOverlayId } from '../../models/document-overlay.models';
+import { StorageService } from '../../services/storage.service';
 import { OverlayPlacementPickerComponent } from '../overlay-placement-picker/overlay-placement-picker.component';
 
 @Component({
@@ -15,7 +16,7 @@ import { OverlayPlacementPickerComponent } from '../overlay-placement-picker/ove
     @if (showPlacement()) {
       <app-overlay-placement-picker
         [documentId]="documentId()"
-        (close)="showPlacement.set(false)"
+        (close)="closePlacement()"
       />
     }
   `,
@@ -69,7 +70,14 @@ import { OverlayPlacementPickerComponent } from '../overlay-placement-picker/ove
   `,
 })
 export class DocumentStampOptionsComponent {
+  private readonly storage = inject(StorageService);
+
   readonly documentId = input.required<DocumentOverlayId>();
 
   protected readonly showPlacement = signal(false);
+
+  protected closePlacement(): void {
+    this.showPlacement.set(false);
+    this.storage.finishFormSession();
+  }
 }

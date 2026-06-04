@@ -60,6 +60,6 @@ export class CrewListSettingsComponent {
   }
 
   protected onListTypeChange(value: CrewListTypeId): void {
-    this.storage.updateDocumentOverlay('crewList', { listType: value });
+    this.storage.updateDocumentOverlay('crewList', { listType: value }, 'saved');
   }
 }

@@ -14,6 +14,13 @@ export class CrewEffectSettingsComponent {
 
   protected form = this.storage.crewEffectForm;
 
+  protected onNilToggle(
+    field: 'nilCigarettes' | 'nilSpirits' | 'nilWines',
+    value: boolean,
+  ): void {
+    this.storage.updateCrewEffectForm({ [field]: value }, 'saved');
+  }
+
   protected onOthersChange(value: string): void {
     this.storage.updateCrewEffectForm({ others: value });
   }

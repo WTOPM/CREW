@@ -17,11 +17,15 @@ import {
   createDefaultCrewEffectForm,
   createDefaultNilListForm,
   createDefaultShipMoneyForm,
+  createDefaultCashAdvanceForm,
+  createDefaultCrewMoneyListForm,
+  createDefaultNarcoticListForm,
   createDefaultPortOfCallSettings,
   createDefaultShipStoresForm,
   createEmptyCrewMember,
   createEmptyPortCallEntry,
   createEmptyShip,
+  ShipInfo,
   mergePorts,
   mergeUniqueList,
   CrewListKind,
@@ -35,6 +39,7 @@ import {
   crewRankOrder,
   filterActiveCrewList,
   sortCrewByRank,
+  shipFieldPersistNotify,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
 import {
@@ -68,6 +73,27 @@ import {
   type ShipStoresFormSettings,
   type ShipStoresRow,
 } from '../models/ship-stores.models';
+import {
+  normalizeCashAdvanceForm,
+  type CashAdvanceFormSettings,
+} from '../models/cash-advance.models';
+import {
+  normalizeCrewMoneyListForm,
+  type CrewMoneyListFormSettings,
+} from '../models/crew-money-list.models';
+import {
+  createNarcoticMedicineEntry,
+  normalizeNarcoticListForm,
+  type NarcoticMedicineEntry,
+  type NarcoticListFormSettings,
+} from '../models/narcotic-list.models';
+import {
+  crewListPlacementKey,
+  crewListPlacementPatch,
+  createDefaultCrewListPrefs,
+  CrewListVariantPlacement,
+  normalizeCrewListByPlacement,
+} from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 
 const STORAGE_KEY = 'crew-app-data';
@@ -90,6 +116,9 @@ const DEFAULT_DATA: AppData = {
   crewEffectForm: createDefaultCrewEffectForm(),
   nilListForm: createDefaultNilListForm(),
   shipMoneyForm: createDefaultShipMoneyForm(),
+  cashAdvanceForm: createDefaultCashAdvanceForm(),
+  crewMoneyListForm: createDefaultCrewMoneyListForm(),
+  narcoticListForm: createDefaultNarcoticListForm(),
   documentOverlay: createDefaultDocumentOverlayPrefs(),
   shipAssets: createEmptyShipAssetsMeta(),
   seedVersion: SEED_VERSION,
@@ -97,6 +126,8 @@ const DEFAULT_DATA: AppData = {
 
 @Injectable({ providedIn: 'root' })
 export class StorageService {
+  /** Set when a modal form auto-saves silently; cleared after Saved toast on close. */
+  private formSessionDirty = false;
   private readonly toast = inject(ToastService);
   private readonly data = signal<AppData>(this.loadInitial());
 
@@ -111,6 +142,9 @@ export class StorageService {
   readonly crewEffectForm = computed(() => this.data().crewEffectForm);
   readonly nilListForm = computed(() => this.data().nilListForm);
   readonly shipMoneyForm = computed(() => this.data().shipMoneyForm);
+  readonly cashAdvanceForm = computed(() => this.data().cashAdvanceForm);
+  readonly crewMoneyListForm = computed(() => this.data().crewMoneyListForm);
+  readonly narcoticListForm = computed(() => this.data().narcoticListForm);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly activeCrewArrival = computed(() => filterActiveCrewList(this.data().crew, 'arrival'));
@@ -155,6 +189,11 @@ export class StorageService {
       shipMoneyForm: {
         entries: DEFAULT_DATA.shipMoneyForm.entries.map((e) => ({ ...e })),
       },
+      cashAdvanceForm: { ...DEFAULT_DATA.cashAdvanceForm, byCrewId: { ...DEFAULT_DATA.cashAdvanceForm.byCrewId } },
+      crewMoneyListForm: { byCrewId: { ...DEFAULT_DATA.crewMoneyListForm.byCrewId } },
+      narcoticListForm: {
+        entries: DEFAULT_DATA.narcoticListForm.entries.map((e) => ({ ...e })),
+      },
       documentOverlay: {
         crewList: { ...createDefaultDocumentOverlayPrefs().crewList },
         pax: { ...DEFAULT_DATA.documentOverlay.pax },
@@ -164,6 +203,9 @@ export class StorageService {
         crewEffect: { ...DEFAULT_DATA.documentOverlay.crewEffect },
         nilList: { ...DEFAULT_DATA.documentOverlay.nilList },
         shipMoney: { ...DEFAULT_DATA.documentOverlay.shipMoney },
+        cashAdvance: { ...DEFAULT_DATA.documentOverlay.cashAdvance },
+        crewMoney: { ...DEFAULT_DATA.documentOverlay.crewMoney },
+        narcoticList: { ...DEFAULT_DATA.documentOverlay.narcoticList },
       },
       shipAssets: { ...DEFAULT_DATA.shipAssets },
       crewArr: { ...DEFAULT_DATA.crewArr },
@@ -263,6 +305,9 @@ export class StorageService {
     const crewEffectForm = normalizeCrewEffectForm(raw.crewEffectForm);
     const nilListForm = normalizeNilListForm(raw.nilListForm);
     const shipMoneyForm = normalizeShipMoneyForm(raw.shipMoneyForm);
+    const cashAdvanceForm = normalizeCashAdvanceForm(raw.cashAdvanceForm);
+    const crewMoneyListForm = normalizeCrewMoneyListForm(raw.crewMoneyListForm);
+    const narcoticListForm = normalizeNarcoticListForm(raw.narcoticListForm);
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     return {
@@ -280,6 +325,9 @@ export class StorageService {
       crewEffectForm,
       nilListForm,
       shipMoneyForm,
+      cashAdvanceForm,
+      crewMoneyListForm,
+      narcoticListForm,
       documentOverlay,
       shipAssets,
       seedVersion: SEED_VERSION,
@@ -290,11 +338,8 @@ export class StorageService {
     raw: Partial<AppData['documentOverlay']> | undefined,
   ): AppData['documentOverlay'] {
     const defaults = createDefaultDocumentOverlayPrefs();
-    const crewDefaults = defaults.crewList;
     const out: AppData['documentOverlay'] = {
-      crewList: this.normalizeStampDocumentPrefs(raw?.crewList, crewDefaults, {
-        listType: normalizeCrewListType(raw?.crewList ?? {}),
-      }),
+      crewList: this.normalizeCrewListPrefs(raw?.crewList),
       pax: this.normalizeStampDocumentPrefs(raw?.pax, defaults.pax),
       portOfCall: this.normalizeStampDocumentPrefs(raw?.portOfCall, defaults.portOfCall),
       mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
@@ -302,6 +347,9 @@ export class StorageService {
       crewEffect: this.normalizeStampDocumentPrefs(raw?.crewEffect, defaults.crewEffect),
       nilList: this.normalizeStampDocumentPrefs(raw?.nilList, defaults.nilList),
       shipMoney: this.normalizeStampDocumentPrefs(raw?.shipMoney, defaults.shipMoney),
+      cashAdvance: this.normalizeStampDocumentPrefs(raw?.cashAdvance, defaults.cashAdvance),
+      crewMoney: this.normalizeStampDocumentPrefs(raw?.crewMoney, defaults.crewMoney),
+      narcoticList: this.normalizeStampDocumentPrefs(raw?.narcoticList, defaults.narcoticList),
     };
     return out;
   }
@@ -328,6 +376,29 @@ export class StorageService {
         : {}),
     };
     return { ...defaults, ...extra, ...base } as T;
+  }
+
+  private normalizeCrewListPrefs(
+    raw: Partial<AppData['documentOverlay']['crewList']> | undefined,
+  ): AppData['documentOverlay']['crewList'] {
+    const defaults = createDefaultCrewListPrefs();
+    const listType = normalizeCrewListType(raw ?? {});
+    const legacy: CrewListVariantPlacement = {};
+    if (typeof raw?.overlayRotation === 'number') {
+      legacy.overlayRotation = raw.overlayRotation;
+    }
+    if (isValidStampBox(raw?.stampBox)) {
+      legacy.stampBox = { ...raw!.stampBox! };
+    }
+    if (isValidStampBox(raw?.signatureBox)) {
+      legacy.signatureBox = { ...raw!.signatureBox! };
+    }
+    return {
+      listType,
+      useStamp: raw?.useStamp ?? defaults.useStamp,
+      useSignature: raw?.useSignature ?? defaults.useSignature,
+      byPlacement: normalizeCrewListByPlacement(raw?.byPlacement, legacy),
+    };
   }
 
   private normalizePortCallHistory(
@@ -391,11 +462,30 @@ export class StorageService {
     } else {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     }
-    if (notify === 'saved') this.toast.showSaved();
-    if (notify === 'debounced') this.toast.debouncedSaved();
+    if (notify === 'silent') {
+      this.formSessionDirty = true;
+    } else if (notify === 'saved') {
+      this.toast.cancelDebouncedSaved();
+      this.toast.showSaved();
+      this.formSessionDirty = false;
+    } else if (notify === 'debounced') {
+      this.toast.debouncedSaved();
+    }
   }
 
-  updateShip(partial: Partial<AppData['ship']>): void {
+  /** Call when a Done / backdrop closes a settings modal (after silent auto-save). */
+  finishFormSession(): void {
+    this.toast.cancelDebouncedSaved();
+    if (this.formSessionDirty) {
+      this.toast.showSaved();
+      this.formSessionDirty = false;
+    }
+  }
+
+  updateShip(
+    partial: Partial<AppData['ship']>,
+    notify?: 'silent' | 'saved' | 'debounced',
+  ): void {
     this.data.update((d) => {
       const ship = { ...d.ship, ...partial };
       const ports = mergePorts(
@@ -410,7 +500,10 @@ export class StorageService {
       const nationalities = mergeUniqueList(d.nationalities, ship.nationality);
       return { ...d, ship, ports, nationalities };
     });
-    void this.persist('debounced');
+    const fields = Object.keys(partial) as (keyof ShipInfo)[];
+    const mode =
+      notify ?? (fields.length === 1 ? shipFieldPersistNotify(fields[0]) : 'debounced');
+    void this.persist(mode);
   }
 
   updateCrewArr(partial: Partial<AppData['crewArr']>, notify: 'silent' | 'saved' = 'saved'): void {
@@ -471,7 +564,15 @@ export class StorageService {
   updateDocumentOverlay(
     documentId: DocumentOverlayId,
     partial: Partial<DocumentOverlayPrefs[DocumentOverlayId]>,
+    notify: 'silent' | 'saved' = 'silent',
   ): void {
+    if (documentId === 'crewList') {
+      this.updateCrewListOverlay(
+        partial as Partial<AppData['documentOverlay']['crewList']>,
+        notify,
+      );
+      return;
+    }
     this.data.update((d) => ({
       ...d,
       documentOverlay: {
@@ -479,7 +580,40 @@ export class StorageService {
         [documentId]: { ...d.documentOverlay[documentId], ...partial },
       },
     }));
-    void this.persist('saved');
+    void this.persist(notify);
+  }
+
+  private updateCrewListOverlay(
+    partial: Partial<AppData['documentOverlay']['crewList']>,
+    notify: 'silent' | 'saved' = 'silent',
+  ): void {
+    const placementPatch = crewListPlacementPatch(partial);
+    const { overlayRotation, stampBox, signatureBox, byPlacement: _bp, ...meta } = partial;
+
+    this.data.update((d) => {
+      const current = d.documentOverlay.crewList;
+      let next: AppData['documentOverlay']['crewList'] = {
+        ...current,
+        ...(meta.listType != null ? { listType: meta.listType } : {}),
+        ...(meta.useStamp != null ? { useStamp: meta.useStamp } : {}),
+        ...(meta.useSignature != null ? { useSignature: meta.useSignature } : {}),
+      };
+
+      if (placementPatch) {
+        const key = crewListPlacementKey(
+          (meta.listType as typeof current.listType | undefined) ?? current.listType,
+        );
+        const byPlacement = { ...current.byPlacement };
+        byPlacement[key] = { ...byPlacement[key], ...placementPatch };
+        next = { ...next, byPlacement };
+      }
+
+      return {
+        ...d,
+        documentOverlay: { ...d.documentOverlay, crewList: next },
+      };
+    });
+    void this.persist(notify);
   }
 
   /** Apply stamp/signature toggles to all document types at once. */
@@ -499,9 +633,96 @@ export class StorageService {
         crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
         nilList: { ...d.documentOverlay.nilList, ...patch },
         shipMoney: { ...d.documentOverlay.shipMoney, ...patch },
+        cashAdvance: { ...d.documentOverlay.cashAdvance, ...patch },
+        crewMoney: { ...d.documentOverlay.crewMoney, ...patch },
+        narcoticList: { ...d.documentOverlay.narcoticList, ...patch },
       },
     }));
     void this.persist('saved');
+  }
+
+  updateCashAdvanceForm(partial: Partial<CashAdvanceFormSettings>): void {
+    this.data.update((d) => ({
+      ...d,
+      cashAdvanceForm: normalizeCashAdvanceForm({ ...d.cashAdvanceForm, ...partial }),
+    }));
+    void this.persist('silent');
+  }
+
+  updateCashAdvanceCrewAmount(
+    crewId: string,
+    partial: { usd?: string; eur?: string },
+  ): void {
+    this.data.update((d) => {
+      const form = normalizeCashAdvanceForm(d.cashAdvanceForm);
+      const prev = form.byCrewId[crewId] ?? { usd: '', eur: '' };
+      return {
+        ...d,
+        cashAdvanceForm: normalizeCashAdvanceForm({
+          ...form,
+          byCrewId: { ...form.byCrewId, [crewId]: { ...prev, ...partial } },
+        }),
+      };
+    });
+    void this.persist('silent');
+  }
+
+  updateCrewMoneyListCrewAmount(
+    crewId: string,
+    partial: { usd?: string; euro?: string; others?: string },
+  ): void {
+    this.data.update((d) => {
+      const form = normalizeCrewMoneyListForm(d.crewMoneyListForm);
+      const prev = form.byCrewId[crewId] ?? { usd: '', euro: '', others: '' };
+      return {
+        ...d,
+        crewMoneyListForm: normalizeCrewMoneyListForm({
+          ...form,
+          byCrewId: { ...form.byCrewId, [crewId]: { ...prev, ...partial } },
+        }),
+      };
+    });
+    void this.persist('silent');
+  }
+
+  updateNarcoticListEntry(
+    id: string,
+    partial: Partial<Omit<NarcoticMedicineEntry, 'id'>>,
+  ): void {
+    this.data.update((d) => {
+      const form = normalizeNarcoticListForm(d.narcoticListForm);
+      const entries = form.entries.map((e) => (e.id === id ? { ...e, ...partial } : e));
+      return { ...d, narcoticListForm: { entries } };
+    });
+    void this.persist('silent');
+  }
+
+  addNarcoticListEntry(
+    partial?: Partial<Omit<import('../models/narcotic-list.models').NarcoticMedicineEntry, 'id'>>,
+  ): void {
+    this.data.update((d) => {
+      const form = normalizeNarcoticListForm(d.narcoticListForm);
+      return {
+        ...d,
+        narcoticListForm: normalizeNarcoticListForm({
+          entries: [...form.entries, createNarcoticMedicineEntry(partial)],
+        }),
+      };
+    });
+    void this.persist('silent');
+  }
+
+  removeNarcoticListEntry(id: string): void {
+    this.data.update((d) => {
+      const form = normalizeNarcoticListForm(d.narcoticListForm);
+      return {
+        ...d,
+        narcoticListForm: normalizeNarcoticListForm({
+          entries: form.entries.filter((e) => e.id !== id),
+        }),
+      };
+    });
+    void this.persist('silent');
   }
 
   updateShipAssets(partial: Partial<AppData['shipAssets']>): void {
@@ -509,7 +730,7 @@ export class StorageService {
       ...d,
       shipAssets: { ...d.shipAssets, ...partial },
     }));
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   updatePortOfCallSettings(partial: Partial<AppData['portOfCall']>): void {
@@ -517,19 +738,29 @@ export class StorageService {
       ...d,
       portOfCall: this.normalizePortOfCallSettings({ ...d.portOfCall, ...partial }),
     }));
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   updateShipStoresPlaceOfStorage(placeOfStorage: string): void {
     this.patchShipStoresForm({ placeOfStorage });
   }
 
-  updateCrewEffectForm(partial: Partial<CrewEffectFormSettings>): void {
+  updateCrewEffectForm(
+    partial: Partial<CrewEffectFormSettings>,
+    notify?: 'silent' | 'saved',
+  ): void {
     this.data.update((d) => ({
       ...d,
       crewEffectForm: normalizeCrewEffectForm({ ...d.crewEffectForm, ...partial }),
     }));
-    void this.persist('saved');
+    const resolved =
+      notify ??
+      (partial.nilCigarettes !== undefined ||
+      partial.nilSpirits !== undefined ||
+      partial.nilWines !== undefined
+        ? 'saved'
+        : 'silent');
+    void this.persist(resolved);
   }
 
   updateNilListPhrase(id: string, partial: { text?: string; enabled?: boolean }): void {
@@ -538,7 +769,9 @@ export class StorageService {
       const phrases = form.phrases.map((p) => (p.id === id ? { ...p, ...partial } : p));
       return { ...d, nilListForm: normalizeNilListForm({ phrases }) };
     });
-    void this.persist('saved');
+    const notify =
+      partial.enabled !== undefined && partial.text === undefined ? 'saved' : 'silent';
+    void this.persist(notify);
   }
 
   addNilListPhrase(text: string, enabled = true): void {
@@ -551,7 +784,7 @@ export class StorageService {
         }),
       };
     });
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   removeNilListPhrase(id: string): void {
@@ -560,7 +793,7 @@ export class StorageService {
       const phrases = form.phrases.filter((p) => p.id !== id);
       return { ...d, nilListForm: normalizeNilListForm({ phrases }) };
     });
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   updateShipMoneyEntry(id: string, partial: { amount?: string; currency?: string }): void {
@@ -569,7 +802,7 @@ export class StorageService {
       const entries = form.entries.map((e) => (e.id === id ? { ...e, ...partial } : e));
       return { ...d, shipMoneyForm: normalizeShipMoneyForm({ entries }) };
     });
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   addShipMoneyEntry(amount: string, currency: string): void {
@@ -582,7 +815,7 @@ export class StorageService {
         }),
       };
     });
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   removeShipMoneyEntry(id: string): void {
@@ -591,7 +824,7 @@ export class StorageService {
       const entries = form.entries.filter((e) => e.id !== id);
       return { ...d, shipMoneyForm: normalizeShipMoneyForm({ entries }) };
     });
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   updateShipStoresRow(rowIndex: number, partial: Partial<ShipStoresRow>): void {
@@ -601,7 +834,7 @@ export class StorageService {
       const rows = form.rows.map((r, i) => (i === rowIndex ? { ...r, ...partial } : r));
       return { ...d, shipStoresForm: normalizeShipStoresForm({ ...form, rows }) };
     });
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   private patchShipStoresForm(partial: Partial<ShipStoresFormSettings>): void {
@@ -609,7 +842,7 @@ export class StorageService {
       ...d,
       shipStoresForm: normalizeShipStoresForm({ ...d.shipStoresForm, ...partial }),
     }));
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   addPortCallEntry(entry?: Partial<PortCallHistoryEntry>): PortCallHistoryEntry {
@@ -623,14 +856,25 @@ export class StorageService {
     return newEntry;
   }
 
-  updatePortCallEntry(id: string, partial: Partial<PortCallHistoryEntry>): void {
+  updatePortCallEntry(
+    id: string,
+    partial: Partial<PortCallHistoryEntry>,
+    notify?: 'silent' | 'saved',
+  ): void {
     this.data.update((d) => {
       const portCallHistory = d.portCallHistory.map((e) => (e.id === id ? { ...e, ...partial } : e));
       const updated = portCallHistory.find((e) => e.id === id);
       const ports = mergePorts(d.ports, updated?.portName);
       return { ...d, portCallHistory, ports };
     });
-    void this.persist('saved');
+    const resolved =
+      notify ??
+      (partial.portName != null ||
+      partial.arrivalDate != null ||
+      partial.departureDate != null
+        ? 'saved'
+        : 'silent');
+    void this.persist(resolved);
   }
 
   removePortCallEntry(id: string): void {

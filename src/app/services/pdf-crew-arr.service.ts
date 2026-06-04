@@ -1,7 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { jsPDF } from 'jspdf';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
-import { DocumentOverlayId } from '../models/document-overlay.models';
+import {
+  DocumentOverlayId,
+  resolveCrewListStampOptions,
+} from '../models/document-overlay.models';
 import { PdfOverlayService } from './pdf-overlay.service';
 import {
   AppData,
@@ -71,6 +74,9 @@ export class PdfCrewArrService {
 
   private overlayOptions(data: AppData, options?: CrewListPdfOptions) {
     const id = options?.overlayId ?? 'crewList';
+    if (id === 'crewList') {
+      return resolveCrewListStampOptions(data.documentOverlay.crewList);
+    }
     return data.documentOverlay[id];
   }
 

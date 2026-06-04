@@ -19,6 +19,9 @@ import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { PdfCrewEffectService } from '../../services/pdf-crew-effect.service';
 import { PdfNilListService } from '../../services/pdf-nil-list.service';
 import { PdfShipMoneyService } from '../../services/pdf-ship-money.service';
+import { PdfCashAdvanceService } from '../../services/pdf-cash-advance.service';
+import { PdfCrewMoneyListService } from '../../services/pdf-crew-money-list.service';
+import { PdfNarcoticListService } from '../../services/pdf-narcotic-list.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
@@ -28,6 +31,9 @@ import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-setti
 import { CrewEffectSettingsComponent } from '../crew-effect-settings/crew-effect-settings.component';
 import { NilListSettingsComponent } from '../nil-list-settings/nil-list-settings.component';
 import { ShipMoneySettingsComponent } from '../ship-money-settings/ship-money-settings.component';
+import { CashAdvanceSettingsComponent } from '../cash-advance-settings/cash-advance-settings.component';
+import { CrewMoneyListSettingsComponent } from '../crew-money-list-settings/crew-money-list-settings.component';
+import { NarcoticListSettingsComponent } from '../narcotic-list-settings/narcotic-list-settings.component';
 import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores-settings.component';
 
 @Component({
@@ -43,6 +49,9 @@ import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores
     CrewEffectSettingsComponent,
     NilListSettingsComponent,
     ShipMoneySettingsComponent,
+    CashAdvanceSettingsComponent,
+    CrewMoneyListSettingsComponent,
+    NarcoticListSettingsComponent,
   ],
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',
@@ -57,6 +66,9 @@ export class DocumentsNavComponent {
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
   private readonly nilListPdf = inject(PdfNilListService);
   private readonly shipMoneyPdf = inject(PdfShipMoneyService);
+  private readonly cashAdvancePdf = inject(PdfCashAdvanceService);
+  private readonly crewMoneyListPdf = inject(PdfCrewMoneyListService);
+  private readonly narcoticListPdf = inject(PdfNarcoticListService);
   private readonly toast = inject(ToastService);
 
   protected readonly pocMinPorts = POC_MIN_ROW_COUNT;
@@ -80,6 +92,9 @@ export class DocumentsNavComponent {
   protected showCrewEffectSettings = signal(false);
   protected showNilListSettings = signal(false);
   protected showShipMoneySettings = signal(false);
+  protected showCashAdvanceSettings = signal(false);
+  protected showCrewMoneyListSettings = signal(false);
+  protected showNarcoticListSettings = signal(false);
 
   protected openPassengerList(isArrival: boolean): void {
     this.storage.updatePaxArr({ isArrival }, 'silent');
@@ -150,6 +165,7 @@ export class DocumentsNavComponent {
 
   protected closeCrewListSettings(): void {
     this.showCrewListSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openPaxSettings(): void {
@@ -158,6 +174,7 @@ export class DocumentsNavComponent {
 
   protected closePaxSettings(): void {
     this.showPaxSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openMdhSettings(): void {
@@ -166,6 +183,7 @@ export class DocumentsNavComponent {
 
   protected closeMdhSettings(): void {
     this.showMdhSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openPortOfCallPdf(): void {
@@ -180,6 +198,7 @@ export class DocumentsNavComponent {
 
   protected closePortOfCallSettings(): void {
     this.showPortOfCallSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected onPdfPortCountChange(value: string | number): void {
@@ -206,10 +225,14 @@ export class DocumentsNavComponent {
 
   protected onPortCallPortChange(id: string, portName: string): void {
     const country = portCountry(portName, this.ports());
-    this.storage.updatePortCallEntry(id, {
-      portName,
-      ...(country ? { country } : {}),
-    });
+    this.storage.updatePortCallEntry(
+      id,
+      {
+        portName,
+        ...(country ? { country } : {}),
+      },
+      'saved',
+    );
   }
 
   protected openShipStores(): void {
@@ -228,6 +251,7 @@ export class DocumentsNavComponent {
 
   protected closeShipStoresSettings(): void {
     this.showShipStoresSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openCrewEffect(): void {
@@ -246,6 +270,7 @@ export class DocumentsNavComponent {
 
   protected closeCrewEffectSettings(): void {
     this.showCrewEffectSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openNilList(): void {
@@ -264,6 +289,7 @@ export class DocumentsNavComponent {
 
   protected closeNilListSettings(): void {
     this.showNilListSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openShipMoney(): void {
@@ -282,6 +308,58 @@ export class DocumentsNavComponent {
 
   protected closeShipMoneySettings(): void {
     this.showShipMoneySettings.set(false);
+    this.storage.finishFormSession();
+  }
+
+  protected openCashAdvance(): void {
+    void this.cashAdvancePdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) this.toast.showError('Allow pop-ups to open Cash Advance preview');
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Cash Advance');
+    });
+  }
+
+  protected openCashAdvanceSettings(): void {
+    this.showCashAdvanceSettings.set(true);
+  }
+
+  protected closeCashAdvanceSettings(): void {
+    this.showCashAdvanceSettings.set(false);
+    this.storage.finishFormSession();
+  }
+
+  protected openCrewMoneyList(): void {
+    void this.crewMoneyListPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) this.toast.showError('Allow pop-ups to open Crew Money preview');
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Money');
+    });
+  }
+
+  protected openCrewMoneyListSettings(): void {
+    this.showCrewMoneyListSettings.set(true);
+  }
+
+  protected closeCrewMoneyListSettings(): void {
+    this.showCrewMoneyListSettings.set(false);
+    this.storage.finishFormSession();
+  }
+
+  protected openNarcoticList(): void {
+    void this.narcoticListPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) this.toast.showError('Allow pop-ups to open Narcotic List preview');
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Narcotic List');
+    });
+  }
+
+  protected openNarcoticListSettings(): void {
+    this.showNarcoticListSettings.set(true);
+  }
+
+  protected closeNarcoticListSettings(): void {
+    this.showNarcoticListSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openMdh(): void {
@@ -311,6 +389,9 @@ export class DocumentsNavComponent {
       crewEffectForm: this.storage.crewEffectForm(),
       nilListForm: this.storage.nilListForm(),
       shipMoneyForm: this.storage.shipMoneyForm(),
+      cashAdvanceForm: this.storage.cashAdvanceForm(),
+      crewMoneyListForm: this.storage.crewMoneyListForm(),
+      narcoticListForm: this.storage.narcoticListForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };

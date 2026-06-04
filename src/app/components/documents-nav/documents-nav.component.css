@@ -142,6 +142,19 @@
   max-width: 42rem;
 }
 
+.nl-modal.modal-wide {
+  max-width: min(98vw, 64rem);
+  width: min(64rem, 98vw);
+}
+
+.nl-modal-head h3 {
+  margin: 0;
+}
+
+.nl-modal-head {
+  margin-bottom: 0.5rem;
+}
+
 .ss-modal-head h3,
 .nil-modal-head h3,
 .sm-modal-head h3 {

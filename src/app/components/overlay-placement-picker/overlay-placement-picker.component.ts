@@ -14,9 +14,11 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  CREW_LIST_TYPE_LABELS,
   DOCUMENT_OVERLAY_LABELS,
   DocumentOverlayId,
   DocumentStampOptions,
+  resolveCrewListStampOptions,
 } from '../../models/document-overlay.models';
 import {
   DocumentOverlayPreviewService,
@@ -663,11 +665,21 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   });
 
   protected options(): DocumentStampOptions {
-    return this.storage.documentOverlay()[this.documentId()];
+    const id = this.documentId();
+    const overlay = this.storage.documentOverlay();
+    if (id === 'crewList') {
+      return resolveCrewListStampOptions(overlay.crewList);
+    }
+    return overlay[id];
   }
 
   protected docLabel(): string {
-    return DOCUMENT_OVERLAY_LABELS[this.documentId()];
+    const id = this.documentId();
+    const base = DOCUMENT_OVERLAY_LABELS[id];
+    if (id === 'crewList') {
+      return `${base} — ${CREW_LIST_TYPE_LABELS[this.storage.documentOverlay().crewList.listType]}`;
+    }
+    return base;
   }
 
   protected stampBoxRef = computed(() => {
@@ -701,7 +713,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected signatureOverlayStyle = computed(() => this.markerStyle(this.signatureBoxOnPage()));
 
   protected onToggle(field: 'useStamp' | 'useSignature', value: boolean): void {
-    this.storage.updateDocumentOverlay(this.documentId(), { [field]: value });
+    this.storage.updateDocumentOverlay(this.documentId(), { [field]: value }, 'saved');
   }
 
   protected async setMdhPage(page: MdhOverlayPreviewPage): Promise<void> {
@@ -1168,9 +1180,13 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   private persistRotation(deg: OverlayRotation): void {
     if (this.mdhAttachment()) {
-      this.storage.updateDocumentOverlay(this.documentId(), { overlayRotationAttachment: deg });
+      this.storage.updateDocumentOverlay(
+        this.documentId(),
+        { overlayRotationAttachment: deg },
+        'saved',
+      );
     } else {
-      this.storage.updateDocumentOverlay(this.documentId(), { overlayRotation: deg });
+      this.storage.updateDocumentOverlay(this.documentId(), { overlayRotation: deg }, 'saved');
     }
   }
 }

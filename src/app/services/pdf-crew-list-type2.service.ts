@@ -26,6 +26,7 @@ import {
   type AlgerRowField,
   type AlgerTextPlacement,
 } from './crew-list-alger-coordinates';
+import { resolveCrewListStampOptions } from '../models/document-overlay.models';
 import { PdfOverlayService } from './pdf-overlay.service';
 import { CREW_LIST_BODY_NIL_GRAY, CREW_LIST_BODY_NIL_LABEL } from './crew-list-coordinates';
 
@@ -42,7 +43,7 @@ export class PdfCrewListType2Service {
 
   async buildPreviewBytes(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
     let bytes = await this.build(data, crew);
-    return this.overlay.applyToPdfBytes(bytes, data.documentOverlay.crewList);
+    return this.overlay.applyToPdfBytes(bytes, resolveCrewListStampOptions(data.documentOverlay.crewList));
   }
 
   async openPreview(data: AppData, crew: CrewMember[]): Promise<boolean> {

@@ -8,6 +8,12 @@ import type { NilListFormSettings } from './nil-list.models';
 import { createDefaultNilListForm } from './nil-list.models';
 import type { ShipMoneyFormSettings } from './ship-money.models';
 import { createDefaultShipMoneyForm } from './ship-money.models';
+import type { CashAdvanceFormSettings } from './cash-advance.models';
+import { createDefaultCashAdvanceForm } from './cash-advance.models';
+import type { CrewMoneyListFormSettings } from './crew-money-list.models';
+import { createDefaultCrewMoneyListForm } from './crew-money-list.models';
+import type { NarcoticListFormSettings } from './narcotic-list.models';
+import { createDefaultNarcoticListForm } from './narcotic-list.models';
 import type { ShipStoresFormSettings } from './ship-stores.models';
 import { createDefaultShipStoresForm } from './ship-stores.models';
 
@@ -96,6 +102,25 @@ export interface ShipInfo {
   portOfCall: string;
   lastPortOfCall: string;
   nextPortOfCall: string;
+}
+
+/** Select / date fields — show Saved on change; text fields use debounced save on main forms. */
+export const SHIP_FIELDS_SAVED_ON_CHANGE: readonly (keyof ShipInfo)[] = [
+  'nationality',
+  'homeport',
+  'lastPortOfCall',
+  'portOfCall',
+  'nextPortOfCall',
+  'dateOfArrival',
+  'dateOfDeparture',
+  'sanitationCertificateIssuedAt',
+  'sanitationCertificateIssueDate',
+  'waterTestPort',
+  'waterTestDate',
+] as const;
+
+export function shipFieldPersistNotify(field: keyof ShipInfo): 'saved' | 'debounced' {
+  return (SHIP_FIELDS_SAVED_ON_CHANGE as readonly string[]).includes(field) ? 'saved' : 'debounced';
 }
 
 export type PersonGender = 'MALE' | 'FEMALE';
@@ -220,6 +245,9 @@ export interface AppData {
   nilListForm: NilListFormSettings;
   /** Ship Money — amount & currency rows. */
   shipMoneyForm: ShipMoneyFormSettings;
+  cashAdvanceForm: CashAdvanceFormSettings;
+  crewMoneyListForm: CrewMoneyListFormSettings;
+  narcoticListForm: NarcoticListFormSettings;
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
   seedVersion?: number;
@@ -231,6 +259,21 @@ export type { NilListFormSettings, NilListPhrase } from './nil-list.models';
 export { createDefaultNilListForm } from './nil-list.models';
 export type { ShipMoneyFormSettings, ShipMoneyEntry } from './ship-money.models';
 export { createDefaultShipMoneyForm } from './ship-money.models';
+export type { CashAdvanceFormSettings, CashAdvanceCrewAmounts } from './cash-advance.models';
+export {
+  createDefaultCashAdvanceForm,
+  cashAdvanceAmountsFor,
+} from './cash-advance.models';
+export type { CrewMoneyListFormSettings, CrewMoneyListCrewAmounts } from './crew-money-list.models';
+export {
+  createDefaultCrewMoneyListForm,
+  crewMoneyListAmountsFor,
+} from './crew-money-list.models';
+export type { NarcoticListFormSettings, NarcoticMedicineEntry } from './narcotic-list.models';
+export {
+  createDefaultNarcoticListForm,
+  createNarcoticMedicineEntry,
+} from './narcotic-list.models';
 export type { ShipStoresFormSettings, ShipStoresRow } from './ship-stores.models';
 export {
   SHIP_STORES_ROW_COUNT,

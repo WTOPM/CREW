@@ -42,6 +42,9 @@ export class CrewArrComponent {
       crewEffectForm: this.storage.crewEffectForm(),
       nilListForm: this.storage.nilListForm(),
       shipMoneyForm: this.storage.shipMoneyForm(),
+      cashAdvanceForm: this.storage.cashAdvanceForm(),
+      crewMoneyListForm: this.storage.crewMoneyListForm(),
+      narcoticListForm: this.storage.narcoticListForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };

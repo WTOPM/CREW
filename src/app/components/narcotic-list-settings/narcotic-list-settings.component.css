@@ -1,0 +1,134 @@
+.nl-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nl-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.nl-table-wrap {
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.nl-table {
+  width: 100%;
+  min-width: 960px;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.nl-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.45rem 0.35rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--surface-elevated, #f1f5f9);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.nl-table tbody td {
+  padding: 0.3rem 0.35rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+.nl-table tbody tr:hover {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 6%, transparent);
+}
+
+.nl-col-no {
+  width: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.nl-col-act {
+  width: 5.75rem;
+  min-width: 5.75rem;
+  padding-right: 0.35rem;
+  text-align: right;
+}
+
+.nl-col-qty {
+  width: 3rem;
+}
+
+.nl-col-per {
+  width: 4.5rem;
+}
+
+.nl-col-exp {
+  width: 4.5rem;
+}
+
+.nl-col-units {
+  min-width: 5.5rem;
+}
+
+.nl-col-name,
+.nl-col-dosage {
+  min-width: 8.5rem;
+}
+
+.nl-col-total {
+  min-width: 5rem;
+}
+
+.nl-col-ctrl {
+  min-width: 4.5rem;
+}
+
+.nl-col-store {
+  min-width: 6rem;
+}
+
+.nl-cell-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.82rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--text);
+}
+
+.nl-cell-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent, #3b82f6) 45%, transparent);
+  border-color: var(--accent, #3b82f6);
+}
+
+.nl-cell-input--narrow {
+  max-width: 4.5rem;
+}
+
+.nl-cell-input--per {
+  max-width: 5.5rem;
+}
+
+.nl-del {
+  font-size: 0.78rem;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.nl-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

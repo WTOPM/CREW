@@ -6,7 +6,7 @@ import {
   formatCrewListName,
   formatPortCallPortName,
 } from '../models/crew.models';
-import { normalizeCrewEffectForm } from '../models/crew-effect.models';
+import { CREW_EFFECT_NIL_LABEL, normalizeCrewEffectForm } from '../models/crew-effect.models';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
 import { crewEffectPdfFileName } from '../utils/pdf-filename.util';
 import {
@@ -71,7 +71,7 @@ export class PdfCrewEffectService {
     draw(ship.name, CREW_EFFECT_FIELDS.shipName, true);
     draw(formatPortCallPortName(ship.nationality), CREW_EFFECT_FIELDS.nationality, true);
 
-    this.drawCrewRows(draw, crew, form.others);
+    this.drawCrewRows(draw, crew, form);
 
     return doc.save();
   }
@@ -79,9 +79,9 @@ export class PdfCrewEffectService {
   private drawCrewRows(
     draw: (text: string, placement: CrewEffectTextPlacement, useBold?: boolean) => void,
     crew: CrewMember[],
-    others: string,
+    form: ReturnType<typeof normalizeCrewEffectForm>,
   ): void {
-    const sig = others.trim();
+    const others = form.others.trim();
     for (let i = 0; i < CREW_EFFECT_ROW_COUNT; i++) {
       const member = crew[i];
       const y = crewEffectRowPdfLibY(i);
@@ -100,8 +100,37 @@ export class PdfCrewEffectService {
         fontSize,
         maxWidth: CREW_EFFECT_COL.rankMaxWidth,
       });
-      if (sig) {
-        draw(sig, { x: CREW_EFFECT_COL.signature, y, fontSize });
+      if (form.nilCigarettes) {
+        draw(CREW_EFFECT_NIL_LABEL, {
+          x: CREW_EFFECT_COL.cigarettes,
+          y,
+          fontSize,
+          maxWidth: CREW_EFFECT_COL.effectsMaxWidth,
+        });
+      }
+      if (form.nilSpirits) {
+        draw(CREW_EFFECT_NIL_LABEL, {
+          x: CREW_EFFECT_COL.spirits,
+          y,
+          fontSize,
+          maxWidth: CREW_EFFECT_COL.effectsMaxWidth,
+        });
+      }
+      if (form.nilWines) {
+        draw(CREW_EFFECT_NIL_LABEL, {
+          x: CREW_EFFECT_COL.wines,
+          y,
+          fontSize,
+          maxWidth: CREW_EFFECT_COL.effectsMaxWidth,
+        });
+      }
+      if (others) {
+        draw(others, {
+          x: CREW_EFFECT_COL.others,
+          y,
+          fontSize,
+          maxWidth: CREW_EFFECT_COL.effectsMaxWidth,
+        });
       }
     }
   }
