@@ -37,7 +37,15 @@ export interface CrewListDocumentPrefs extends DocumentStampOptions {
 }
 
 /** Keys match document menu Settings modals. */
-export type DocumentOverlayId = 'crewList' | 'pax' | 'portOfCall' | 'mdh' | 'shipStores' | 'crewEffect';
+export type DocumentOverlayId =
+  | 'crewList'
+  | 'pax'
+  | 'portOfCall'
+  | 'mdh'
+  | 'shipStores'
+  | 'crewEffect'
+  | 'nilList'
+  | 'shipMoney';
 
 export type ShipAssetKind = 'stamp' | 'signature';
 
@@ -48,6 +56,8 @@ export interface DocumentOverlayPrefs {
   mdh: DocumentStampOptions;
   shipStores: DocumentStampOptions;
   crewEffect: DocumentStampOptions;
+  nilList: DocumentStampOptions;
+  shipMoney: DocumentStampOptions;
 }
 
 export interface ShipAssetsMeta {
@@ -92,6 +102,8 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     mdh: { ...DEFAULT_STAMP_OPTS },
     shipStores: { ...DEFAULT_STAMP_OPTS },
     crewEffect: { ...DEFAULT_STAMP_OPTS },
+    nilList: { ...DEFAULT_STAMP_OPTS },
+    shipMoney: { ...DEFAULT_STAMP_OPTS },
   };
 }
 
@@ -111,4 +123,6 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   mdh: 'MDH',
   shipStores: 'Ship Stores',
   crewEffect: 'Crew Effect',
+  nilList: 'NIL List',
+  shipMoney: 'Ship Money',
 };

@@ -15,6 +15,8 @@ import {
   PortCallHistoryEntry,
   createDefaultCrewArrSettings,
   createDefaultCrewEffectForm,
+  createDefaultNilListForm,
+  createDefaultShipMoneyForm,
   createDefaultPortOfCallSettings,
   createDefaultShipStoresForm,
   createEmptyCrewMember,
@@ -52,6 +54,15 @@ import {
   type CrewEffectFormSettings,
 } from '../models/crew-effect.models';
 import {
+  createNilListPhrase,
+  normalizeNilListForm,
+  type NilListFormSettings,
+} from '../models/nil-list.models';
+import {
+  createShipMoneyEntry,
+  normalizeShipMoneyForm,
+} from '../models/ship-money.models';
+import {
   normalizeShipStoresForm,
   type ShipStoresFormSettings,
   type ShipStoresRow,
@@ -76,6 +87,8 @@ const DEFAULT_DATA: AppData = {
   portOfCall: createDefaultPortOfCallSettings(),
   shipStoresForm: createDefaultShipStoresForm(),
   crewEffectForm: createDefaultCrewEffectForm(),
+  nilListForm: createDefaultNilListForm(),
+  shipMoneyForm: createDefaultShipMoneyForm(),
   documentOverlay: createDefaultDocumentOverlayPrefs(),
   shipAssets: createEmptyShipAssetsMeta(),
   seedVersion: SEED_VERSION,
@@ -95,6 +108,8 @@ export class StorageService {
   readonly portOfCall = computed(() => this.data().portOfCall);
   readonly shipStoresForm = computed(() => this.data().shipStoresForm);
   readonly crewEffectForm = computed(() => this.data().crewEffectForm);
+  readonly nilListForm = computed(() => this.data().nilListForm);
+  readonly shipMoneyForm = computed(() => this.data().shipMoneyForm);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly activeCrewArrival = computed(() =>
@@ -137,6 +152,12 @@ export class StorageService {
         rows: DEFAULT_DATA.shipStoresForm.rows.map((r) => ({ ...r })),
       },
       crewEffectForm: { ...DEFAULT_DATA.crewEffectForm },
+      nilListForm: {
+        phrases: DEFAULT_DATA.nilListForm.phrases.map((p) => ({ ...p })),
+      },
+      shipMoneyForm: {
+        entries: DEFAULT_DATA.shipMoneyForm.entries.map((e) => ({ ...e })),
+      },
       documentOverlay: {
         crewList: { ...createDefaultDocumentOverlayPrefs().crewList },
         pax: { ...DEFAULT_DATA.documentOverlay.pax },
@@ -144,6 +165,8 @@ export class StorageService {
         mdh: { ...DEFAULT_DATA.documentOverlay.mdh },
         shipStores: { ...DEFAULT_DATA.documentOverlay.shipStores },
         crewEffect: { ...DEFAULT_DATA.documentOverlay.crewEffect },
+        nilList: { ...DEFAULT_DATA.documentOverlay.nilList },
+        shipMoney: { ...DEFAULT_DATA.documentOverlay.shipMoney },
       },
       shipAssets: { ...DEFAULT_DATA.shipAssets },
       crewArr: { ...DEFAULT_DATA.crewArr },
@@ -241,6 +264,8 @@ export class StorageService {
     const portOfCall = this.normalizePortOfCallSettings(raw.portOfCall);
     const shipStoresForm = normalizeShipStoresForm(raw.shipStoresForm);
     const crewEffectForm = normalizeCrewEffectForm(raw.crewEffectForm);
+    const nilListForm = normalizeNilListForm(raw.nilListForm);
+    const shipMoneyForm = normalizeShipMoneyForm(raw.shipMoneyForm);
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     return {
@@ -256,6 +281,8 @@ export class StorageService {
       portOfCall,
       shipStoresForm,
       crewEffectForm,
+      nilListForm,
+      shipMoneyForm,
       documentOverlay,
       shipAssets,
       seedVersion: SEED_VERSION,
@@ -276,6 +303,8 @@ export class StorageService {
       mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
       shipStores: this.normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
       crewEffect: this.normalizeStampDocumentPrefs(raw?.crewEffect, defaults.crewEffect),
+      nilList: this.normalizeStampDocumentPrefs(raw?.nilList, defaults.nilList),
+      shipMoney: this.normalizeStampDocumentPrefs(raw?.shipMoney, defaults.shipMoney),
     };
     return out;
   }
@@ -471,6 +500,8 @@ export class StorageService {
         mdh: { ...d.documentOverlay.mdh, ...patch },
         shipStores: { ...d.documentOverlay.shipStores, ...patch },
         crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
+        nilList: { ...d.documentOverlay.nilList, ...patch },
+        shipMoney: { ...d.documentOverlay.shipMoney, ...patch },
       },
     }));
     void this.persist('saved');
@@ -501,6 +532,68 @@ export class StorageService {
       ...d,
       crewEffectForm: normalizeCrewEffectForm({ ...d.crewEffectForm, ...partial }),
     }));
+    void this.persist('saved');
+  }
+
+  updateNilListPhrase(id: string, partial: { text?: string; enabled?: boolean }): void {
+    this.data.update((d) => {
+      const form = normalizeNilListForm(d.nilListForm);
+      const phrases = form.phrases.map((p) => (p.id === id ? { ...p, ...partial } : p));
+      return { ...d, nilListForm: normalizeNilListForm({ phrases }) };
+    });
+    void this.persist('saved');
+  }
+
+  addNilListPhrase(text: string, enabled = true): void {
+    this.data.update((d) => {
+      const form = normalizeNilListForm(d.nilListForm);
+      return {
+        ...d,
+        nilListForm: normalizeNilListForm({
+          phrases: [...form.phrases, createNilListPhrase(text, enabled)],
+        }),
+      };
+    });
+    void this.persist('saved');
+  }
+
+  removeNilListPhrase(id: string): void {
+    this.data.update((d) => {
+      const form = normalizeNilListForm(d.nilListForm);
+      const phrases = form.phrases.filter((p) => p.id !== id);
+      return { ...d, nilListForm: normalizeNilListForm({ phrases }) };
+    });
+    void this.persist('saved');
+  }
+
+  updateShipMoneyEntry(id: string, partial: { amount?: string; currency?: string }): void {
+    this.data.update((d) => {
+      const form = normalizeShipMoneyForm(d.shipMoneyForm);
+      const entries = form.entries.map((e) => (e.id === id ? { ...e, ...partial } : e));
+      return { ...d, shipMoneyForm: normalizeShipMoneyForm({ entries }) };
+    });
+    void this.persist('saved');
+  }
+
+  addShipMoneyEntry(amount: string, currency: string): void {
+    this.data.update((d) => {
+      const form = normalizeShipMoneyForm(d.shipMoneyForm);
+      return {
+        ...d,
+        shipMoneyForm: normalizeShipMoneyForm({
+          entries: [...form.entries, createShipMoneyEntry(amount, currency)],
+        }),
+      };
+    });
+    void this.persist('saved');
+  }
+
+  removeShipMoneyEntry(id: string): void {
+    this.data.update((d) => {
+      const form = normalizeShipMoneyForm(d.shipMoneyForm);
+      const entries = form.entries.filter((e) => e.id !== id);
+      return { ...d, shipMoneyForm: normalizeShipMoneyForm({ entries }) };
+    });
     void this.persist('saved');
   }
 

@@ -16,7 +16,7 @@ import { ToastService } from '../../services/toast.service';
       <p class="stamp-upload-hint">
         Upload ship stamp and captain signature once (PNG or PDF). Check Stamp and Signature, then click
         <strong>Set</strong> — the same on/off choice is applied to <strong>every document</strong>: Crew list, PAX,
-        Port of Call, MDH, Ship Stores, and Crew Effect.
+        Port of Call, MDH, Ship Stores, Crew Effect, NIL List, and Ship Money.
       </p>
       <div class="stamp-drop-grid">
         <div
@@ -265,6 +265,8 @@ function allDocumentsUse(
     overlay.portOfCall[field] &&
     overlay.mdh[field] &&
     overlay.shipStores[field] &&
-    overlay.crewEffect[field]
+    overlay.crewEffect[field] &&
+    overlay.nilList[field] &&
+    overlay.shipMoney[field]
   );
 }

@@ -4,6 +4,10 @@ import type { DocumentOverlayPrefs, ShipAssetsMeta } from './document-overlay.mo
 import { createDefaultDocumentOverlayPrefs, createEmptyShipAssetsMeta } from './document-overlay.models';
 import type { CrewEffectFormSettings } from './crew-effect.models';
 import { createDefaultCrewEffectForm } from './crew-effect.models';
+import type { NilListFormSettings } from './nil-list.models';
+import { createDefaultNilListForm } from './nil-list.models';
+import type { ShipMoneyFormSettings } from './ship-money.models';
+import { createDefaultShipMoneyForm } from './ship-money.models';
 import type { ShipStoresFormSettings } from './ship-stores.models';
 import { createDefaultShipStoresForm } from './ship-stores.models';
 
@@ -202,6 +206,10 @@ export interface AppData {
   shipStoresForm: ShipStoresFormSettings;
   /** Crew Effect (IMO Crew's Effects Declaration). */
   crewEffectForm: CrewEffectFormSettings;
+  /** NIL List — selectable phrases. */
+  nilListForm: NilListFormSettings;
+  /** Ship Money — amount & currency rows. */
+  shipMoneyForm: ShipMoneyFormSettings;
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
   seedVersion?: number;
@@ -209,6 +217,10 @@ export interface AppData {
 
 export type { CrewEffectFormSettings } from './crew-effect.models';
 export { createDefaultCrewEffectForm } from './crew-effect.models';
+export type { NilListFormSettings, NilListPhrase } from './nil-list.models';
+export { createDefaultNilListForm } from './nil-list.models';
+export type { ShipMoneyFormSettings, ShipMoneyEntry } from './ship-money.models';
+export { createDefaultShipMoneyForm } from './ship-money.models';
 export type { ShipStoresFormSettings, ShipStoresRow } from './ship-stores.models';
 export {
   SHIP_STORES_ROW_COUNT,

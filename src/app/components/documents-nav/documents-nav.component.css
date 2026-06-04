@@ -136,8 +136,21 @@
 
 /* —— Port of Call Settings modal —— */
 
-.ss-modal.modal-wide {
+.ss-modal.modal-wide,
+.nil-modal.modal-wide,
+.sm-modal.modal-wide {
   max-width: 42rem;
+}
+
+.ss-modal-head h3,
+.nil-modal-head h3,
+.sm-modal-head h3 {
+  margin: 0;
+}
+
+.nil-modal-head,
+.sm-modal-head {
+  margin-bottom: 0.5rem;
 }
 
 .ss-modal-head {

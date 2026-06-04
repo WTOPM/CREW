@@ -72,6 +72,14 @@ export function crewEffectPdfFileName(shipName: string, voyageDate: string): str
   return `Crew_Effect_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function nilListPdfFileName(shipName: string, voyageDate: string): string {
+  return `NIL_List_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
+export function shipMoneyPdfFileName(shipName: string, voyageDate: string): string {
+  return `Ship_Money_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function passengerListPdfFileName(
   shipName: string,
   portOfCall: string,

@@ -40,6 +40,8 @@ export class CrewArrComponent {
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
       crewEffectForm: this.storage.crewEffectForm(),
+      nilListForm: this.storage.nilListForm(),
+      shipMoneyForm: this.storage.shipMoneyForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };
