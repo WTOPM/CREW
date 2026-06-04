@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import {
   AppData,
   CrewMember,
+  filterActiveCrewList,
   formatCrewListName,
   formatPortCallPortName,
 } from '../models/crew.models';
@@ -68,7 +69,7 @@ export class PdfNilListService {
 
     const form = normalizeNilListForm(data.nilListForm);
     const { ship } = data;
-    const crewArrival = data.crew.filter((m) => !m.archived && m.onArrivalList);
+    const crewArrival = filterActiveCrewList(data.crew, 'arrival');
     const master = this.findMaster(crewArrival);
 
     draw(ship.name, NIL_LIST_FIELDS.vessel, true);

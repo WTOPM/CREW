@@ -158,6 +158,16 @@ export interface CrewMember {
 
 export type CrewListKind = 'arrival' | 'departure';
 
+/** Active crew in Home table order (drag-and-drop order in `crew` array). */
+export function filterActiveCrewList(
+  crew: readonly CrewMember[],
+  list: CrewListKind,
+): CrewMember[] {
+  return crew.filter((m) =>
+    !m.archived && (list === 'arrival' ? m.onArrivalList : m.onDepartureList),
+  );
+}
+
 /** Summary shown before departure → arrival list sync. */
 export interface DepartureToArrivalSyncPreview {
   onDeparture: number;
@@ -409,7 +419,7 @@ export function rankSortIndex(rank: string, ranks: readonly string[]): number {
   return idx >= 0 ? idx : ranks.length;
 }
 
-/** Sort members Master → … like IMO crew list (uses ranks directory order). */
+/** Sort members Master → … for archive view only (not document PDFs). */
 export function sortCrewByRank<T extends Pick<CrewMember, 'rank' | 'familyName' | 'givenNames'>>(
   members: T[],
   ranks: readonly string[],

@@ -2,10 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import {
   AppData,
   CrewMember,
-  crewRankOrder,
+  filterActiveCrewList,
   formatCrewListName,
   formatPortCallPortName,
-  sortCrewByRank,
 } from '../models/crew.models';
 import { normalizeCrewEffectForm } from '../models/crew-effect.models';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
@@ -67,7 +66,7 @@ export class PdfCrewEffectService {
 
     const form = normalizeCrewEffectForm(data.crewEffectForm);
     const { ship } = data;
-    const crew = this.arrivalCrewSorted(data);
+    const crew = this.arrivalCrewInHomeOrder(data);
     draw(this.crewEffectPageLabel(crew.length), CREW_EFFECT_FIELDS.pageNo);
     draw(ship.name, CREW_EFFECT_FIELDS.shipName, true);
     draw(formatPortCallPortName(ship.nationality), CREW_EFFECT_FIELDS.nationality, true);
@@ -112,10 +111,9 @@ export class PdfCrewEffectService {
     return '1';
   }
 
-  private arrivalCrewSorted(data: AppData): CrewMember[] {
-    const active = data.crew.filter((m) => !m.archived && m.onArrivalList);
-    const rankOrder = crewRankOrder(data.ranks, data.crew);
-    return sortCrewByRank(active, rankOrder).slice(0, CREW_EFFECT_ROW_COUNT);
+  /** Same order as Arrival list on Home (no rank sort). */
+  private arrivalCrewInHomeOrder(data: AppData): CrewMember[] {
+    return filterActiveCrewList(data.crew, 'arrival').slice(0, CREW_EFFECT_ROW_COUNT);
   }
 
   private async loadTemplate(): Promise<Uint8Array> {

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   DocumentOverlayPrefs,
@@ -7,20 +7,20 @@ import {
 import { ShipAssetsService } from '../../services/ship-assets.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
+import {
+  revokeShipAssetPreviewUrl,
+  shipAssetPreviewUrl,
+} from '../../utils/ship-asset-preview.util';
 
 @Component({
   selector: 'app-document-stamp-upload',
   imports: [FormsModule],
   template: `
     <div class="stamp-upload">
-      <p class="stamp-upload-hint">
-        Upload ship stamp and captain signature once (PNG or PDF). Check Stamp and Signature, then click
-        <strong>Set</strong> — the same on/off choice is applied to <strong>every document</strong>: Crew list, PAX,
-        Port of Call, MDH, Ship Stores, Crew Effect, NIL List, and Ship Money.
-      </p>
       <div class="stamp-drop-grid">
         <div
           class="stamp-drop"
+          [class.stamp-drop--has-preview]="meta().hasStamp && stampPreviewUrl()"
           [class.stamp-drop--active]="stampDrag()"
           (click)="pickAsset('stamp')"
           (dragover)="onDragOver($event, 'stamp')"
@@ -29,6 +29,13 @@ import { ToastService } from '../../services/toast.service';
         >
           <span class="stamp-drop-title">Ship stamp</span>
           @if (meta().hasStamp) {
+            @if (stampPreviewUrl()) {
+              <img
+                class="stamp-drop-preview"
+                [src]="stampPreviewUrl()!"
+                alt="Ship stamp preview"
+              />
+            }
             <span class="stamp-drop-file">{{ meta().stampFileName }}</span>
             <button type="button" class="btn-link warn stamp-remove" (click)="removeAsset($event, 'stamp')">
               Remove
@@ -40,6 +47,7 @@ import { ToastService } from '../../services/toast.service';
 
         <div
           class="stamp-drop stamp-drop--signature"
+          [class.stamp-drop--has-preview]="meta().hasSignature && signaturePreviewUrl()"
           [class.stamp-drop--active]="signatureDrag()"
           (click)="pickAsset('signature')"
           (dragover)="onDragOver($event, 'signature')"
@@ -48,6 +56,13 @@ import { ToastService } from '../../services/toast.service';
         >
           <span class="stamp-drop-title">Captain signature</span>
           @if (meta().hasSignature) {
+            @if (signaturePreviewUrl()) {
+              <img
+                class="stamp-drop-preview"
+                [src]="signaturePreviewUrl()!"
+                alt="Captain signature preview"
+              />
+            }
             <span class="stamp-drop-file">{{ meta().signatureFileName }}</span>
             <button type="button" class="btn-link warn stamp-remove" (click)="removeAsset($event, 'signature')">
               Remove
@@ -69,28 +84,18 @@ import { ToastService } from '../../services/toast.service';
             <span>Signature</span>
           </label>
         </div>
-        <div class="stamp-bulk-actions">
-          <button
-            type="button"
-            class="btn btn-primary stamp-bulk-set"
-            (click)="applyBulkToggles()"
-            title="Apply stamp and signature on/off to all documents"
-          >
-            Set
-          </button>
-          <span class="stamp-bulk-note">Applies to all documents at once</span>
-        </div>
+        <button
+          type="button"
+          class="btn btn-primary stamp-bulk-set"
+          (click)="applyBulkToggles()"
+          title="Apply stamp and signature on/off to all documents"
+        >
+          SET default for all docs
+        </button>
       </div>
     </div>
   `,
   styles: `
-    .stamp-upload-hint {
-      margin: 0 0 0.85rem;
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
-
     .stamp-drop-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -112,10 +117,15 @@ import { ToastService } from '../../services/toast.service';
       cursor: pointer;
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      align-items: stretch;
+      gap: 0.35rem;
       transition:
         border-color 0.15s ease,
         background 0.15s ease;
+    }
+
+    .stamp-drop--has-preview {
+      min-height: 150px;
     }
 
     .stamp-drop--signature {
@@ -137,10 +147,24 @@ import { ToastService } from '../../services/toast.service';
       color: #475569;
     }
 
+    .stamp-drop-preview {
+      display: block;
+      width: 100%;
+      max-height: 110px;
+      object-fit: contain;
+      object-position: center;
+      margin: 0.15rem 0;
+      pointer-events: none;
+      user-select: none;
+      background: #fff;
+      border-radius: 4px;
+    }
+
     .stamp-drop-file {
-      font-size: 0.8rem;
-      color: #334155;
+      font-size: 0.75rem;
+      color: #64748b;
       word-break: break-all;
+      text-align: center;
     }
 
     .stamp-drop-placeholder {
@@ -163,27 +187,14 @@ import { ToastService } from '../../services/toast.service';
       border-top: 1px solid var(--border);
     }
 
-    .stamp-bulk-actions {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.2rem;
-    }
-
     .stamp-bulk-set {
-      min-width: 4.5rem;
-      font-size: 0.88rem;
-      padding: 0.4rem 1rem;
-    }
-
-    .stamp-bulk-note {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      line-height: 1.3;
+      font-size: 0.82rem;
+      padding: 0.4rem 0.85rem;
+      white-space: nowrap;
     }
   `,
 })
-export class DocumentStampUploadComponent implements OnInit {
+export class DocumentStampUploadComponent implements OnInit, OnDestroy {
   private readonly storage = inject(StorageService);
   private readonly assets = inject(ShipAssetsService);
   private readonly toast = inject(ToastService);
@@ -191,12 +202,20 @@ export class DocumentStampUploadComponent implements OnInit {
   protected readonly meta = this.storage.shipAssets;
   protected readonly stampDrag = signal(false);
   protected readonly signatureDrag = signal(false);
+  protected readonly stampPreviewUrl = signal<string | null>(null);
+  protected readonly signaturePreviewUrl = signal<string | null>(null);
 
   protected bulkUseStamp = false;
   protected bulkUseSignature = false;
 
   ngOnInit(): void {
     this.syncBulkFromDocuments();
+    void this.refreshAllPreviews();
+  }
+
+  ngOnDestroy(): void {
+    this.clearPreview('stamp');
+    this.clearPreview('signature');
   }
 
   protected applyBulkToggles(): void {
@@ -216,6 +235,7 @@ export class DocumentStampUploadComponent implements OnInit {
   protected async pickAsset(kind: ShipAssetKind): Promise<void> {
     try {
       await this.assets.pickAndSave(kind);
+      await this.refreshPreview(kind);
       this.toast.show(kind === 'stamp' ? 'Stamp saved' : 'Signature saved', 'success');
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Upload failed');
@@ -242,6 +262,7 @@ export class DocumentStampUploadComponent implements OnInit {
     if (!file) return;
     try {
       await this.assets.saveFromFile(kind, file);
+      await this.refreshPreview(kind);
       this.toast.show(kind === 'stamp' ? 'Stamp saved' : 'Signature saved', 'success');
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Upload failed');
@@ -251,7 +272,39 @@ export class DocumentStampUploadComponent implements OnInit {
   protected async removeAsset(event: MouseEvent, kind: ShipAssetKind): Promise<void> {
     event.stopPropagation();
     await this.assets.remove(kind);
+    this.clearPreview(kind);
     this.toast.show(kind === 'stamp' ? 'Stamp removed' : 'Signature removed', 'success');
+  }
+
+  private async refreshAllPreviews(): Promise<void> {
+    await Promise.all([this.refreshPreview('stamp'), this.refreshPreview('signature')]);
+  }
+
+  private async refreshPreview(kind: ShipAssetKind): Promise<void> {
+    this.clearPreview(kind);
+    const m = this.meta();
+    const has = kind === 'stamp' ? m.hasStamp : m.hasSignature;
+    const fileName = kind === 'stamp' ? m.stampFileName : m.signatureFileName;
+    if (!has || !fileName.trim()) return;
+
+    try {
+      const bytes = await this.assets.loadBytes(kind);
+      if (!bytes?.length) return;
+      const url = await shipAssetPreviewUrl(bytes, fileName);
+      this.previewSignal(kind).set(url);
+    } catch {
+      /* preview optional */
+    }
+  }
+
+  private clearPreview(kind: ShipAssetKind): void {
+    const url = this.previewSignal(kind)();
+    revokeShipAssetPreviewUrl(url);
+    this.previewSignal(kind).set(null);
+  }
+
+  private previewSignal(kind: ShipAssetKind) {
+    return kind === 'stamp' ? this.stampPreviewUrl : this.signaturePreviewUrl;
   }
 }
 

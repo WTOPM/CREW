@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
   AppData,
-  CrewMember,
+  filterActiveCrewList,
   formatPortCallPortName,
 } from '../models/crew.models';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
@@ -73,7 +73,7 @@ export class PdfShipStoresService {
       });
     };
 
-    const crewArrival = this.arrivalCrew(data.crew);
+    const crewArrival = filterActiveCrewList(data.crew, 'arrival');
     const form = normalizeShipStoresForm(data.shipStoresForm);
     this.drawHeader(draw, data, crewArrival.length, form.placeOfStorage);
     this.drawBodyTable(page, font, black, form);
@@ -151,10 +151,6 @@ export class PdfShipStoresService {
         });
       }
     }
-  }
-
-  private arrivalCrew(crew: CrewMember[]): CrewMember[] {
-    return crew.filter((m) => !m.archived && m.onArrivalList);
   }
 
   private async loadTemplate(): Promise<Uint8Array> {

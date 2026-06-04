@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import {
   AppData,
   CrewMember,
+  filterActiveCrewList,
   formatCrewListName,
   formatPortCallPortName,
 } from '../models/crew.models';
@@ -70,7 +71,7 @@ export class PdfShipMoneyService {
 
     const form = normalizeShipMoneyForm(data.shipMoneyForm);
     const { ship } = data;
-    const crewArrival = data.crew.filter((m) => !m.archived && m.onArrivalList);
+    const crewArrival = filterActiveCrewList(data.crew, 'arrival');
     const master = this.findMaster(crewArrival);
 
     draw(ship.name, SHIP_MONEY_FIELDS.vessel, true);

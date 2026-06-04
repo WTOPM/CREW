@@ -33,6 +33,7 @@ import {
   migratePortsRaw,
   resolvePortRef,
   crewRankOrder,
+  filterActiveCrewList,
   sortCrewByRank,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
@@ -112,12 +113,8 @@ export class StorageService {
   readonly shipMoneyForm = computed(() => this.data().shipMoneyForm);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
-  readonly activeCrewArrival = computed(() =>
-    this.data().crew.filter((m) => !m.archived && m.onArrivalList),
-  );
-  readonly activeCrewDeparture = computed(() =>
-    this.data().crew.filter((m) => !m.archived && m.onDepartureList),
-  );
+  readonly activeCrewArrival = computed(() => filterActiveCrewList(this.data().crew, 'arrival'));
+  readonly activeCrewDeparture = computed(() => filterActiveCrewList(this.data().crew, 'departure'));
   /** @deprecated Use activeCrewArrival — kept for crew-arr page default. */
   readonly activeCrew = this.activeCrewArrival;
   readonly archivedCrew = computed(() => {
