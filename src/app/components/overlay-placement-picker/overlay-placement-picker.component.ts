@@ -70,22 +70,22 @@ type ResizeTarget = 'stamp' | 'signature';
       >
         <h3>Stamp & signature — {{ docLabel() }}</h3>
 
-        <div class="placement-toggles">
-          <label class="placement-check">
+        <div class="choice-chips">
+          <label class="choice-chip">
             <input
               type="checkbox"
               [ngModel]="options().useStamp"
               (ngModelChange)="onToggle('useStamp', $event)"
             />
-            <span class="placement-check-label">Stamp</span>
+            <span>Stamp</span>
           </label>
-          <label class="placement-check">
+          <label class="choice-chip">
             <input
               type="checkbox"
               [ngModel]="options().useSignature"
               (ngModelChange)="onToggle('useSignature', $event)"
             />
-            <span class="placement-check-label">Signature</span>
+            <span>Signature</span>
           </label>
         </div>
 
@@ -256,34 +256,10 @@ type ResizeTarget = 'stamp' | 'signature';
       font-size: 1.05rem;
     }
 
-    .placement-toggles {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.3rem;
+    .choice-chips {
       margin-bottom: 0.65rem;
       padding-bottom: 0.65rem;
       border-bottom: 1px solid var(--border);
-    }
-
-    .placement-check {
-      display: inline-flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 0.45rem;
-      margin: 0;
-      font-size: 0.88rem;
-      cursor: pointer;
-    }
-
-    .placement-check input[type='checkbox'] {
-      margin: 0;
-      flex-shrink: 0;
-    }
-
-    .placement-check-label {
-      color: var(--text);
-      font-weight: 500;
     }
 
     .placement-mdh-tabs {

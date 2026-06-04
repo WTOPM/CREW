@@ -43,6 +43,20 @@ export const CREW_LIST_ROW_LINE_GRAY = 175;
 export const BODY_TOP_Y = 447;
 export const BODY_BOTTOM_Y = 2373;
 
+/** Table body (rows 7–23) for NIL overlay when list is empty. */
+export const CREW_LIST_BODY_BOUNDS = {
+  x1: 152,
+  y1: BODY_TOP_Y,
+  x2: 2169,
+  y2: BODY_BOTTOM_Y,
+} as const;
+
+/** Shown over empty crew / passenger table body in PDF. */
+export const CREW_LIST_BODY_NIL_LABEL = 'NIL';
+
+/** Light gray for NIL (less toner than black). 0–255 for jsPDF. */
+export const CREW_LIST_BODY_NIL_GRAY = { r: 128, g: 128, b: 128 } as const;
+
 export interface CoordBox {
   id: string;
   x1: number;

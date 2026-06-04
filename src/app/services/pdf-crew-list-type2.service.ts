@@ -19,6 +19,7 @@ import {
   CREW_LIST_ALGER_MAX_ROWS,
   CREW_LIST_ALGER_ROW_Y,
   CREW_LIST_ALGER_TEXT_ROTATION,
+  CREW_LIST_ALGER_BODY_NIL,
   crewListAlgerColX,
   crewListAlgerFontSizeToFit,
   randomCrewTemperature,
@@ -26,6 +27,7 @@ import {
   type AlgerTextPlacement,
 } from './crew-list-alger-coordinates';
 import { PdfOverlayService } from './pdf-overlay.service';
+import { CREW_LIST_BODY_NIL_GRAY, CREW_LIST_BODY_NIL_LABEL } from './crew-list-coordinates';
 
 const CREW_LIST_ALGER_TEMPLATE_URL = '/crew-list-alger-empty.pdf';
 
@@ -66,6 +68,11 @@ export class PdfCrewListType2Service {
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const black = rgb(0, 0, 0);
+    const nilGray = rgb(
+      CREW_LIST_BODY_NIL_GRAY.r / 255,
+      CREW_LIST_BODY_NIL_GRAY.g / 255,
+      CREW_LIST_BODY_NIL_GRAY.b / 255,
+    );
     const textRotate = degrees(CREW_LIST_ALGER_TEXT_ROTATION);
 
     const draw = (
@@ -106,7 +113,11 @@ export class PdfCrewListType2Service {
     };
 
     this.drawHeader(draw, data);
-    this.drawCrewBody(draw, drawFit, data, crew, rowAt);
+    if (crew.length === 0) {
+      this.drawBodyNil(page, bold, textRotate, nilGray);
+    } else {
+      this.drawCrewBody(draw, drawFit, data, crew, rowAt);
+    }
 
     return doc.save();
   }
@@ -131,6 +142,22 @@ export class PdfCrewListType2Service {
     draw(portsFromTo, CREW_LIST_ALGER_HEADER.portsFromTo, true);
     draw(CREW_IDENTITY_PASSPORT, CREW_LIST_ALGER_HEADER.natureOfDocumentPassport);
     draw(CREW_IDENTITY_SEAMANS_BOOK, CREW_LIST_ALGER_HEADER.natureOfDocumentSeamans);
+  }
+
+  private drawBodyNil(
+    page: import('pdf-lib').PDFPage,
+    bold: import('pdf-lib').PDFFont,
+    textRotate: ReturnType<typeof import('pdf-lib').degrees>,
+    color: import('pdf-lib').RGB,
+  ): void {
+    page.drawText(CREW_LIST_BODY_NIL_LABEL, {
+      x: CREW_LIST_ALGER_BODY_NIL.x,
+      y: CREW_LIST_ALGER_BODY_NIL.y,
+      size: CREW_LIST_ALGER_BODY_NIL.fontSize,
+      font: bold,
+      color,
+      rotate: textRotate,
+    });
   }
 
   /** Body: one column per crew member — same order as Arrival list on Home (no rank resort). */

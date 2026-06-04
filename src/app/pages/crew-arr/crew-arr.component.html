@@ -14,24 +14,29 @@
   <section class="card">
     <h2>Form options</h2>
     <div class="form-grid">
-      <label class="checkbox-row">
-        <input
-          type="radio"
-          name="direction"
-          [checked]="crewArr().isArrival"
-          (change)="updateSetting('isArrival', true)"
-        />
-        <span>Arrival</span>
-      </label>
-      <label class="checkbox-row">
-        <input
-          type="radio"
-          name="direction"
-          [checked]="!crewArr().isArrival"
-          (change)="updateSetting('isArrival', false)"
-        />
-        <span>Departure</span>
-      </label>
+      <div class="form-grid-span">
+        <span class="choice-group__legend">Direction</span>
+        <div class="choice-segmented choice-segmented--row" role="radiogroup">
+          <label class="choice-segmented__item">
+            <input
+              type="radio"
+              name="direction"
+              [checked]="crewArr().isArrival"
+              (change)="updateSetting('isArrival', true)"
+            />
+            <span class="choice-segmented__text">Arrival</span>
+          </label>
+          <label class="choice-segmented__item">
+            <input
+              type="radio"
+              name="direction"
+              [checked]="!crewArr().isArrival"
+              (change)="updateSetting('isArrival', false)"
+            />
+            <span class="choice-segmented__text">Departure</span>
+          </label>
+        </div>
+      </div>
       <label>
         <span>Page No.</span>
         <input type="number" min="1" [ngModel]="crewArr().pageNo" (ngModelChange)="updateSetting('pageNo', +$event)" />

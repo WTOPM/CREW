@@ -8,18 +8,23 @@ export interface ToastMessage {
   type: ToastVariant;
 }
 
+/** Visible duration for every toast (+0.5 s vs previous 3.2 s). */
+export const TOAST_VISIBLE_MS = 3700;
+
 @Injectable({ providedIn: 'root' })
 export class ToastService {
   private readonly messages = signal<ToastMessage[]>([]);
   private nextId = 0;
   private savedTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly dismissTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
   readonly toasts = this.messages.asReadonly();
 
   show(text: string, type: ToastVariant = 'info'): void {
     const id = ++this.nextId;
     this.messages.update((list) => [...list, { id, text, type }]);
-    setTimeout(() => this.dismiss(id), 3200);
+    const timer = setTimeout(() => this.dismiss(id), TOAST_VISIBLE_MS);
+    this.dismissTimers.set(id, timer);
   }
 
   showSaved(): void {
@@ -62,8 +67,8 @@ export class ToastService {
     this.show('DELETED NATIONALITY', 'deleted');
   }
 
-  /** Debounced — one toast after rapid auto-save edits */
-  debouncedSaved(delayMs = 600): void {
+  /** Debounced — one toast after rapid auto-save edits (+0.5 s vs previous delay). */
+  debouncedSaved(delayMs = 1100): void {
     if (this.savedTimer) clearTimeout(this.savedTimer);
     this.savedTimer = setTimeout(() => {
       this.showSaved();
@@ -80,6 +85,11 @@ export class ToastService {
   }
 
   dismiss(id: number): void {
+    const timer = this.dismissTimers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.dismissTimers.delete(id);
+    }
     this.messages.update((list) => list.filter((t) => t.id !== id));
   }
 }

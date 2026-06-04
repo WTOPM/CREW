@@ -41,14 +41,16 @@ import { ToastService } from '../../services/toast.service';
               }
             </select>
           </label>
-          <fieldset class="crew-doc-type-fieldset">
-            <legend>Document type</legend>
-            @for (t of docTypes; track t.id) {
-              <label class="crew-doc-type-option">
-                <input type="radio" name="docType" [value]="t.id" [(ngModel)]="selectedDocType" />
-                {{ t.label }}
-              </label>
-            }
+          <fieldset class="choice-group">
+            <legend class="choice-group__legend">Document type</legend>
+            <div class="choice-segmented choice-segmented--row" role="radiogroup">
+              @for (t of docTypes; track t.id) {
+                <label class="choice-segmented__item">
+                  <input type="radio" name="docType" [value]="t.id" [(ngModel)]="selectedDocType" />
+                  <span class="choice-segmented__text">{{ t.label }}</span>
+                </label>
+              }
+            </div>
           </fieldset>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
@@ -123,27 +125,8 @@ import { ToastService } from '../../services/toast.service';
       font: inherit;
     }
 
-    .crew-doc-type-fieldset {
+    .choice-group {
       margin: 0 0 1rem;
-      padding: 0.65rem 0.85rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-    }
-
-    .crew-doc-type-fieldset legend {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      padding: 0 0.25rem;
-    }
-
-    .crew-doc-type-option {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin: 0.35rem 0 0;
-      font-size: 0.88rem;
-      cursor: pointer;
     }
   `,
 })

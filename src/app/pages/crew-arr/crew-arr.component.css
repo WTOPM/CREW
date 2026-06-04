@@ -10,15 +10,10 @@
   text-decoration: underline;
 }
 
-.checkbox-row {
+.form-grid-span {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-direction: row !important;
-}
-
-.checkbox-row input {
-  width: auto;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .hint {

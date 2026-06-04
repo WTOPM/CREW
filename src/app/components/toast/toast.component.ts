@@ -25,14 +25,20 @@ import { ToastService, ToastVariant } from '../../services/toast.service';
       right: 1.5rem;
       z-index: 9999;
       display: flex;
-      flex-direction: column-reverse;
-      gap: 0.65rem;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: flex-end;
+      gap: 0.75rem;
       pointer-events: none;
       max-width: min(22rem, calc(100vw - 2rem));
+      max-height: min(70vh, calc(100vh - 3rem));
+      overflow: hidden;
     }
 
     .toast {
       pointer-events: auto;
+      flex-shrink: 0;
+      width: 100%;
       display: flex;
       align-items: center;
       gap: 0.65rem;
@@ -52,7 +58,7 @@ import { ToastService, ToastVariant } from '../../services/toast.service';
     }
 
     .toast:hover {
-      transform: translateY(-2px) scale(1.02);
+      transform: translateY(-1px);
       box-shadow:
         0 14px 48px rgb(15 23 42 / 18%),
         0 4px 12px rgb(15 23 42 / 10%);

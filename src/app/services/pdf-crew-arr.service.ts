@@ -17,6 +17,9 @@ import { formatBirthDateShort, formatDisplayDate } from '../utils/date.util';
 import {
   BODY_BOTTOM_Y,
   BODY_TOP_Y,
+  CREW_LIST_BODY_BOUNDS,
+  CREW_LIST_BODY_NIL_LABEL,
+  CREW_LIST_BODY_NIL_GRAY,
   CREW_LIST_BOXES,
   CREW_LIST_FAL_FORM_X_PT,
   CREW_LIST_FAL_FORM_OFFSET_LEFT_PT,
@@ -38,6 +41,7 @@ export { CREW_LIST_ROW_COUNT } from './crew-list-coordinates';
 
 const CREW_LIST_PAGE_NO = 1;
 export const IMO_PASSENGER_LIST_TITLE = 'IMO PASSENGER LIST';
+export { CREW_LIST_BODY_NIL_LABEL } from './crew-list-coordinates';
 
 export interface CrewListPdfOptions {
   title?: string;
@@ -58,6 +62,9 @@ export class PdfCrewArrService {
     this.drawCoordinateGrid(doc, scale);
     this.drawStaticExtras(doc, scale, data.crewArr.identityDocumentType, data.crewArr.isArrival);
     this.fillDynamicData(doc, scale, data, crew);
+    if (crew.length === 0) {
+      this.drawBodyNil(doc, scale);
+    }
     this.drawFrameLabels(doc, scale);
     return doc;
   }
@@ -268,6 +275,28 @@ export class PdfCrewArrService {
     this.valueInBox(doc, s, 1871, 117, 2169, 192, String(CREW_LIST_PAGE_NO), 'center');
 
     this.fillCrewRows(doc, s, crew, docType);
+  }
+
+  /** Large NIL centered over the table body when there are no rows (crew or passengers). */
+  private drawBodyNil(doc: jsPDF, s: CoordScale): void {
+    const r = s.rect(
+      CREW_LIST_BODY_BOUNDS.x1,
+      CREW_LIST_BODY_BOUNDS.y1,
+      CREW_LIST_BODY_BOUNDS.x2,
+      CREW_LIST_BODY_BOUNDS.y2,
+    );
+    const fontSize = Math.min(r.w * 0.28, r.h * 0.44, 192);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(fontSize);
+    doc.setTextColor(
+      CREW_LIST_BODY_NIL_GRAY.r,
+      CREW_LIST_BODY_NIL_GRAY.g,
+      CREW_LIST_BODY_NIL_GRAY.b,
+    );
+    doc.text(CREW_LIST_BODY_NIL_LABEL, r.x + r.w / 2, r.y + r.h / 2, {
+      align: 'center',
+      baseline: 'middle',
+    });
   }
 
   private fillCrewRows(doc: jsPDF, s: CoordScale, crew: CrewMember[], identityDocumentType: string): void {
