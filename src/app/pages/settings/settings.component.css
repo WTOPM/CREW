@@ -89,6 +89,15 @@
   color: #9a3412;
 }
 
+.ship-block--issc {
+  background: linear-gradient(180deg, #fee2e2 0%, #fef2f2 100%);
+  border-color: #fca5a5;
+}
+
+.ship-block--issc .ship-block-title {
+  color: #b91c1c;
+}
+
 .ship-settings-split {
   display: flex;
   flex-wrap: wrap;
@@ -146,6 +155,10 @@
   color: #c2410c;
 }
 
+.ship-block--issc .ship-field > span {
+  color: #dc2626;
+}
+
 .ship-field--span2 {
   grid-column: span 2;
 }
@@ -179,6 +192,12 @@
   background: #dbeafe;
   color: #1d4ed8;
   border-color: #60a5fa;
+}
+
+.ship-block--issc ::ng-deep .date-picker-btn {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #f87171;
 }
 
 /* Reference data */
