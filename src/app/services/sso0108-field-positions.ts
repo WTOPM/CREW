@@ -30,11 +30,35 @@ export const SSO0108_TABLE_COL = {
   port: 75,
   arrival: 181,
   departure: 258,
-  /** Template defaults (pdf dump); not drawn — avoids duplicate "1" with overlay. */
+  /** Whited-out for every row, redrawn only for rows with port data. */
   marsecPort: 341,
   marsecShip: 394,
   measures: 435,
 } as const;
+
+/**
+ * Template MARSEC "1" geometry (measured from the empty template via pdfjs).
+ * The template pre-prints "1" in both MARSEC columns of every ruled row; we
+ * white those out and redraw only for filled rows. These rows step uniformly
+ * (≈16.6 pt), unlike the slightly drifting text-row model above, so the
+ * whiteout boxes land exactly on the template digits without leaving remnants.
+ */
+export const SSO0108_MARSEC_TEMPLATE = {
+  firstBaselineTopY: 187.1,
+  rowStep: 16.6,
+  rowCount: 28,
+  /** Glyph box used for the whiteout rectangle (pdf-lib bottom-left origin). */
+  whiteoutWidth: 10,
+  whiteoutHeight: 14,
+  whiteoutDescent: 3,
+} as const;
+
+/** pdf-lib Y (bottom-left) of a template MARSEC row baseline. */
+export function sso0108MarsecBaselinePdfY(rowIndex: number): number {
+  const topY =
+    SSO0108_MARSEC_TEMPLATE.firstBaselineTopY + rowIndex * SSO0108_MARSEC_TEMPLATE.rowStep;
+  return SSO0108_PAGE_HEIGHT_PT - topY;
+}
 
 /** First data row baseline (top-down Y); rows alternate +17 / +16 pt. */
 export const SSO0108_FIRST_ROW_Y = 187;

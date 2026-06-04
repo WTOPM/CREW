@@ -24,11 +24,15 @@ import {
 
   SSO0108_HEADER,
 
+  SSO0108_MARSEC_TEMPLATE,
+
   SSO0108_MAX_ROWS,
 
   SSO0108_TABLE_COL,
 
   type Sso0108TextPlacement,
+
+  sso0108MarsecBaselinePdfY,
 
   sso0108PdfLibY,
 
@@ -204,6 +208,16 @@ export class PdfSso0108PortCallsService {
 
     const rows = selectPortCallHistoryForPdf(data.portCallHistory, data.portOfCall.pdfRowCount);
 
+    // White-out all pre-baked "1" values in MARSEC columns for every ruled row,
+    // using the template's own (uniform) row geometry so no digit remnants remain.
+    const white = rgb(1, 1, 1);
+    const wo = SSO0108_MARSEC_TEMPLATE;
+    for (let r = 0; r < wo.rowCount; r++) {
+      const y = sso0108MarsecBaselinePdfY(r) - wo.whiteoutDescent;
+      page.drawRectangle({ x: SSO0108_TABLE_COL.marsecPort - 1, y, width: wo.whiteoutWidth, height: wo.whiteoutHeight, color: white });
+      page.drawRectangle({ x: SSO0108_TABLE_COL.marsecShip - 1, y, width: wo.whiteoutWidth, height: wo.whiteoutHeight, color: white });
+    }
+
     let rowIndex = 0;
 
     for (const entry of rows) {
@@ -223,6 +237,10 @@ export class PdfSso0108PortCallsService {
       drawAtBaseline(formatDisplayDate(entry.arrivalDate), SSO0108_TABLE_COL.arrival, baselineY);
 
       drawAtBaseline(formatDisplayDate(entry.departureDate), SSO0108_TABLE_COL.departure, baselineY);
+
+      drawAtBaseline(marsecLevel, SSO0108_TABLE_COL.marsecPort, baselineY);
+
+      drawAtBaseline(marsecLevel, SSO0108_TABLE_COL.marsecShip, baselineY);
 
       drawAtBaseline('NIL', SSO0108_TABLE_COL.measures, baselineY);
 

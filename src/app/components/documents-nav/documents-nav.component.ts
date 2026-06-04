@@ -87,7 +87,8 @@ export class DocumentsNavComponent {
   );
 
   protected showPortOfCallSettings = signal(false);
-  protected showSso0108PortCallsSettings = signal(false);
+  /** Which port document the unified Port Settings modal is editing. */
+  protected portSettingsDoc = signal<'portOfCall' | 'sso0108'>('portOfCall');
   protected showCrewListSettings = signal(false);
   protected showPaxSettings = signal(false);
   protected showMdhSettings = signal(false);
@@ -201,15 +202,6 @@ export class DocumentsNavComponent {
     }).catch((err) => {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to open SSO-0108 Port Calls');
     });
-  }
-
-  protected openSso0108PortCallsSettings(): void {
-    this.showSso0108PortCallsSettings.set(true);
-  }
-
-  protected closeSso0108PortCallsSettings(): void {
-    this.showSso0108PortCallsSettings.set(false);
-    this.storage.finishFormSession();
   }
 
   protected openPortOfCallSettings(): void {
