@@ -11,7 +11,7 @@ import {
   shipMoneyRowBaselineY,
   SHIP_MONEY_PAGE_HEIGHT_PT,
 } from '../models/ship-money.models';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { shipMoneyPdfFileName } from '../utils/pdf-filename.util';
 import {
@@ -30,6 +30,7 @@ const SHIP_MONEY_TEMPLATE_URL = '/ship-money-empty.pdf';
 @Injectable({ providedIn: 'root' })
 export class PdfShipMoneyService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   private templateBytes: Uint8Array | null = null;
   private loadedVersion = 0;
@@ -38,7 +39,7 @@ export class PdfShipMoneyService {
   async openPreview(data: AppData): Promise<boolean> {
     let bytes = await this.build(data);
     bytes = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.shipMoney);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

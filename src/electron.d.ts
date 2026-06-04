@@ -11,6 +11,14 @@ declare global {
       writeData: (data: AppData) => Promise<void>;
       getDataPath: () => Promise<string>;
       pickPdfFile: () => Promise<string | null>;
+      pickDirectory: () => Promise<string | null>;
+      listDirectories: (input: string) => Promise<string[]>;
+      savePdfToPath: (
+        dirPath: string,
+        fileName: string,
+        base64: string,
+      ) => Promise<{ fullPath: string }>;
+      pdfExists: (dirPath: string, fileName: string) => Promise<boolean>;
       saveCrewPdf: (crewId: string, docType: CrewDocumentType, sourcePath: string) => Promise<boolean>;
       saveCrewPdfBytes: (crewId: string, docType: CrewDocumentType, base64: string) => Promise<boolean>;
       readCrewPdf: (crewId: string, docType: CrewDocumentType) => Promise<string | null>;

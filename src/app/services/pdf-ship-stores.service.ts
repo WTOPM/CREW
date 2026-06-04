@@ -4,7 +4,7 @@ import {
   filterActiveCrewList,
   formatPortCallPortName,
 } from '../models/crew.models';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { shipStoresPdfFileName } from '../utils/pdf-filename.util';
 import {
@@ -34,6 +34,7 @@ const SHIP_STORES_TEMPLATE_URL = '/ship-stores-empty.pdf';
 @Injectable({ providedIn: 'root' })
 export class PdfShipStoresService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   private templateBytes: Uint8Array | null = null;
   private loadedVersion = 0;
@@ -42,7 +43,7 @@ export class PdfShipStoresService {
   async openPreview(data: AppData): Promise<boolean> {
     let bytes = await this.build(data);
     bytes = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.shipStores);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

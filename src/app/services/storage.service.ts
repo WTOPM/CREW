@@ -20,6 +20,7 @@ import {
   createDefaultCashAdvanceForm,
   createDefaultCrewMoneyListForm,
   createDefaultNarcoticListForm,
+  createDefaultOutputSettings,
   createDefaultPortOfCallSettings,
   createDefaultShipStoresForm,
   createEmptyCrewMember,
@@ -121,6 +122,7 @@ const DEFAULT_DATA: AppData = {
   narcoticListForm: createDefaultNarcoticListForm(),
   documentOverlay: createDefaultDocumentOverlayPrefs(),
   shipAssets: createEmptyShipAssetsMeta(),
+  outputSettings: createDefaultOutputSettings(),
   seedVersion: SEED_VERSION,
 };
 
@@ -147,6 +149,7 @@ export class StorageService {
   readonly narcoticListForm = computed(() => this.data().narcoticListForm);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
+  readonly outputSettings = computed(() => this.data().outputSettings);
   readonly activeCrewArrival = computed(() => filterActiveCrewList(this.data().crew, 'arrival'));
   readonly activeCrewDeparture = computed(() => filterActiveCrewList(this.data().crew, 'departure'));
   /** @deprecated Use activeCrewArrival — kept for crew-arr page default. */
@@ -209,6 +212,10 @@ export class StorageService {
         sso0108PortCalls: { ...DEFAULT_DATA.documentOverlay.sso0108PortCalls },
       },
       shipAssets: { ...DEFAULT_DATA.shipAssets },
+      outputSettings: {
+        ...DEFAULT_DATA.outputSettings,
+        savedPaths: [...DEFAULT_DATA.outputSettings.savedPaths],
+      },
       crewArr: { ...DEFAULT_DATA.crewArr },
       passengers: [],
       paxArr: { ...DEFAULT_DATA.paxArr },
@@ -311,6 +318,7 @@ export class StorageService {
     const narcoticListForm = normalizeNarcoticListForm(raw.narcoticListForm);
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
+    const outputSettings = this.normalizeOutputSettings(raw.outputSettings);
     return {
       ship,
       crew,
@@ -331,7 +339,26 @@ export class StorageService {
       narcoticListForm,
       documentOverlay,
       shipAssets,
+      outputSettings,
       seedVersion: SEED_VERSION,
+    };
+  }
+
+  private normalizeOutputSettings(
+    raw: Partial<AppData['outputSettings']> | undefined,
+  ): AppData['outputSettings'] {
+    const defaults = createDefaultOutputSettings();
+    const savedPaths = Array.from(
+      new Set(
+        (Array.isArray(raw?.savedPaths) ? raw!.savedPaths : [])
+          .map((p) => String(p).trim())
+          .filter((p) => p.length > 0),
+      ),
+    ).slice(0, 5);
+    return {
+      saveToFolder: raw?.saveToFolder === true,
+      activePath: (raw?.activePath ?? defaults.activePath).trim(),
+      savedPaths,
     };
   }
 
@@ -736,6 +763,49 @@ export class StorageService {
       ...d,
       shipAssets: { ...d.shipAssets, ...partial },
     }));
+    void this.persist('silent');
+  }
+
+  updateOutputSettings(
+    partial: Partial<AppData['outputSettings']>,
+    notify: 'silent' | 'saved' = 'silent',
+  ): void {
+    this.data.update((d) => ({
+      ...d,
+      outputSettings: this.normalizeOutputSettings({ ...d.outputSettings, ...partial }),
+    }));
+    void this.persist(notify);
+  }
+
+  /** Remember a folder path and make it the active output target. */
+  addSavedPath(path: string): void {
+    const p = path.trim();
+    if (!p) return;
+    this.data.update((d) => ({
+      ...d,
+      outputSettings: this.normalizeOutputSettings({
+        ...d.outputSettings,
+        activePath: p,
+        // Newest first, keep only the last 5 (normalize caps to 5).
+        savedPaths: [p, ...d.outputSettings.savedPaths.filter((x) => x !== p)],
+      }),
+    }));
+    void this.persist('saved');
+  }
+
+  removeSavedPath(path: string): void {
+    this.data.update((d) => {
+      const savedPaths = d.outputSettings.savedPaths.filter((p) => p !== path);
+      const activePath = d.outputSettings.activePath === path ? '' : d.outputSettings.activePath;
+      return {
+        ...d,
+        outputSettings: this.normalizeOutputSettings({
+          ...d.outputSettings,
+          activePath,
+          savedPaths,
+        }),
+      };
+    });
     void this.persist('silent');
   }
 

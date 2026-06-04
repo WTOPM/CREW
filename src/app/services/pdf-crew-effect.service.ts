@@ -7,7 +7,7 @@ import {
   formatPortCallPortName,
 } from '../models/crew.models';
 import { CREW_EFFECT_NIL_LABEL, normalizeCrewEffectForm } from '../models/crew-effect.models';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewEffectPdfFileName } from '../utils/pdf-filename.util';
 import {
   CREW_EFFECT_COL,
@@ -25,6 +25,7 @@ const CREW_EFFECT_TEMPLATE_URL = '/crew-effect-empty.pdf';
 @Injectable({ providedIn: 'root' })
 export class PdfCrewEffectService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   private templateBytes: Uint8Array | null = null;
   private loadedVersion = 0;
@@ -33,7 +34,7 @@ export class PdfCrewEffectService {
   async openPreview(data: AppData): Promise<boolean> {
     let bytes = await this.build(data);
     bytes = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.crewEffect);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

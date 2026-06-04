@@ -8,7 +8,7 @@ import {
   formatPortCallPortName,
   portCode,
 } from '../models/crew.models';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatBirthDateShort, formatDisplayDate } from '../utils/date.util';
 import { crewListType2PdfFileName } from '../utils/pdf-filename.util';
 import {
@@ -36,6 +36,7 @@ const CREW_LIST_ALGER_TEMPLATE_URL = '/crew-list-alger-empty.pdf';
 @Injectable({ providedIn: 'root' })
 export class PdfCrewListType2Service {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   private templateBytes: Uint8Array | null = null;
   private loadedVersion = 0;
@@ -48,7 +49,7 @@ export class PdfCrewListType2Service {
 
   async openPreview(data: AppData, crew: CrewMember[]): Promise<boolean> {
     const bytes = await this.buildPreviewBytes(data, crew);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

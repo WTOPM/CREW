@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { jsPDF } from 'jspdf';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { PdfOverlayService } from './pdf-overlay.service';
 import {
   AppData,
@@ -51,6 +51,7 @@ const POC_SHOW_CELL_NUMBERS = false;
 @Injectable({ providedIn: 'root' })
 export class PdfPortOfCallService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   build(data: AppData): jsPDF {
     const selected = selectPortCallHistoryForPdf(data.portCallHistory, data.portOfCall.pdfRowCount);
@@ -75,7 +76,7 @@ export class PdfPortOfCallService {
   async openPreview(data: AppData): Promise<boolean> {
     const doc = this.build(data);
     const bytes = await this.overlay.applyToJsPdf(doc, data.documentOverlay.portOfCall, 'portOfCall');
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

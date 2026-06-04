@@ -17,6 +17,7 @@ import {
   createDefaultNarcoticListForm,
   createDefaultShipStoresForm,
   createEmptyShipAssetsMeta,
+  createDefaultOutputSettings,
   createEmptyCrewMember,
   createEmptyShip,
   mergePorts,
@@ -102,6 +103,7 @@ export class ExcelImportService {
       narcoticListForm: createDefaultNarcoticListForm(),
       documentOverlay: createDefaultDocumentOverlayPrefs(),
       shipAssets: createEmptyShipAssetsMeta(),
+      outputSettings: createDefaultOutputSettings(),
       seedVersion: SEED_VERSION,
     };
   }

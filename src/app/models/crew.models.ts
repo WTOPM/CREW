@@ -262,7 +262,20 @@ export interface AppData {
   narcoticListForm: NarcoticListFormSettings;
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
+  /** Where generated PDFs are written when "save to folder" is enabled. */
+  outputSettings: OutputSettings;
   seedVersion?: number;
+}
+
+/** Header "save to folder" preferences for generated PDFs. */
+export interface OutputSettings {
+  saveToFolder: boolean;
+  activePath: string;
+  savedPaths: string[];
+}
+
+export function createDefaultOutputSettings(): OutputSettings {
+  return { saveToFolder: false, activePath: '', savedPaths: [] };
 }
 
 export type { CrewEffectFormSettings } from './crew-effect.models';

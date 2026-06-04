@@ -1,11 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { jsPDF } from 'jspdf';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
 import {
   DocumentOverlayId,
   resolveCrewListStampOptions,
 } from '../models/document-overlay.models';
 import { PdfOverlayService } from './pdf-overlay.service';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import {
   AppData,
   CREW_IDENTITY_PASSPORT,
@@ -56,6 +56,7 @@ export interface CrewListPdfOptions {
 @Injectable({ providedIn: 'root' })
 export class PdfCrewArrService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   build(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): jsPDF {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
@@ -115,7 +116,7 @@ export class PdfCrewArrService {
 
   async openPreview(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): Promise<boolean> {
     const bytes = await this.buildPdfBytes(data, crew, options);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data, options));
   }
 
   async openPassengerPreview(data: AppData, passengers: PassengerMember[]): Promise<boolean> {

@@ -130,6 +130,7 @@ export class DocumentOverlayPreviewService {
       narcoticListForm: this.storage.narcoticListForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
+      outputSettings: this.storage.outputSettings(),
     };
   }
 }

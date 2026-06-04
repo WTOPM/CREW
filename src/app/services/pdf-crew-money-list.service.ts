@@ -12,7 +12,7 @@ import {
   crewMoneyListAmountsFor,
   normalizeCrewMoneyListForm,
 } from '../models/crew-money-list.models';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewMoneyListPdfFileName } from '../utils/pdf-filename.util';
 import {
   CREW_MONEY_LIST_COL,
@@ -33,6 +33,7 @@ const CREW_MONEY_LIST_TEMPLATE_URL = '/crew-money-empty.pdf';
 @Injectable({ providedIn: 'root' })
 export class PdfCrewMoneyListService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   private templateBytes: Uint8Array | null = null;
   private loadedVersion = 0;
@@ -41,7 +42,7 @@ export class PdfCrewMoneyListService {
   async openPreview(data: AppData): Promise<boolean> {
     let bytes = await this.build(data);
     bytes = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.crewMoney);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

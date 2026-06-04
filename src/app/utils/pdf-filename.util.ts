@@ -20,6 +20,23 @@ export function pdfFileDate(value: string | undefined | null): string {
   return display.replace(/\./g, '-');
 }
 
+/** Today's date as DD-MM-YYYY for generated file names. */
+export function todayPdfDate(): string {
+  const now = new Date();
+  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate(),
+  ).padStart(2, '0')}`;
+  return pdfFileDate(iso);
+}
+
+/** Append today's date before the .pdf extension: Name.pdf -> Name_04-06-2026.pdf */
+export function appendTodayDate(fileName: string): string {
+  const date = todayPdfDate();
+  const dot = fileName.toLowerCase().lastIndexOf('.pdf');
+  if (dot === -1) return `${fileName}_${date}.pdf`;
+  return `${fileName.slice(0, dot)}_${date}${fileName.slice(dot)}`;
+}
+
 export function crewListPdfFileName(
   shipName: string,
   portOfCall: string,

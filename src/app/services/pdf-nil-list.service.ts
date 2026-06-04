@@ -11,7 +11,7 @@ import {
   nilListCompactPhraseBaselineY,
   normalizeNilListForm,
 } from '../models/nil-list.models';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { nilListPdfFileName } from '../utils/pdf-filename.util';
 import {
@@ -28,6 +28,7 @@ const NIL_LIST_TEMPLATE_URL = '/nil-list-empty.pdf';
 @Injectable({ providedIn: 'root' })
 export class PdfNilListService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   private templateBytes: Uint8Array | null = null;
   private loadedVersion = 0;
@@ -36,7 +37,7 @@ export class PdfNilListService {
   async openPreview(data: AppData): Promise<boolean> {
     let bytes = await this.build(data);
     bytes = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.nilList);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

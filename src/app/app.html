@@ -7,6 +7,42 @@
         <span class="brand-subtitle">Documents</span>
       </span>
     </a>
+    <div class="output-bar">
+      <label class="output-toggle" title="Save to selected folder">
+        <input
+          type="checkbox"
+          [ngModel]="outputSettings().saveToFolder"
+          (ngModelChange)="toggleSaveToFolder($event)"
+        />
+      </label>
+
+      @if (canSaveToFolder) {
+        <select
+          class="output-select"
+          [ngModel]="activeFolderId()"
+          (ngModelChange)="selectFolder($event)"
+          [disabled]="folderOptions().length === 0"
+          title="Active save folder"
+        >
+          @if (folderOptions().length === 0) {
+            <option value="">No folder — click 📁</option>
+          }
+          @for (f of folderOptions(); track f.id) {
+            <option [value]="f.id">{{ f.label }}</option>
+          }
+        </select>
+        <button type="button" class="output-btn" title="Add a folder" (click)="addFolder()">📁</button>
+        <button
+          type="button"
+          class="output-btn"
+          title="Remove selected folder"
+          [disabled]="!activeFolderId()"
+          (click)="removeActiveFolder()"
+        >×</button>
+      } @else {
+        <span class="output-note">Folder saving needs Chrome or Edge</span>
+      }
+    </div>
     <div class="nav-links">
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
       <a routerLink="/settings" routerLinkActive="active" class="nav-settings">

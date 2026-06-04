@@ -10,7 +10,7 @@ import {
   orderPortCallHistoryForPdf,
   portCode,
 } from '../models/crew.models';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { mdhPdfFileName } from '../utils/pdf-filename.util';
 import { formatMdhPortDate, formatMdhShortDate } from '../utils/mdh-date.util';
 import {
@@ -31,6 +31,7 @@ const MDH_FONT_SIZE = 9;
 @Injectable({ providedIn: 'root' })
 export class PdfMdhService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   private templateBytes: Uint8Array | null = null;
   private templatePage2Bytes: Uint8Array | null = null;
@@ -39,7 +40,7 @@ export class PdfMdhService {
   async openPreview(data: AppData): Promise<boolean> {
     let bytes = await this.build(data);
     bytes = await this.overlay.applyMdhOverlay(bytes, data.documentOverlay.mdh);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

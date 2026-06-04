@@ -12,7 +12,7 @@ import {
   narcoticListRowBaselineY,
   normalizeNarcoticListForm,
 } from '../models/narcotic-list.models';
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { narcoticListPdfFileName } from '../utils/pdf-filename.util';
 import {
@@ -29,6 +29,7 @@ const NARCOTIC_LIST_TEMPLATE_URL = '/narcotic-list-empty.pdf';
 @Injectable({ providedIn: 'root' })
 export class PdfNarcoticListService {
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
   private templateBytes: Uint8Array | null = null;
   private loadedVersion = 0;
@@ -37,7 +38,7 @@ export class PdfNarcoticListService {
   async openPreview(data: AppData): Promise<boolean> {
     let bytes = await this.build(data);
     bytes = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.narcoticList);
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
   }
 
   fileName(data: AppData): string {

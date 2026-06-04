@@ -12,7 +12,7 @@ import {
 
 } from '../models/crew.models';
 
-import { openPdfBlobPreview } from '../utils/pdf-blob.util';
+import { PdfDeliveryService } from './pdf-delivery.service';
 
 import { formatDisplayDate } from '../utils/date.util';
 
@@ -81,6 +81,7 @@ function formatPresentShipMarsecLevel(level: string): string {
 export class PdfSso0108PortCallsService {
 
   private readonly overlay = inject(PdfOverlayService);
+  private readonly delivery = inject(PdfDeliveryService);
 
 
 
@@ -100,7 +101,7 @@ export class PdfSso0108PortCallsService {
 
     bytes = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.sso0108PortCalls);
 
-    return openPdfBlobPreview(bytes);
+    return this.delivery.deliver(bytes, this.fileName(data));
 
   }
 

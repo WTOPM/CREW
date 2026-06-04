@@ -1,18 +1,83 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, computed, inject, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ToastComponent } from './components/toast/toast.component';
 import { StorageService } from './services/storage.service';
+import { FolderAccessService } from './services/folder-access.service';
+
+interface FolderOption {
+  id: string;
+  label: string;
+}
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastComponent, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App implements OnInit {
   private readonly storage = inject(StorageService);
+  private readonly folderAccess = inject(FolderAccessService);
+
+  protected readonly outputSettings = this.storage.outputSettings;
+  /** Desktop build writes to a typed absolute path. */
+  protected readonly hasElectron = !!window.electronAPI;
+  /** Website (Chrome/Edge) writes via granted folder handles. */
+  protected readonly fsSupported = this.folderAccess.supported;
+  /** Whether folder saving is possible at all in this environment. */
+  protected readonly canSaveToFolder = this.hasElectron || this.fsSupported;
+
+  /** Unified folder list for the dropdown (desktop paths or website folders). */
+  protected readonly folderOptions = computed<FolderOption[]>(() =>
+    this.hasElectron
+      ? this.outputSettings().savedPaths.map((p) => ({ id: p, label: p }))
+      : this.folderAccess.folders().map((f) => ({ id: f.id, label: f.name })),
+  );
+
+  protected readonly activeFolderId = computed(() =>
+    this.hasElectron ? this.outputSettings().activePath : this.folderAccess.activeId(),
+  );
 
   ngOnInit(): void {
     void this.storage.init();
+    void this.folderAccess.restore();
+  }
+
+  protected toggleSaveToFolder(saveToFolder: boolean): void {
+    this.storage.updateOutputSettings({ saveToFolder });
+  }
+
+  protected selectFolder(id: string): void {
+    if (this.hasElectron) {
+      this.storage.updateOutputSettings({ activePath: id });
+    } else {
+      this.folderAccess.setActive(id);
+      this.storage.updateOutputSettings({ activePath: this.folderAccess.activeName() });
+    }
+  }
+
+  protected async addFolder(): Promise<void> {
+    if (this.hasElectron) {
+      const picked = await window.electronAPI?.pickDirectory();
+      if (picked) this.storage.addSavedPath(picked);
+      else return;
+    } else {
+      const name = await this.folderAccess.pick();
+      if (!name) return;
+      this.storage.updateOutputSettings({ activePath: name });
+    }
+    this.storage.updateOutputSettings({ saveToFolder: true });
+  }
+
+  protected async removeActiveFolder(): Promise<void> {
+    const id = this.activeFolderId();
+    if (!id) return;
+    if (this.hasElectron) {
+      this.storage.removeSavedPath(id);
+    } else {
+      await this.folderAccess.remove(id);
+      this.storage.updateOutputSettings({ activePath: this.folderAccess.activeName() });
+    }
   }
 }
