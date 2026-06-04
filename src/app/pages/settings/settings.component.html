@@ -54,6 +54,50 @@
         </div>
       </div>
 
+      <div class="ship-block ship-block--issc">
+        <h3 class="ship-block-title">ISSC - Ship Security Certificate</h3>
+        <div class="ship-block-grid ship-block-grid--3">
+          <label class="ship-field ship-field--wide">
+            <span>Ship Security Officer</span>
+            <input
+              [ngModel]="ship().shipSecurityOfficer"
+              (ngModelChange)="onShipChange('shipSecurityOfficer', $event)"
+              placeholder="Auto: SSO rank or Ch.Off if empty"
+            />
+          </label>
+          <label class="ship-field">
+            <span>ISSC issued on</span>
+            <app-date-picker
+              [value]="ship().isscIssueDate"
+              (valueChange)="onShipChange('isscIssueDate', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>ISSC expiry</span>
+            <app-date-picker
+              [value]="ship().isscExpiryDate"
+              (valueChange)="onShipChange('isscExpiryDate', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>ISSC issued by (RSO)</span>
+            <input
+              [ngModel]="ship().isscIssuedByRso"
+              (ngModelChange)="onShipChange('isscIssuedByRso', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>Present ship MARSEC level</span>
+            <input
+              [ngModel]="ship().presentMarsecLevel"
+              (ngModelChange)="onShipChange('presentMarsecLevel', $event)"
+              maxlength="1"
+              placeholder="1"
+            />
+          </label>
+        </div>
+      </div>
+
       <div class="ship-block ship-block--sanitation">
         <h3 class="ship-block-title">Sanitation certificate</h3>
         <div class="ship-block-grid ship-block-grid--3">

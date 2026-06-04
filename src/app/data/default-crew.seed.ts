@@ -23,6 +23,10 @@ export const SEED_SHIP: ShipInfo = {
   portOfCall: 'Napoli',
   lastPortOfCall: 'Alger',
   nextPortOfCall: 'La Spezia',
+  isscIssueDate: '2025-05-20',
+  isscExpiryDate: '2026-05-20',
+  isscIssuedByRso: 'BV',
+  presentMarsecLevel: '1',
 };
 
 type SeedRow = Omit<

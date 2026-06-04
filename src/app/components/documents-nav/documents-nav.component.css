@@ -1,23 +1,46 @@
 .nav-docs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.35rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+.doc-menu {
+  position: relative;
+  min-width: 0;
 }
 
 .nav-doc-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.32rem 0.35rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
   cursor: pointer;
   white-space: nowrap;
+}
+
+@media (min-width: 1280px) {
+  .nav-docs {
+    grid-template-columns: repeat(11, minmax(0, 1fr));
+  }
+
+  .nav-doc-btn {
+    font-size: 0.72rem;
+    padding: 0.35rem 0.4rem;
+  }
 }
 
 .nav-doc-btn:hover,
@@ -41,13 +64,10 @@
   color: #fff;
 }
 
-.doc-menu {
-  position: relative;
-}
-
 .doc-menu-chevron {
-  font-size: 0.7rem;
-  opacity: 0.9;
+  font-size: 0.55rem;
+  opacity: 0.85;
+  flex-shrink: 0;
 }
 
 .nav-doc-settings-icon {

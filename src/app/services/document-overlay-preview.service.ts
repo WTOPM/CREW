@@ -16,6 +16,7 @@ import { PdfShipMoneyService } from './pdf-ship-money.service';
 import { PdfCashAdvanceService } from './pdf-cash-advance.service';
 import { PdfCrewMoneyListService } from './pdf-crew-money-list.service';
 import { PdfNarcoticListService } from './pdf-narcotic-list.service';
+import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
 import { StorageService } from './storage.service';
 
@@ -36,6 +37,7 @@ export class DocumentOverlayPreviewService {
   private readonly cashAdvancePdf = inject(PdfCashAdvanceService);
   private readonly crewMoneyListPdf = inject(PdfCrewMoneyListService);
   private readonly narcoticListPdf = inject(PdfNarcoticListService);
+  private readonly sso0108PortCallsPdf = inject(PdfSso0108PortCallsService);
 
   async build(documentId: DocumentOverlayId, mdhPage: MdhOverlayPreviewPage = 'form'): Promise<Uint8Array> {
     const data = this.appData();
@@ -62,6 +64,8 @@ export class DocumentOverlayPreviewService {
         return this.crewMoneyListPdf.build(data);
       case 'narcoticList':
         return this.narcoticListPdf.build(data);
+      case 'sso0108PortCalls':
+        return this.sso0108PortCallsPdf.build(data);
       default:
         throw new Error(`Unknown document: ${documentId}`);
     }

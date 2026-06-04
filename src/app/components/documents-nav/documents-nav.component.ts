@@ -22,6 +22,7 @@ import { PdfShipMoneyService } from '../../services/pdf-ship-money.service';
 import { PdfCashAdvanceService } from '../../services/pdf-cash-advance.service';
 import { PdfCrewMoneyListService } from '../../services/pdf-crew-money-list.service';
 import { PdfNarcoticListService } from '../../services/pdf-narcotic-list.service';
+import { PdfSso0108PortCallsService } from '../../services/pdf-sso0108-port-calls.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
@@ -69,6 +70,7 @@ export class DocumentsNavComponent {
   private readonly cashAdvancePdf = inject(PdfCashAdvanceService);
   private readonly crewMoneyListPdf = inject(PdfCrewMoneyListService);
   private readonly narcoticListPdf = inject(PdfNarcoticListService);
+  private readonly sso0108PortCallsPdf = inject(PdfSso0108PortCallsService);
   private readonly toast = inject(ToastService);
 
   protected readonly pocMinPorts = POC_MIN_ROW_COUNT;
@@ -85,6 +87,7 @@ export class DocumentsNavComponent {
   );
 
   protected showPortOfCallSettings = signal(false);
+  protected showSso0108PortCallsSettings = signal(false);
   protected showCrewListSettings = signal(false);
   protected showPaxSettings = signal(false);
   protected showMdhSettings = signal(false);
@@ -190,6 +193,23 @@ export class DocumentsNavComponent {
     void this.portOfCallPdf.openPreview(this.appData()).then((ok) => {
       if (!ok) this.toast.showError('Allow pop-ups to open Port of Call preview');
     });
+  }
+
+  protected openSso0108PortCallsPdf(): void {
+    void this.sso0108PortCallsPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) this.toast.showError('Allow pop-ups to open SSO-0108 Port Calls preview');
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open SSO-0108 Port Calls');
+    });
+  }
+
+  protected openSso0108PortCallsSettings(): void {
+    this.showSso0108PortCallsSettings.set(true);
+  }
+
+  protected closeSso0108PortCallsSettings(): void {
+    this.showSso0108PortCallsSettings.set(false);
+    this.storage.finishFormSession();
   }
 
   protected openPortOfCallSettings(): void {

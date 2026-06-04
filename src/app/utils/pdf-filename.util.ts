@@ -56,6 +56,10 @@ export function portOfCallPdfFileName(shipName: string, voyageDate: string): str
   return `Port_of_Call_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function sso0108PortCallsPdfFileName(shipName: string, voyageDate: string): string {
+  return `SSO-0108_Port_Calls_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function mdhPdfFileName(
   shipName: string,
   portOfCall: string,

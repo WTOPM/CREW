@@ -206,6 +206,7 @@ export class StorageService {
         cashAdvance: { ...DEFAULT_DATA.documentOverlay.cashAdvance },
         crewMoney: { ...DEFAULT_DATA.documentOverlay.crewMoney },
         narcoticList: { ...DEFAULT_DATA.documentOverlay.narcoticList },
+        sso0108PortCalls: { ...DEFAULT_DATA.documentOverlay.sso0108PortCalls },
       },
       shipAssets: { ...DEFAULT_DATA.shipAssets },
       crewArr: { ...DEFAULT_DATA.crewArr },
@@ -350,6 +351,10 @@ export class StorageService {
       cashAdvance: this.normalizeStampDocumentPrefs(raw?.cashAdvance, defaults.cashAdvance),
       crewMoney: this.normalizeStampDocumentPrefs(raw?.crewMoney, defaults.crewMoney),
       narcoticList: this.normalizeStampDocumentPrefs(raw?.narcoticList, defaults.narcoticList),
+      sso0108PortCalls: this.normalizeStampDocumentPrefs(
+        raw?.sso0108PortCalls,
+        defaults.sso0108PortCalls,
+      ),
     };
     return out;
   }
@@ -636,6 +641,7 @@ export class StorageService {
         cashAdvance: { ...d.documentOverlay.cashAdvance, ...patch },
         crewMoney: { ...d.documentOverlay.crewMoney, ...patch },
         narcoticList: { ...d.documentOverlay.narcoticList, ...patch },
+        sso0108PortCalls: { ...d.documentOverlay.sso0108PortCalls, ...patch },
       },
     }));
     void this.persist('saved');

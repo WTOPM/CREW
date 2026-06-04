@@ -133,7 +133,8 @@ export type DocumentOverlayId =
   | 'shipMoney'
   | 'cashAdvance'
   | 'crewMoney'
-  | 'narcoticList';
+  | 'narcoticList'
+  | 'sso0108PortCalls';
 
 export type ShipAssetKind = 'stamp' | 'signature';
 
@@ -149,6 +150,7 @@ export interface DocumentOverlayPrefs {
   cashAdvance: DocumentStampOptions;
   crewMoney: DocumentStampOptions;
   narcoticList: DocumentStampOptions;
+  sso0108PortCalls: DocumentStampOptions;
 }
 
 export interface ShipAssetsMeta {
@@ -198,6 +200,7 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     cashAdvance: { ...DEFAULT_STAMP_OPTS },
     crewMoney: { ...DEFAULT_STAMP_OPTS },
     narcoticList: { ...DEFAULT_STAMP_OPTS },
+    sso0108PortCalls: { ...DEFAULT_STAMP_OPTS },
   };
 }
 
@@ -222,4 +225,5 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   cashAdvance: 'Cash Advance',
   crewMoney: 'Crew Money',
   narcoticList: 'Narcotic List',
+  sso0108PortCalls: 'SSO-0108 Port Calls',
 };

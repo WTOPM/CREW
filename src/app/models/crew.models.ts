@@ -102,6 +102,16 @@ export interface ShipInfo {
   portOfCall: string;
   lastPortOfCall: string;
   nextPortOfCall: string;
+  /** Ship Security Officer — if empty, resolved from crew (SSO rank, else Ch.Off). */
+  shipSecurityOfficer: string;
+  /** International Ship Security Certificate — issue date (ISO). */
+  isscIssueDate: string;
+  /** ISSC expiry date (ISO). */
+  isscExpiryDate: string;
+  /** ISSC issued by (Recognized Security Organization), e.g. BV. */
+  isscIssuedByRso: string;
+  /** Present ship MARSEC level (1–3); PDF shows digit after “1 (one)”. */
+  presentMarsecLevel: string;
 }
 
 /** Select / date fields — show Saved on change; text fields use debounced save on main forms. */
@@ -117,6 +127,8 @@ export const SHIP_FIELDS_SAVED_ON_CHANGE: readonly (keyof ShipInfo)[] = [
   'sanitationCertificateIssueDate',
   'waterTestPort',
   'waterTestDate',
+  'isscIssueDate',
+  'isscExpiryDate',
 ] as const;
 
 export function shipFieldPersistNotify(field: keyof ShipInfo): 'saved' | 'debounced' {
@@ -303,7 +315,41 @@ export function createEmptyShip(): ShipInfo {
     portOfCall: '',
     lastPortOfCall: '',
     nextPortOfCall: '',
+    shipSecurityOfficer: '',
+    isscIssueDate: '',
+    isscExpiryDate: '',
+    isscIssuedByRso: 'BV',
+    presentMarsecLevel: '1',
   };
+}
+
+/** Display name for SSO-0108 (e.g. Laurente Artemio Belza). */
+export function formatShipSecurityOfficerName(
+  member: Pick<CrewMember, 'familyName' | 'givenNames'>,
+): string {
+  const family = member.familyName?.trim() ?? '';
+  const given = member.givenNames?.trim() ?? '';
+  if (!family && !given) return '';
+  const title = (s: string) =>
+    s
+      .toLowerCase()
+      .split(/\s+/)
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ''))
+      .join(' ');
+  if (family && given) return `${title(family)} ${given}`;
+  return title(family || given);
+}
+
+export function resolveShipSecurityOfficer(ship: ShipInfo, crew: readonly CrewMember[]): string {
+  const manual = ship.shipSecurityOfficer?.trim();
+  if (manual) return manual;
+  const active = crew.filter((m) => !m.archived);
+  const byRank = (r: RegExp) => active.find((m) => r.test(m.rank.trim()));
+  const sso = byRank(/security/i) ?? byRank(/^sso$/i);
+  if (sso) return formatShipSecurityOfficerName(sso);
+  const chOff = active.find((m) => m.rank.trim() === 'Ch.Off');
+  if (chOff) return formatShipSecurityOfficerName(chOff);
+  return '';
 }
 
 export function createEmptyCrewMember(): CrewMember {

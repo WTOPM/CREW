@@ -323,6 +323,7 @@ function allDocumentsUse(
     overlay.shipMoney[field] &&
     overlay.cashAdvance[field] &&
     overlay.crewMoney[field] &&
-    overlay.narcoticList[field]
+    overlay.narcoticList[field] &&
+    overlay.sso0108PortCalls[field]
   );
 }

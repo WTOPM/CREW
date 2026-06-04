@@ -95,15 +95,12 @@
 
 .page-header-docs {
   margin-bottom: 1.25rem;
+  width: 100%;
 }
 
-.page-header-docs app-documents-nav ::ng-deep .nav-docs {
-  gap: 0.75rem;
-}
-
-.page-header-docs app-documents-nav ::ng-deep .nav-doc-btn {
-  padding: 0.65rem 1.15rem;
-  font-size: 0.95rem;
+.page-header-docs app-documents-nav {
+  display: block;
+  width: 100%;
 }
 
 .section-head h2 {
