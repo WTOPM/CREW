@@ -14,6 +14,7 @@ import {
   Port,
   PortCallHistoryEntry,
   createDefaultCrewArrSettings,
+  createDefaultCrewEffectForm,
   createDefaultPortOfCallSettings,
   createDefaultShipStoresForm,
   createEmptyCrewMember,
@@ -47,6 +48,10 @@ import { SEED_SHIP, SEED_VERSION, createSeedCrew } from '../data/default-crew.se
 import { SEED_PORT_CALL_HISTORY } from '../data/default-port-call.seed';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
 import {
+  normalizeCrewEffectForm,
+  type CrewEffectFormSettings,
+} from '../models/crew-effect.models';
+import {
   normalizeShipStoresForm,
   type ShipStoresFormSettings,
   type ShipStoresRow,
@@ -70,6 +75,7 @@ const DEFAULT_DATA: AppData = {
   portCallHistory: SEED_PORT_CALL_HISTORY.map((e) => ({ ...e })),
   portOfCall: createDefaultPortOfCallSettings(),
   shipStoresForm: createDefaultShipStoresForm(),
+  crewEffectForm: createDefaultCrewEffectForm(),
   documentOverlay: createDefaultDocumentOverlayPrefs(),
   shipAssets: createEmptyShipAssetsMeta(),
   seedVersion: SEED_VERSION,
@@ -88,6 +94,7 @@ export class StorageService {
   readonly portCallHistory = computed(() => this.data().portCallHistory);
   readonly portOfCall = computed(() => this.data().portOfCall);
   readonly shipStoresForm = computed(() => this.data().shipStoresForm);
+  readonly crewEffectForm = computed(() => this.data().crewEffectForm);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly activeCrewArrival = computed(() =>
@@ -129,12 +136,14 @@ export class StorageService {
         placeOfStorage: DEFAULT_DATA.shipStoresForm.placeOfStorage,
         rows: DEFAULT_DATA.shipStoresForm.rows.map((r) => ({ ...r })),
       },
+      crewEffectForm: { ...DEFAULT_DATA.crewEffectForm },
       documentOverlay: {
         crewList: { ...createDefaultDocumentOverlayPrefs().crewList },
         pax: { ...DEFAULT_DATA.documentOverlay.pax },
         portOfCall: { ...DEFAULT_DATA.documentOverlay.portOfCall },
         mdh: { ...DEFAULT_DATA.documentOverlay.mdh },
         shipStores: { ...DEFAULT_DATA.documentOverlay.shipStores },
+        crewEffect: { ...DEFAULT_DATA.documentOverlay.crewEffect },
       },
       shipAssets: { ...DEFAULT_DATA.shipAssets },
       crewArr: { ...DEFAULT_DATA.crewArr },
@@ -231,6 +240,7 @@ export class StorageService {
     ports = mergePorts(ports, ...portCallHistory.map((e) => e.portName));
     const portOfCall = this.normalizePortOfCallSettings(raw.portOfCall);
     const shipStoresForm = normalizeShipStoresForm(raw.shipStoresForm);
+    const crewEffectForm = normalizeCrewEffectForm(raw.crewEffectForm);
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     return {
@@ -245,6 +255,7 @@ export class StorageService {
       portCallHistory,
       portOfCall,
       shipStoresForm,
+      crewEffectForm,
       documentOverlay,
       shipAssets,
       seedVersion: SEED_VERSION,
@@ -264,6 +275,7 @@ export class StorageService {
       portOfCall: this.normalizeStampDocumentPrefs(raw?.portOfCall, defaults.portOfCall),
       mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
       shipStores: this.normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
+      crewEffect: this.normalizeStampDocumentPrefs(raw?.crewEffect, defaults.crewEffect),
     };
     return out;
   }
@@ -458,6 +470,7 @@ export class StorageService {
         portOfCall: { ...d.documentOverlay.portOfCall, ...patch },
         mdh: { ...d.documentOverlay.mdh, ...patch },
         shipStores: { ...d.documentOverlay.shipStores, ...patch },
+        crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
       },
     }));
     void this.persist('saved');
@@ -481,6 +494,14 @@ export class StorageService {
 
   updateShipStoresPlaceOfStorage(placeOfStorage: string): void {
     this.patchShipStoresForm({ placeOfStorage });
+  }
+
+  updateCrewEffectForm(partial: Partial<CrewEffectFormSettings>): void {
+    this.data.update((d) => ({
+      ...d,
+      crewEffectForm: normalizeCrewEffectForm({ ...d.crewEffectForm, ...partial }),
+    }));
+    void this.persist('saved');
   }
 
   updateShipStoresRow(rowIndex: number, partial: Partial<ShipStoresRow>): void {

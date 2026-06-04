@@ -16,12 +16,14 @@ import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfCrewListType2Service } from '../../services/pdf-crew-list-type2.service';
 import { PdfMdhService } from '../../services/pdf-mdh.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
+import { PdfCrewEffectService } from '../../services/pdf-crew-effect.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-settings.component';
+import { CrewEffectSettingsComponent } from '../crew-effect-settings/crew-effect-settings.component';
 import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores-settings.component';
 
 @Component({
@@ -34,6 +36,7 @@ import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores
     DocumentStampOptionsComponent,
     CrewListSettingsComponent,
     ShipStoresSettingsComponent,
+    CrewEffectSettingsComponent,
   ],
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',
@@ -45,6 +48,7 @@ export class DocumentsNavComponent {
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
+  private readonly crewEffectPdf = inject(PdfCrewEffectService);
   private readonly toast = inject(ToastService);
 
   protected readonly pocMinPorts = POC_MIN_ROW_COUNT;
@@ -65,6 +69,7 @@ export class DocumentsNavComponent {
   protected showPaxSettings = signal(false);
   protected showMdhSettings = signal(false);
   protected showShipStoresSettings = signal(false);
+  protected showCrewEffectSettings = signal(false);
 
   protected openPassengerList(isArrival: boolean): void {
     this.storage.updatePaxArr({ isArrival }, 'silent');
@@ -215,6 +220,24 @@ export class DocumentsNavComponent {
     this.showShipStoresSettings.set(false);
   }
 
+  protected openCrewEffect(): void {
+    void this.crewEffectPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Crew Effect preview');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
+    });
+  }
+
+  protected openCrewEffectSettings(): void {
+    this.showCrewEffectSettings.set(true);
+  }
+
+  protected closeCrewEffectSettings(): void {
+    this.showCrewEffectSettings.set(false);
+  }
+
   protected openMdh(): void {
     void this.mdhPdf.openPreview(this.appData()).then((ok) => {
       if (!ok) {
@@ -239,6 +262,7 @@ export class DocumentsNavComponent {
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
+      crewEffectForm: this.storage.crewEffectForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };

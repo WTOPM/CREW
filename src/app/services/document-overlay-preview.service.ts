@@ -10,6 +10,7 @@ import { PdfCrewArrService } from './pdf-crew-arr.service';
 import { PdfCrewListType2Service } from './pdf-crew-list-type2.service';
 import { PdfMdhService } from './pdf-mdh.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
+import { PdfCrewEffectService } from './pdf-crew-effect.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
 import { StorageService } from './storage.service';
 
@@ -24,6 +25,7 @@ export class DocumentOverlayPreviewService {
   private readonly pocPdf = inject(PdfPortOfCallService);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
+  private readonly crewEffectPdf = inject(PdfCrewEffectService);
 
   async build(documentId: DocumentOverlayId, mdhPage: MdhOverlayPreviewPage = 'form'): Promise<Uint8Array> {
     const data = this.appData();
@@ -38,6 +40,8 @@ export class DocumentOverlayPreviewService {
         return this.mdhPdf.build(data);
       case 'shipStores':
         return this.shipStoresPdf.build(data);
+      case 'crewEffect':
+        return this.crewEffectPdf.build(data);
       default:
         throw new Error(`Unknown document: ${documentId}`);
     }
@@ -94,6 +98,7 @@ export class DocumentOverlayPreviewService {
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
+      crewEffectForm: this.storage.crewEffectForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };

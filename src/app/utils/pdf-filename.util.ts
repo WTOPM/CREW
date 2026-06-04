@@ -68,6 +68,10 @@ export function shipStoresPdfFileName(shipName: string, voyageDate: string): str
   return `Ship_Stores_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function crewEffectPdfFileName(shipName: string, voyageDate: string): string {
+  return `Crew_Effect_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function passengerListPdfFileName(
   shipName: string,
   portOfCall: string,

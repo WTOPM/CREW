@@ -39,6 +39,7 @@ export class CrewArrComponent {
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
+      crewEffectForm: this.storage.crewEffectForm(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
     };

@@ -1,0 +1,13 @@
+<section class="ce-settings">
+  <label class="ce-field">
+    <span class="ce-label">Others</span>
+    <input
+      type="text"
+      class="ce-input"
+      [ngModel]="form().others"
+      (ngModelChange)="onOthersChange($event)"
+      placeholder="- P. E. -"
+    />
+  </label>
+  <app-document-stamp-options documentId="crewEffect" />
+</section>

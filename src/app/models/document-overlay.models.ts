@@ -37,7 +37,7 @@ export interface CrewListDocumentPrefs extends DocumentStampOptions {
 }
 
 /** Keys match document menu Settings modals. */
-export type DocumentOverlayId = 'crewList' | 'pax' | 'portOfCall' | 'mdh' | 'shipStores';
+export type DocumentOverlayId = 'crewList' | 'pax' | 'portOfCall' | 'mdh' | 'shipStores' | 'crewEffect';
 
 export type ShipAssetKind = 'stamp' | 'signature';
 
@@ -47,6 +47,7 @@ export interface DocumentOverlayPrefs {
   portOfCall: DocumentStampOptions;
   mdh: DocumentStampOptions;
   shipStores: DocumentStampOptions;
+  crewEffect: DocumentStampOptions;
 }
 
 export interface ShipAssetsMeta {
@@ -90,6 +91,7 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     portOfCall: { ...DEFAULT_STAMP_OPTS },
     mdh: { ...DEFAULT_STAMP_OPTS },
     shipStores: { ...DEFAULT_STAMP_OPTS },
+    crewEffect: { ...DEFAULT_STAMP_OPTS },
   };
 }
 
@@ -108,4 +110,5 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   portOfCall: 'Port of Call',
   mdh: 'MDH',
   shipStores: 'Ship Stores',
+  crewEffect: 'Crew Effect',
 };

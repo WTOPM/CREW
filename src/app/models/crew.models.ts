@@ -2,6 +2,8 @@ import { parseValidityRange } from '../utils/date.util';
 import { PassengerMember, PaxArrFormSettings } from './passenger.models';
 import type { DocumentOverlayPrefs, ShipAssetsMeta } from './document-overlay.models';
 import { createDefaultDocumentOverlayPrefs, createEmptyShipAssetsMeta } from './document-overlay.models';
+import type { CrewEffectFormSettings } from './crew-effect.models';
+import { createDefaultCrewEffectForm } from './crew-effect.models';
 import type { ShipStoresFormSettings } from './ship-stores.models';
 import { createDefaultShipStoresForm } from './ship-stores.models';
 
@@ -198,11 +200,15 @@ export interface AppData {
   portOfCall: PortOfCallSettings;
   /** Ship Stores table (articles, quantities, place of storage). */
   shipStoresForm: ShipStoresFormSettings;
+  /** Crew Effect (IMO Crew's Effects Declaration). */
+  crewEffectForm: CrewEffectFormSettings;
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
   seedVersion?: number;
 }
 
+export type { CrewEffectFormSettings } from './crew-effect.models';
+export { createDefaultCrewEffectForm } from './crew-effect.models';
 export type { ShipStoresFormSettings, ShipStoresRow } from './ship-stores.models';
 export {
   SHIP_STORES_ROW_COUNT,
