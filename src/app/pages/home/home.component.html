@@ -550,8 +550,22 @@
                 <app-date-picker [value]="draft.sbookIssueDate" (valueChange)="updateDraft('sbookIssueDate', $event)" />
               </label>
               <label>
-                <span>Expiry date</span>
-                <app-date-picker [value]="draft.sbookExpiryDate" (valueChange)="updateDraft('sbookExpiryDate', $event)" />
+                <span class="sbook-expiry-head">
+                  <span>Expiry date</span>
+                  <span class="sbook-unlimited">
+                    <input
+                      type="checkbox"
+                      [ngModel]="draft.sbookExpiryDate === 'UNLIMITED'"
+                      (ngModelChange)="updateDraft('sbookExpiryDate', $event ? 'UNLIMITED' : '')"
+                    />
+                    <span>Unlimited</span>
+                  </span>
+                </span>
+                @if (draft.sbookExpiryDate === 'UNLIMITED') {
+                  <input type="text" class="sbook-unlimited-field" value="UNLIMITED" readonly />
+                } @else {
+                  <app-date-picker [value]="draft.sbookExpiryDate" (valueChange)="updateDraft('sbookExpiryDate', $event)" />
+                }
               </label>
             </div>
           </section>

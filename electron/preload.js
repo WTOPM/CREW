@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   savePdfToPath: (dirPath, fileName, base64) =>
     ipcRenderer.invoke('save-pdf-to-path', dirPath, fileName, base64),
   pdfExists: (dirPath, fileName) => ipcRenderer.invoke('pdf-exists', dirPath, fileName),
+  listPrinters: () => ipcRenderer.invoke('list-printers'),
+  printPdf: (base64, copies, deviceName) =>
+    ipcRenderer.invoke('print-pdf', base64, copies, deviceName),
   saveCrewPdf: (crewId, docType, sourcePath) =>
     ipcRenderer.invoke('save-crew-pdf', crewId, docType, sourcePath),
   saveCrewPdfBytes: (crewId, docType, base64) =>

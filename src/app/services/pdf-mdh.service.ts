@@ -37,9 +37,13 @@ export class PdfMdhService {
   private templatePage2Bytes: Uint8Array | null = null;
   private templateVersion = 3;
 
+  async buildFinalBytes(data: AppData): Promise<Uint8Array> {
+    const bytes = await this.build(data);
+    return this.overlay.applyMdhOverlay(bytes, data.documentOverlay.mdh);
+  }
+
   async openPreview(data: AppData): Promise<boolean> {
-    let bytes = await this.build(data);
-    bytes = await this.overlay.applyMdhOverlay(bytes, data.documentOverlay.mdh);
+    const bytes = await this.buildFinalBytes(data);
     return this.delivery.deliver(bytes, this.fileName(data));
   }
 

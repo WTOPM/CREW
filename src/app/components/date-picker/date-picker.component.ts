@@ -24,6 +24,47 @@ import { isoFromPartialDayInput, preparePartialDateOnFocus } from '../../utils/p
 
 export type DatePickerSize = 'sm' | 'md' | 'lg';
 
+/** Editable digit positions in the fixed "DD.MM.YYYY" mask (dots at 2 and 5). */
+const MASK_DIGIT_POS = [0, 1, 3, 4, 6, 7, 8, 9];
+
+function digitAtOrAfter(p: number): number {
+  for (const e of MASK_DIGIT_POS) if (e >= p) return e;
+  return 9;
+}
+function nextDigitPos(p: number): number {
+  for (const e of MASK_DIGIT_POS) if (e > p) return e;
+  return 9;
+}
+function prevDigitPos(p: number): number {
+  let r = 0;
+  for (const e of MASK_DIGIT_POS) {
+    if (e < p) r = e;
+    else break;
+  }
+  return r;
+}
+
+function clampDaySegment(s: string): string {
+  const dd = Math.min(31, Math.max(1, parseInt(s.slice(0, 2), 10) || 1));
+  return String(dd).padStart(2, '0') + s.slice(2);
+}
+function clampMonthSegment(s: string): string {
+  const mm = Math.min(12, Math.max(1, parseInt(s.slice(3, 5), 10) || 1));
+  return s.slice(0, 3) + String(mm).padStart(2, '0') + s.slice(5);
+}
+
+/** Strictly validate a "DD.MM.YYYY" mask string and return ISO, or null. */
+function isoFromMask(text: string): string | null {
+  const m = text.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  const iso = `${yyyy}-${mm}-${dd}`;
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d.getTime())) return null;
+  if (d.getFullYear() !== +yyyy || d.getMonth() + 1 !== +mm || d.getDate() !== +dd) return null;
+  return iso;
+}
+
 @Component({
   selector: 'app-date-picker',
   imports: [FormsModule, NgStyle],
@@ -45,6 +86,8 @@ export type DatePickerSize = 'sm' | 'md' | 'lg';
           [ngModel]="text()"
           (ngModelChange)="onTextChange($event)"
           (focus)="onFocus()"
+          (blur)="onBlur()"
+          (keydown)="onKeydown($event)"
           (keydown.escape)="close()"
         />
         <button
@@ -332,6 +375,8 @@ export class DatePickerComponent {
   protected readonly open = signal(false);
   protected readonly popupStyle = signal<Record<string, string>>({});
   protected readonly text = signal('');
+  /** True while the field is being edited — pauses external text syncing. */
+  private readonly focused = signal(false);
   private readonly viewYear = signal(new Date().getFullYear());
   private readonly viewMonth = signal(new Date().getMonth());
 
@@ -345,8 +390,12 @@ export class DatePickerComponent {
 
   constructor() {
     effect(() => {
-      this.text.set(formatDisplayDate(this.value()) || '');
-      const parts = partsFromIso(this.value());
+      const value = this.value();
+      // Don't overwrite what the user is typing; resync happens on blur.
+      if (!this.focused()) {
+        this.text.set(formatDisplayDate(value) || '');
+      }
+      const parts = partsFromIso(value);
       if (parts) {
         this.viewYear.set(parts.year);
         this.viewMonth.set(parts.monthIndex);
@@ -385,12 +434,121 @@ export class DatePickerComponent {
   protected onFocus(): void {
     const el = this.fieldRef()?.nativeElement;
     if (!el) return;
+    this.focused.set(true);
     const { text, iso } = preparePartialDateOnFocus(this.value());
     this.text.set(text);
     if (iso !== this.value()) {
       this.valueChange.emit(iso);
     }
-    setTimeout(() => el.setSelectionRange(0, 2), 0);
+    // Highlight the first day digit so the next keystroke overtypes it.
+    setTimeout(() => {
+      el.value = text;
+      el.setSelectionRange(0, 1);
+    }, 0);
+  }
+
+  protected onBlur(): void {
+    this.focused.set(false);
+    const el = this.fieldRef()?.nativeElement;
+    const current = this.ensureMaskText(el?.value ?? this.text());
+    const clamped = clampMonthSegment(clampDaySegment(current));
+    const iso = isoFromMask(clamped);
+    if (iso) {
+      if (iso !== this.value()) this.valueChange.emit(iso);
+      this.text.set(formatDisplayDate(iso));
+    } else {
+      this.text.set(formatDisplayDate(this.value()) || '');
+    }
+  }
+
+  /**
+   * Segmented keyboard entry for the "DD.MM.YYYY" mask: each digit overtypes the
+   * caret position and advances to the next digit, skipping the dots.
+   */
+  protected onKeydown(event: KeyboardEvent): void {
+    const el = this.fieldRef()?.nativeElement;
+    if (!el) return;
+    const key = event.key;
+    const pos = el.selectionStart ?? 0;
+
+    if (key >= '0' && key <= '9') {
+      event.preventDefault();
+      const writePos = digitAtOrAfter(pos);
+      let s = this.ensureMaskText(el.value);
+      s = s.slice(0, writePos) + key + s.slice(writePos + 1);
+      if (writePos === 1) s = clampDaySegment(s);
+      else if (writePos === 4) s = clampMonthSegment(s);
+      this.writeMask(s, nextDigitPos(writePos));
+      this.emitFromMask(s);
+      return;
+    }
+
+    if (key === 'ArrowLeft') {
+      event.preventDefault();
+      this.selectDigit(prevDigitPos(pos));
+      return;
+    }
+    if (key === 'ArrowRight') {
+      event.preventDefault();
+      this.selectDigit(nextDigitPos(pos));
+      return;
+    }
+    if (key === 'Backspace') {
+      event.preventDefault();
+      this.selectDigit(prevDigitPos(pos));
+      return;
+    }
+    if (key === 'Home') {
+      event.preventDefault();
+      this.selectDigit(0);
+      return;
+    }
+    if (key === 'End') {
+      event.preventDefault();
+      this.selectDigit(9);
+      return;
+    }
+    if (key === 'Enter') {
+      event.preventDefault();
+      this.close();
+      el.blur();
+      return;
+    }
+    // Let navigation / shortcuts through; block letters, dots, spaces, etc.
+    if (key === 'Tab' || key === 'Escape' || key.length > 1 || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    event.preventDefault();
+  }
+
+  /** Current input as a valid mask string, or a freshly prefilled one. */
+  private ensureMaskText(v: string): string {
+    return /^\d{2}\.\d{2}\.\d{4}$/.test(v) ? v : preparePartialDateOnFocus(this.value()).text;
+  }
+
+  /** Set the input value + highlight the digit at `caret` (imperative; no caret jumps). */
+  private writeMask(text: string, caret: number): void {
+    const el = this.fieldRef()?.nativeElement;
+    if (!el) return;
+    el.value = text;
+    const c = Math.max(0, Math.min(9, caret));
+    el.setSelectionRange(c, c + 1);
+  }
+
+  private selectDigit(pos: number): void {
+    const el = this.fieldRef()?.nativeElement;
+    if (el) el.setSelectionRange(pos, pos + 1);
+  }
+
+  private emitFromMask(text: string): void {
+    const iso = isoFromMask(text);
+    if (!iso) return;
+    if (iso !== this.value()) this.valueChange.emit(iso);
+    const parts = partsFromIso(iso);
+    if (parts) {
+      this.viewYear.set(parts.year);
+      this.viewMonth.set(parts.monthIndex);
+    }
   }
 
   protected onTextChange(raw: string): void {

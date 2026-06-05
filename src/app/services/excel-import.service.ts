@@ -18,6 +18,8 @@ import {
   createDefaultShipStoresForm,
   createEmptyShipAssetsMeta,
   createDefaultOutputSettings,
+  createDefaultPrintPackages,
+  createDefaultCustomDocuments,
   createEmptyCrewMember,
   createEmptyShip,
   mergePorts,
@@ -104,6 +106,8 @@ export class ExcelImportService {
       documentOverlay: createDefaultDocumentOverlayPrefs(),
       shipAssets: createEmptyShipAssetsMeta(),
       outputSettings: createDefaultOutputSettings(),
+      printPackages: createDefaultPrintPackages(),
+      customDocuments: createDefaultCustomDocuments(),
       seedVersion: SEED_VERSION,
     };
   }

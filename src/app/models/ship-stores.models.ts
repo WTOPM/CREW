@@ -27,9 +27,9 @@ export function createDefaultShipStoresForm(): ShipStoresFormSettings {
 export function formatShipStoresQuantityText(articleName: string, quantity: string): string {
   if (!articleName.trim()) return '';
   const v = quantity.trim();
-  if (!v) return 'NIL';
+  if (!v) return ''; // empty quantity stays empty
   const n = Number(v.replace(/\s/g, '').replace(',', '.'));
-  if (!Number.isNaN(n) && n === 0) return 'NIL';
+  if (!Number.isNaN(n) && n === 0) return 'NIL'; // explicit 0 means NIL
   return v;
 }
 

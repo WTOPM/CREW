@@ -1,0 +1,262 @@
+.pkg-modal {
+  max-width: min(820px, 96vw);
+  width: min(820px, 96vw);
+}
+
+.pkg-head {
+  margin-bottom: 0.75rem;
+}
+
+.pkg-head h3 {
+  margin: 0 0 0.25rem;
+}
+
+.pkg-sub {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pkg-printer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.pkg-printer span {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.pkg-printer select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.pkg-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.pkg-add select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.pkg-empty {
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Port accordion card */
+.pkg-port {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+  background: #fff;
+}
+
+.pkg-port--current {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 20%);
+}
+
+.pkg-port-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  background: #f8fafc;
+  user-select: none;
+}
+
+.pkg-port--current .pkg-port-head {
+  background: #eff6ff;
+}
+
+.pkg-caret {
+  width: 1rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.pkg-port-name {
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.pkg-badge {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pkg-port-count {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pkg-port-body {
+  padding: 0.65rem 0.75rem 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Authority block */
+.pkg-auth {
+  padding: 0.6rem;
+  margin-bottom: 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.pkg-auth-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.pkg-auth-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #fff;
+}
+
+.pkg-auth-name:focus {
+  outline: 2px solid #93c5fd;
+  border-color: #3b82f6;
+}
+
+.pkg-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.pkg-doc {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.85rem;
+}
+
+.pkg-copies {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pkg-copies input {
+  width: 3.2rem;
+  padding: 0.4rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.pkg-mini {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pkg-mini:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+
+.pkg-mini--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.pkg-mini--primary:hover:not(:disabled) {
+  background: #025a87;
+  border-color: #025a87;
+}
+
+.pkg-mini:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pkg-add-doc {
+  margin-top: 0.15rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px dashed #94a3b8;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pkg-add-doc:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.pkg-add-auth {
+  margin-top: 0.35rem;
+}
+
+.pkg-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--danger, #dc2626);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pkg-remove:hover {
+  background: rgb(220 38 38 / 12%);
+}

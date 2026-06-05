@@ -19,6 +19,12 @@ declare global {
         base64: string,
       ) => Promise<{ fullPath: string }>;
       pdfExists: (dirPath: string, fileName: string) => Promise<boolean>;
+      listPrinters: () => Promise<{ name: string; displayName: string; isDefault: boolean }[]>;
+      printPdf: (
+        base64: string,
+        copies: number,
+        deviceName: string,
+      ) => Promise<{ ok: boolean; error?: string }>;
       saveCrewPdf: (crewId: string, docType: CrewDocumentType, sourcePath: string) => Promise<boolean>;
       saveCrewPdfBytes: (crewId: string, docType: CrewDocumentType, base64: string) => Promise<boolean>;
       readCrewPdf: (crewId: string, docType: CrewDocumentType) => Promise<string | null>;

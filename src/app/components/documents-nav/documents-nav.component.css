@@ -228,10 +228,14 @@
 
 /* —— Port of Call Settings modal —— */
 
-.ss-modal.modal-wide,
 .nil-modal.modal-wide,
 .sm-modal.modal-wide {
   max-width: 42rem;
+}
+
+.ss-modal.modal-wide {
+  max-width: 52rem;
+  width: min(52rem, 96vw);
 }
 
 .nl-modal.modal-wide {

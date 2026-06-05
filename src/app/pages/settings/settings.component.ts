@@ -1,12 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { LookupSelectComponent } from '../../components/lookup-select/lookup-select.component';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { ShipInfo } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
+import { PrintPackagesComponent } from '../../components/print-packages/print-packages.component';
+import { CustomDocumentsComponent } from '../../components/custom-documents/custom-documents.component';
 
 @Component({
   selector: 'app-settings',
@@ -14,9 +15,10 @@ import { DocumentStampUploadComponent } from '../../components/document-stamp-up
     FormsModule,
     RouterLink,
     PortSelectComponent,
-    LookupSelectComponent,
     DatePickerComponent,
     DocumentStampUploadComponent,
+    PrintPackagesComponent,
+    CustomDocumentsComponent,
   ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
@@ -28,7 +30,9 @@ export class SettingsComponent {
   protected readonly ports = this.storage.ports;
   protected readonly ranks = this.storage.ranks;
   protected readonly nationalities = this.storage.nationalities;
+  protected readonly printPackages = this.storage.printPackages;
 
+  protected showPackagesModal = signal(false);
   protected showPortsModal = signal(false);
   protected showRanksModal = signal(false);
   protected showNationalitiesModal = signal(false);
@@ -40,6 +44,14 @@ export class SettingsComponent {
 
   protected onShipChange(field: keyof ShipInfo, value: string): void {
     this.storage.updateShip({ [field]: value });
+  }
+
+  protected openPackages(): void {
+    this.showPackagesModal.set(true);
+  }
+
+  protected closePackages(): void {
+    this.showPackagesModal.set(false);
   }
 
   protected openPorts(): void {

@@ -21,6 +21,12 @@ import {
   createDefaultCrewMoneyListForm,
   createDefaultNarcoticListForm,
   createDefaultOutputSettings,
+  createDefaultPrintPackages,
+  createDefaultCustomDocuments,
+  CustomDocument,
+  PortPackage,
+  PortAuthority,
+  PortPackageItem,
   createDefaultPortOfCallSettings,
   createDefaultShipStoresForm,
   createEmptyCrewMember,
@@ -123,6 +129,8 @@ const DEFAULT_DATA: AppData = {
   documentOverlay: createDefaultDocumentOverlayPrefs(),
   shipAssets: createEmptyShipAssetsMeta(),
   outputSettings: createDefaultOutputSettings(),
+  printPackages: createDefaultPrintPackages(),
+  customDocuments: createDefaultCustomDocuments(),
   seedVersion: SEED_VERSION,
 };
 
@@ -150,6 +158,8 @@ export class StorageService {
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly outputSettings = computed(() => this.data().outputSettings);
+  readonly printPackages = computed(() => this.data().printPackages);
+  readonly customDocuments = computed(() => this.data().customDocuments);
   readonly activeCrewArrival = computed(() => filterActiveCrewList(this.data().crew, 'arrival'));
   readonly activeCrewDeparture = computed(() => filterActiveCrewList(this.data().crew, 'departure'));
   /** @deprecated Use activeCrewArrival — kept for crew-arr page default. */
@@ -216,6 +226,11 @@ export class StorageService {
         ...DEFAULT_DATA.outputSettings,
         savedPaths: [...DEFAULT_DATA.outputSettings.savedPaths],
       },
+      printPackages: DEFAULT_DATA.printPackages.map((p) => ({
+        ...p,
+        authorities: p.authorities.map((a) => ({ ...a, items: [...a.items] })),
+      })),
+      customDocuments: DEFAULT_DATA.customDocuments.map((d) => ({ ...d })),
       crewArr: { ...DEFAULT_DATA.crewArr },
       passengers: [],
       paxArr: { ...DEFAULT_DATA.paxArr },
@@ -268,17 +283,24 @@ export class StorageService {
       crew = createSeedCrew();
     }
     const crewArr = { ...createDefaultCrewArrSettings(), ...raw.crewArr };
-    let ports = migratePortsRaw(raw.ports);
-    ports = mergePorts(
-      ports,
-      ship.portOfCall,
-      ship.lastPortOfCall,
-      ship.nextPortOfCall,
-      ship.homeport,
-      ship.waterTestPort,
-      ship.sanitationCertificateIssuedAt,
-      ...crew.map((c) => c.joiningPort),
-    );
+    // Ports/ranks/nationalities are user-managed suggestion lists: keep exactly what
+    // was saved (so Settings deletions are permanent) and only derive from referenced
+    // data / defaults on first run, when the field is absent.
+    const portsProvided = Array.isArray(raw.ports);
+    let ports = portsProvided
+      ? (raw.ports as unknown[]).length
+        ? migratePortsRaw(raw.ports)
+        : []
+      : mergePorts(
+          migratePortsRaw(undefined),
+          ship.portOfCall,
+          ship.lastPortOfCall,
+          ship.nextPortOfCall,
+          ship.homeport,
+          ship.waterTestPort,
+          ship.sanitationCertificateIssuedAt,
+          ...crew.map((c) => c.joiningPort),
+        );
     ship.homeport = resolvePortRef(ship.homeport, ports)?.name ?? ship.homeport;
     ship.waterTestPort = resolvePortRef(ship.waterTestPort, ports)?.name ?? ship.waterTestPort;
     ship.sanitationCertificateIssuedAt =
@@ -296,18 +318,21 @@ export class StorageService {
     passengers = this.ensureDepartureBaselinePassengers(passengers);
     passengers = this.rescueOrphanPassengers(passengers);
     const paxArr = { ...createDefaultPaxArrSettings(), ...raw.paxArr };
-    const ranks = mergeUniqueList(
-      raw.ranks ?? DEFAULT_RANKS,
-      ...crew.map((c) => c.rank),
-    );
-    const nationalities = mergeUniqueList(
-      raw.nationalities ?? DEFAULT_NATIONALITIES,
-      ship.nationality,
-      ...crew.map((c) => c.nationality),
-      ...passengers.map((p) => p.nationality),
-    );
+    const ranks = Array.isArray(raw.ranks)
+      ? mergeUniqueList(raw.ranks)
+      : mergeUniqueList(DEFAULT_RANKS, ...crew.map((c) => c.rank));
+    const nationalities = Array.isArray(raw.nationalities)
+      ? mergeUniqueList(raw.nationalities)
+      : mergeUniqueList(
+          DEFAULT_NATIONALITIES,
+          ship.nationality,
+          ...crew.map((c) => c.nationality),
+          ...passengers.map((p) => p.nationality),
+        );
     const portCallHistory = this.normalizePortCallHistory(raw, ports);
-    ports = mergePorts(ports, ...portCallHistory.map((e) => e.portName));
+    if (!portsProvided) {
+      ports = mergePorts(ports, ...portCallHistory.map((e) => e.portName));
+    }
     const portOfCall = this.normalizePortOfCallSettings(raw.portOfCall);
     const shipStoresForm = normalizeShipStoresForm(raw.shipStoresForm);
     const crewEffectForm = normalizeCrewEffectForm(raw.crewEffectForm);
@@ -319,6 +344,8 @@ export class StorageService {
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     const outputSettings = this.normalizeOutputSettings(raw.outputSettings);
+    const printPackages = this.normalizePrintPackages(raw.printPackages);
+    const customDocuments = this.normalizeCustomDocuments(raw.customDocuments);
     return {
       ship,
       crew,
@@ -340,8 +367,54 @@ export class StorageService {
       documentOverlay,
       shipAssets,
       outputSettings,
+      printPackages,
+      customDocuments,
       seedVersion: SEED_VERSION,
     };
+  }
+
+  private normalizeCustomDocuments(raw: unknown): CustomDocument[] {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((d) => ({
+        id: String((d as CustomDocument)?.id ?? '').trim() || crypto.randomUUID(),
+        name: String((d as CustomDocument)?.name ?? '').trim(),
+        dataBase64: String((d as CustomDocument)?.dataBase64 ?? ''),
+      }))
+      .filter((d) => d.name && d.dataBase64);
+  }
+
+  private normalizePrintPackages(raw: unknown): PortPackage[] {
+    if (!Array.isArray(raw)) return [];
+    const normItems = (items: unknown): PortPackageItem[] =>
+      Array.isArray(items)
+        ? items
+            .map((it) => ({
+              documentId: String((it as PortPackageItem)?.documentId ?? '').trim(),
+              copies: Math.max(1, Math.min(99, Math.round(Number((it as PortPackageItem)?.copies) || 1))),
+            }))
+            .filter((it) => it.documentId)
+        : [];
+
+    const byPort = new Map<string, PortAuthority[]>();
+    for (const pkg of raw) {
+      const port = String((pkg as PortPackage)?.port ?? '').trim();
+      if (!port) continue;
+      let authorities: PortAuthority[];
+      if (Array.isArray((pkg as PortPackage).authorities)) {
+        authorities = (pkg as PortPackage).authorities.map((a) => ({
+          name: String((a as PortAuthority)?.name ?? '').trim(),
+          items: normItems((a as PortAuthority)?.items),
+        }));
+      } else if (Array.isArray((pkg as { items?: unknown }).items)) {
+        // Legacy: flat items -> single "General" authority.
+        authorities = [{ name: 'General', items: normItems((pkg as { items?: unknown }).items) }];
+      } else {
+        authorities = [];
+      }
+      byPort.set(port, authorities);
+    }
+    return [...byPort.entries()].map(([port, authorities]) => ({ port, authorities }));
   }
 
   private normalizeOutputSettings(
@@ -359,6 +432,7 @@ export class StorageService {
       saveToFolder: raw?.saveToFolder === true,
       activePath: (raw?.activePath ?? defaults.activePath).trim(),
       savedPaths,
+      printerName: (raw?.printerName ?? defaults.printerName).trim(),
     };
   }
 
@@ -518,20 +592,8 @@ export class StorageService {
     partial: Partial<AppData['ship']>,
     notify?: 'silent' | 'saved' | 'debounced',
   ): void {
-    this.data.update((d) => {
-      const ship = { ...d.ship, ...partial };
-      const ports = mergePorts(
-        d.ports,
-        ship.portOfCall,
-        ship.lastPortOfCall,
-        ship.nextPortOfCall,
-        ship.homeport,
-        ship.waterTestPort,
-        ship.sanitationCertificateIssuedAt,
-      );
-      const nationalities = mergeUniqueList(d.nationalities, ship.nationality);
-      return { ...d, ship, ports, nationalities };
-    });
+    // Ports/nationalities are user-managed (Settings) — do not auto-add referenced values.
+    this.data.update((d) => ({ ...d, ship: { ...d.ship, ...partial } }));
     const fields = Object.keys(partial) as (keyof ShipInfo)[];
     const mode =
       notify ?? (fields.length === 1 ? shipFieldPersistNotify(fields[0]) : 'debounced');
@@ -809,6 +871,88 @@ export class StorageService {
     void this.persist('silent');
   }
 
+  setPrinterName(printerName: string): void {
+    this.updateOutputSettings({ printerName });
+  }
+
+  addCustomDocument(name: string, dataBase64: string): void {
+    const n = name.trim();
+    if (!n || !dataBase64) return;
+    this.data.update((d) => ({
+      ...d,
+      customDocuments: [...d.customDocuments, { id: crypto.randomUUID(), name: n, dataBase64 }],
+    }));
+    void this.persist('saved');
+  }
+
+  removeCustomDocument(id: string): void {
+    this.data.update((d) => ({
+      ...d,
+      customDocuments: d.customDocuments.filter((doc) => doc.id !== id),
+    }));
+    void this.persist('silent');
+  }
+
+  /** Create an empty package for a port if it doesn't exist yet. */
+  upsertPortPackage(port: string): void {
+    const p = port.trim();
+    if (!p) return;
+    this.data.update((d) => {
+      if (d.printPackages.some((pkg) => pkg.port === p)) return d;
+      return { ...d, printPackages: [...d.printPackages, { port: p, authorities: [] }] };
+    });
+    void this.persist('saved');
+  }
+
+  removePortPackage(port: string): void {
+    this.data.update((d) => ({
+      ...d,
+      printPackages: d.printPackages.filter((pkg) => pkg.port !== port),
+    }));
+    void this.persist('silent');
+  }
+
+  addAuthority(port: string, name = 'New authority'): void {
+    this.mutatePackage(port, (pkg) => ({
+      ...pkg,
+      authorities: [...pkg.authorities, { name, items: [] }],
+    }));
+  }
+
+  removeAuthority(port: string, authIndex: number): void {
+    this.mutatePackage(port, (pkg) => ({
+      ...pkg,
+      authorities: pkg.authorities.filter((_, i) => i !== authIndex),
+    }));
+  }
+
+  renameAuthority(port: string, authIndex: number, name: string): void {
+    this.mutateAuthority(port, authIndex, (a) => ({ ...a, name }));
+  }
+
+  setAuthorityItems(port: string, authIndex: number, items: PortPackageItem[]): void {
+    this.mutateAuthority(port, authIndex, (a) => ({ ...a, items: items.map((it) => ({ ...it })) }));
+  }
+
+  private mutatePackage(port: string, fn: (pkg: PortPackage) => PortPackage): void {
+    this.data.update((d) => ({
+      ...d,
+      printPackages: d.printPackages.map((pkg) => (pkg.port === port ? fn(pkg) : pkg)),
+    }));
+    void this.persist('silent');
+  }
+
+  private mutateAuthority(
+    port: string,
+    authIndex: number,
+    fn: (a: PortAuthority) => PortAuthority,
+  ): void {
+    this.mutatePackage(port, (pkg) => ({
+      ...pkg,
+      authorities: pkg.authorities.map((a, i) => (i === authIndex ? fn(a) : a)),
+    }));
+  }
+
   updatePortOfCallSettings(partial: Partial<AppData['portOfCall']>): void {
     this.data.update((d) => ({
       ...d,
@@ -923,10 +1067,7 @@ export class StorageService {
 
   addPortCallEntry(entry?: Partial<PortCallHistoryEntry>): PortCallHistoryEntry {
     const newEntry = { ...createEmptyPortCallEntry(), ...entry };
-    this.data.update((d) => {
-      const ports = mergePorts(d.ports, newEntry.portName);
-      return { ...d, portCallHistory: [newEntry, ...d.portCallHistory], ports };
-    });
+    this.data.update((d) => ({ ...d, portCallHistory: [newEntry, ...d.portCallHistory] }));
     void this.persist('silent');
     this.toast.showPortAdded();
     return newEntry;
@@ -937,12 +1078,10 @@ export class StorageService {
     partial: Partial<PortCallHistoryEntry>,
     notify?: 'silent' | 'saved',
   ): void {
-    this.data.update((d) => {
-      const portCallHistory = d.portCallHistory.map((e) => (e.id === id ? { ...e, ...partial } : e));
-      const updated = portCallHistory.find((e) => e.id === id);
-      const ports = mergePorts(d.ports, updated?.portName);
-      return { ...d, portCallHistory, ports };
-    });
+    this.data.update((d) => ({
+      ...d,
+      portCallHistory: d.portCallHistory.map((e) => (e.id === id ? { ...e, ...partial } : e)),
+    }));
     const resolved =
       notify ??
       (partial.portName != null ||
@@ -967,12 +1106,7 @@ export class StorageService {
       ...createEmptyCrewMember(),
       ...member,
     });
-    this.data.update((d) => {
-      const ports = mergePorts(d.ports, newMember.joiningPort);
-      const ranks = mergeUniqueList(d.ranks, newMember.rank);
-      const nationalities = mergeUniqueList(d.nationalities, newMember.nationality);
-      return { ...d, crew: [...d.crew, newMember], ports, ranks, nationalities };
-    });
+    this.data.update((d) => ({ ...d, crew: [...d.crew, newMember] }));
     void this.persist('silent');
     return newMember;
   }
@@ -982,14 +1116,10 @@ export class StorageService {
     partial: Partial<CrewMember>,
     notify: 'silent' | 'saved' = 'saved',
   ): void {
-    this.data.update((d) => {
-      const crew = d.crew.map((m) => (m.id === id ? { ...m, ...partial } : m));
-      const updated = crew.find((m) => m.id === id);
-      const ports = mergePorts(d.ports, updated?.joiningPort);
-      const ranks = mergeUniqueList(d.ranks, updated?.rank);
-      const nationalities = mergeUniqueList(d.nationalities, updated?.nationality);
-      return { ...d, crew, ports, ranks, nationalities };
-    });
+    this.data.update((d) => ({
+      ...d,
+      crew: d.crew.map((m) => (m.id === id ? { ...m, ...partial } : m)),
+    }));
     void this.persist(notify);
   }
 
@@ -1176,11 +1306,7 @@ export class StorageService {
       ...createEmptyPassenger(),
       ...member,
     });
-    this.data.update((d) => {
-      const nationalities = mergeUniqueList(d.nationalities, newMember.nationality);
-      const ranks = mergeUniqueList(d.ranks, PASSENGER_RANK);
-      return { ...d, passengers: [...d.passengers, newMember], ranks, nationalities };
-    });
+    this.data.update((d) => ({ ...d, passengers: [...d.passengers, newMember] }));
     void this.persist('silent');
     return newMember;
   }
@@ -1190,12 +1316,10 @@ export class StorageService {
     partial: Partial<PassengerMember>,
     notify: 'silent' | 'saved' = 'saved',
   ): void {
-    this.data.update((d) => {
-      const passengers = d.passengers.map((m) => (m.id === id ? { ...m, ...partial } : m));
-      const updated = passengers.find((m) => m.id === id);
-      const nationalities = mergeUniqueList(d.nationalities, updated?.nationality);
-      return { ...d, passengers, nationalities };
-    });
+    this.data.update((d) => ({
+      ...d,
+      passengers: d.passengers.map((m) => (m.id === id ? { ...m, ...partial } : m)),
+    }));
     void this.persist(notify);
   }
 

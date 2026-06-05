@@ -48,6 +48,8 @@ export class CrewArrComponent {
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
       outputSettings: this.storage.outputSettings(),
+      printPackages: this.storage.printPackages(),
+      customDocuments: this.storage.customDocuments(),
     };
   }
 

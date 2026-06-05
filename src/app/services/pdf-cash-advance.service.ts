@@ -41,9 +41,13 @@ export class PdfCashAdvanceService {
   private loadedVersion = 0;
   private readonly templateVersion = 1;
 
+  async buildFinalBytes(data: AppData): Promise<Uint8Array> {
+    const bytes = await this.build(data);
+    return this.overlay.applyToPdfBytes(bytes, data.documentOverlay.cashAdvance);
+  }
+
   async openPreview(data: AppData): Promise<boolean> {
-    let bytes = await this.build(data);
-    bytes = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.cashAdvance);
+    const bytes = await this.buildFinalBytes(data);
     return this.delivery.deliver(bytes, this.fileName(data));
   }
 

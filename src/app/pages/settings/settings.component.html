@@ -25,19 +25,11 @@
           </label>
           <label class="ship-field">
             <span>Nationality</span>
-            <app-lookup-select
-              [value]="ship().nationality"
-              [options]="nationalities()"
-              (valueChange)="onShipChange('nationality', $event)"
-            />
+            <input [ngModel]="ship().nationality" (ngModelChange)="onShipChange('nationality', $event)" />
           </label>
           <label class="ship-field ship-field--wide">
             <span>Homeport</span>
-            <app-port-select
-              [value]="ship().homeport"
-              [ports]="ports()"
-              (valueChange)="onShipChange('homeport', $event)"
-            />
+            <input [ngModel]="ship().homeport" (ngModelChange)="onShipChange('homeport', $event)" />
           </label>
           <label class="ship-field">
             <span>IMO No</span>
@@ -191,7 +183,29 @@
       </button>
     </div>
   </section>
+
+  <section class="card ref-settings-card">
+    <h2>Printing</h2>
+    <p class="section-desc">Per-port document packages — open or print a chosen set of documents at once.</p>
+    <div class="settings-tiles">
+      <button type="button" class="settings-tile settings-tile--packages" (click)="openPackages()">
+        <span class="tile-icon" aria-hidden="true">🖨️</span>
+        <span class="tile-title">Document packages</span>
+        <span class="tile-count">{{ printPackages().length }} port(s)</span>
+      </button>
+    </div>
+
+    <h3 class="settings-subhead">Uploaded documents</h3>
+    <p class="section-desc">
+      Add static PDFs (e.g. Ship's Particulars). They appear in the document list of every package.
+    </p>
+    <app-custom-documents />
+  </section>
 </div>
+
+@if (showPackagesModal()) {
+  <app-print-packages (closed)="closePackages()" />
+}
 
 @if (showPortsModal()) {
   <div class="modal-backdrop" (click)="closePorts()">

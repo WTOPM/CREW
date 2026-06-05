@@ -7,6 +7,47 @@
         <span class="brand-subtitle">Documents</span>
       </span>
     </a>
+    <div class="pkg-bar" title="Open or print the document package configured for the current Port of Call (Settings → Document packages)">
+      <span class="pkg-bar-port">
+        {{ packageRunner.currentPort() || '—' }}
+        @if (packageRunner.currentBreakdown(); as bd) {
+          <span class="pkg-tip">
+            <span class="pkg-tip-title">{{ packageRunner.currentPort() }} — to print</span>
+            @for (auth of bd.authorities; track $index) {
+              <span class="pkg-tip-auth">{{ auth.name }}</span>
+              @for (it of auth.items; track $index) {
+                <span class="pkg-tip-line"><span>{{ it.label }}</span><span class="pkg-tip-qty">×{{ it.copies }}</span></span>
+              }
+              @if (auth.items.length === 0) {
+                <span class="pkg-tip-line pkg-tip-muted">no documents</span>
+              }
+            }
+            <span class="pkg-tip-sep"></span>
+            <span class="pkg-tip-auth pkg-tip-total">Total</span>
+            @for (s of bd.summary; track $index) {
+              <span class="pkg-tip-line"><span>{{ s.label }}</span><span class="pkg-tip-qty">×{{ s.copies }}</span></span>
+            }
+          </span>
+        }
+      </span>
+      <button
+        type="button"
+        class="pkg-bar-btn"
+        [disabled]="packageRunner.busy() || packageRunner.currentItemCount() === 0"
+        (click)="packageRunner.openAll()"
+      >
+        Open all
+      </button>
+      <button
+        type="button"
+        class="pkg-bar-btn pkg-bar-btn--primary"
+        [disabled]="packageRunner.busy() || packageRunner.currentItemCount() === 0"
+        (click)="packageRunner.printAll()"
+      >
+        Print all
+      </button>
+    </div>
+
     <div class="output-bar">
       <label class="output-toggle" title="Save to selected folder">
         <input

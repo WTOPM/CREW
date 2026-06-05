@@ -264,7 +264,22 @@ export interface AppData {
   shipAssets: ShipAssetsMeta;
   /** Where generated PDFs are written when "save to folder" is enabled. */
   outputSettings: OutputSettings;
+  /** Per-port document packages for batch open/print. */
+  printPackages: PortPackage[];
+  /** User-uploaded static PDFs (e.g. Ship's Particulars), selectable in packages. */
+  customDocuments: CustomDocument[];
   seedVersion?: number;
+}
+
+/** A user-uploaded PDF stored inline (base64). Named from its file name. */
+export interface CustomDocument {
+  id: string;
+  name: string;
+  dataBase64: string;
+}
+
+export function createDefaultCustomDocuments(): CustomDocument[] {
+  return [];
 }
 
 /** Header "save to folder" preferences for generated PDFs. */
@@ -272,10 +287,34 @@ export interface OutputSettings {
   saveToFolder: boolean;
   activePath: string;
   savedPaths: string[];
+  /** Selected printer (Electron silent printing); empty = system default. */
+  printerName: string;
 }
 
 export function createDefaultOutputSettings(): OutputSettings {
-  return { saveToFolder: false, activePath: '', savedPaths: [] };
+  return { saveToFolder: false, activePath: '', savedPaths: [], printerName: '' };
+}
+
+/** One document choice within an authority. */
+export interface PortPackageItem {
+  documentId: string;
+  copies: number;
+}
+
+/** A receiving authority at a port (e.g. Immigration, Customs) with its documents. */
+export interface PortAuthority {
+  name: string;
+  items: PortPackageItem[];
+}
+
+/** All authorities and their documents to open/print for a given port. */
+export interface PortPackage {
+  port: string;
+  authorities: PortAuthority[];
+}
+
+export function createDefaultPrintPackages(): PortPackage[] {
+  return [];
 }
 
 export type { CrewEffectFormSettings } from './crew-effect.models';

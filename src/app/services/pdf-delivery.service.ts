@@ -1,19 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
 import { appendTodayDate } from '../utils/pdf-filename.util';
+import { uint8ToBase64 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
 import { ToastService } from './toast.service';
 import { FolderAccessService } from './folder-access.service';
-
-/** Convert PDF bytes to base64 in chunks (avoids call-stack limits on large files). */
-function uint8ToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
 
 /**
  * Single delivery point for generated PDFs.
@@ -29,15 +20,28 @@ export class PdfDeliveryService {
 
   async deliver(bytes: Uint8Array, fileName: string): Promise<boolean> {
     const settings = this.storage.outputSettings();
-    const named = appendTodayDate(fileName);
-
+    // Always open the document; additionally save it when "Save to folder" is on.
+    const opened = openPdfBlobPreview(bytes);
     if (settings.saveToFolder) {
-      // Save mode: write to the folder only, do not open a preview tab.
-      await this.saveToFolder(bytes, named, settings.activePath);
-      return true;
+      await this.saveToFolder(bytes, appendTodayDate(fileName), settings.activePath);
     }
+    return opened;
+  }
 
+  /** Open a PDF in its own window/tab. */
+  openBytes(bytes: Uint8Array): boolean {
     return openPdfBlobPreview(bytes);
+  }
+
+  /**
+   * Save to the active folder when "Save to folder" is on (today's date appended).
+   * Returns true if a save was attempted (used by batch open/print).
+   */
+  async saveBytesIfEnabled(bytes: Uint8Array, fileName: string): Promise<boolean> {
+    const settings = this.storage.outputSettings();
+    if (!settings.saveToFolder) return false;
+    await this.saveToFolder(bytes, appendTodayDate(fileName), settings.activePath);
+    return true;
   }
 
   private async saveToFolder(bytes: Uint8Array, fileName: string, dirPath: string): Promise<void> {

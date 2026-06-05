@@ -4,6 +4,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ToastComponent } from './components/toast/toast.component';
 import { StorageService } from './services/storage.service';
 import { FolderAccessService } from './services/folder-access.service';
+import { PackageRunnerService } from './services/package-runner.service';
 
 interface FolderOption {
   id: string;
@@ -19,6 +20,7 @@ interface FolderOption {
 export class App implements OnInit {
   private readonly storage = inject(StorageService);
   private readonly folderAccess = inject(FolderAccessService);
+  protected readonly packageRunner = inject(PackageRunnerService);
 
   protected readonly outputSettings = this.storage.outputSettings;
   /** Desktop build writes to a typed absolute path. */

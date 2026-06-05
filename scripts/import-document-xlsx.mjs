@@ -103,6 +103,7 @@ function parseDocument(filePath) {
       givenNames,
       rank: cell(r, 11),
       nationality: cell(r, 12),
+      gender: 'MALE',
       dateOfBirth: excelSerialToIso(cell(r, 14)),
       placeOfBirth: cell(r, 15),
       passport: cell(r, 17),

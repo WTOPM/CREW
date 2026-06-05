@@ -5,6 +5,7 @@
 /tmp
 /out-tsc
 /bazel-out
+/CREW-App
 
 # Node
 /node_modules

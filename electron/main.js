@@ -1,14 +1,85 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
+
+/**
+ * In the packaged app the renderer is served over a custom privileged scheme
+ * (app://) instead of file://. This is REQUIRED because the document templates
+ * are loaded with fetch('/xxx.pdf'), and Chromium does not allow fetch() over
+ * file://. The custom scheme behaves like http for the renderer.
+ */
+const APP_SCHEME = 'app';
+const APP_ORIGIN = `${APP_SCHEME}://local`;
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: APP_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+  },
+]);
+
+function getRendererDir() {
+  return path.join(__dirname, '..', 'dist', 'crew', 'browser');
+}
+
+function registerAppProtocol() {
+  const root = getRendererDir();
+  protocol.handle(APP_SCHEME, (request) => {
+    let rel = decodeURIComponent(new URL(request.url).pathname);
+    if (!rel || rel === '/') rel = '/index.html';
+    const filePath = path.normalize(path.join(root, rel));
+    // Block path traversal outside the renderer dir; SPA fallback to index.html.
+    if (!filePath.startsWith(root)) {
+      return new Response('Not found', { status: 404 });
+    }
+    if (!fs.existsSync(filePath)) {
+      return net.fetch(pathToFileURL(path.join(root, 'index.html')).toString());
+    }
+    return net.fetch(pathToFileURL(filePath).toString());
+  });
+}
 
 const DATA_FILE = 'crew-data.json';
 
+/**
+ * The folder that holds the .exe at runtime.
+ * For a portable build, the exe is unpacked to a temp dir, so process.execPath
+ * points there — PORTABLE_EXECUTABLE_DIR is the real folder the user double-clicked.
+ */
+function getExeDir() {
+  return process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath);
+}
+
+/**
+ * Where all app data lives. Resolution order (first match wins):
+ *  1. CREW_DATA_DIR environment variable.
+ *  2. A `data-path.txt` next to the exe whose first non-empty line is a folder
+ *     path (may be a shared network path like \\\\SERVER\\share\\crew). This lets
+ *     several PCs on the LAN point at one shared data folder without rebuilding.
+ *  3. Default: a `data` folder next to the exe.
+ */
 function getDataDir() {
-  if (app.isPackaged) {
-    return path.join(path.dirname(process.execPath), 'data');
+  if (!app.isPackaged) {
+    return path.join(__dirname, '..', 'data');
   }
-  return path.join(__dirname, '..', 'data');
+  if (process.env.CREW_DATA_DIR) {
+    return process.env.CREW_DATA_DIR;
+  }
+  try {
+    const cfg = path.join(getExeDir(), 'data-path.txt');
+    if (fs.existsSync(cfg)) {
+      const line = fs
+        .readFileSync(cfg, 'utf-8')
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .find((l) => l && !l.startsWith('#'));
+      if (line) return line;
+    }
+  } catch {
+    /* fall through to default */
+  }
+  return path.join(getExeDir(), 'data');
 }
 
 function getDataFilePath() {
@@ -75,6 +146,7 @@ function createWindow() {
     height: 860,
     minWidth: 900,
     minHeight: 600,
+    icon: path.join(__dirname, 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -83,8 +155,17 @@ function createWindow() {
     autoHideMenuBar: true,
   });
 
+  // Launch maximized (fills the screen, keeps the taskbar).
+  win.maximize();
+
+  // Open the generated-document preview windows maximized too.
+  win.webContents.setWindowOpenHandler(() => ({ action: 'allow' }));
+  win.webContents.on('did-create-window', (childWindow) => {
+    childWindow.maximize();
+  });
+
   if (app.isPackaged) {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'crew', 'browser', 'index.html'));
+    win.loadURL(`${APP_ORIGIN}/index.html`);
   } else {
     win.loadURL('http://localhost:4200');
   }
@@ -139,6 +220,70 @@ ipcMain.handle('list-directories', (_event, input) => {
   } catch {
     return [];
   }
+});
+
+ipcMain.handle('list-printers', async () => {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  if (!win) return [];
+  try {
+    const printers = await win.webContents.getPrintersAsync();
+    return printers.map((p) => ({
+      name: p.name,
+      displayName: p.displayName || p.name,
+      isDefault: !!p.isDefault,
+    }));
+  } catch {
+    return [];
+  }
+});
+
+ipcMain.handle('print-pdf', (_event, base64, copies, deviceName) => {
+  return new Promise((resolve) => {
+    const os = require('os');
+    const tmpFile = path.join(os.tmpdir(), `crew-print-${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`);
+    try {
+      fs.writeFileSync(tmpFile, Buffer.from(base64, 'base64'));
+    } catch (err) {
+      resolve({ ok: false, error: String(err) });
+      return;
+    }
+
+    const printWin = new BrowserWindow({ show: false, webPreferences: { sandbox: true } });
+    let settled = false;
+    const cleanup = () => {
+      try { if (!printWin.isDestroyed()) printWin.destroy(); } catch {}
+      try { fs.unlinkSync(tmpFile); } catch {}
+    };
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(result);
+    };
+
+    printWin.webContents.on('did-finish-load', () => {
+      // Give the embedded PDF viewer a moment to lay out before printing.
+      setTimeout(() => {
+        const options = {
+          silent: true,
+          printBackground: true,
+          copies: Math.max(1, Number(copies) || 1),
+        };
+        if (deviceName) options.deviceName = deviceName;
+        try {
+          printWin.webContents.print(options, (success, failureReason) => {
+            finish({ ok: success, error: success ? undefined : failureReason });
+          });
+        } catch (err) {
+          finish({ ok: false, error: String(err) });
+        }
+      }, 600);
+    });
+    printWin.webContents.on('did-fail-load', (_e, _code, desc) => finish({ ok: false, error: desc }));
+    setTimeout(() => finish({ ok: false, error: 'Print timed out' }), 20000);
+
+    printWin.loadURL(pathToFileURL(tmpFile).toString());
+  });
 });
 
 ipcMain.handle('pdf-exists', (_event, dirPath, fileName) => {
@@ -253,6 +398,7 @@ ipcMain.handle('delete-ship-asset', (_event, kind) => {
 });
 
 app.whenReady().then(() => {
+  if (app.isPackaged) registerAppProtocol();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -61,7 +61,8 @@
       "target": [
         "portable"
       ],
-      "signAndEditExecutable": false
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true
     },
     "portable": {
       "artifactName": "CREW-Documents.exe"

@@ -35,7 +35,7 @@
       />
     </label>
     <div class="ss-row-actions">
-      <button type="button" class="btn btn-secondary" (click)="saveArticleName()">
+      <button type="button" class="btn ss-save" (click)="saveArticleName()">
         Save article name
       </button>
     </div>
@@ -49,7 +49,7 @@
         class="ss-input"
         [ngModel]="draftQuantity()"
         (ngModelChange)="draftQuantity.set($event)"
-        placeholder="0 → NIL in PDF"
+        placeholder="0 → NIL · empty stays blank"
       />
     </label>
     <label class="ss-field ss-field--unit">
@@ -63,14 +63,14 @@
       />
     </label>
     <div class="ss-row-actions">
-      <button type="button" class="btn btn-secondary" (click)="saveQuantityAndUnit()">
+      <button type="button" class="btn ss-save" (click)="saveQuantityAndUnit()">
         Save quantity &amp; unit
       </button>
     </div>
   </div>
   <p class="ss-hint">
-    If an article name is saved, empty or zero quantity prints as <strong>NIL</strong> in the quantity column.
-    <strong>Unit</strong> is printed whenever you save it (even with NIL). Rows without a name stay blank.
+    Quantity <strong>0</strong> prints as <strong>NIL</strong>; an <strong>empty</strong> quantity stays
+    blank. <strong>Unit</strong> is printed whenever you save it. Rows without a name stay blank.
   </p>
 
   <div class="ss-preview-wrap">
