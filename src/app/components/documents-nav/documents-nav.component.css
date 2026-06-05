@@ -45,23 +45,105 @@
 
 .nav-doc-btn:hover,
 .nav-doc-btn:focus-visible {
-  color: var(--accent);
-  border-color: var(--accent-soft);
-  background: var(--accent-soft);
+  filter: brightness(0.96);
   outline: none;
 }
 
-.nav-doc-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+/* Distinct colors — fixed order helps muscle memory */
+.doc-menu--crew .nav-doc-btn {
+  background: #0284c7;
+  border-color: #0369a1;
   color: #fff;
 }
 
-.nav-doc-primary:hover,
-.nav-doc-primary:focus-visible {
-  background: #025a87;
-  border-color: #025a87;
+.doc-menu--crew .nav-doc-btn:hover,
+.doc-menu--crew .nav-doc-btn:focus-visible {
+  background: #0369a1;
+  border-color: #075985;
   color: #fff;
+}
+
+.doc-menu--pax .nav-doc-btn {
+  background: #ede9fe;
+  border-color: #7c3aed;
+  color: #5b21b6;
+}
+
+.doc-menu--port .nav-doc-btn {
+  background: #ffedd5;
+  border-color: #ea580c;
+  color: #9a3412;
+}
+
+.doc-menu--stores .nav-doc-btn {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+
+.doc-menu--effect .nav-doc-btn {
+  background: #fae8ff;
+  border-color: #c026d3;
+  color: #86198f;
+}
+
+.doc-menu--nil .nav-doc-btn {
+  background: #e2e8f0;
+  border-color: #64748b;
+  color: #334155;
+}
+
+.doc-menu--ships .nav-doc-btn {
+  background: #d1fae5;
+  border-color: #059669;
+  color: #065f46;
+}
+
+.doc-menu--cash .nav-doc-btn {
+  background: #fef9c3;
+  border-color: #ca8a04;
+  color: #854d0e;
+}
+
+.doc-menu--crews .nav-doc-btn {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1e40af;
+}
+
+.doc-menu--narcotic .nav-doc-btn {
+  background: #ffe4e6;
+  border-color: #e11d48;
+  color: #9f1239;
+}
+
+.doc-menu--mdh .nav-doc-btn {
+  background: #ccfbf1;
+  border-color: #0d9488;
+  color: #115e59;
+}
+
+.doc-menu--pax .nav-doc-btn:hover,
+.doc-menu--pax .nav-doc-btn:focus-visible,
+.doc-menu--port .nav-doc-btn:hover,
+.doc-menu--port .nav-doc-btn:focus-visible,
+.doc-menu--stores .nav-doc-btn:hover,
+.doc-menu--stores .nav-doc-btn:focus-visible,
+.doc-menu--effect .nav-doc-btn:hover,
+.doc-menu--effect .nav-doc-btn:focus-visible,
+.doc-menu--nil .nav-doc-btn:hover,
+.doc-menu--nil .nav-doc-btn:focus-visible,
+.doc-menu--ships .nav-doc-btn:hover,
+.doc-menu--ships .nav-doc-btn:focus-visible,
+.doc-menu--cash .nav-doc-btn:hover,
+.doc-menu--cash .nav-doc-btn:focus-visible,
+.doc-menu--crews .nav-doc-btn:hover,
+.doc-menu--crews .nav-doc-btn:focus-visible,
+.doc-menu--narcotic .nav-doc-btn:hover,
+.doc-menu--narcotic .nav-doc-btn:focus-visible,
+.doc-menu--mdh .nav-doc-btn:hover,
+.doc-menu--mdh .nav-doc-btn:focus-visible {
+  filter: brightness(0.94);
 }
 
 .doc-menu-chevron {

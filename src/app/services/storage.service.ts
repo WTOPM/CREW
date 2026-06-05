@@ -287,10 +287,11 @@ export class StorageService {
     // was saved (so Settings deletions are permanent) and only derive from referenced
     // data / defaults on first run, when the field is absent.
     const portsProvided = Array.isArray(raw.ports);
+    // When ports were saved, keep EXACTLY them (dedupe only). Do NOT route through
+    // mergePorts — it always re-injects DEFAULT_PORTS, which would resurrect deleted
+    // ports. Defaults are seeded only on first run (when the field is absent).
     let ports = portsProvided
-      ? (raw.ports as unknown[]).length
-        ? migratePortsRaw(raw.ports)
-        : []
+      ? this.dedupePorts(raw.ports as unknown[])
       : mergePorts(
           migratePortsRaw(undefined),
           ship.portOfCall,
@@ -382,6 +383,27 @@ export class StorageService {
         dataBase64: String((d as CustomDocument)?.dataBase64 ?? ''),
       }))
       .filter((d) => d.name && d.dataBase64);
+  }
+
+  /** Dedupe a saved ports array WITHOUT injecting DEFAULT_PORTS (keeps user deletions). */
+  private dedupePorts(raw: unknown[]): Port[] {
+    const map = new Map<string, Port>();
+    for (const p of raw) {
+      if (typeof p === 'string') {
+        const name = p.trim();
+        if (name) map.set(name.toLowerCase(), { name, code: '', country: '' });
+      } else if (p && typeof p === 'object' && 'name' in p) {
+        const port = p as Port;
+        if (port.name) {
+          map.set(port.name.toLowerCase(), {
+            name: port.name,
+            code: port.code || '',
+            country: port.country || '',
+          });
+        }
+      }
+    }
+    return [...map.values()];
   }
 
   private normalizePrintPackages(raw: unknown): PortPackage[] {
