@@ -50,8 +50,14 @@
     "appId": "com.crew.documents",
     "productName": "CREW Documents",
     "directories": {
-      "output": "release"
+      "output": "CREW-App"
     },
+    "extraFiles": [
+      {
+        "from": "build/data-path.txt.example",
+        "to": "data-path.txt.example"
+      }
+    ],
     "files": [
       "dist/**/*",
       "electron/**/*",

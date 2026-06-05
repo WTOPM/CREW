@@ -6,15 +6,20 @@ import { Port, portLabel } from '../../models/crew.models';
   selector: 'app-port-select',
   imports: [FormsModule],
   template: `
-    <select class="port-select" [ngModel]="value()" (ngModelChange)="valueChange.emit($event)">
-      <option value="">— select —</option>
+    <input
+      class="port-select"
+      type="text"
+      autocomplete="off"
+      [attr.list]="listId"
+      placeholder="Type or pick port…"
+      [ngModel]="value()"
+      (ngModelChange)="valueChange.emit($event)"
+    />
+    <datalist [id]="listId">
       @for (p of ports(); track p.name) {
-        <option [value]="p.name">{{ label(p) }}</option>
+        <option [value]="p.name" [label]="label(p)"></option>
       }
-      @if (value() && !hasPort(value())) {
-        <option [value]="value()">{{ value() }}</option>
-      }
-    </select>
+    </datalist>
   `,
   styles: `
     .port-select {
@@ -23,13 +28,12 @@ import { Port, portLabel } from '../../models/crew.models';
   `,
 })
 export class PortSelectComponent {
+  private static seq = 0;
+  protected readonly listId = `port-list-${++PortSelectComponent.seq}`;
+
   readonly value = input('');
   readonly ports = input<Port[]>([]);
   readonly valueChange = output<string>();
 
   protected label = portLabel;
-
-  protected hasPort(name: string): boolean {
-    return this.ports().some((p) => p.name === name);
-  }
 }

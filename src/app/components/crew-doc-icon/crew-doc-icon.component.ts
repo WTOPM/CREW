@@ -2,6 +2,7 @@ import { Component, inject, input, output } from '@angular/core';
 import {
   CREW_DOCUMENT_TYPES,
   CrewDocumentType,
+  formatCrewListName,
   hasCrewDocument,
   CrewMember,
 } from '../../models/crew.models';
@@ -19,9 +20,13 @@ import { ToastService } from '../../services/toast.service';
       [class.crew-doc-icon--sbook]="docType() === 'seamansBook'"
       [class.crew-doc-icon--cyprus]="docType() === 'cyprusPassport'"
       [class.crew-doc-icon--drag]="dragOver"
+      [class.crew-doc-icon--hold]="holdActive"
       [title]="tooltip()"
       [attr.aria-label]="tooltip()"
       (click)="onClick($event)"
+      (mousedown)="onMouseDown($event)"
+      (mouseup)="onMouseUp($event)"
+      (mouseleave)="onMouseLeave($event)"
       (dragover)="onDragOver($event)"
       (dragleave)="onDragLeave($event)"
       (drop)="onDrop($event)"
@@ -45,6 +50,7 @@ import { ToastService } from '../../services/toast.service';
       font-weight: 800;
       line-height: 1;
       cursor: pointer;
+      user-select: none;
       transition:
         background 0.12s ease,
         border-color 0.12s ease,
@@ -59,6 +65,12 @@ import { ToastService } from '../../services/toast.service';
     .crew-doc-icon--drag {
       border-color: #3b82f6;
       background: #dbeafe;
+    }
+
+    .crew-doc-icon--hold {
+      transform: scale(0.92);
+      border-color: #dc2626;
+      box-shadow: 0 0 0 2px rgb(220 38 38 / 25%);
     }
 
     .crew-doc-icon--filled {
@@ -91,10 +103,15 @@ export class CrewDocIconComponent {
   readonly docType = input.required<CrewDocumentType>();
   readonly attached = output<void>();
 
+  private static readonly HOLD_MS = 550;
+
   private readonly docs = inject(CrewDocumentService);
   private readonly toast = inject(ToastService);
 
   protected dragOver = false;
+  protected holdActive = false;
+  private pressTimer: ReturnType<typeof setTimeout> | null = null;
+  private suppressClick = false;
 
   protected filled(): boolean {
     return hasCrewDocument(this.member(), this.docType());
@@ -107,11 +124,41 @@ export class CrewDocIconComponent {
   protected tooltip(): string {
     const meta = CREW_DOCUMENT_TYPES.find((t) => t.id === this.docType());
     const label = meta?.label ?? 'Document';
-    return this.filled() ? `Open ${label}` : `Attach ${label} (click or drop PDF)`;
+    if (this.filled()) {
+      return `Open ${label} · hold to delete`;
+    }
+    return `Attach ${label} (click or drop PDF)`;
+  }
+
+  protected onMouseDown(event: MouseEvent): void {
+    if (event.button !== 0 || !this.filled()) return;
+    event.stopPropagation();
+    this.clearPressTimer();
+    this.holdActive = true;
+    this.pressTimer = setTimeout(() => {
+      this.pressTimer = null;
+      this.holdActive = false;
+      this.suppressClick = true;
+      void this.promptDelete();
+    }, CrewDocIconComponent.HOLD_MS);
+  }
+
+  protected onMouseUp(event: MouseEvent): void {
+    event.stopPropagation();
+    this.clearPressTimer();
+  }
+
+  protected onMouseLeave(event: MouseEvent): void {
+    event.stopPropagation();
+    this.clearPressTimer();
   }
 
   protected async onClick(event: MouseEvent): Promise<void> {
     event.stopPropagation();
+    if (this.suppressClick) {
+      this.suppressClick = false;
+      return;
+    }
     const member = this.member();
     const type = this.docType();
     if (this.filled()) {
@@ -126,6 +173,31 @@ export class CrewDocIconComponent {
       if (ok) this.attached.emit();
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Failed to attach PDF');
+    }
+  }
+
+  private clearPressTimer(): void {
+    if (this.pressTimer) {
+      clearTimeout(this.pressTimer);
+      this.pressTimer = null;
+    }
+    this.holdActive = false;
+  }
+
+  private async promptDelete(): Promise<void> {
+    const member = this.member();
+    const type = this.docType();
+    const meta = CREW_DOCUMENT_TYPES.find((t) => t.id === type);
+    const label = meta?.label ?? 'document';
+    const name = formatCrewListName(member) || 'this crew member';
+    const ok = window.confirm(`Delete ${label} for ${name}?`);
+    if (!ok) return;
+    try {
+      await this.docs.remove(member.id, type);
+      this.attached.emit();
+      this.toast.show('Scan removed');
+    } catch (e) {
+      this.toast.showError(e instanceof Error ? e.message : 'Failed to delete scan');
     }
   }
 

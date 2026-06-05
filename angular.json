@@ -35,6 +35,18 @@
           "configurations": {
             "electron": {
               "baseHref": "./",
+              "assets": [
+                {
+                  "glob": "**/*",
+                  "input": "public",
+                  "ignore": ["crew-data.json"]
+                },
+                {
+                  "glob": "pdf.worker*.mjs",
+                  "input": "node_modules/pdfjs-dist/build",
+                  "output": ""
+                }
+              ],
               "budgets": [
                 {
                   "type": "initial",

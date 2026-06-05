@@ -1,0 +1,9 @@
+# Optional: shared data folder for several PCs (UNC or local path).
+# Rename to data-path.txt and put next to CREW-Documents.exe.
+# First non-empty line (not starting with #) is used.
+#
+# Example — copy data folder from another computer to a network share:
+# \\SERVER\share\CREW-data
+#
+# Or a local folder (must contain crew-data.json, documents\, assets\):
+# D:\CREW-data

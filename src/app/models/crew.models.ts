@@ -578,7 +578,7 @@ export function portLabel(port: Port): string {
   return port.code ? `${port.name} (${port.code})` : port.name;
 }
 
-export function resolvePortRef(ref: string, ports: Port[] = DEFAULT_PORTS): Port | null {
+export function resolvePortRef(ref: string, ports: Port[] = []): Port | null {
   const v = ref.trim();
   if (!v) return null;
   const lower = v.toLowerCase();
@@ -641,14 +641,14 @@ export function formatPortCallPortName(name: string): string {
 export function mergePorts(existing: Port[], ...refs: (string | Port | undefined)[]): Port[] {
   const map = new Map<string, Port>();
 
-  for (const p of [...DEFAULT_PORTS, ...existing]) {
+  for (const p of existing) {
     if (p.name) map.set(p.name.toLowerCase(), { ...p });
   }
 
   for (const ref of refs) {
     if (!ref) continue;
     if (typeof ref === 'string') {
-      const resolved = resolvePortRef(ref, [...map.values(), ...DEFAULT_PORTS]);
+      const resolved = resolvePortRef(ref, [...map.values()]);
       if (!resolved?.name) continue;
       const key = resolved.name.toLowerCase();
       const prev = map.get(key);
@@ -672,7 +672,7 @@ export function mergePorts(existing: Port[], ...refs: (string | Port | undefined
 }
 
 export function migratePortsRaw(raw: unknown): Port[] {
-  if (!raw || !Array.isArray(raw) || raw.length === 0) return [...DEFAULT_PORTS];
+  if (!raw || !Array.isArray(raw) || raw.length === 0) return [];
   if (typeof raw[0] === 'object' && raw[0] !== null && 'name' in (raw[0] as Port)) {
     return mergePorts([], ...(raw as Port[]));
   }

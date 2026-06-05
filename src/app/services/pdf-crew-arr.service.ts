@@ -16,7 +16,7 @@ import { crewListPdfFileName, passengerListPdfFileName } from '../utils/pdf-file
 import { PassengerMember } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { openPdfPreview } from '../utils/pdf-download.util';
-import { formatBirthDateShort, formatDisplayDate } from '../utils/date.util';
+import { formatBirthDate, formatDisplayDate } from '../utils/date.util';
 import {
   BODY_BOTTOM_Y,
   BODY_TOP_Y,
@@ -320,7 +320,7 @@ export class PdfCrewArrService {
       this.dataAt(doc, s, 236, 882, cy, formatCrewListName(member), bodyFont);
       this.dataAt(doc, s, 881, 1101, cy, member.rank, bodyFont);
       this.dataAt(doc, s, 1100, 1305, cy, member.nationality, bodyFont);
-      this.dataAt(doc, s, 1304, 1491, cy, formatBirthDateShort(member.dateOfBirth), bodyFont);
+      this.dataAt(doc, s, 1304, 1491, cy, formatBirthDate(member.dateOfBirth), bodyFont);
       this.dataAt(doc, s, 1490, 1872, cy, member.placeOfBirth, bodyFont);
       this.dataAt(doc, s, 1871, 2169, cy, this.identityNumber(member, identityDocumentType), bodyFont);
     }

@@ -8,9 +8,6 @@ import {
   DocumentOverlayPrefs,
   DocumentStampOptions,
   CrewMember,
-  DEFAULT_NATIONALITIES,
-  DEFAULT_PORTS,
-  DEFAULT_RANKS,
   Port,
   PortCallHistoryEntry,
   createDefaultCrewArrSettings,
@@ -59,8 +56,7 @@ import {
   migratePassengerMember,
   sortPassengersByName,
 } from '../models/passenger.models';
-import { SEED_SHIP, SEED_VERSION, createSeedCrew } from '../data/default-crew.seed';
-import { SEED_PORT_CALL_HISTORY } from '../data/default-port-call.seed';
+import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-data';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
 import {
   normalizeCrewEffectForm,
@@ -104,42 +100,13 @@ import {
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 
 const STORAGE_KEY = 'crew-app-data';
-/** Bump when public/crew-data.json is regenerated from DOCUMENT.xlsx */
-const DOCUMENT_IMPORT_ID = 'document-xlsx-2026-06-04';
-const DOCUMENT_IMPORT_KEY = 'crew-last-document-import';
-
-const DEFAULT_DATA: AppData = {
-  ship: { ...SEED_SHIP },
-  crew: createSeedCrew(),
-  crewArr: createDefaultCrewArrSettings(),
-  passengers: [],
-  paxArr: createDefaultPaxArrSettings(),
-  ports: [...DEFAULT_PORTS],
-  ranks: [...DEFAULT_RANKS],
-  nationalities: [...DEFAULT_NATIONALITIES],
-  portCallHistory: SEED_PORT_CALL_HISTORY.map((e) => ({ ...e })),
-  portOfCall: createDefaultPortOfCallSettings(),
-  shipStoresForm: createDefaultShipStoresForm(),
-  crewEffectForm: createDefaultCrewEffectForm(),
-  nilListForm: createDefaultNilListForm(),
-  shipMoneyForm: createDefaultShipMoneyForm(),
-  cashAdvanceForm: createDefaultCashAdvanceForm(),
-  crewMoneyListForm: createDefaultCrewMoneyListForm(),
-  narcoticListForm: createDefaultNarcoticListForm(),
-  documentOverlay: createDefaultDocumentOverlayPrefs(),
-  shipAssets: createEmptyShipAssetsMeta(),
-  outputSettings: createDefaultOutputSettings(),
-  printPackages: createDefaultPrintPackages(),
-  customDocuments: createDefaultCustomDocuments(),
-  seedVersion: SEED_VERSION,
-};
 
 @Injectable({ providedIn: 'root' })
 export class StorageService {
   /** Set when a modal form auto-saves silently; cleared after Saved toast on close. */
   private formSessionDirty = false;
   private readonly toast = inject(ToastService);
-  private readonly data = signal<AppData>(this.loadInitial());
+  private readonly data = signal<AppData>(createEmptyAppData());
 
   readonly ship = computed(() => this.data().ship);
   readonly crewArr = computed(() => this.data().crewArr);
@@ -182,61 +149,6 @@ export class StorageService {
   );
   readonly allPassengers = computed(() => this.data().passengers);
 
-  private loadInitial(): AppData {
-    return {
-      ...DEFAULT_DATA,
-      crew: [...DEFAULT_DATA.crew],
-      ports: [...DEFAULT_DATA.ports],
-      ranks: [...DEFAULT_DATA.ranks],
-      nationalities: [...DEFAULT_DATA.nationalities],
-      portCallHistory: [...DEFAULT_DATA.portCallHistory],
-      portOfCall: { ...DEFAULT_DATA.portOfCall },
-      shipStoresForm: {
-        placeOfStorage: DEFAULT_DATA.shipStoresForm.placeOfStorage,
-        rows: DEFAULT_DATA.shipStoresForm.rows.map((r) => ({ ...r })),
-      },
-      crewEffectForm: { ...DEFAULT_DATA.crewEffectForm },
-      nilListForm: {
-        phrases: DEFAULT_DATA.nilListForm.phrases.map((p) => ({ ...p })),
-      },
-      shipMoneyForm: {
-        entries: DEFAULT_DATA.shipMoneyForm.entries.map((e) => ({ ...e })),
-      },
-      cashAdvanceForm: { ...DEFAULT_DATA.cashAdvanceForm, byCrewId: { ...DEFAULT_DATA.cashAdvanceForm.byCrewId } },
-      crewMoneyListForm: { byCrewId: { ...DEFAULT_DATA.crewMoneyListForm.byCrewId } },
-      narcoticListForm: {
-        entries: DEFAULT_DATA.narcoticListForm.entries.map((e) => ({ ...e })),
-      },
-      documentOverlay: {
-        crewList: { ...createDefaultDocumentOverlayPrefs().crewList },
-        pax: { ...DEFAULT_DATA.documentOverlay.pax },
-        portOfCall: { ...DEFAULT_DATA.documentOverlay.portOfCall },
-        mdh: { ...DEFAULT_DATA.documentOverlay.mdh },
-        shipStores: { ...DEFAULT_DATA.documentOverlay.shipStores },
-        crewEffect: { ...DEFAULT_DATA.documentOverlay.crewEffect },
-        nilList: { ...DEFAULT_DATA.documentOverlay.nilList },
-        shipMoney: { ...DEFAULT_DATA.documentOverlay.shipMoney },
-        cashAdvance: { ...DEFAULT_DATA.documentOverlay.cashAdvance },
-        crewMoney: { ...DEFAULT_DATA.documentOverlay.crewMoney },
-        narcoticList: { ...DEFAULT_DATA.documentOverlay.narcoticList },
-        sso0108PortCalls: { ...DEFAULT_DATA.documentOverlay.sso0108PortCalls },
-      },
-      shipAssets: { ...DEFAULT_DATA.shipAssets },
-      outputSettings: {
-        ...DEFAULT_DATA.outputSettings,
-        savedPaths: [...DEFAULT_DATA.outputSettings.savedPaths],
-      },
-      printPackages: DEFAULT_DATA.printPackages.map((p) => ({
-        ...p,
-        authorities: p.authorities.map((a) => ({ ...a, items: [...a.items] })),
-      })),
-      customDocuments: DEFAULT_DATA.customDocuments.map((d) => ({ ...d })),
-      crewArr: { ...DEFAULT_DATA.crewArr },
-      passengers: [],
-      paxArr: { ...DEFAULT_DATA.paxArr },
-    };
-  }
-
   async init(): Promise<void> {
     const electron = window.electronAPI;
     if (electron) {
@@ -244,19 +156,14 @@ export class StorageService {
       if (loaded) {
         const normalized = this.normalize(loaded);
         this.data.set(normalized);
-        if ((loaded.seedVersion ?? 0) < SEED_VERSION) {
+        if ((loaded.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
           await this.persist('silent');
         }
         return;
       }
-      const imported = await this.tryLoadDocumentImport();
-      if (imported) return;
-    } else {
-      const needsImport = localStorage.getItem(DOCUMENT_IMPORT_KEY) !== DOCUMENT_IMPORT_ID;
-      if (needsImport) {
-        const imported = await this.tryLoadDocumentImport();
-        if (imported) return;
-      }
+      this.data.set(createEmptyAppData());
+      await this.persist('silent');
+      return;
     }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -264,36 +171,33 @@ export class StorageService {
         const parsed = JSON.parse(raw) as Partial<AppData>;
         const normalized = this.normalize(parsed);
         this.data.set(normalized);
-        if ((parsed.seedVersion ?? 0) < SEED_VERSION) {
+        if ((parsed.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
           await this.persist('silent');
         }
       } catch {
-        this.data.set(this.loadInitial());
+        this.data.set(createEmptyAppData());
+        await this.persist('silent');
       }
     } else {
+      this.data.set(createEmptyAppData());
       await this.persist('silent');
     }
   }
 
   private normalize(raw: Partial<AppData> & { ports?: unknown }): AppData {
-    const ship = { ...createEmptyShip(), ...SEED_SHIP, ...raw.ship };
+    const ship = { ...createEmptyShip(), ...raw.ship };
     let crew = (raw.crew ?? []).map((m) => this.normalizeMember(m, raw.ports));
-    if ((raw.seedVersion ?? 0) < 3) {
-      Object.assign(ship, SEED_SHIP);
-      crew = createSeedCrew();
-    }
     const crewArr = { ...createDefaultCrewArrSettings(), ...raw.crewArr };
     // Ports/ranks/nationalities are user-managed suggestion lists: keep exactly what
     // was saved (so Settings deletions are permanent) and only derive from referenced
     // data / defaults on first run, when the field is absent.
     const portsProvided = Array.isArray(raw.ports);
     // When ports were saved, keep EXACTLY them (dedupe only). Do NOT route through
-    // mergePorts — it always re-injects DEFAULT_PORTS, which would resurrect deleted
-    // ports. Defaults are seeded only on first run (when the field is absent).
+    // mergePorts on the saved list — only derive missing ports from ship/crew refs.
     let ports = portsProvided
       ? this.dedupePorts(raw.ports as unknown[])
       : mergePorts(
-          migratePortsRaw(undefined),
+          [],
           ship.portOfCall,
           ship.lastPortOfCall,
           ship.nextPortOfCall,
@@ -321,11 +225,11 @@ export class StorageService {
     const paxArr = { ...createDefaultPaxArrSettings(), ...raw.paxArr };
     const ranks = Array.isArray(raw.ranks)
       ? mergeUniqueList(raw.ranks)
-      : mergeUniqueList(DEFAULT_RANKS, ...crew.map((c) => c.rank));
+      : mergeUniqueList([], ...crew.map((c) => c.rank));
     const nationalities = Array.isArray(raw.nationalities)
       ? mergeUniqueList(raw.nationalities)
       : mergeUniqueList(
-          DEFAULT_NATIONALITIES,
+          [],
           ship.nationality,
           ...crew.map((c) => c.nationality),
           ...passengers.map((p) => p.nationality),
@@ -370,7 +274,7 @@ export class StorageService {
       outputSettings,
       printPackages,
       customDocuments,
-      seedVersion: SEED_VERSION,
+      seedVersion: APP_DATA_SCHEMA_VERSION,
     };
   }
 
@@ -533,20 +437,11 @@ export class StorageService {
     raw: Partial<AppData>,
     ports: Port[],
   ): PortCallHistoryEntry[] {
-    const useSeed =
-      !raw.portCallHistory?.length ||
-      (raw.portCallHistory.length < 10 && (raw.seedVersion ?? 0) < SEED_VERSION);
-
-    let history: PortCallHistoryEntry[];
-    if (useSeed) {
-      history = SEED_PORT_CALL_HISTORY.map((e) => ({ ...e, id: e.id || crypto.randomUUID() }));
-    } else {
-      history = raw.portCallHistory!.map((entry) => ({
-        ...createEmptyPortCallEntry(),
-        ...entry,
-        id: entry.id || crypto.randomUUID(),
-      }));
-    }
+    const history = (raw.portCallHistory ?? []).map((entry) => ({
+      ...createEmptyPortCallEntry(),
+      ...entry,
+      id: entry.id || crypto.randomUUID(),
+    }));
 
     return history.map((entry) => ({
       ...entry,
@@ -583,7 +478,7 @@ export class StorageService {
   }
 
   private async persist(notify: 'silent' | 'saved' | 'debounced' = 'debounced'): Promise<void> {
-    const payload = { ...this.data(), seedVersion: SEED_VERSION };
+    const payload = { ...this.data(), seedVersion: APP_DATA_SCHEMA_VERSION };
     const electron = window.electronAPI;
     if (electron) {
       await electron.writeData(payload);
@@ -1576,21 +1471,5 @@ export class StorageService {
     const text = await file.text();
     const parsed = JSON.parse(text) as AppData;
     this.replaceAll(parsed);
-  }
-
-  /** Load crew-data.json produced by scripts/import-document-xlsx.mjs */
-  private async tryLoadDocumentImport(): Promise<boolean> {
-    try {
-      const res = await fetch('/crew-data.json', { cache: 'no-store' });
-      if (!res.ok) return false;
-      const parsed = (await res.json()) as Partial<AppData>;
-      this.replaceAll(parsed as AppData);
-      if (!window.electronAPI) {
-        localStorage.setItem(DOCUMENT_IMPORT_KEY, DOCUMENT_IMPORT_ID);
-      }
-      return true;
-    } catch {
-      return false;
-    }
   }
 }

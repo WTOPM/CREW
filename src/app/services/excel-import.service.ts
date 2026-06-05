@@ -28,7 +28,7 @@ import {
 } from '../models/crew.models';
 import { excelSerialToIso, parseValidityRange } from '../utils/date.util';
 import { createDefaultPaxArrSettings } from '../models/passenger.models';
-import { SEED_VERSION } from '../data/default-crew.seed';
+import { APP_DATA_SCHEMA_VERSION } from '../data/empty-app-data';
 
 @Injectable({ providedIn: 'root' })
 export class ExcelImportService {
@@ -108,7 +108,7 @@ export class ExcelImportService {
       outputSettings: createDefaultOutputSettings(),
       printPackages: createDefaultPrintPackages(),
       customDocuments: createDefaultCustomDocuments(),
-      seedVersion: SEED_VERSION,
+      seedVersion: APP_DATA_SCHEMA_VERSION,
     };
   }
 

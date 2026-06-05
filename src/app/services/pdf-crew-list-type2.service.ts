@@ -9,7 +9,7 @@ import {
   portCode,
 } from '../models/crew.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
-import { formatBirthDateShort, formatDisplayDate } from '../utils/date.util';
+import { formatBirthDate, formatDisplayDate } from '../utils/date.util';
 import { crewListType2PdfFileName } from '../utils/pdf-filename.util';
 import {
   CREW_LIST_ALGER_COL_TEXT_MAX_PT,
@@ -177,7 +177,7 @@ export class PdfCrewListType2Service {
       draw(formatCrewListName(member), rowAt(colX, 'name'));
       draw(member.rank, rowAt(colX, 'rank'));
       drawFit(member.nationality, rowAt(colX, 'nationality'));
-      draw(formatBirthDateShort(member.dateOfBirth), rowAt(colX, 'dateOfBirth'));
+      draw(formatBirthDate(member.dateOfBirth), rowAt(colX, 'dateOfBirth'));
       drawFit(member.placeOfBirth, rowAt(colX, 'placeOfBirth'));
       draw(member.passport, rowAt(colX, 'passport'));
       draw(member.seamansBook, rowAt(colX, 'seamansBook'));
