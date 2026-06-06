@@ -23,6 +23,7 @@ import { PdfCashAdvanceService } from './pdf-cash-advance.service';
 import { PdfCrewMoneyListService } from './pdf-crew-money-list.service';
 import { PdfNarcoticListService } from './pdf-narcotic-list.service';
 import { PdfMdhService } from './pdf-mdh.service';
+import { PdfCrewVaccineService } from './pdf-crew-vaccine.service';
 
 export interface CatalogDocument {
   id: string;
@@ -53,6 +54,7 @@ const DOCS: { id: string; label: string }[] = [
   { id: 'crewMoney', label: 'Crew Money' },
   { id: 'narcotic', label: 'Narcotic List' },
   { id: 'mdh', label: 'MDH' },
+  { id: 'crewVaccine', label: 'MDH Crew Vaccine' },
 ];
 
 const LABELS = new Map(DOCS.map((d) => [d.id, d.label]));
@@ -73,6 +75,7 @@ export class DocumentCatalogService {
   private readonly crewMoney = inject(PdfCrewMoneyListService);
   private readonly narcotic = inject(PdfNarcoticListService);
   private readonly mdh = inject(PdfMdhService);
+  private readonly crewVaccine = inject(PdfCrewVaccineService);
 
   /** Selectable documents: built-ins plus user-uploaded PDFs. */
   available(): CatalogDocument[] {
@@ -150,6 +153,11 @@ export class DocumentCatalogService {
         };
       case 'mdh':
         return { bytes: await this.mdh.buildFinalBytes(base), fileName: this.mdh.fileName(base) };
+      case 'crewVaccine':
+        return {
+          bytes: await this.crewVaccine.buildFinalBytes(base),
+          fileName: this.crewVaccine.fileName(base),
+        };
       default:
         throw new Error(`Unknown document: ${id}`);
     }

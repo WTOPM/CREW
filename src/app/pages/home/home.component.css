@@ -434,6 +434,25 @@
   background: #f8fafc;
 }
 
+.crew-form-block:first-child {
+  background: #fef3c7;
+  border-color: #fbbf24;
+}
+
+.crew-form-block:first-child .crew-form-block-title {
+  color: #b45309;
+}
+
+.crew-form-block:first-child label span {
+  color: #92400e;
+}
+
+.crew-form-block:first-child input,
+.crew-form-block:first-child select {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
 .crew-form-block--sbook {
   background: #ecfdf5;
   border-color: #6ee7b7;
@@ -518,4 +537,41 @@
 .crew-form-block--visa input {
   border-color: #ddd6fe;
   background: #faf9ff;
+}
+
+.crew-form-block--joining {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+}
+
+.crew-form-block--joining .crew-form-block-title {
+  color: #0284c7;
+}
+
+.crew-form-block--joining label span {
+  color: #0369a1;
+}
+
+.crew-form-block--joining input,
+.crew-form-block--joining select {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+}
+
+.crew-form-block--vaccination {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.crew-form-block--vaccination .crew-form-block-title {
+  color: #dc2626;
+}
+
+.crew-form-block--vaccination label span {
+  color: #b91c1c;
+}
+
+.crew-form-block--vaccination input {
+  border-color: #fecaca;
+  background: #fef8f8;
 }

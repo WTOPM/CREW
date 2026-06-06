@@ -28,9 +28,9 @@ export const CASH_ADVANCE_ROW_STEP = 29;
 export const CASH_ADVANCE_TOTAL_ROW_BASELINE_Y = 582;
 
 export const CASH_ADVANCE_COL = {
-  rowNo: 47,
+  rowNo: 30,
   name: 76,
-  rank: 282,
+  rank: 270,
   usd: 356,
   eur: 439,
 } as const;

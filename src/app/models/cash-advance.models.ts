@@ -3,7 +3,7 @@ export const CASH_ADVANCE_PAGE_HEIGHT_PT = 842;
 /** Pre-printed on Cash Advance — empty.pdf (do not overlay unless changed in settings). */
 export const CASH_ADVANCE_TEMPLATE_TITLE = 'Payroll of Christmas Bonus from the Owners';
 
-export const CASH_ADVANCE_MAX_CREW_ROWS = 20;
+export const CASH_ADVANCE_MAX_CREW_ROWS = 13;
 
 export interface CashAdvanceCrewAmounts {
   usd: string;

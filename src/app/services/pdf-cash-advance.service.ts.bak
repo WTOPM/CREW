@@ -90,9 +90,9 @@ export class PdfCashAdvanceService {
       const placement = CASH_ADVANCE_FIELDS.title;
       page.drawRectangle({
         x: placement.x - 4,
-        y: placement.y - 4,
+        y: placement.y - 3,
         width: (placement.maxWidth ?? 400) + 8,
-        height: (placement.fontSize ?? 12) + 8,
+        height: (placement.fontSize ?? 12) + 6,
         color: rgb(1, 1, 1),
       });
       draw(title, placement, true);
@@ -105,101 +105,45 @@ export class PdfCashAdvanceService {
     }
     draw(payrollDate, CASH_ADVANCE_FIELDS.masterDate, true);
 
-    const allCrew = crew;
+    const crewRows = crew.slice(0, CASH_ADVANCE_MAX_CREW_ROWS);
     const usdAmounts: string[] = [];
     const eurAmounts: string[] = [];
 
-    for (let i = 0; i < allCrew.length; i++) {
-      const member = allCrew[i];
+    crewRows.forEach((member, index) => {
       const amounts = cashAdvanceAmountsFor(form, member.id);
       usdAmounts.push(amounts.usd);
       eurAmounts.push(amounts.eur);
-
-      const pageIndex = Math.floor(i / CASH_ADVANCE_MAX_CREW_ROWS);
-      const rowIndex = i % CASH_ADVANCE_MAX_CREW_ROWS;
-
-      if (pageIndex > 0 && rowIndex === 0) {
-        const templateDoc = await PDFDocument.load(template);
-        const [embeddedPage] = await doc.embedPages([templateDoc.getPages()[0]]);
-        const newPage = doc.addPage([page.getWidth(), page.getHeight()]);
-        newPage.drawPage(embeddedPage);
-        
-        // Clear all pre-printed row numbers on new page
-        for (let clearIdx = 0; clearIdx < CASH_ADVANCE_MAX_CREW_ROWS; clearIdx++) {
-          const clearY = CASH_ADVANCE_PAGE_HEIGHT_PT - cashAdvanceRowBaselineY(clearIdx);
-          newPage.drawRectangle({
-            x: CASH_ADVANCE_COL.rowNo - 2,
-            y: clearY - 3,
-            width: 30,
-            height: 14,
-            color: rgb(1, 1, 1),
-          });
-        }
-      }
-
-      const currentPage = pageIndex === 0 ? page : doc.getPages()[pageIndex];
-      const y = CASH_ADVANCE_PAGE_HEIGHT_PT - cashAdvanceRowBaselineY(rowIndex);
-
-      // Clear pre-printed row number from template
-      currentPage.drawRectangle({
-        x: CASH_ADVANCE_COL.rowNo - 2,
-        y: y - 3,
-        width: 30,
-        height: 14,
-        color: rgb(1, 1, 1),
-      });
-
-      const drawOnPage = (text: string, x: number, opts: { fontSize?: number; maxWidth?: number; useBold?: boolean }) => {
-        const value = text.trim();
-        if (!value) return;
-        currentPage.drawText(value, {
-          x,
-          y,
-          size: opts.fontSize ?? CASH_ADVANCE_FONT,
-          font: opts.useBold ? bold : font,
-          color: black,
-          ...(opts.maxWidth != null ? { maxWidth: opts.maxWidth } : {}),
-        });
-      };
-
-      drawOnPage(String(i + 1), CASH_ADVANCE_COL.rowNo, { fontSize: CASH_ADVANCE_FONT });
-      drawOnPage(formatCrewListName(member), CASH_ADVANCE_COL.name, {
+      const y = CASH_ADVANCE_PAGE_HEIGHT_PT - cashAdvanceRowBaselineY(index);
+      draw(String(index + 1), { x: CASH_ADVANCE_COL.rowNo, y, fontSize: CASH_ADVANCE_FONT });
+      draw(formatCrewListName(member), {
+        x: CASH_ADVANCE_COL.name,
+        y,
         fontSize: CASH_ADVANCE_FONT,
         maxWidth: CASH_ADVANCE_NAME_MAX_WIDTH,
       });
-      drawOnPage(member.rank, CASH_ADVANCE_COL.rank, {
+      draw(member.rank, {
+        x: CASH_ADVANCE_COL.rank,
+        y,
         fontSize: CASH_ADVANCE_FONT,
         maxWidth: CASH_ADVANCE_RANK_MAX_WIDTH,
       });
       if (amounts.usd) {
-        drawOnPage(amounts.usd, CASH_ADVANCE_COL.usd, {
+        draw(amounts.usd, {
+          x: CASH_ADVANCE_COL.usd,
+          y,
           fontSize: CASH_ADVANCE_FONT,
           maxWidth: CASH_ADVANCE_AMOUNT_MAX_WIDTH,
         });
       }
       if (amounts.eur) {
-        drawOnPage(amounts.eur, CASH_ADVANCE_COL.eur, {
+        draw(amounts.eur, {
+          x: CASH_ADVANCE_COL.eur,
+          y,
           fontSize: CASH_ADVANCE_FONT,
           maxWidth: CASH_ADVANCE_AMOUNT_MAX_WIDTH,
         });
       }
-    }
-
-    // Clear remaining empty rows on the last page
-    const lastPageIndex = Math.floor((allCrew.length - 1) / CASH_ADVANCE_MAX_CREW_ROWS);
-    const lastRowIndex = (allCrew.length - 1) % CASH_ADVANCE_MAX_CREW_ROWS;
-    const lastPage = lastPageIndex === 0 ? page : doc.getPages()[lastPageIndex];
-    
-    for (let emptyRow = lastRowIndex + 1; emptyRow < CASH_ADVANCE_MAX_CREW_ROWS; emptyRow++) {
-      const clearY = CASH_ADVANCE_PAGE_HEIGHT_PT - cashAdvanceRowBaselineY(emptyRow);
-      lastPage.drawRectangle({
-        x: CASH_ADVANCE_COL.rowNo - 2,
-        y: clearY - 3,
-        width: 30,
-        height: 14,
-        color: rgb(1, 1, 1),
-      });
-    }
+    });
 
     const totalY = CASH_ADVANCE_PAGE_HEIGHT_PT - CASH_ADVANCE_TOTAL_ROW_BASELINE_Y;
     const totalUsd = sumCashAdvanceCurrency(usdAmounts);
