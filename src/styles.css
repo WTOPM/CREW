@@ -470,3 +470,41 @@ th {
 .ref-list li:last-child {
   border-bottom: none;
 }
+
+.combo {
+  position: relative;
+  width: 100%;
+}
+
+.combo-input {
+  width: 100%;
+}
+
+.combo-panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+}
+
+.combo-option {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.combo-option:hover,
+.combo-option--active {
+  background: var(--accent-soft);
+}
+

@@ -3,9 +3,6 @@ import * as XLSX from 'xlsx';
 import {
   AppData,
   CrewMember,
-  DEFAULT_NATIONALITIES,
-  DEFAULT_PORTS,
-  DEFAULT_RANKS,
   createDefaultCrewArrSettings,
   createDefaultDocumentOverlayPrefs,
   createDefaultPortOfCallSettings,
@@ -71,16 +68,16 @@ export class ExcelImportService {
     }
 
     const ports = mergePorts(
-      DEFAULT_PORTS,
+      [],
       ship.portOfCall,
       ship.lastPortOfCall,
       ship.nextPortOfCall,
       ship.homeport,
       ...crew.map((c) => c.joiningPort),
     );
-    const ranks = mergeUniqueList(DEFAULT_RANKS, ...crew.map((c) => c.rank));
+    const ranks = mergeUniqueList([], ...crew.map((c) => c.rank));
     const nationalities = mergeUniqueList(
-      DEFAULT_NATIONALITIES,
+      [],
       ship.nationality,
       ...crew.map((c) => c.nationality),
     );

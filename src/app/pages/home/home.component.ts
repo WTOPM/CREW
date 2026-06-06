@@ -69,9 +69,7 @@ export class HomeComponent {
   protected readonly ship = this.storage.ship;
 
   protected readonly ports = this.storage.ports;
-
   protected readonly ranks = this.storage.ranks;
-
   protected readonly nationalities = this.storage.nationalities;
 
   protected readonly activeCrewArrival = this.storage.activeCrewArrival;

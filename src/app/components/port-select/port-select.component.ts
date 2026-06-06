@@ -6,31 +6,29 @@ import { Port, portLabel } from '../../models/crew.models';
   selector: 'app-port-select',
   imports: [FormsModule],
   template: `
-    <input
+    <select
       class="port-select"
-      type="text"
-      autocomplete="off"
-      [attr.list]="listId"
-      placeholder="Type or pick port…"
       [ngModel]="value()"
       (ngModelChange)="valueChange.emit($event)"
-    />
-    <datalist [id]="listId">
+    >
+      <option value="">— select port —</option>
       @for (p of ports(); track p.name) {
-        <option [value]="p.name" [label]="label(p)"></option>
+        <option [value]="p.name">{{ label(p) }}</option>
       }
-    </datalist>
+    </select>
   `,
   styles: `
+    :host {
+      display: block;
+      width: 100%;
+    }
+
     .port-select {
       width: 100%;
     }
   `,
 })
 export class PortSelectComponent {
-  private static seq = 0;
-  protected readonly listId = `port-list-${++PortSelectComponent.seq}`;
-
   readonly value = input('');
   readonly ports = input<Port[]>([]);
   readonly valueChange = output<string>();

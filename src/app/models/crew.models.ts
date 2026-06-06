@@ -43,19 +43,6 @@ export interface Port {
   country?: string;
 }
 
-export const DEFAULT_PORTS: Port[] = [
-  { name: 'Napoli', code: 'ITNAP', country: 'ITALY' },
-  { name: 'Marseille', code: 'FRMRS', country: 'FRANCE' },
-  { name: 'Alger', code: 'DZALG', country: 'ALGERIA' },
-  { name: 'La Spezia', code: 'ITSPE', country: 'ITALY' },
-  { name: 'Limassol', code: 'CYLMS', country: 'CYPRUS' },
-  { name: 'Genoa', code: 'ITGOA', country: 'ITALY' },
-  { name: 'Salerno', code: 'ITSAL', country: 'ITALY' },
-  { name: 'Le Havre', code: 'FRLEH', country: 'FRANCE' },
-  { name: 'Bejaia', code: 'DZBJA', country: 'ALGERIA' },
-  { name: 'Antwerp', code: 'BEANR', country: 'BELGIUM' },
-];
-
 export const DEFAULT_RANKS = [
   'Master',
   'Ch.Off',
@@ -543,7 +530,6 @@ export function crewRankOrder(
     order.push(v);
   };
 
-  for (const r of DEFAULT_RANKS) add(r);
   for (const r of directoryRanks) add(r);
 
   const extra = [...new Set(members.map((m) => m.rank.trim()).filter(Boolean))]
