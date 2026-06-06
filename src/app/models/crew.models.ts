@@ -171,6 +171,10 @@ export interface CrewMember {
   joiningDate: string;
   /** Port name (code resolved from ports directory). */
   joiningPort: string;
+  /** Vaccine medical product name. */
+  vaccineMedicalProduct: string;
+  /** Date of vaccination (ISO date). */
+  dateOfVaccination: string;
   archived: boolean;
   /** Shown on CREW LIST ARRIVAL tab and Arrival PDF. */
   onArrivalList: boolean;
@@ -417,6 +421,8 @@ export function createEmptyCrewMember(): CrewMember {
     visaExpiryDate: '',
     joiningDate: '',
     joiningPort: '',
+    vaccineMedicalProduct: '',
+    dateOfVaccination: '',
     archived: false,
     onArrivalList: false,
     onDepartureList: false,
@@ -708,5 +714,17 @@ export function mergeUniqueList(existing: string[], ...items: (string | undefine
     const v = item?.trim();
     if (v) set.add(v);
   }
-  return [...set].sort((a, b) => a.localeCompare(b));
+  // Preserve order: existing items first (in their original order), then new items
+  const result: string[] = [];
+  for (const item of existing) {
+    if (item && set.has(item)) {
+      result.push(item);
+      set.delete(item);
+    }
+  }
+  // Add remaining new items at the end
+  for (const item of set) {
+    result.push(item);
+  }
+  return result;
 }

@@ -371,6 +371,7 @@ export class StorageService {
       pax: this.normalizeStampDocumentPrefs(raw?.pax, defaults.pax),
       portOfCall: this.normalizeStampDocumentPrefs(raw?.portOfCall, defaults.portOfCall),
       mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
+      crewVaccine: this.normalizeStampDocumentPrefs(raw?.crewVaccine, defaults.crewVaccine),
       shipStores: this.normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
       crewEffect: this.normalizeStampDocumentPrefs(raw?.crewEffect, defaults.crewEffect),
       nilList: this.normalizeStampDocumentPrefs(raw?.nilList, defaults.nilList),
@@ -558,6 +559,16 @@ export class StorageService {
     this.toast.showRankDeleted();
   }
 
+  reorderRanks(previousIndex: number, currentIndex: number): void {
+    this.data.update((d) => {
+      const ranks = [...d.ranks];
+      const [moved] = ranks.splice(previousIndex, 1);
+      ranks.splice(currentIndex, 0, moved);
+      return { ...d, ranks };
+    });
+    void this.persist('saved');
+  }
+
   addNationality(name: string): void {
     const v = name.trim();
     if (!v) return;
@@ -570,6 +581,26 @@ export class StorageService {
     this.data.update((d) => ({ ...d, nationalities: d.nationalities.filter((n) => n !== name) }));
     void this.persist('silent');
     this.toast.showNationalityDeleted();
+  }
+
+  reorderNationalities(previousIndex: number, currentIndex: number): void {
+    this.data.update((d) => {
+      const nationalities = [...d.nationalities];
+      const [moved] = nationalities.splice(previousIndex, 1);
+      nationalities.splice(currentIndex, 0, moved);
+      return { ...d, nationalities };
+    });
+    void this.persist('saved');
+  }
+
+  reorderPorts(previousIndex: number, currentIndex: number): void {
+    this.data.update((d) => {
+      const ports = [...d.ports];
+      const [moved] = ports.splice(previousIndex, 1);
+      ports.splice(currentIndex, 0, moved);
+      return { ...d, ports };
+    });
+    void this.persist('saved');
   }
 
   updateDocumentOverlay(
@@ -640,6 +671,7 @@ export class StorageService {
         pax: { ...d.documentOverlay.pax, ...patch },
         portOfCall: { ...d.documentOverlay.portOfCall, ...patch },
         mdh: { ...d.documentOverlay.mdh, ...patch },
+        crewVaccine: { ...d.documentOverlay.crewVaccine, ...patch },
         shipStores: { ...d.documentOverlay.shipStores, ...patch },
         crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
         nilList: { ...d.documentOverlay.nilList, ...patch },

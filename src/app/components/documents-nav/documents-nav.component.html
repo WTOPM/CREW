@@ -270,6 +270,9 @@
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openMdh()">
         Maritime Declaration of Health
       </button>
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewVaccine()">
+        Crew Vaccine
+      </button>
       <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openMdhSettings()">
         <svg class="nav-doc-settings-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path
@@ -406,8 +409,40 @@
 @if (showMdhSettings()) {
   <div class="modal-backdrop" (click)="closeMdhSettings()">
     <div class="modal modal-narrow doc-overlay-modal" (click)="$event.stopPropagation()">
-      <h3>MDH settings</h3>
+      <h3>MDH Settings</h3>
+
+      <fieldset class="choice-group">
+        <legend class="choice-group__legend">Document</legend>
+        <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="MDH document">
+          <label class="choice-segmented__item">
+            <input
+              type="radio"
+              name="mdhSettingsDoc"
+              value="mdh"
+              [ngModel]="mdhSettingsDoc()"
+              (ngModelChange)="mdhSettingsDoc.set($event)"
+            />
+            <span class="choice-segmented__text">Maritime Declaration of Health</span>
+          </label>
+          <label class="choice-segmented__item">
+            <input
+              type="radio"
+              name="mdhSettingsDoc"
+              value="crewVaccine"
+              [ngModel]="mdhSettingsDoc()"
+              (ngModelChange)="mdhSettingsDoc.set($event)"
+            />
+            <span class="choice-segmented__text">Crew Vaccine</span>
+          </label>
+        </div>
+      </fieldset>
+
+      @if (mdhSettingsDoc() === 'crewVaccine') {
+      <app-document-stamp-options documentId="crewVaccine" />
+      } @else {
       <app-document-stamp-options documentId="mdh" />
+      }
+
       <div class="modal-actions">
         <button type="button" class="btn btn-primary" (click)="closeMdhSettings()">Done</button>
       </div>

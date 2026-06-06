@@ -113,6 +113,14 @@ export function narcoticListPdfFileName(shipName: string, voyageDate: string): s
   return `Narcotic_List_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function crewVaccinePdfFileName(
+  shipName: string,
+  portOfCall: string,
+  voyageDate: string,
+): string {
+  return `Crew_Vaccine_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function passengerListPdfFileName(
   shipName: string,
   portOfCall: string,

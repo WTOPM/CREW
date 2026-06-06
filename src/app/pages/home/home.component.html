@@ -623,6 +623,20 @@
               </label>
             </div>
           </section>
+
+          <section class="crew-form-block">
+            <h4 class="crew-form-block-title">Vaccination</h4>
+            <div class="form-grid">
+              <label>
+                <span>Vaccine medical product</span>
+                <input [ngModel]="draft.vaccineMedicalProduct" (ngModelChange)="updateDraft('vaccineMedicalProduct', $event)" />
+              </label>
+              <label>
+                <span>Date of vaccination</span>
+                <app-date-picker [value]="draft.dateOfVaccination" (valueChange)="updateDraft('dateOfVaccination', $event)" />
+              </label>
+            </div>
+          </section>
         </div>
 
         <div class="modal-actions">

@@ -39,11 +39,15 @@ type SeedRow = Omit<
   | 'passportPlaceOfIssue'
   | 'seamansBookPlaceOfIssue'
   | 'gender'
+  | 'vaccineMedicalProduct'
+  | 'dateOfVaccination'
 > & {
   fullName: string;
   passportPlaceOfIssue?: string;
   seamansBookPlaceOfIssue?: string;
   gender?: string;
+  vaccineMedicalProduct?: string;
+  dateOfVaccination?: string;
 };
 
 const SEED_CREW_RAW: SeedRow[] = [
@@ -343,6 +347,8 @@ export function createSeedCrew(): CrewMember[] {
       passportPlaceOfIssue: rest.passportPlaceOfIssue ?? '',
       seamansBookPlaceOfIssue: rest.seamansBookPlaceOfIssue ?? '',
       gender: normalizePersonGender(rest.gender),
+      vaccineMedicalProduct: rest.vaccineMedicalProduct ?? '',
+      dateOfVaccination: rest.dateOfVaccination ?? '',
       familyName,
       givenNames,
       id: crypto.randomUUID(),

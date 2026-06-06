@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { ShipInfo } from '../../models/crew.models';
@@ -14,6 +15,7 @@ import { CustomDocumentsComponent } from '../../components/custom-documents/cust
   imports: [
     FormsModule,
     RouterLink,
+    DragDropModule,
     PortSelectComponent,
     DatePickerComponent,
     DocumentStampUploadComponent,
@@ -113,6 +115,18 @@ export class SettingsComponent {
 
   protected removeRankItem(name: string): void {
     this.storage.removeRank(name);
+  }
+
+  protected dropRank(event: CdkDragDrop<string[]>): void {
+    this.storage.reorderRanks(event.previousIndex, event.currentIndex);
+  }
+
+  protected dropPort(event: CdkDragDrop<any[]>): void {
+    this.storage.reorderPorts(event.previousIndex, event.currentIndex);
+  }
+
+  protected dropNationality(event: CdkDragDrop<string[]>): void {
+    this.storage.reorderNationalities(event.previousIndex, event.currentIndex);
   }
 
 }

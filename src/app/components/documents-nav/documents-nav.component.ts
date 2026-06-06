@@ -23,6 +23,7 @@ import { PdfCashAdvanceService } from '../../services/pdf-cash-advance.service';
 import { PdfCrewMoneyListService } from '../../services/pdf-crew-money-list.service';
 import { PdfNarcoticListService } from '../../services/pdf-narcotic-list.service';
 import { PdfSso0108PortCallsService } from '../../services/pdf-sso0108-port-calls.service';
+import { PdfCrewVaccineService } from '../../services/pdf-crew-vaccine.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
@@ -62,6 +63,7 @@ export class DocumentsNavComponent {
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly mdhPdf = inject(PdfMdhService);
+  private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
@@ -92,6 +94,8 @@ export class DocumentsNavComponent {
   protected showCrewListSettings = signal(false);
   protected showPaxSettings = signal(false);
   protected showMdhSettings = signal(false);
+  /** Which MDH document the unified MDH Settings modal is editing. */
+  protected mdhSettingsDoc = signal<'mdh' | 'crewVaccine'>('mdh');
   protected showShipStoresSettings = signal(false);
   protected showCrewEffectSettings = signal(false);
   protected showNilListSettings = signal(false);
@@ -381,6 +385,16 @@ export class DocumentsNavComponent {
       }
     }).catch((err) => {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to generate MDH');
+    });
+  }
+
+  protected openCrewVaccine(): void {
+    void this.crewVaccinePdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Crew Vaccine preview');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Vaccine');
     });
   }
 

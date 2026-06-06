@@ -217,9 +217,10 @@
         <input placeholder="COUNTRY" [ngModel]="newPortCountry()" (ngModelChange)="newPortCountry.set($event)" (keyup.enter)="addPortItem()" />
         <button type="button" class="btn btn-primary" (click)="addPortItem()">+</button>
       </div>
-      <ul class="ref-list ref-list-tall">
+      <ul class="ref-list ref-list-tall" cdkDropList (cdkDropListDropped)="dropPort($event)">
         @for (p of ports(); track p.name) {
-          <li>
+          <li cdkDrag>
+            <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
             <span>{{ p.name }}@if (p.code) { <em class="port-code">{{ p.code }}</em> }@if (p.country) { <em class="port-code">{{ p.country }}</em> }</span>
             <button type="button" class="btn-link warn" (click)="removePortItem(p.name)">×</button>
           </li>
@@ -245,9 +246,10 @@
         />
         <button type="button" class="btn btn-primary" (click)="addRankItem()">+</button>
       </div>
-      <ul class="ref-list ref-list-tall">
+      <ul class="ref-list ref-list-tall" cdkDropList (cdkDropListDropped)="dropRank($event)">
         @for (r of ranks(); track r) {
-          <li>
+          <li cdkDrag>
+            <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
             <span>{{ r }}</span>
             <button type="button" class="btn-link warn" (click)="removeRankItem(r)">×</button>
           </li>
@@ -273,9 +275,10 @@
         />
         <button type="button" class="btn btn-primary" (click)="addNationalityItem()">+</button>
       </div>
-      <ul class="ref-list ref-list-tall">
+      <ul class="ref-list ref-list-tall" cdkDropList (cdkDropListDropped)="dropNationality($event)">
         @for (n of nationalities(); track n) {
-          <li>
+          <li cdkDrag>
+            <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
             <span>{{ n }}</span>
             <button type="button" class="btn-link warn" (click)="removeNationalityItem(n)">×</button>
           </li>
