@@ -314,12 +314,10 @@ export class StorageService {
     if (!Array.isArray(raw)) return [];
     const normItems = (items: unknown): PortPackageItem[] =>
       Array.isArray(items)
-        ? items
-            .map((it) => ({
-              documentId: String((it as PortPackageItem)?.documentId ?? '').trim(),
-              copies: Math.max(1, Math.min(99, Math.round(Number((it as PortPackageItem)?.copies) || 1))),
-            }))
-            .filter((it) => it.documentId)
+        ? items.map((it) => ({
+            documentId: String((it as PortPackageItem)?.documentId ?? '').trim(),
+            copies: Math.max(1, Math.min(99, Math.round(Number((it as PortPackageItem)?.copies) || 1))),
+          }))
         : [];
 
     const byPort = new Map<string, PortAuthority[]>();

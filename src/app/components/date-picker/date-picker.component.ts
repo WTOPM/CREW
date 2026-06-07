@@ -87,6 +87,7 @@ function isoFromMask(text: string): string | null {
           (ngModelChange)="onTextChange($event)"
           (focus)="onFocus()"
           (blur)="onBlur()"
+          (mouseup)="onInputSelect()"
           (keydown)="onKeydown($event)"
           (keydown.escape)="close()"
         />
@@ -435,16 +436,37 @@ export class DatePickerComponent {
     const el = this.fieldRef()?.nativeElement;
     if (!el) return;
     this.focused.set(true);
-    const { text, iso } = preparePartialDateOnFocus(this.value());
-    this.text.set(text);
-    if (iso !== this.value()) {
-      this.valueChange.emit(iso);
+
+    const isEmpty = !this.value() || !/^\d{4}-\d{2}-\d{2}$/.test(this.value());
+    if (isEmpty) {
+      const { text, iso } = preparePartialDateOnFocus('');
+      this.text.set(text);
+      if (iso !== this.value()) {
+        this.valueChange.emit(iso);
+      }
+      queueMicrotask(() => {
+        el.value = text;
+        this.selectSegment('day');
+      });
+      return;
     }
-    // Highlight the first day digit so the next keystroke overtypes it.
-    setTimeout(() => {
+
+    const text = formatDisplayDate(this.value());
+    this.text.set(text);
+    queueMicrotask(() => {
       el.value = text;
-      el.setSelectionRange(0, 1);
-    }, 0);
+    });
+  }
+
+  protected onInputSelect(): void {
+    if (!this.focused()) return;
+    const el = this.fieldRef()?.nativeElement;
+    if (!el) return;
+    queueMicrotask(() => {
+      const pos = el.selectionStart ?? 0;
+      const { start, end } = this.segmentBounds(pos);
+      el.setSelectionRange(start, end);
+    });
   }
 
   protected onBlur(): void {
@@ -473,11 +495,40 @@ export class DatePickerComponent {
 
     if (key >= '0' && key <= '9') {
       event.preventDefault();
-      const writePos = digitAtOrAfter(pos);
+      const selStart = el.selectionStart ?? 0;
+      const selEnd = el.selectionEnd ?? selStart;
+      const selLen = selEnd - selStart;
       let s = this.ensureMaskText(el.value);
+
+      if (selLen >= 2) {
+        const seg = this.segmentBounds(selStart);
+        if (selStart >= seg.start && selEnd <= seg.end) {
+          const writePos = selLen === seg.end - seg.start ? seg.start : selStart;
+          s = s.slice(0, writePos) + key + s.slice(writePos + 1);
+          if (writePos <= 1) s = clampDaySegment(s);
+          else if (writePos >= 3 && writePos <= 4) s = clampMonthSegment(s);
+          el.value = s;
+          this.text.set(s);
+          this.emitFromMask(s);
+
+          const nextPos = writePos + 1;
+          if (nextPos < seg.end) {
+            el.setSelectionRange(nextPos, nextPos + 1);
+          } else if (seg.start === 0) {
+            this.selectSegment('month');
+          } else if (seg.start === 3) {
+            this.selectSegment('year');
+          } else {
+            el.setSelectionRange(9, 10);
+          }
+          return;
+        }
+      }
+
+      const writePos = digitAtOrAfter(selStart);
       s = s.slice(0, writePos) + key + s.slice(writePos + 1);
-      if (writePos === 1) s = clampDaySegment(s);
-      else if (writePos === 4) s = clampMonthSegment(s);
+      if (writePos <= 1) s = clampDaySegment(s);
+      else if (writePos >= 3 && writePos <= 4) s = clampMonthSegment(s);
       this.writeMask(s, nextDigitPos(writePos));
       this.emitFromMask(s);
       return;
@@ -485,12 +536,24 @@ export class DatePickerComponent {
 
     if (key === 'ArrowLeft') {
       event.preventDefault();
-      this.selectDigit(prevDigitPos(pos));
+      const seg = this.segmentBounds(pos);
+      if (pos <= seg.start) {
+        if (seg.start === 3) this.selectSegment('day');
+        else if (seg.start === 6) this.selectSegment('month');
+      } else {
+        this.selectSegment(seg.start);
+      }
       return;
     }
     if (key === 'ArrowRight') {
       event.preventDefault();
-      this.selectDigit(nextDigitPos(pos));
+      const seg = this.segmentBounds(pos);
+      if (pos >= seg.end - 1) {
+        if (seg.start === 0) this.selectSegment('month');
+        else if (seg.start === 3) this.selectSegment('year');
+      } else {
+        this.selectSegment(seg.end - 1);
+      }
       return;
     }
     if (key === 'Backspace') {
@@ -523,7 +586,36 @@ export class DatePickerComponent {
 
   /** Current input as a valid mask string, or a freshly prefilled one. */
   private ensureMaskText(v: string): string {
-    return /^\d{2}\.\d{2}\.\d{4}$/.test(v) ? v : preparePartialDateOnFocus(this.value()).text;
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(v)) return v;
+    const val = this.value();
+    if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) return formatDisplayDate(val);
+    return preparePartialDateOnFocus('').text;
+  }
+
+  private segmentBounds(pos: number): { start: number; end: number } {
+    if (pos <= 2) return { start: 0, end: 2 };
+    if (pos <= 5) return { start: 3, end: 5 };
+    return { start: 6, end: 10 };
+  }
+
+  private selectSegment(which: 'day' | 'month' | 'year' | number): void {
+    const el = this.fieldRef()?.nativeElement;
+    if (!el) return;
+    let start: number;
+    let end: number;
+    if (which === 'day') {
+      start = 0;
+      end = 2;
+    } else if (which === 'month') {
+      start = 3;
+      end = 5;
+    } else if (which === 'year') {
+      start = 6;
+      end = 10;
+    } else {
+      ({ start, end } = this.segmentBounds(which));
+    }
+    el.setSelectionRange(start, end);
   }
 
   /** Set the input value + highlight the digit at `caret` (imperative; no caret jumps). */

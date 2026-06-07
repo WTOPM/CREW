@@ -38,11 +38,14 @@ export class PackageRunnerService {
     if (!pkg || pkg.authorities.length === 0) return null;
     const authorities = pkg.authorities.map((a) => ({
       name: a.name?.trim() || '(unnamed)',
-      items: a.items.map((it) => ({ label: this.catalog.label(it.documentId), copies: it.copies })),
+      items: a.items
+        .filter((it) => it.documentId.trim())
+        .map((it) => ({ label: this.catalog.label(it.documentId), copies: it.copies })),
     }));
     const totals = new Map<string, number>();
     for (const a of pkg.authorities) {
       for (const it of a.items) {
+        if (!it.documentId.trim()) continue;
         totals.set(it.documentId, (totals.get(it.documentId) ?? 0) + it.copies);
       }
     }
@@ -97,6 +100,7 @@ export class PackageRunnerService {
     // Total copies per unique document (preserve first-seen order).
     const copiesById = new Map<string, number>();
     for (const item of items) {
+      if (!item.documentId.trim()) continue;
       if (!enabled.has(item.documentId)) {
         this.skip(item.documentId);
         continue;
@@ -136,6 +140,7 @@ export class PackageRunnerService {
     const seen = new Set<string>();
     const out: string[] = [];
     for (const item of items) {
+      if (!item.documentId.trim()) continue;
       if (!enabled.has(item.documentId)) {
         this.skip(item.documentId);
         continue;

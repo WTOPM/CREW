@@ -13,6 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import {
   CREW_LIST_TYPE_LABELS,
   DOCUMENT_OVERLAY_LABELS,
@@ -29,7 +30,6 @@ import { StorageService } from '../../services/storage.service';
 import {
   CREW_LIST_PREVIEW_CSS_PX_PER_PT,
   openPdfJsPageView,
-  pdfJsPointerDeltaPdf,
   pdfJsScreenStepToPdf,
   type PdfJsPageView,
 } from '../../utils/crew-list-pdfjs.util';
@@ -60,13 +60,15 @@ type ResizeTarget = 'stamp' | 'signature';
 
 @Component({
   selector: 'app-overlay-placement-picker',
-  imports: [FormsModule, DecimalPipe, NgStyle],
+  imports: [FormsModule, DecimalPipe, NgStyle, ClickOutsideDirective],
   template: `
-    <div class="modal-backdrop placement-backdrop" (click)="close.emit()">
+    <div class="modal-backdrop placement-backdrop">
       <div
         class="placement-modal"
         tabindex="0"
         #modalHost
+        appClickOutside
+        (appClickOutside)="close.emit()"
         (click)="$event.stopPropagation()"
         (keydown)="onKeydown($event)"
       >
@@ -134,9 +136,9 @@ type ResizeTarget = 'stamp' | 'signature';
           <p class="placement-error">{{ loadError() }}</p>
         } @else {
           <div class="placement-readout" aria-live="polite">
-            @if (cursorPt()) {
-              <span>Cursor: x {{ cursorPt()!.x }}, y {{ cursorPt()!.y }}</span>
-            }
+            <span class="placement-readout-line placement-readout-line--cursor">
+              Cursor: x {{ cursorPt()?.x ?? '—' }}, y {{ cursorPt()?.y ?? '—' }}
+            </span>
             @if (stampBoxOnPage(); as stamp) {
               <span>
                 Stamp: x {{ stamp.x | number: '1.0-1' }}, y {{ stamp.y | number: '1.0-1' }},
@@ -151,29 +153,53 @@ type ResizeTarget = 'stamp' | 'signature';
             }
           </div>
 
-          <div class="placement-scroll">
+          <div class="placement-zoom" role="group" aria-label="Preview zoom">
+            <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomOut()" aria-label="Zoom out">−</button>
+            <span class="placement-zoom-label">{{ zoomPercent() }}%</span>
+            <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomIn()" aria-label="Zoom in">+</button>
+            <button type="button" class="placement-pill" (click)="resetZoom()">100%</button>
+          </div>
+
+          <div
+            class="placement-scroll"
+            #placementScroll
+            [class.placement-scroll--panning]="viewPanning()"
+            [class.placement-scroll--coords]="placementMode() === 'none' && !viewPanning()"
+            (wheel)="onPreviewWheel($event)"
+            (pointermove)="onScrollPointerMove($event)"
+            (pointerup)="onScrollPointerUp($event)"
+            (pointercancel)="onScrollPointerUp($event)"
+          >
             @if (loading()) {
               <p class="placement-loading">Loading document…</p>
             }
-            <div
-              class="placement-page"
-              [class.placement-page--hidden]="loading()"
-              [style.width.px]="pageCssWidth()"
-              [style.height.px]="pageCssHeight()"
-            >
-              <canvas #pdfCanvas class="placement-canvas"></canvas>
+            <div class="placement-scroll-center" [class.placement-scroll-center--hidden]="loading()">
               <div
-                class="placement-overlay"
-                #placementOverlay
-                [class.placement-overlay--draggable]="placementMode() !== 'none' && !resizing()"
-                [class.placement-overlay--dragging]="pointerDragging()"
-                [class.placement-overlay--resizing]="resizing()"
-                (pointerdown)="onOverlayPointerDown($event)"
-                (pointermove)="onOverlayPointerMove($event)"
-                (pointerup)="onOverlayPointerUp($event)"
-                (pointercancel)="onOverlayPointerUp($event)"
-                (pointerleave)="onOverlayPointerLeave()"
+                class="placement-page-wrap"
+                [style.width.px]="pageWrapWidth()"
+                [style.height.px]="pageWrapHeight()"
               >
+                <div
+                  class="placement-page"
+                  [style.width.px]="pageCssWidth()"
+                  [style.height.px]="pageCssHeight()"
+                  [style.transform]="pageScaleTransform()"
+                >
+                  <canvas #pdfCanvas class="placement-canvas"></canvas>
+                  <div
+                    class="placement-overlay"
+                    #placementOverlay
+                    [class.placement-overlay--coords]="placementMode() === 'none' && !viewPanning()"
+                    [class.placement-overlay--panning]="viewPanning()"
+                    [class.placement-overlay--draggable]="placementMode() !== 'none' && !resizing()"
+                    [class.placement-overlay--dragging]="pointerDragging()"
+                    [class.placement-overlay--resizing]="resizing()"
+                    (pointerdown)="onOverlayPointerDown($event)"
+                    (pointermove)="onOverlayPointerMove($event)"
+                    (pointerup)="onOverlayPointerUp($event)"
+                    (pointercancel)="onOverlayPointerUp($event)"
+                    (pointerleave)="onOverlayPointerLeave()"
+                  >
                 <div
                   class="placement-marker placement-marker--stamp"
                   [class.placement-marker--on]="options().useStamp"
@@ -216,11 +242,13 @@ type ResizeTarget = 'stamp' | 'signature';
                 </div>
               </div>
             </div>
+            </div>
+            </div>
           </div>
         }
 
         <p class="placement-coords">
-          Real size (96 dpi) — {{ moveTargetLabel() }}, rotation {{ rotation() }}°
+          Base 96 dpi, preview {{ zoomPercent() }}% — {{ moveTargetLabel() }}, rotation {{ rotation() }}°
         </p>
 
         <div class="placement-actions">
@@ -345,6 +373,26 @@ type ResizeTarget = 'stamp' | 'signature';
       color: #334155;
     }
 
+    .placement-readout-line--cursor {
+      min-height: 1.15em;
+    }
+
+    .placement-zoom {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 0 0 0.5rem;
+    }
+
+    .placement-zoom-label {
+      min-width: 3rem;
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
     .placement-scroll {
       overflow: auto;
       max-height: min(68vh, 820px);
@@ -352,9 +400,37 @@ type ResizeTarget = 'stamp' | 'signature';
       background: #e2e8f0;
       border-radius: 8px;
       padding: 0.75rem;
+      min-height: 120px;
+      overscroll-behavior: contain;
+    }
+
+    .placement-scroll--panning {
+      cursor: grabbing;
+      user-select: none;
+    }
+
+    .placement-scroll--coords {
+      cursor:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cline x1='8.5' y1='0' x2='8.5' y2='17' stroke='%23000' stroke-width='1'/%3E%3Cline x1='0' y1='8.5' x2='17' y2='8.5' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E")
+          8 8,
+        crosshair;
+    }
+
+    .placement-scroll-center {
+      min-width: 100%;
+      min-height: 100%;
+      width: max-content;
+      height: max-content;
       display: flex;
       justify-content: center;
-      min-height: 120px;
+      align-items: flex-start;
+      box-sizing: border-box;
+    }
+
+    .placement-scroll-center--hidden {
+      visibility: hidden;
+      position: absolute;
+      pointer-events: none;
     }
 
     .placement-loading {
@@ -363,9 +439,23 @@ type ResizeTarget = 'stamp' | 'signature';
       color: var(--text-muted);
     }
 
+    .placement-page-wrap {
+      flex-shrink: 0;
+      position: relative;
+      overflow: visible;
+    }
+
+    .placement-page-wrap--hidden {
+      visibility: hidden;
+      position: absolute;
+      pointer-events: none;
+    }
+
     .placement-page {
       position: relative;
       flex-shrink: 0;
+      transform-origin: top left;
+      overflow: visible;
     }
 
     .placement-page--hidden {
@@ -389,6 +479,17 @@ type ResizeTarget = 'stamp' | 'signature';
 
     .placement-overlay--draggable {
       cursor: crosshair;
+    }
+
+    .placement-overlay--coords {
+      cursor:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cline x1='8.5' y1='0' x2='8.5' y2='17' stroke='%23000' stroke-width='1'/%3E%3Cline x1='0' y1='8.5' x2='17' y2='8.5' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E")
+          8 8,
+        crosshair;
+    }
+
+    .placement-overlay--panning {
+      cursor: grabbing;
     }
 
     .placement-overlay--dragging {
@@ -556,10 +657,12 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   private readonly modalHost = viewChild<ElementRef<HTMLElement>>('modalHost');
   private readonly pdfCanvas = viewChild<ElementRef<HTMLCanvasElement>>('pdfCanvas');
   private readonly placementOverlay = viewChild<ElementRef<HTMLElement>>('placementOverlay');
+  private readonly placementScroll = viewChild<ElementRef<HTMLElement>>('placementScroll');
 
   protected readonly mdhPage = signal<MdhOverlayPreviewPage>('form');
   protected readonly rotation = signal<OverlayRotation>(0);
   protected readonly pointerDragging = signal(false);
+  protected readonly viewPanning = signal(false);
   protected readonly resizing = signal(false);
   private readonly activeResize = signal<{
     target: ResizeTarget;
@@ -574,6 +677,15 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   private readonly pageSizePt = signal({ widthPt: A4_WIDTH_PT, heightPt: A4_HEIGHT_PT });
   protected readonly pageCssWidth = signal(0);
   protected readonly pageCssHeight = signal(0);
+  protected readonly previewZoom = signal(1);
+  protected readonly zoomPercent = computed(() => Math.round(this.previewZoom() * 100));
+  protected readonly pageWrapWidth = computed(() => this.pageCssWidth() * this.previewZoom());
+  protected readonly pageWrapHeight = computed(() => this.pageCssHeight() * this.previewZoom());
+  protected readonly pageScaleTransform = computed(() => `scale(${this.previewZoom()})`);
+
+  private static readonly ZOOM_MIN = 0.5;
+  private static readonly ZOOM_MAX = 3;
+  private static readonly ZOOM_STEP = 0.1;
 
   private pageView: PdfJsPageView | null = null;
   private pdfBytes: Uint8Array | null = null;
@@ -582,6 +694,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   private readonly dragStampBoxPage = signal<PdfStampBox | null>(null);
   private readonly dragSignatureBoxPage = signal<PdfStampBox | null>(null);
   private lastPointerClient: { x: number; y: number } | null = null;
+  private lastPanClient: { x: number; y: number } | null = null;
   private pointerDidMove = false;
 
   constructor() {
@@ -647,7 +760,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       case 'signature':
         return 'Drag to move the signature; drag its edges/corners to resize.';
       default:
-        return 'Enable stamp and/or signature. Drag frames to move; drag edges/corners to resize.';
+        return 'Hover for PDF coordinates (crosshair). Wheel to zoom; drag with LMB to pan when zoomed.';
     }
   });
 
@@ -660,9 +773,52 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       case 'signature':
         return 'Moving signature';
       default:
-        return 'Nothing selected';
+        return 'Coordinates only';
     }
   });
+
+  protected zoomIn(): void {
+    this.applyZoom(this.previewZoom() + OverlayPlacementPickerComponent.ZOOM_STEP);
+  }
+
+  protected zoomOut(): void {
+    this.applyZoom(this.previewZoom() - OverlayPlacementPickerComponent.ZOOM_STEP);
+  }
+
+  protected resetZoom(): void {
+    this.applyZoom(1);
+    const scroll = this.placementScroll()?.nativeElement;
+    if (scroll) {
+      scroll.scrollLeft = 0;
+      scroll.scrollTop = 0;
+    }
+  }
+
+  protected onPreviewWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const step = Math.min(0.12, Math.max(0.02, Math.abs(event.deltaY) * 0.0015));
+    const delta = event.deltaY > 0 ? -step : step;
+    this.applyZoom(this.previewZoom() + delta, event.clientX, event.clientY);
+  }
+
+  protected onScrollPointerMove(event: PointerEvent): void {
+    if (this.viewPanning()) {
+      this.moveViewPan(event);
+      return;
+    }
+    if (this.placementMode() === 'none') {
+      this.updateCursor(event);
+    }
+  }
+
+  protected onScrollPointerUp(event: PointerEvent): void {
+    if (!this.viewPanning()) return;
+    const scroll = this.placementScroll()?.nativeElement;
+    if (scroll?.hasPointerCapture(event.pointerId)) {
+      scroll.releasePointerCapture(event.pointerId);
+    }
+    this.endViewPan();
+  }
 
   protected options(): DocumentStampOptions {
     const id = this.documentId();
@@ -757,7 +913,10 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     if (event.button !== 0) return;
     if (this.resizing()) return;
     const mode = this.placementMode();
-    if (mode === 'none') return;
+    if (mode === 'none') {
+      this.startViewPan(event);
+      return;
+    }
 
     const el = this.placementOverlay()?.nativeElement;
     if (!el || !this.pageView) return;
@@ -772,6 +931,12 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   }
 
   protected onOverlayPointerMove(event: PointerEvent): void {
+    if (this.viewPanning()) {
+      this.moveViewPan(event);
+      this.updateCursor(event);
+      return;
+    }
+
     this.updateCursor(event);
     if (!this.lastPointerClient || !this.pageView) return;
 
@@ -779,8 +944,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
-    const { dx, dy } = pdfJsPointerDeltaPdf(
-      this.pageView,
+    const { dx, dy } = this.pointerDeltaPdf(
       rect,
       event.clientX,
       event.clientY,
@@ -807,6 +971,11 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   }
 
   protected onOverlayPointerUp(event: PointerEvent): void {
+    if (this.viewPanning()) {
+      this.onScrollPointerUp(event);
+      return;
+    }
+
     if (this.resizing()) {
       const el = this.placementOverlay()?.nativeElement;
       if (el?.hasPointerCapture(event.pointerId)) {
@@ -826,10 +995,8 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
     if (!this.pointerDidMove && mode !== 'none' && el && this.pageView) {
       const rect = el.getBoundingClientRect();
-      const pt = this.pageView.convertToPdfPoint(
-        event.clientX - rect.left,
-        event.clientY - rect.top,
-      );
+      const css = this.overlayCssFromClient(event, rect);
+      const pt = this.pageView.convertToPdfPoint(css.x, css.y);
       this.placeAt(mode, pt.x, pt.y);
       this.endPointerDrag(false);
       return;
@@ -877,7 +1044,12 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       default:
         return;
     }
-    const { dx: pdfDx, dy: pdfDy } = pdfJsScreenStepToPdf(view, rect, cssDx, cssDy);
+    const { dx: pdfDx, dy: pdfDy } = pdfJsScreenStepToPdf(
+      view,
+      rect,
+      cssDx / this.previewZoom(),
+      cssDy / this.previewZoom(),
+    );
     this.nudgeBy(mode, pdfDx, pdfDy, true);
   }
 
@@ -975,18 +1147,73 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     this.signaturePreviewUrl.set(null);
   }
 
-  private updateCursor(event: PointerEvent): void {
+  private updateCursor(event: PointerEvent | { clientX: number; clientY: number }): void {
     const el = this.placementOverlay()?.nativeElement;
     const view = this.pageView;
     if (!el || !view) return;
     const rect = el.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+    const css = this.overlayCssFromClient(event, rect);
+    if (css.x < 0 || css.y < 0 || css.x > rect.width / this.previewZoom() || css.y > rect.height / this.previewZoom()) {
       this.cursorPt.set(null);
       return;
     }
-    this.cursorPt.set(view.convertToPdfPoint(x, y));
+    this.cursorPt.set(view.convertToPdfPoint(css.x, css.y));
+  }
+
+  private overlayCssFromClient(
+    event: { clientX: number; clientY: number },
+    rect: DOMRect,
+  ): { x: number; y: number } {
+    const zoom = this.previewZoom();
+    return {
+      x: (event.clientX - rect.left) / zoom,
+      y: (event.clientY - rect.top) / zoom,
+    };
+  }
+
+  private pointerDeltaPdf(
+    rect: DOMRect,
+    clientX: number,
+    clientY: number,
+    prevClientX: number,
+    prevClientY: number,
+  ): { dx: number; dy: number } {
+    const view = this.pageView;
+    if (!view) return { dx: 0, dy: 0 };
+    const zoom = this.previewZoom();
+    const cur = view.convertToPdfPoint(
+      (clientX - rect.left) / zoom,
+      (clientY - rect.top) / zoom,
+    );
+    const prev = view.convertToPdfPoint(
+      (prevClientX - rect.left) / zoom,
+      (prevClientY - rect.top) / zoom,
+    );
+    return { dx: cur.x - prev.x, dy: cur.y - prev.y };
+  }
+
+  private startViewPan(event: PointerEvent): void {
+    const scroll = this.placementScroll()?.nativeElement;
+    if (!scroll) return;
+    event.preventDefault();
+    scroll.setPointerCapture(event.pointerId);
+    this.viewPanning.set(true);
+    this.lastPanClient = { x: event.clientX, y: event.clientY };
+  }
+
+  private moveViewPan(event: PointerEvent): void {
+    const scroll = this.placementScroll()?.nativeElement;
+    if (!scroll || !this.lastPanClient) return;
+    const dx = event.clientX - this.lastPanClient.x;
+    const dy = event.clientY - this.lastPanClient.y;
+    scroll.scrollLeft -= dx;
+    scroll.scrollTop -= dy;
+    this.lastPanClient = { x: event.clientX, y: event.clientY };
+  }
+
+  private endViewPan(): void {
+    this.viewPanning.set(false);
+    this.lastPanClient = null;
   }
 
   private endPointerDrag(persist: boolean): void {
@@ -1188,5 +1415,39 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     } else {
       this.storage.updateDocumentOverlay(this.documentId(), { overlayRotation: deg }, 'saved');
     }
+  }
+
+  private applyZoom(next: number, anchorClientX?: number, anchorClientY?: number): void {
+    const clamped = Math.min(
+      OverlayPlacementPickerComponent.ZOOM_MAX,
+      Math.max(OverlayPlacementPickerComponent.ZOOM_MIN, Math.round(next * 100) / 100),
+    );
+    const oldZoom = this.previewZoom();
+    if (clamped === oldZoom) return;
+
+    const scroll = this.placementScroll()?.nativeElement;
+    if (scroll && anchorClientX != null && anchorClientY != null) {
+      const rect = scroll.getBoundingClientRect();
+      const px = anchorClientX - rect.left + scroll.scrollLeft;
+      const py = anchorClientY - rect.top + scroll.scrollTop;
+      const ratio = clamped / oldZoom;
+      this.previewZoom.set(clamped);
+      scroll.scrollLeft = px * ratio - (anchorClientX - rect.left);
+      scroll.scrollTop = py * ratio - (anchorClientY - rect.top);
+      this.clampScroll();
+      return;
+    }
+
+    this.previewZoom.set(clamped);
+    this.clampScroll();
+  }
+
+  private clampScroll(): void {
+    const scroll = this.placementScroll()?.nativeElement;
+    if (!scroll) return;
+    const maxLeft = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+    const maxTop = Math.max(0, scroll.scrollHeight - scroll.clientHeight);
+    scroll.scrollLeft = Math.min(maxLeft, Math.max(0, scroll.scrollLeft));
+    scroll.scrollTop = Math.min(maxTop, Math.max(0, scroll.scrollTop));
   }
 }

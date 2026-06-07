@@ -32,6 +32,10 @@ import { CREW_LIST_BODY_NIL_GRAY, CREW_LIST_BODY_NIL_LABEL } from './crew-list-c
 
 const CREW_LIST_ALGER_TEMPLATE_URL = '/crew-list-alger-empty.pdf';
 
+type PDFPage = import('pdf-lib').PDFPage;
+type PDFFont = import('pdf-lib').PDFFont;
+type RGB = import('pdf-lib').RGB;
+
 /** Crew list Type 2 — Alger (arrival only, landscape /Rotate 90). */
 @Injectable({ providedIn: 'root' })
 export class PdfCrewListType2Service {
@@ -43,7 +47,7 @@ export class PdfCrewListType2Service {
   private readonly templateVersion = 8;
 
   async buildPreviewBytes(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
-    let bytes = await this.build(data, crew);
+    const bytes = await this.build(data, crew);
     return this.overlay.applyToPdfBytes(bytes, resolveCrewListStampOptions(data.documentOverlay.crewList));
   }
 
@@ -66,7 +70,9 @@ export class PdfCrewListType2Service {
     const { PDFDocument, StandardFonts, rgb, degrees } = await import('pdf-lib');
     const template = await this.loadTemplate();
     const doc = await PDFDocument.load(template);
-    const page = doc.getPages()[0];
+    const templateDoc = await PDFDocument.load(template);
+    const [embeddedTemplate] = await doc.embedPages([templateDoc.getPages()[0]]);
+
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const black = rgb(0, 0, 0);
@@ -77,6 +83,51 @@ export class PdfCrewListType2Service {
     );
     const textRotate = degrees(CREW_LIST_ALGER_TEXT_ROTATION);
 
+    if (crew.length === 0) {
+      this.drawBodyNil(doc.getPages()[0], bold, textRotate, nilGray);
+      return doc.save();
+    }
+
+    const pageCount = Math.ceil(crew.length / CREW_LIST_ALGER_MAX_ROWS);
+    const firstPage = doc.getPages()[0];
+
+    for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+      const page =
+        pageIndex === 0
+          ? firstPage
+          : this.addTemplatePage(doc, firstPage, embeddedTemplate);
+
+      const slice = crew.slice(
+        pageIndex * CREW_LIST_ALGER_MAX_ROWS,
+        (pageIndex + 1) * CREW_LIST_ALGER_MAX_ROWS,
+      );
+      const rowOffset = pageIndex * CREW_LIST_ALGER_MAX_ROWS;
+
+      const { draw, drawFit } = this.createDrawHelpers(page, font, bold, black, textRotate);
+      this.drawHeader(draw, data, pageIndex + 1);
+      this.drawCrewBody(draw, drawFit, data, slice, rowOffset);
+    }
+
+    return doc.save();
+  }
+
+  private addTemplatePage(
+    doc: import('pdf-lib').PDFDocument,
+    firstPage: PDFPage,
+    embeddedTemplate: import('pdf-lib').PDFEmbeddedPage,
+  ): PDFPage {
+    const page = doc.addPage([firstPage.getWidth(), firstPage.getHeight()]);
+    page.drawPage(embeddedTemplate);
+    return page;
+  }
+
+  private createDrawHelpers(
+    page: PDFPage,
+    font: PDFFont,
+    bold: PDFFont,
+    black: RGB,
+    textRotate: ReturnType<typeof import('pdf-lib').degrees>,
+  ) {
     const draw = (
       text: string,
       placement: AlgerTextPlacement,
@@ -114,19 +165,13 @@ export class PdfCrewListType2Service {
       draw(value, { ...placement, fontSize: size });
     };
 
-    this.drawHeader(draw, data);
-    if (crew.length === 0) {
-      this.drawBodyNil(page, bold, textRotate, nilGray);
-    } else {
-      this.drawCrewBody(draw, drawFit, data, crew, rowAt);
-    }
-
-    return doc.save();
+    return { draw, drawFit, rowAt };
   }
 
   private drawHeader(
     draw: (text: string, placement: AlgerTextPlacement, useBold?: boolean) => void,
     data: AppData,
+    pageNo: number,
   ): void {
     const { ship } = data;
     const voyageDate = formatDisplayDate(ship.dateOfArrival);
@@ -135,7 +180,7 @@ export class PdfCrewListType2Service {
       .map((p) => formatPortCallPortName(p))
       .join(' / ');
 
-    draw('1', CREW_LIST_ALGER_HEADER.pageNo);
+    draw(String(pageNo), CREW_LIST_ALGER_HEADER.pageNo);
     draw('x', CREW_LIST_ALGER_HEADER.arrivalMark);
     draw(formatPortCallPortName(ship.name), CREW_LIST_ALGER_HEADER.shipName, true);
     draw(formatPortCallPortName(ship.nationality), CREW_LIST_ALGER_HEADER.shipNationality, true);
@@ -147,10 +192,10 @@ export class PdfCrewListType2Service {
   }
 
   private drawBodyNil(
-    page: import('pdf-lib').PDFPage,
-    bold: import('pdf-lib').PDFFont,
+    page: PDFPage,
+    bold: PDFFont,
     textRotate: ReturnType<typeof import('pdf-lib').degrees>,
-    color: import('pdf-lib').RGB,
+    color: RGB,
   ): void {
     page.drawText(CREW_LIST_BODY_NIL_LABEL, {
       x: CREW_LIST_ALGER_BODY_NIL.x,
@@ -168,12 +213,18 @@ export class PdfCrewListType2Service {
     drawFit: (text: string, placement: AlgerTextPlacement) => void,
     data: AppData,
     crew: CrewMember[],
-    rowAt: (colX: number, field: AlgerRowField) => AlgerTextPlacement,
+    rowOffset: number,
   ): void {
-    crew.slice(0, CREW_LIST_ALGER_MAX_ROWS).forEach((member, index) => {
+    const rowAt = (colX: number, field: AlgerRowField): AlgerTextPlacement => ({
+      x: colX,
+      y: CREW_LIST_ALGER_ROW_Y[field].y,
+      fontSize: CREW_LIST_ALGER_ROW_Y[field].fontSize,
+    });
+
+    crew.forEach((member, index) => {
       const colX = crewListAlgerColX(index);
 
-      draw(String(index + 1), rowAt(colX, 'no'));
+      draw(String(rowOffset + index + 1), rowAt(colX, 'no'));
       draw(formatCrewListName(member), rowAt(colX, 'name'));
       draw(member.rank, rowAt(colX, 'rank'));
       drawFit(member.nationality, rowAt(colX, 'nationality'));

@@ -1,5 +1,5 @@
-<div class="modal-backdrop" (click)="close()">
-  <div class="modal modal-wide pkg-modal" (click)="$event.stopPropagation()">
+<div class="modal-backdrop">
+  <div class="modal modal-wide pkg-modal" appClickOutside (appClickOutside)="close()" (click)="$event.stopPropagation()">
     <header class="pkg-head">
       <h3>Document packages</h3>
       <p class="pkg-sub">
@@ -74,7 +74,7 @@
                     <button
                       type="button"
                       class="pkg-mini"
-                      [disabled]="runner.busy() || auth.items.length === 0"
+                      [disabled]="runner.busy() || !hasRunnableItems(auth.items)"
                       (click)="openAuthority(auth.items)"
                     >
                       Open
@@ -82,7 +82,7 @@
                     <button
                       type="button"
                       class="pkg-mini pkg-mini--primary"
-                      [disabled]="runner.busy() || auth.items.length === 0"
+                      [disabled]="runner.busy() || !hasRunnableItems(auth.items)"
                       (click)="printAuthority(auth.items)"
                     >
                       Print
@@ -102,9 +102,11 @@
                   <div class="pkg-item">
                     <select
                       class="pkg-doc"
+                      [class.pkg-doc--unset]="!item.documentId"
                       [ngModel]="item.documentId"
                       (ngModelChange)="updateItem(pkg, authIdx, $index, { documentId: $event })"
                     >
+                      <option value="">— select document —</option>
                       @for (d of docs(); track d.id) {
                         <option [value]="d.id" [disabled]="!d.enabled">{{ d.label }}</option>
                       }

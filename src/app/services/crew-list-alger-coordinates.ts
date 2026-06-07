@@ -4,7 +4,7 @@
  * Crew members are columns (X); body fields are rows (Y) — used when body fill is enabled.
  */
 
-export const CREW_LIST_ALGER_MAX_ROWS = 13;
+export const CREW_LIST_ALGER_MAX_ROWS = 14;
 
 export const CREW_LIST_ALGER_COL_FIRST_X = 176;
 export const CREW_LIST_ALGER_COL_STEP = 22;
@@ -50,10 +50,10 @@ export interface AlgerRowYPlacement {
 
 /** Field row (constant Y); column X varies per crew member. No maxWidth — breaks names when rotated 90°. */
 export const CREW_LIST_ALGER_ROW_Y = {
-  no: { y: 88, fontSize: CREW_LIST_ALGER_FONT_ROW },
+  no: { y: 85, fontSize: CREW_LIST_ALGER_FONT_ROW },
   name: { y: 103, fontSize: CREW_LIST_ALGER_FONT_ROW },
   rank: { y: 268, fontSize: CREW_LIST_ALGER_FONT_ROW },
-  nationality: { y: 317, fontSize: CREW_LIST_ALGER_FONT_ROW },
+  nationality: { y: 311, fontSize: CREW_LIST_ALGER_FONT_ROW },
   dateOfBirth: { y: 362, fontSize: CREW_LIST_ALGER_FONT_ROW },
   placeOfBirth: { y: 404, fontSize: CREW_LIST_ALGER_FONT_ROW },
   passport: { y: 507, fontSize: CREW_LIST_ALGER_FONT_ROW },
@@ -65,7 +65,21 @@ export const CREW_LIST_ALGER_ROW_Y = {
 
 export type AlgerRowField = keyof typeof CREW_LIST_ALGER_ROW_Y;
 
+/** Absolute X for crew columns 6–13 (0-based index 5–12). Others use uniform grid. */
+export const CREW_LIST_ALGER_COL_X_ABSOLUTE: Partial<Record<number, number>> = {
+  5: 290, // 6
+  6: 314, // 7
+  7: 335, // 8
+  8: 359, // 9
+  9: 381, // 10
+  10: 403, // 11
+  11: 426, // 12
+  12: 444, // 13
+};
+
 export function crewListAlgerColX(index: number): number {
+  const absolute = CREW_LIST_ALGER_COL_X_ABSOLUTE[index];
+  if (absolute != null) return absolute;
   return CREW_LIST_ALGER_COL_FIRST_X + index * CREW_LIST_ALGER_COL_STEP;
 }
 

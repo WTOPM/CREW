@@ -8,10 +8,11 @@ import {
 } from '../../models/crew.models';
 import { CrewDocumentService } from '../../services/crew-document.service';
 import { ToastService } from '../../services/toast.service';
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 @Component({
   selector: 'app-crew-doc-drop-zone',
-  imports: [FormsModule],
+  imports: [FormsModule, ClickOutsideDirective],
   template: `
     <div
       class="crew-doc-zone"
@@ -28,8 +29,8 @@ import { ToastService } from '../../services/toast.service';
     </div>
 
     @if (showModal()) {
-      <div class="modal-backdrop" (click)="closeModal()">
-        <div class="modal crew-doc-modal" (click)="$event.stopPropagation()">
+      <div class="modal-backdrop">
+        <div class="modal crew-doc-modal" appClickOutside (appClickOutside)="closeModal()" (click)="$event.stopPropagation()">
           <h3>Attach PDF scan</h3>
           <p class="crew-doc-modal-file">{{ pendingFile()?.name }}</p>
           <label>

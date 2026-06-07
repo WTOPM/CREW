@@ -28,6 +28,7 @@ import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-settings.component';
 import { CrewEffectSettingsComponent } from '../crew-effect-settings/crew-effect-settings.component';
@@ -54,6 +55,7 @@ import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores
     CashAdvanceSettingsComponent,
     CrewMoneyListSettingsComponent,
     NarcoticListSettingsComponent,
+    ClickOutsideDirective,
   ],
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',

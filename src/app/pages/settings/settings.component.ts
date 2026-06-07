@@ -9,6 +9,7 @@ import { StorageService } from '../../services/storage.service';
 import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
 import { PrintPackagesComponent } from '../../components/print-packages/print-packages.component';
 import { CustomDocumentsComponent } from '../../components/custom-documents/custom-documents.component';
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 @Component({
   selector: 'app-settings',
@@ -21,12 +22,15 @@ import { CustomDocumentsComponent } from '../../components/custom-documents/cust
     DocumentStampUploadComponent,
     PrintPackagesComponent,
     CustomDocumentsComponent,
+    ClickOutsideDirective,
   ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
 })
 export class SettingsComponent {
   protected readonly storage = inject(StorageService);
+
+  protected readonly dataPath = signal<string | null>(null);
 
   protected readonly ship = this.storage.ship;
   protected readonly ports = this.storage.ports;
@@ -43,6 +47,10 @@ export class SettingsComponent {
   protected newPortCountry = signal('');
   protected newRank = signal('');
   protected newNationality = signal('');
+
+  constructor() {
+    void this.storage.getDataPath().then((p) => this.dataPath.set(p));
+  }
 
   protected onShipChange(field: keyof ShipInfo, value: string): void {
     this.storage.updateShip({ [field]: value });

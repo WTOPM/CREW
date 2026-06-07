@@ -14,6 +14,8 @@ import { DatePickerComponent } from '../../components/date-picker/date-picker.co
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { CrewDocumentService } from '../../services/crew-document.service';
 
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
+
 import {
   CrewListKind,
   CrewMember,
@@ -49,6 +51,7 @@ export type HomeListTab =
     DatePickerComponent,
     CrewDocIconComponent,
     CrewDocDropZoneComponent,
+    ClickOutsideDirective,
   ],
 
   templateUrl: './home.component.html',
@@ -132,16 +135,6 @@ export class HomeComponent {
   protected showArchive = signal(false);
 
   protected showPaxArchive = signal(false);
-
-  protected dataPath = signal<string | null>(null);
-
-
-
-  constructor() {
-
-    void this.storage.getDataPath().then((p) => this.dataPath.set(p));
-
-  }
 
 
 

@@ -4,10 +4,11 @@ import { PortPackage, PortPackageItem } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 import { DocumentCatalogService } from '../../services/document-catalog.service';
 import { PackageRunnerService } from '../../services/package-runner.service';
+import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 @Component({
   selector: 'app-print-packages',
-  imports: [FormsModule],
+  imports: [FormsModule, ClickOutsideDirective],
   templateUrl: './print-packages.component.html',
   styleUrl: './print-packages.component.css',
 })
@@ -63,7 +64,14 @@ export class PrintPackagesComponent implements OnInit {
   }
 
   protected portDocCount(pkg: PortPackage): number {
-    return pkg.authorities.reduce((sum, a) => sum + a.items.length, 0);
+    return pkg.authorities.reduce(
+      (sum, a) => sum + a.items.filter((it) => it.documentId.trim()).length,
+      0,
+    );
+  }
+
+  protected hasRunnableItems(items: PortPackageItem[]): boolean {
+    return items.some((it) => it.documentId.trim());
   }
 
   protected toggle(port: string): void {
@@ -98,9 +106,7 @@ export class PrintPackagesComponent implements OnInit {
 
   // --- documents within an authority ---
   protected addItem(pkg: PortPackage, authIndex: number): void {
-    const all = this.docs();
-    const firstDoc = all.find((d) => d.enabled)?.id ?? all[0].id;
-    const items = [...pkg.authorities[authIndex].items, { documentId: firstDoc, copies: 1 }];
+    const items = [...pkg.authorities[authIndex].items, { documentId: '', copies: 1 }];
     this.storage.setAuthorityItems(pkg.port, authIndex, items);
   }
 

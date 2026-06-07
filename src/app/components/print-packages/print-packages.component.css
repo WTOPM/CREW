@@ -126,9 +126,9 @@
 .pkg-auth {
   padding: 0.6rem;
   margin-bottom: 0.55rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #fcd34d;
   border-radius: 8px;
-  background: #fbfdff;
+  background: #fffbeb;
 }
 
 .pkg-auth-head {
@@ -142,16 +142,23 @@
   flex: 1;
   min-width: 0;
   padding: 0.4rem 0.55rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #f59e0b;
   border-radius: 6px;
   font-size: 0.9rem;
   font-weight: 600;
-  background: #fff;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pkg-auth-name::placeholder {
+  color: #d97706;
+  opacity: 0.75;
 }
 
 .pkg-auth-name:focus {
-  outline: 2px solid #93c5fd;
-  border-color: #3b82f6;
+  outline: 2px solid #fde68a;
+  border-color: #d97706;
+  background: #fff;
 }
 
 .pkg-item {
@@ -169,6 +176,13 @@
   border-radius: 6px;
   background: #fff;
   font-size: 0.85rem;
+}
+
+.pkg-doc--unset {
+  border-style: dashed;
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: var(--text-muted);
 }
 
 .pkg-copies {

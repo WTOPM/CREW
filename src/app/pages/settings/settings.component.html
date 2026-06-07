@@ -201,6 +201,10 @@
     </p>
     <app-custom-documents />
   </section>
+
+  @if (dataPath()) {
+    <p class="settings-data-path">Data file: {{ dataPath() }}</p>
+  }
 </div>
 
 @if (showPackagesModal()) {
@@ -208,8 +212,8 @@
 }
 
 @if (showPortsModal()) {
-  <div class="modal-backdrop" (click)="closePorts()">
-    <div class="modal modal-ports" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-ports" appClickOutside (appClickOutside)="closePorts()" (click)="$event.stopPropagation()">
       <h3>Ports</h3>
       <div class="port-add">
         <input placeholder="NAME" [ngModel]="newPortName()" (ngModelChange)="newPortName.set($event)" />
@@ -234,8 +238,8 @@
 }
 
 @if (showRanksModal()) {
-  <div class="modal-backdrop" (click)="closeRanks()">
-    <div class="modal modal-narrow" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-narrow" appClickOutside (appClickOutside)="closeRanks()" (click)="$event.stopPropagation()">
       <h3>Ranks — edit</h3>
       <div class="list-add">
         <input
@@ -263,8 +267,8 @@
 }
 
 @if (showNationalitiesModal()) {
-  <div class="modal-backdrop" (click)="closeNationalities()">
-    <div class="modal modal-narrow" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-narrow" appClickOutside (appClickOutside)="closeNationalities()" (click)="$event.stopPropagation()">
       <h3>Nationalities — edit</h3>
       <div class="list-add">
         <input

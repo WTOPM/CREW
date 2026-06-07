@@ -3,10 +3,6 @@
     <app-documents-nav />
   </header>
 
-  @if (dataPath()) {
-    <div class="notice muted">Data file: {{ dataPath() }}</div>
-  }
-
   <section class="card voyage-card">
     <h2>CURRENT VOYAGE DATA</h2>
     <div class="voyage-layout">
@@ -461,8 +457,8 @@
   }
 
   @if (editDraft(); as draft) {
-    <div class="modal-backdrop" (click)="cancelEdit()">
-      <div class="modal modal-crew-edit" (click)="$event.stopPropagation()">
+    <div class="modal-backdrop">
+      <div class="modal modal-crew-edit" appClickOutside (appClickOutside)="cancelEdit()" (click)="$event.stopPropagation()">
         <h3>{{ editingId() ? 'Edit crew member' : 'Add crew member' }}</h3>
 
         <div class="crew-form-layout">
@@ -648,8 +644,8 @@
   }
 
   @if (passengerEditDraft(); as draft) {
-    <div class="modal-backdrop" (click)="cancelPassengerEdit()">
-      <div class="modal modal-crew-edit" (click)="$event.stopPropagation()">
+    <div class="modal-backdrop">
+      <div class="modal modal-crew-edit" appClickOutside (appClickOutside)="cancelPassengerEdit()" (click)="$event.stopPropagation()">
         <h3>{{ editingPassengerId() ? 'Edit passenger' : 'Add passenger' }}</h3>
 
         <div class="crew-form-layout">

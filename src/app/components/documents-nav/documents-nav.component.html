@@ -287,8 +287,8 @@
 </div>
 
 @if (showCrewListSettings()) {
-  <div class="modal-backdrop" (click)="closeCrewListSettings()">
-    <div class="modal modal-narrow doc-overlay-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closeCrewListSettings()" (click)="$event.stopPropagation()">
       <h3>Crew list settings</h3>
       <app-crew-list-settings />
       <div class="modal-actions">
@@ -299,8 +299,8 @@
 }
 
 @if (showPaxSettings()) {
-  <div class="modal-backdrop" (click)="closePaxSettings()">
-    <div class="modal modal-narrow doc-overlay-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closePaxSettings()" (click)="$event.stopPropagation()">
       <h3>Passenger list settings</h3>
       <app-document-stamp-options documentId="pax" />
       <div class="modal-actions">
@@ -311,8 +311,8 @@
 }
 
 @if (showShipStoresSettings()) {
-  <div class="modal-backdrop" (click)="closeShipStoresSettings()">
-    <div class="modal modal-wide ss-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-wide ss-modal" appClickOutside (appClickOutside)="closeShipStoresSettings()" (click)="$event.stopPropagation()">
       <header class="ss-modal-head">
         <h3>Ship Stores settings</h3>
       </header>
@@ -325,8 +325,8 @@
 }
 
 @if (showCrewEffectSettings()) {
-  <div class="modal-backdrop" (click)="closeCrewEffectSettings()">
-    <div class="modal modal-narrow doc-overlay-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closeCrewEffectSettings()" (click)="$event.stopPropagation()">
       <h3>Crew Effect settings</h3>
       <app-crew-effect-settings />
       <div class="modal-actions">
@@ -337,8 +337,8 @@
 }
 
 @if (showNilListSettings()) {
-  <div class="modal-backdrop" (click)="closeNilListSettings()">
-    <div class="modal modal-wide nil-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-wide nil-modal" appClickOutside (appClickOutside)="closeNilListSettings()" (click)="$event.stopPropagation()">
       <header class="nil-modal-head">
         <h3>NIL List settings</h3>
       </header>
@@ -351,8 +351,8 @@
 }
 
 @if (showShipMoneySettings()) {
-  <div class="modal-backdrop" (click)="closeShipMoneySettings()">
-    <div class="modal modal-wide sm-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-wide sm-modal" appClickOutside (appClickOutside)="closeShipMoneySettings()" (click)="$event.stopPropagation()">
       <header class="sm-modal-head">
         <h3>Ship Money settings</h3>
       </header>
@@ -365,8 +365,8 @@
 }
 
 @if (showCashAdvanceSettings()) {
-  <div class="modal-backdrop" (click)="closeCashAdvanceSettings()">
-    <div class="modal modal-wide sm-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-wide sm-modal" appClickOutside (appClickOutside)="closeCashAdvanceSettings()" (click)="$event.stopPropagation()">
       <header class="sm-modal-head">
         <h3>Cash Advance settings</h3>
       </header>
@@ -379,8 +379,8 @@
 }
 
 @if (showCrewMoneyListSettings()) {
-  <div class="modal-backdrop" (click)="closeCrewMoneyListSettings()">
-    <div class="modal modal-wide sm-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-wide sm-modal" appClickOutside (appClickOutside)="closeCrewMoneyListSettings()" (click)="$event.stopPropagation()">
       <header class="sm-modal-head">
         <h3>Crew Money settings</h3>
       </header>
@@ -393,8 +393,8 @@
 }
 
 @if (showNarcoticListSettings()) {
-  <div class="modal-backdrop" (click)="closeNarcoticListSettings()">
-    <div class="modal modal-wide nl-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-wide nl-modal" appClickOutside (appClickOutside)="closeNarcoticListSettings()" (click)="$event.stopPropagation()">
       <header class="nl-modal-head">
         <h3>Narcotic List settings</h3>
       </header>
@@ -407,8 +407,8 @@
 }
 
 @if (showMdhSettings()) {
-  <div class="modal-backdrop" (click)="closeMdhSettings()">
-    <div class="modal modal-narrow doc-overlay-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closeMdhSettings()" (click)="$event.stopPropagation()">
       <h3>MDH Settings</h3>
 
       <fieldset class="choice-group">
@@ -451,8 +451,8 @@
 }
 
 @if (showPortOfCallSettings()) {
-  <div class="modal-backdrop" (click)="closePortOfCallSettings()">
-    <div class="modal modal-wide poc-modal" (click)="$event.stopPropagation()">
+  <div class="modal-backdrop">
+    <div class="modal modal-wide poc-modal" appClickOutside (appClickOutside)="closePortOfCallSettings()" (click)="$event.stopPropagation()">
       <header class="poc-modal-head">
         <h3>Port Settings</h3>
       </header>

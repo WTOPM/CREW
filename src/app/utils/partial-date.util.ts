@@ -1,4 +1,5 @@
 import { formatDisplayDate } from './date.util';
+import { todayIsoLocal } from './date-calendar.util';
 
 export function currentMonthYear(): { mm: string; yyyy: string; isoPrefix: string } {
   const d = new Date();
@@ -13,10 +14,9 @@ export function defaultIsoDateInCurrentMonth(day = '01'): string {
 }
 
 export function preparePartialDateOnFocus(iso: string): { text: string; iso: string } {
-  const { mm, yyyy, isoPrefix } = currentMonthYear();
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-    const newIso = `${isoPrefix}01`;
-    return { text: `01.${mm}.${yyyy}`, iso: newIso };
+    const newIso = todayIsoLocal();
+    return { text: formatDisplayDate(newIso), iso: newIso };
   }
   return { text: formatDisplayDate(iso), iso };
 }
