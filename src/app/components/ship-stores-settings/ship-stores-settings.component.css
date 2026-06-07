@@ -1,0 +1,134 @@
+.ss-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+/* Greenish gradient save buttons */
+.ss-save {
+  border: 1px solid #16a34a;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.5rem 0.9rem;
+  box-shadow: 0 1px 2px rgb(22 163 74 / 25%);
+  cursor: pointer;
+}
+
+.ss-save:hover {
+  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  border-color: #15803d;
+}
+
+.ss-save:active {
+  transform: translateY(1px);
+}
+
+.ss-section-title {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ss-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ss-field--narrow {
+  min-width: 4.5rem;
+}
+
+.ss-field--grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.ss-field--qty {
+  max-width: 8rem;
+}
+
+.ss-field--unit {
+  min-width: 5.5rem;
+  max-width: 8rem;
+}
+
+.ss-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ss-input {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.ss-input:focus {
+  outline: 2px solid #86efac;
+  border-color: #22c55e;
+}
+
+.ss-row-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.ss-row-actions {
+  flex: 0 0 auto;
+  padding-bottom: 0.1rem;
+}
+
+.ss-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.ss-preview-wrap {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.ss-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.ss-preview-table th,
+.ss-preview-table td {
+  padding: 0.25rem 0.4rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.ss-preview-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-elevated, var(--surface));
+  font-weight: 600;
+}
+
+.ss-preview-row {
+  cursor: pointer;
+}
+
+.ss-preview-row:hover {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 6%, transparent);
+}
+
+.ss-preview-row--active {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent);
+}

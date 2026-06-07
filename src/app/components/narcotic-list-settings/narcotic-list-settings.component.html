@@ -1,0 +1,122 @@
+<section class="nl-settings">
+  <p class="nl-hint">Ship, ports and date are filled from Home. Name, dosage and units use two lines in the PDF (top / bottom).</p>
+
+  <div class="nl-table-wrap">
+    <table class="nl-table">
+      <thead>
+        <tr>
+          <th class="nl-col-no">#</th>
+          <th class="nl-col-name">Name</th>
+          <th class="nl-col-dosage">Dosage</th>
+          <th class="nl-col-qty">Qty</th>
+          <th class="nl-col-units">Units</th>
+          <th class="nl-col-per">per box</th>
+          <th class="nl-col-total">Total</th>
+          <th class="nl-col-exp">Expiry</th>
+          <th class="nl-col-ctrl">Control</th>
+          <th class="nl-col-store">Storage</th>
+          <th class="nl-col-act" aria-label="Actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of form().entries; track entry.id; let i = $index) {
+          <tr>
+            <td class="nl-col-no">{{ i + 1 }}</td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input"
+                [ngModel]="entry.name"
+                (ngModelChange)="onEntryChange(entry.id, 'name', $event)"
+                placeholder="Medicine name"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input"
+                [ngModel]="entry.dosage"
+                (ngModelChange)="onEntryChange(entry.id, 'dosage', $event)"
+                placeholder="30mg tablets"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input nl-cell-input--narrow"
+                [ngModel]="entry.quantity"
+                (ngModelChange)="onEntryChange(entry.id, 'quantity', $event)"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input"
+                [ngModel]="entry.unitsPack"
+                (ngModelChange)="onEntryChange(entry.id, 'unitsPack', $event)"
+                placeholder="20 tabs."
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input nl-cell-input--per"
+                [ngModel]="entry.unitsPer"
+                (ngModelChange)="onEntryChange(entry.id, 'unitsPer', $event)"
+                placeholder="per box"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input"
+                [ngModel]="entry.totalQuantity"
+                (ngModelChange)="onEntryChange(entry.id, 'totalQuantity', $event)"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input nl-cell-input--narrow"
+                [ngModel]="entry.expirationDate"
+                (ngModelChange)="onEntryChange(entry.id, 'expirationDate', $event)"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input"
+                [ngModel]="entry.controlNo"
+                (ngModelChange)="onEntryChange(entry.id, 'controlNo', $event)"
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                class="nl-cell-input"
+                [ngModel]="entry.placeOfStorage"
+                (ngModelChange)="onEntryChange(entry.id, 'placeOfStorage', $event)"
+              />
+            </td>
+            <td class="nl-col-act">
+              <button
+                type="button"
+                class="btn btn-link warn nl-del"
+                (click)="removeEntry(entry.id)"
+                title="Remove row"
+              >
+                Remove
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nl-toolbar">
+    <button type="button" class="btn btn-primary" (click)="addEntry()">+ Add medicine</button>
+  </div>
+
+  <app-document-stamp-options documentId="narcoticList" />
+</section>

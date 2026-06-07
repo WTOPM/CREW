@@ -1,0 +1,46 @@
+<section class="nil-settings">
+  <h4 class="nil-section-title">Phrases on the form</h4>
+  <p class="nil-hint">Check phrases to print them on the NIL List PDF.</p>
+
+  <ul class="nil-phrase-list">
+    @for (phrase of form().phrases; track phrase.id) {
+      <li class="nil-phrase-item">
+        <label class="nil-phrase-check">
+          <input
+            type="checkbox"
+            [ngModel]="phrase.enabled"
+            (ngModelChange)="onPhraseEnabledChange(phrase.id, $event)"
+          />
+        </label>
+        <input
+          type="text"
+          class="nil-input nil-input--phrase"
+          [ngModel]="phrase.text"
+          (ngModelChange)="onPhraseTextChange(phrase.id, $event)"
+        />
+        <button
+          type="button"
+          class="btn btn-link warn nil-remove"
+          (click)="removePhrase(phrase.id)"
+          title="Remove phrase"
+        >
+          Remove
+        </button>
+      </li>
+    }
+  </ul>
+
+  <div class="nil-add">
+    <input
+      type="text"
+      class="nil-input"
+      [ngModel]="newPhraseText()"
+      (ngModelChange)="newPhraseText.set($event)"
+      placeholder="New phrase"
+      (keyup.enter)="addPhrase()"
+    />
+    <button type="button" class="btn btn-secondary" (click)="addPhrase()">Add phrase</button>
+  </div>
+
+  <app-document-stamp-options documentId="nilList" />
+</section>

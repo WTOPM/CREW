@@ -1,0 +1,42 @@
+<section class="ce-settings">
+  <fieldset class="ce-nil-group">
+    <legend class="ce-nil-legend">Print NIL for all crew rows</legend>
+    <label class="ce-nil-check">
+      <input
+        type="checkbox"
+        [ngModel]="form().nilCigarettes"
+        (ngModelChange)="onNilToggle('nilCigarettes', $event)"
+      />
+      <span>Cigarettes</span>
+    </label>
+    <label class="ce-nil-check">
+      <input
+        type="checkbox"
+        [ngModel]="form().nilSpirits"
+        (ngModelChange)="onNilToggle('nilSpirits', $event)"
+      />
+      <span>Spirits (Ltr)</span>
+    </label>
+    <label class="ce-nil-check">
+      <input
+        type="checkbox"
+        [ngModel]="form().nilWines"
+        (ngModelChange)="onNilToggle('nilWines', $event)"
+      />
+      <span>Wines (Ltr)</span>
+    </label>
+  </fieldset>
+
+  <label class="ce-field">
+    <span class="ce-label">Others</span>
+    <input
+      type="text"
+      class="ce-input"
+      [ngModel]="form().others"
+      (ngModelChange)="onOthersChange($event)"
+      placeholder="- P. E. -"
+    />
+  </label>
+
+  <app-document-stamp-options documentId="crewEffect" />
+</section>

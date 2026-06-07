@@ -1,0 +1,296 @@
+<div class="page settings-page">
+  <header class="page-header settings-page-header">
+    <div>
+      <a routerLink="/" class="back-link">← Home</a>
+      <h1>Settings</h1>
+    </div>
+  </header>
+
+  <section class="card ship-settings-card">
+    <div class="ship-settings-head">
+      <h2>SHIP INFORMATION</h2>
+    </div>
+
+    <div class="ship-settings-layout">
+      <div class="ship-block ship-block--vessel">
+        <h3 class="ship-block-title">Vessel</h3>
+        <div class="ship-block-grid ship-block-grid--4">
+          <label class="ship-field">
+            <span>Name</span>
+            <input [ngModel]="ship().name" (ngModelChange)="onShipChange('name', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>Call sign</span>
+            <input [ngModel]="ship().callSign" (ngModelChange)="onShipChange('callSign', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>Nationality</span>
+            <input [ngModel]="ship().nationality" (ngModelChange)="onShipChange('nationality', $event)" />
+          </label>
+          <label class="ship-field ship-field--wide">
+            <span>Homeport</span>
+            <input [ngModel]="ship().homeport" (ngModelChange)="onShipChange('homeport', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>IMO No</span>
+            <input [ngModel]="ship().imoNo" (ngModelChange)="onShipChange('imoNo', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>Type</span>
+            <input [ngModel]="ship().type" (ngModelChange)="onShipChange('type', $event)" />
+          </label>
+          <label class="ship-field ship-field--span2">
+            <span>Charterer</span>
+            <input [ngModel]="ship().charterer" (ngModelChange)="onShipChange('charterer', $event)" />
+          </label>
+        </div>
+      </div>
+
+      <div class="ship-block ship-block--issc">
+        <h3 class="ship-block-title">ISSC - Ship Security Certificate</h3>
+        <div class="ship-block-grid ship-block-grid--3">
+          <label class="ship-field ship-field--wide">
+            <span>Ship Security Officer</span>
+            <input
+              [ngModel]="ship().shipSecurityOfficer"
+              (ngModelChange)="onShipChange('shipSecurityOfficer', $event)"
+              placeholder="Auto: SSO rank or Ch.Off if empty"
+            />
+          </label>
+          <label class="ship-field">
+            <span>ISSC issued on</span>
+            <app-date-picker
+              [value]="ship().isscIssueDate"
+              (valueChange)="onShipChange('isscIssueDate', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>ISSC expiry</span>
+            <app-date-picker
+              [value]="ship().isscExpiryDate"
+              (valueChange)="onShipChange('isscExpiryDate', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>ISSC issued by (RSO)</span>
+            <input
+              [ngModel]="ship().isscIssuedByRso"
+              (ngModelChange)="onShipChange('isscIssuedByRso', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>Present ship MARSEC level</span>
+            <input
+              [ngModel]="ship().presentMarsecLevel"
+              (ngModelChange)="onShipChange('presentMarsecLevel', $event)"
+              maxlength="1"
+              placeholder="1"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="ship-block ship-block--sanitation">
+        <h3 class="ship-block-title">Sanitation certificate</h3>
+        <div class="ship-block-grid ship-block-grid--3">
+          <label class="ship-field">
+            <span>Certificate No.</span>
+            <input
+              [ngModel]="ship().sanitationCertificateNo"
+              (ngModelChange)="onShipChange('sanitationCertificateNo', $event)"
+            />
+          </label>
+          <label class="ship-field ship-field--wide">
+            <span>Issued at</span>
+            <app-port-select
+              [value]="ship().sanitationCertificateIssuedAt"
+              [ports]="ports()"
+              (valueChange)="onShipChange('sanitationCertificateIssuedAt', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>Issue date</span>
+            <app-date-picker
+              [value]="ship().sanitationCertificateIssueDate"
+              (valueChange)="onShipChange('sanitationCertificateIssueDate', $event)"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="ship-settings-split">
+        <div class="ship-block ship-block--water">
+          <h3 class="ship-block-title">Water test</h3>
+          <div class="ship-block-grid ship-block-grid--2">
+            <label class="ship-field ship-field--wide">
+              <span>Port</span>
+              <app-port-select
+                [value]="ship().waterTestPort"
+                [ports]="ports()"
+                (valueChange)="onShipChange('waterTestPort', $event)"
+              />
+            </label>
+            <label class="ship-field">
+              <span>Date</span>
+              <app-date-picker
+                [value]="ship().waterTestDate"
+                (valueChange)="onShipChange('waterTestDate', $event)"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div class="ship-block ship-block--tonnage">
+          <h3 class="ship-block-title">Tonnage</h3>
+          <div class="ship-block-grid ship-block-grid--2">
+            <label class="ship-field">
+              <span>Gross</span>
+              <input [ngModel]="ship().grossTonnage" (ngModelChange)="onShipChange('grossTonnage', $event)" />
+            </label>
+            <label class="ship-field">
+              <span>Net</span>
+              <input [ngModel]="ship().netTonnage" (ngModelChange)="onShipChange('netTonnage', $event)" />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card stamp-settings-card">
+    <h2>Ship stamp &amp; captain signature</h2>
+    <app-document-stamp-upload />
+  </section>
+
+  <section class="card ref-settings-card">
+    <h2>Reference data</h2>
+    <p class="section-desc">Directories used in crew forms and port lists.</p>
+    <div class="settings-tiles">
+      <button type="button" class="settings-tile settings-tile--ports" (click)="openPorts()">
+        <span class="tile-icon" aria-hidden="true">⚓</span>
+        <span class="tile-title">Ports</span>
+        <span class="tile-count">{{ ports().length }} entries</span>
+      </button>
+      <button type="button" class="settings-tile settings-tile--ranks" (click)="openRanks()">
+        <span class="tile-icon" aria-hidden="true">★</span>
+        <span class="tile-title">Ranks</span>
+        <span class="tile-count">{{ ranks().length }} entries</span>
+      </button>
+      <button type="button" class="settings-tile settings-tile--nationalities" (click)="openNationalities()">
+        <span class="tile-icon" aria-hidden="true">🌍</span>
+        <span class="tile-title">Nationalities</span>
+        <span class="tile-count">{{ nationalities().length }} entries</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="card ref-settings-card">
+    <h2>Printing</h2>
+    <p class="section-desc">Per-port document packages — open or print a chosen set of documents at once.</p>
+    <div class="settings-tiles">
+      <button type="button" class="settings-tile settings-tile--packages" (click)="openPackages()">
+        <span class="tile-icon" aria-hidden="true">🖨️</span>
+        <span class="tile-title">Document packages</span>
+        <span class="tile-count">{{ printPackages().length }} port(s)</span>
+      </button>
+    </div>
+
+    <h3 class="settings-subhead">Uploaded documents</h3>
+    <p class="section-desc">
+      Add static PDFs (e.g. Ship's Particulars). They appear in the document list of every package.
+    </p>
+    <app-custom-documents />
+  </section>
+
+  @if (dataPath()) {
+    <p class="settings-data-path">Data file: {{ dataPath() }}</p>
+  }
+</div>
+
+@if (showPackagesModal()) {
+  <app-print-packages (closed)="closePackages()" />
+}
+
+@if (showPortsModal()) {
+  <div class="modal-backdrop">
+    <div class="modal modal-ports" appClickOutside (appClickOutside)="closePorts()" (click)="$event.stopPropagation()">
+      <h3>Ports</h3>
+      <div class="port-add">
+        <input placeholder="NAME" [ngModel]="newPortName()" (ngModelChange)="newPortName.set($event)" />
+        <input placeholder="UN/LOCODE" [ngModel]="newPortCode()" (ngModelChange)="newPortCode.set($event)" />
+        <input placeholder="COUNTRY" [ngModel]="newPortCountry()" (ngModelChange)="newPortCountry.set($event)" (keyup.enter)="addPortItem()" />
+        <button type="button" class="btn btn-primary" (click)="addPortItem()">+</button>
+      </div>
+      <ul class="ref-list ref-list-tall" cdkDropList (cdkDropListDropped)="dropPort($event)">
+        @for (p of ports(); track p.name) {
+          <li cdkDrag>
+            <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
+            <span>{{ p.name }}@if (p.code) { <em class="port-code">{{ p.code }}</em> }@if (p.country) { <em class="port-code">{{ p.country }}</em> }</span>
+            <button type="button" class="btn-link warn" (click)="removePortItem(p.name)">×</button>
+          </li>
+        }
+      </ul>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closePorts()">Done</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showRanksModal()) {
+  <div class="modal-backdrop">
+    <div class="modal modal-narrow" appClickOutside (appClickOutside)="closeRanks()" (click)="$event.stopPropagation()">
+      <h3>Ranks — edit</h3>
+      <div class="list-add">
+        <input
+          placeholder="New rank..."
+          [ngModel]="newRank()"
+          (ngModelChange)="newRank.set($event)"
+          (keyup.enter)="addRankItem()"
+        />
+        <button type="button" class="btn btn-primary" (click)="addRankItem()">+</button>
+      </div>
+      <ul class="ref-list ref-list-tall" cdkDropList (cdkDropListDropped)="dropRank($event)">
+        @for (r of ranks(); track r) {
+          <li cdkDrag>
+            <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
+            <span>{{ r }}</span>
+            <button type="button" class="btn-link warn" (click)="removeRankItem(r)">×</button>
+          </li>
+        }
+      </ul>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closeRanks()">Done</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showNationalitiesModal()) {
+  <div class="modal-backdrop">
+    <div class="modal modal-narrow" appClickOutside (appClickOutside)="closeNationalities()" (click)="$event.stopPropagation()">
+      <h3>Nationalities — edit</h3>
+      <div class="list-add">
+        <input
+          placeholder="New nationality..."
+          [ngModel]="newNationality()"
+          (ngModelChange)="newNationality.set($event)"
+          (keyup.enter)="addNationalityItem()"
+        />
+        <button type="button" class="btn btn-primary" (click)="addNationalityItem()">+</button>
+      </div>
+      <ul class="ref-list ref-list-tall" cdkDropList (cdkDropListDropped)="dropNationality($event)">
+        @for (n of nationalities(); track n) {
+          <li cdkDrag>
+            <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
+            <span>{{ n }}</span>
+            <button type="button" class="btn-link warn" (click)="removeNationalityItem(n)">×</button>
+          </li>
+        }
+      </ul>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" (click)="closeNationalities()">Done</button>
+      </div>
+    </div>
+  </div>
+}

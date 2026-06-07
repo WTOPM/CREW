@@ -1,0 +1,153 @@
+<div class="modal-backdrop">
+  <div class="modal modal-wide pkg-modal" appClickOutside (appClickOutside)="close()" (click)="$event.stopPropagation()">
+    <header class="pkg-head">
+      <h3>Document packages</h3>
+      <p class="pkg-sub">
+        Plan documents per port, grouped by authority (Immigration, Customs…). Open / Print for
+        the current Port of Call is in the top bar.
+      </p>
+    </header>
+
+    @if (hasElectron) {
+      <label class="pkg-printer">
+        <span>Printer</span>
+        <select [ngModel]="outputSettings().printerName" (ngModelChange)="onPrinterChange($event)">
+          <option value="">System default</option>
+          @for (p of printers(); track p.name) {
+            <option [value]="p.name">{{ p.displayName }}</option>
+          }
+        </select>
+      </label>
+    }
+
+    <div class="pkg-add">
+      <select [ngModel]="newPort()" (ngModelChange)="newPort.set($event)">
+        <option value="">— add port —</option>
+        @for (name of addablePorts(); track name) {
+          <option [value]="name">{{ name }}</option>
+        }
+      </select>
+      <button type="button" class="btn btn-primary" [disabled]="!newPort()" (click)="addPort()">
+        + Add port
+      </button>
+    </div>
+
+    @if (packages().length === 0) {
+      <p class="pkg-empty">No ports yet. Add a port above, then add authorities and documents.</p>
+    }
+
+    @for (pkg of packages(); track pkg.port) {
+      <section class="pkg-port" [class.pkg-port--current]="pkg.port === currentPort()">
+        <header class="pkg-port-head" (click)="toggle(pkg.port)">
+          <span class="pkg-caret">{{ expanded() === pkg.port ? '▾' : '▸' }}</span>
+          <span class="pkg-port-name">{{ pkg.port }}</span>
+          @if (pkg.port === currentPort()) {
+            <span class="pkg-badge">current</span>
+          }
+          <span class="pkg-port-count">{{ pkg.authorities.length }} authority(ies) · {{ portDocCount(pkg) }} doc(s)</span>
+          <button
+            type="button"
+            class="pkg-remove"
+            title="Remove port"
+            (click)="removePort(pkg.port); $event.stopPropagation()"
+          >
+            ×
+          </button>
+        </header>
+
+        @if (expanded() === pkg.port) {
+          <div class="pkg-port-body">
+            @if (pkg.authorities.length === 0) {
+              <p class="pkg-empty">No authorities yet — add one (e.g. Immigration, Customs).</p>
+            }
+
+            @for (auth of pkg.authorities; track $index; let authIdx = $index) {
+              <div class="pkg-auth">
+                <div class="pkg-auth-head">
+                  <input
+                    class="pkg-auth-name"
+                    placeholder="Authority (e.g. Immigration)"
+                    [ngModel]="auth.name"
+                    (ngModelChange)="renameAuthority(pkg.port, $index, $event)"
+                  />
+                  @if (pkg.port === currentPort()) {
+                    <button
+                      type="button"
+                      class="pkg-mini"
+                      [disabled]="runner.busy() || !hasRunnableItems(auth.items)"
+                      (click)="openAuthority(auth.items)"
+                    >
+                      Open
+                    </button>
+                    <button
+                      type="button"
+                      class="pkg-mini pkg-mini--primary"
+                      [disabled]="runner.busy() || !hasRunnableItems(auth.items)"
+                      (click)="printAuthority(auth.items)"
+                    >
+                      Print
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="pkg-remove"
+                    title="Remove authority"
+                    (click)="removeAuthority(pkg.port, $index)"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                @for (item of auth.items; track $index) {
+                  <div class="pkg-item">
+                    <select
+                      class="pkg-doc"
+                      [class.pkg-doc--unset]="!item.documentId"
+                      [ngModel]="item.documentId"
+                      (ngModelChange)="updateItem(pkg, authIdx, $index, { documentId: $event })"
+                    >
+                      <option value="">— select document —</option>
+                      @for (d of catalogDocs(); track d.id) {
+                        <option [value]="d.id" [disabled]="!d.enabled">{{ d.label }}</option>
+                      }
+                    </select>
+                    <label class="pkg-copies">
+                      <span>×</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="99"
+                        [ngModel]="item.copies"
+                        (ngModelChange)="updateItem(pkg, authIdx, $index, { copies: +$event || 1 })"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      class="pkg-remove"
+                      title="Remove document"
+                      (click)="removeItem(pkg, authIdx, $index)"
+                    >
+                      ×
+                    </button>
+                  </div>
+                }
+
+                <button type="button" class="pkg-add-doc" (click)="addItem(pkg, $index)">
+                  + Add document
+                </button>
+              </div>
+            }
+
+            <button type="button" class="btn btn-secondary pkg-add-auth" (click)="addAuthority(pkg.port)">
+              + Add authority
+            </button>
+          </div>
+        }
+      </section>
+    }
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" (click)="close()">Done</button>
+    </div>
+  </div>
+</div>

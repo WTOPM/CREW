@@ -1,0 +1,112 @@
+<div class="app-shell">
+  <nav class="top-nav">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="brand">
+      <img class="brand-logo" src="logo.svg" width="44" height="44" alt="" />
+      <span class="brand-text">
+        <span class="brand-title">CREW</span>
+        <span class="brand-subtitle">Documents</span>
+        <span class="brand-version">v0.75</span>
+      </span>
+    </a>
+    <div class="pkg-bar" title="Open or print the document package configured for the current Port of Call (Settings → Document packages)">
+      <span class="pkg-bar-port">
+        {{ packageRunner.currentPort() || '—' }}
+        @if (packageRunner.currentBreakdown(); as bd) {
+          <span class="pkg-tip">
+            <span class="pkg-tip-title">{{ packageRunner.currentPort() }} — to print</span>
+            @for (auth of bd.authorities; track $index) {
+              <span class="pkg-tip-auth">{{ auth.name }}</span>
+              @for (it of auth.items; track $index) {
+                <span class="pkg-tip-line"><span>{{ it.label }}</span><span class="pkg-tip-qty">×{{ it.copies }}</span></span>
+              }
+              @if (auth.items.length === 0) {
+                <span class="pkg-tip-line pkg-tip-muted">no documents</span>
+              }
+            }
+            <span class="pkg-tip-sep"></span>
+            <span class="pkg-tip-auth pkg-tip-total">Total</span>
+            @for (s of bd.summary; track $index) {
+              <span class="pkg-tip-line"><span>{{ s.label }}</span><span class="pkg-tip-qty">×{{ s.copies }}</span></span>
+            }
+          </span>
+        }
+      </span>
+      <button
+        type="button"
+        class="pkg-bar-btn"
+        [disabled]="packageRunner.busy() || packageRunner.currentItemCount() === 0"
+        (click)="packageRunner.openAll()"
+      >
+        Open all
+      </button>
+      <button
+        type="button"
+        class="pkg-bar-btn pkg-bar-btn--primary"
+        [disabled]="packageRunner.busy() || packageRunner.currentItemCount() === 0"
+        (click)="packageRunner.printAll()"
+      >
+        Print all
+      </button>
+    </div>
+
+    <div class="output-bar">
+      <label class="output-toggle" title="Save to selected folder">
+        <input
+          type="checkbox"
+          [ngModel]="outputSettings().saveToFolder"
+          (ngModelChange)="toggleSaveToFolder($event)"
+        />
+      </label>
+
+      @if (canSaveToFolder) {
+        <select
+          class="output-select"
+          [ngModel]="activeFolderId()"
+          (ngModelChange)="selectFolder($event)"
+          [disabled]="folderOptions().length === 0"
+          title="Active save folder"
+        >
+          @if (folderOptions().length === 0) {
+            <option value="">No folder — click 📁</option>
+          }
+          @for (f of folderOptions(); track f.id) {
+            <option [value]="f.id">{{ f.label }}</option>
+          }
+        </select>
+        <button
+          type="button"
+          class="output-btn"
+          [title]="folderBtnTitle()"
+          (mousedown)="onFolderBtnDown($event)"
+          (mouseup)="onFolderBtnUp()"
+          (mouseleave)="onFolderBtnLeave()"
+        >📁</button>
+        <button
+          type="button"
+          class="output-btn"
+          title="Remove selected folder"
+          [disabled]="!activeFolderId()"
+          (click)="removeActiveFolder()"
+        >×</button>
+      } @else {
+        <span class="output-note">Folder saving needs Chrome or Edge</span>
+      }
+    </div>
+    <div class="nav-links">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      <a routerLink="/settings" routerLinkActive="active" class="nav-settings">
+        <svg class="gear-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"
+          />
+        </svg>
+        Settings
+      </a>
+    </div>
+  </nav>
+  <main class="app-main">
+    <router-outlet />
+  </main>
+  <app-toast />
+</div>

@@ -1,0 +1,342 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1.5rem;
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgb(3 105 161 / 6%);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-decoration: none;
+  padding: 0.2rem 0.35rem 0.2rem 0.15rem;
+  border-radius: 10px;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+
+.brand:hover {
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.brand.active .brand-title {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 45%, #0c4a6e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgb(3 105 161 / 28%));
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  gap: 0.1rem;
+}
+
+.brand-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 50%, #1e3a5f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-subtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.brand-version {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-top: -0.1rem;
+}
+
+.pkg-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: 0.5rem;
+  padding: 0.25rem 0.4rem 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.pkg-bar-port {
+  position: relative;
+  max-width: 11rem;
+  overflow: visible;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  cursor: default;
+}
+
+.pkg-tip {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  z-index: 3000;
+  display: none;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 17rem;
+  max-width: 24rem;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 18%);
+  color: var(--text);
+  font-weight: 400;
+}
+
+.pkg-bar-port:hover .pkg-tip {
+  display: flex;
+}
+
+/* Invisible bridge over the gap so the tooltip stays open when moving onto it. */
+.pkg-bar-port:hover::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 0.6rem;
+}
+
+.pkg-tip-title {
+  margin-bottom: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.pkg-tip-auth {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.pkg-tip-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.1rem 0.3rem;
+  margin: 0 -0.3rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  white-space: normal;
+}
+
+.pkg-tip-line:hover {
+  background: var(--accent-soft);
+}
+
+.pkg-tip-total {
+  color: #dc2626;
+}
+
+.pkg-tip-qty {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pkg-tip-muted {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.pkg-tip-sep {
+  margin: 0.4rem 0 0.1rem;
+  border-top: 1px solid var(--border);
+}
+
+.pkg-bar-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pkg-bar-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+
+.pkg-bar-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.pkg-bar-btn--primary:hover:not(:disabled) {
+  background: #025a87;
+  border-color: #025a87;
+}
+
+.pkg-bar-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.output-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.output-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.output-toggle input {
+  cursor: pointer;
+}
+
+.output-select {
+  width: 16rem;
+  max-width: 32vw;
+  min-width: 6rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.output-select:focus {
+  outline: 2px solid #93c5fd;
+  border-color: #3b82f6;
+}
+
+.output-select:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.output-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.output-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.output-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+
+.output-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.nav-links a.active,
+.nav-links a:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.nav-settings {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.gear-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.app-main {
+  flex: 1;
+}

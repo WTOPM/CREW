@@ -1,0 +1,8 @@
+@import '../cash-advance-settings/cash-advance-settings.component.css';
+
+.doc-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
