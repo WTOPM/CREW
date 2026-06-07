@@ -1,6 +1,7 @@
 {
   "name": "crew",
   "version": "0.75.0",
+  "description": "CREW Documents — ship paperwork, crew & passenger lists, IMO PDF forms (Windows portable)",
   "author": "WTOPM",
   "main": "electron/main.js",
   "scripts": {
