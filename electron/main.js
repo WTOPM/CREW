@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -197,6 +197,14 @@ ipcMain.handle('pick-directory', async () => {
   });
   if (canceled || !filePaths?.[0]) return null;
   return filePaths[0];
+});
+
+ipcMain.handle('open-directory', async (_event, dirPath) => {
+  const p = String(dirPath || '').trim();
+  if (!p) return { ok: false, error: 'empty path' };
+  if (!fs.existsSync(p)) return { ok: false, error: 'path not found' };
+  const err = await shell.openPath(p);
+  return err ? { ok: false, error: err } : { ok: true };
 });
 
 ipcMain.handle('list-directories', (_event, input) => {

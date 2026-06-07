@@ -5,6 +5,7 @@ import { ToastComponent } from './components/toast/toast.component';
 import { StorageService } from './services/storage.service';
 import { FolderAccessService } from './services/folder-access.service';
 import { PackageRunnerService } from './services/package-runner.service';
+import { ToastService } from './services/toast.service';
 
 interface FolderOption {
   id: string;
@@ -18,9 +19,15 @@ interface FolderOption {
   styleUrl: './app.css',
 })
 export class App implements OnInit {
+  private static readonly FOLDER_HOLD_MS = 500;
+
   private readonly storage = inject(StorageService);
   private readonly folderAccess = inject(FolderAccessService);
+  private readonly toast = inject(ToastService);
   protected readonly packageRunner = inject(PackageRunnerService);
+
+  private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
+  private folderHoldTriggered = false;
 
   protected readonly outputSettings = this.storage.outputSettings;
   /** Desktop build writes to a typed absolute path. */
@@ -80,6 +87,54 @@ export class App implements OnInit {
     } else {
       await this.folderAccess.remove(id);
       this.storage.updateOutputSettings({ activePath: this.folderAccess.activeName() });
+    }
+  }
+
+  protected folderBtnTitle(): string {
+    return this.hasElectron ? 'ADD A FOLDER OR HOLD TO OPEN' : 'Add a folder';
+  }
+
+  protected onFolderBtnDown(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    this.folderHoldTriggered = false;
+    this.clearFolderHoldTimer();
+    if (!this.hasElectron) return;
+    this.folderHoldTimer = setTimeout(() => {
+      this.folderHoldTriggered = true;
+      void this.openActiveFolder();
+    }, App.FOLDER_HOLD_MS);
+  }
+
+  protected onFolderBtnUp(): void {
+    this.clearFolderHoldTimer();
+    if (this.folderHoldTriggered) {
+      this.folderHoldTriggered = false;
+      return;
+    }
+    void this.addFolder();
+  }
+
+  protected onFolderBtnLeave(): void {
+    if (this.folderHoldTriggered) return;
+    this.clearFolderHoldTimer();
+  }
+
+  private clearFolderHoldTimer(): void {
+    if (this.folderHoldTimer != null) {
+      clearTimeout(this.folderHoldTimer);
+      this.folderHoldTimer = null;
+    }
+  }
+
+  private async openActiveFolder(): Promise<void> {
+    const dir = this.activeFolderId();
+    if (!dir) {
+      this.toast.showError('Choose a folder first');
+      return;
+    }
+    const res = await window.electronAPI?.openDirectory(dir);
+    if (res && !res.ok) {
+      this.toast.showError(res.error ?? 'Could not open folder');
     }
   }
 }

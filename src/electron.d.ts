@@ -12,6 +12,7 @@ declare global {
       getDataPath: () => Promise<string>;
       pickPdfFile: () => Promise<string | null>;
       pickDirectory: () => Promise<string | null>;
+      openDirectory: (dirPath: string) => Promise<{ ok: boolean; error?: string }>;
       listDirectories: (input: string) => Promise<string[]>;
       savePdfToPath: (
         dirPath: string,

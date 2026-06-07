@@ -73,7 +73,14 @@
             <option [value]="f.id">{{ f.label }}</option>
           }
         </select>
-        <button type="button" class="output-btn" title="Add a folder" (click)="addFolder()">📁</button>
+        <button
+          type="button"
+          class="output-btn"
+          [title]="folderBtnTitle()"
+          (mousedown)="onFolderBtnDown($event)"
+          (mouseup)="onFolderBtnUp()"
+          (mouseleave)="onFolderBtnLeave()"
+        >📁</button>
         <button
           type="button"
           class="output-btn"
