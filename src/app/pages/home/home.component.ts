@@ -20,6 +20,7 @@ import {
   CrewListKind,
   CrewMember,
   DepartureToArrivalSyncPreview,
+  ArrivalToDepartureSyncPreview,
   ShipInfo,
 } from '../../models/crew.models';
 
@@ -78,6 +79,10 @@ export class HomeComponent {
   protected readonly activeCrewArrival = this.storage.activeCrewArrival;
 
   protected readonly activeCrewDeparture = this.storage.activeCrewDeparture;
+  protected readonly crewListsInSync = this.storage.crewListsInSync;
+  protected readonly crewListDiff = this.storage.crewListDiff;
+  protected readonly passengerListsInSync = this.storage.passengerListsInSync;
+  protected readonly passengerListDiff = this.storage.passengerListDiff;
 
   protected readonly archivedCrew = this.storage.archivedCrew;
   protected readonly allCrew = this.storage.allCrew;
@@ -289,11 +294,13 @@ export class HomeComponent {
 
 
   protected addMemberToArrival(): void {
-
     const member = this.storage.addCrewMemberToArrival();
-
     this.startEdit(member);
+  }
 
+  protected addMemberToDeparture(): void {
+    const member = this.storage.addCrewMemberToDeparture();
+    this.startEdit(member);
   }
 
 
@@ -311,11 +318,13 @@ export class HomeComponent {
 
 
   protected addPassengerToArrival(): void {
-
     const member = this.storage.addPassengerToArrival();
-
     this.startPassengerEdit(member);
+  }
 
+  protected addPassengerToDeparture(): void {
+    const member = this.storage.addPassengerToDeparture();
+    this.startPassengerEdit(member);
   }
 
 
@@ -333,102 +342,21 @@ export class HomeComponent {
 
 
   protected setListTab(tab: HomeListTab): void {
-    const prev = this.listTab();
     this.listTab.set(tab);
-    if (prev === 'crew-departure' && tab === 'crew-arrival') {
-      const n = this.storage.archiveArrivalOnlyCrew();
-      if (n > 0) {
-        this.toast.show(
-          `${n} crew moved to archive (on arrival, not on departure)`,
-          'info',
-        );
-      }
-    }
-    if (prev === 'pax-departure' && tab === 'pax-arrival') {
-      const n = this.storage.archiveArrivalOnlyPassengers();
-      if (n > 0) {
-        this.toast.show(
-          `${n} passengers moved to archive (on arrival, not on departure)`,
-          'info',
-        );
-      }
-    }
   }
 
 
 
   protected archive(id: string): void {
-
-    const member = this.storage.allCrew().find((m) => m.id === id);
-
-    if (
-
-      this.crewListKind() === 'departure' &&
-
-      member &&
-
-      !member.archived &&
-
-      member.onArrivalList
-
-    ) {
-
-      this.storage.removeFromDepartureList(id);
-
-      if (this.editingId() === id) this.cancelEdit();
-
-      this.toast.show('Removed from departure (still on arrival)', 'info');
-
-      return;
-
-    }
-
-
-
-    this.storage.archiveCrewMember(id);
-
+    this.storage.archiveFromCrewList(id, this.crewListKind());
     if (this.editingId() === id) this.cancelEdit();
-
     this.toast.showArchived();
-
   }
 
-
-
   protected archivePassenger(id: string): void {
-
-    const member = this.storage.allPassengers().find((m) => m.id === id);
-
-    if (
-
-      this.paxListKind() === 'departure' &&
-
-      member &&
-
-      !member.archived &&
-
-      member.onArrivalList
-
-    ) {
-
-      this.storage.removePassengerFromDepartureList(id);
-
-      if (this.editingPassengerId() === id) this.cancelPassengerEdit();
-
-      this.toast.show('Removed from departure (still on arrival)', 'info');
-
-      return;
-
-    }
-
-
-
-    this.storage.archivePassenger(id);
-
+    this.storage.archiveFromPassengerList(id, this.paxListKind());
     if (this.editingPassengerId() === id) this.cancelPassengerEdit();
-
     this.toast.showArchived();
-
   }
 
 
@@ -454,10 +382,8 @@ export class HomeComponent {
 
 
   protected syncDepartureFromArrival(): void {
-    const archived = this.storage.syncDepartureFromArrival();
-    if (archived > 0) {
-      this.toast.showArchived();
-    }
+    const preview = this.storage.syncDepartureFromArrival();
+    this.toast.show(this.arrivalToDepartureToast(preview), 'success');
   }
 
 
@@ -477,7 +403,9 @@ export class HomeComponent {
   protected syncPassengerDepartureFromArrival(): void {
     const archived = this.storage.syncPassengerDepartureFromArrival();
     if (archived > 0) {
-      this.toast.showArchived();
+      this.toast.show(`${archived} departure-only moved to archive`, 'info');
+    } else {
+      this.toast.show('Departure list updated from arrival', 'success');
     }
   }
 
@@ -497,18 +425,27 @@ export class HomeComponent {
     preview: DepartureToArrivalSyncPreview,
     label: 'crew' | 'passengers',
   ): boolean {
-    if (preview.onDeparture === 0 && preview.arrivalOnlyToArchive === 0) {
+    if (
+      preview.onDeparture === 0 &&
+      preview.arrivalOnlyToArchive === 0 &&
+      preview.departureArchiveMerged === 0
+    ) {
       this.toast.showError(`No active ${label} on departure or arrival`);
       return false;
     }
     const lines = [
-      'Update arrival list for the next port?',
+      'Copy departure list into arrival?',
       '',
       `• On departure: ${preview.onDeparture} → will be on arrival`,
     ];
     if (preview.arrivalOnlyToArchive > 0) {
       lines.push(
         `• Only on arrival (not on departure): ${preview.arrivalOnlyToArchive} → moved to archive`,
+      );
+    }
+    if (preview.departureArchiveMerged > 0) {
+      lines.push(
+        `• Departure archive: ${preview.departureArchiveMerged} → merged into arrival archive`,
       );
     }
     return confirm(lines.join('\n'));
@@ -522,47 +459,74 @@ export class HomeComponent {
     if (preview.arrivalOnlyToArchive > 0) {
       parts.push(`${preview.arrivalOnlyToArchive} to archive`);
     }
+    if (preview.departureArchiveMerged > 0) {
+      parts.push(`${preview.departureArchiveMerged} from departure archive merged`);
+    }
+    return parts.join('; ');
+  }
+
+  private arrivalToDepartureToast(preview: ArrivalToDepartureSyncPreview): string {
+    const parts = [`${preview.onArrival} from arrival → departure`];
+    if (preview.departureOnlyToArchive > 0) {
+      parts.push(`${preview.departureOnlyToArchive} departure-only to archive`);
+    }
+    if (preview.departureArchiveMerged > 0) {
+      parts.push(`${preview.departureArchiveMerged} departure archive merged`);
+    }
     return parts.join('; ');
   }
 
 
 
   protected removeFromDeparture(id: string): void {
-
     const member = this.storage.allCrew().find((m) => m.id === id);
-
     this.storage.removeFromDepartureList(id);
-
     if (member?.onArrivalList && !member.archived) {
-
       this.toast.show('Removed from departure (still on arrival)', 'info');
-
     } else {
-
-      this.toast.showArchived();
-
+      this.toast.show('Moved to archive from departure', 'info');
     }
+  }
 
+  protected removeFromArrival(id: string): void {
+    const member = this.storage.allCrew().find((m) => m.id === id);
+    const linked = this.storage.crewListsInSync();
+    this.storage.removeFromArrivalList(id);
+    if (linked) {
+      this.toast.showArchived();
+    } else if (member?.onDepartureList && !member.archived) {
+      this.toast.show('Removed from arrival (still on departure list for printing)', 'info');
+    } else {
+      this.toast.showArchived();
+    }
   }
 
 
 
   protected removePassengerFromDeparture(id: string): void {
-
     const member = this.storage.allPassengers().find((m) => m.id === id);
-
+    const linked = this.storage.passengerListsInSync();
     this.storage.removePassengerFromDepartureList(id);
-
-    if (member?.onArrivalList && !member.archived) {
-
-      this.toast.show('Removed from departure (still on arrival)', 'info');
-
-    } else {
-
+    if (linked) {
       this.toast.showArchived();
-
+    } else if (member?.onArrivalList && !member.archived) {
+      this.toast.show('Removed from departure (still on arrival)', 'info');
+    } else {
+      this.toast.showArchived();
     }
+  }
 
+  protected removePassengerFromArrival(id: string): void {
+    const member = this.storage.allPassengers().find((m) => m.id === id);
+    const linked = this.storage.passengerListsInSync();
+    this.storage.removePassengerFromArrivalList(id);
+    if (linked) {
+      this.toast.showArchived();
+    } else if (member?.onDepartureList && !member.archived) {
+      this.toast.show('Removed from arrival (still on departure list for printing)', 'info');
+    } else {
+      this.toast.showArchived();
+    }
   }
 
 
@@ -599,9 +563,8 @@ export class HomeComponent {
 
 
   protected dropCrew(event: CdkDragDrop<CrewMember[]>): void {
-
-    this.storage.reorderCrewList(this.crewListKind(), event.previousIndex, event.currentIndex);
-
+    if (this.crewListKind() !== 'arrival') return;
+    this.storage.reorderCrewList('arrival', event.previousIndex, event.currentIndex);
   }
 
 

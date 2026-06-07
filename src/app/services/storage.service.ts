@@ -34,6 +34,7 @@ import {
   mergeUniqueList,
   CrewListKind,
   DepartureToArrivalSyncPreview,
+  ArrivalToDepartureSyncPreview,
   CrewDocumentType,
   migrateCrewListFlags,
   normalizeCrewDocuments,
@@ -44,6 +45,8 @@ import {
   filterActiveCrewList,
   sortCrewByRank,
   shipFieldPersistNotify,
+  areCrewListsInSync,
+  crewListDiffCounts,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
 import {
@@ -55,6 +58,8 @@ import {
   migratePassengerListFlags,
   migratePassengerMember,
   sortPassengersByName,
+  arePassengerListsInSync,
+  passengerListDiffCounts,
 } from '../models/passenger.models';
 import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-data';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
@@ -129,6 +134,8 @@ export class StorageService {
   readonly customDocuments = computed(() => this.data().customDocuments);
   readonly activeCrewArrival = computed(() => filterActiveCrewList(this.data().crew, 'arrival'));
   readonly activeCrewDeparture = computed(() => filterActiveCrewList(this.data().crew, 'departure'));
+  readonly crewListsInSync = computed(() => areCrewListsInSync(this.data().crew));
+  readonly crewListDiff = computed(() => crewListDiffCounts(this.data().crew));
   /** @deprecated Use activeCrewArrival — kept for crew-arr page default. */
   readonly activeCrew = this.activeCrewArrival;
   readonly archivedCrew = computed(() => {
@@ -144,6 +151,8 @@ export class StorageService {
   readonly activePassengersDeparture = computed(() =>
     this.data().passengers.filter((m) => !m.archived && m.onDepartureList),
   );
+  readonly passengerListsInSync = computed(() => arePassengerListsInSync(this.data().passengers));
+  readonly passengerListDiff = computed(() => passengerListDiffCounts(this.data().passengers));
   readonly archivedPassengers = computed(() =>
     sortPassengersByName(this.data().passengers.filter((m) => m.archived)),
   );
@@ -217,10 +226,8 @@ export class StorageService {
       ...m,
       joiningPort: resolvePortRef(m.joiningPort, ports)?.name ?? m.joiningPort,
     }));
-    crew = this.ensureDepartureBaseline(crew);
     crew = this.rescueOrphanCrew(crew);
     let passengers = (raw.passengers ?? []).map((m) => this.normalizePassenger(m, raw.ports));
-    passengers = this.ensureDepartureBaselinePassengers(passengers);
     passengers = this.rescueOrphanPassengers(passengers);
     const paxArr = { ...createDefaultPaxArrSettings(), ...raw.paxArr };
     const ranks = Array.isArray(raw.ranks)
@@ -1071,10 +1078,21 @@ export class StorageService {
   }
 
   addCrewMemberToArrival(member?: Partial<CrewMember>): CrewMember {
+    const linked = areCrewListsInSync(this.data().crew);
     return this.addCrewMember({
       ...member,
       archived: false,
       onArrivalList: true,
+      onDepartureList: linked,
+    });
+  }
+
+  addCrewMemberToDeparture(member?: Partial<CrewMember>): CrewMember {
+    const linked = areCrewListsInSync(this.data().crew);
+    return this.addCrewMember({
+      ...member,
+      archived: false,
+      onArrivalList: linked,
       onDepartureList: true,
     });
   }
@@ -1085,65 +1103,99 @@ export class StorageService {
       archived: true,
       onArrivalList: false,
       onDepartureList: false,
+      archivedFromDeparture: false,
     });
   }
 
   archiveCrewMember(id: string): void {
     this.updateCrewMember(
       id,
-      { archived: true, onArrivalList: false, onDepartureList: false },
+      {
+        archived: true,
+        onArrivalList: false,
+        onDepartureList: false,
+        archivedFromDeparture: false,
+      },
       'silent',
     );
   }
 
   restoreCrewMemberToList(id: string, list: CrewListKind): void {
+    const linked = areCrewListsInSync(this.data().crew);
     const patch =
       list === 'arrival'
-        ? { archived: false, onArrivalList: true, onDepartureList: true }
-        : { archived: false, onArrivalList: false, onDepartureList: true };
+        ? {
+            archived: false,
+            archivedFromDeparture: false,
+            onArrivalList: true,
+            onDepartureList: linked,
+          }
+        : {
+            archived: false,
+            archivedFromDeparture: false,
+            onArrivalList: linked,
+            onDepartureList: true,
+          };
     this.updateCrewMember(id, patch, 'silent');
   }
 
-  /** Departure list = arrival list (same people for this port). Departure-only → archive. */
-  syncDepartureFromArrival(): number {
-    let archived = 0;
-    this.data.update((d) => ({
-      ...d,
-      crew: this.rescueOrphanCrew(
-        d.crew.map((m) => {
-          const next = this.mapCrewArrivalToDepartureSync(m);
-          if (!m.archived && next.archived && m.onDepartureList && !m.onArrivalList) {
-            archived++;
-          }
-          return next;
-        }),
-      ),
-    }));
-    void this.persist('saved');
-    return archived;
+  /**
+   * Move to archive (both lists). Use removeFromArrivalList / removeFromDepartureList
+   * when lists differ and the person should stay on the other list for printing.
+   */
+  archiveFromCrewList(id: string, _list: CrewListKind): 'archived' {
+    const member = this.data().crew.find((m) => m.id === id);
+    if (!member || member.archived) return 'archived';
+    this.archiveCrewMember(id);
+    return 'archived';
   }
 
-  /** Who would be affected by departure → arrival sync (active crew only). */
+  /** FROM ARRIVAL: copy arrival list + archive to departure; merge extra departure archive. */
+  syncDepartureFromArrival(): ArrivalToDepartureSyncPreview {
+    const preview = this.previewArrivalToDeparture();
+    this.data.update((d) => {
+      let crew = d.crew.map((m) => this.mapCrewArrivalToDepartureSync(m));
+      crew = this.mergeDepartureArchiveIntoArrivalArchive(crew);
+      crew = this.reorderCrewLikeList(crew, 'arrival');
+      return { ...d, crew: this.rescueOrphanCrew(crew) };
+    });
+    void this.persist('saved');
+    return preview;
+  }
+
+  previewArrivalToDeparture(): ArrivalToDepartureSyncPreview {
+    const active = this.data().crew.filter((m) => !m.archived);
+    return {
+      onArrival: active.filter((m) => m.onArrivalList).length,
+      departureOnlyToArchive: active.filter((m) => m.onDepartureList && !m.onArrivalList).length,
+      departureArchiveMerged: this.data().crew.filter(
+        (m) => m.archivedFromDeparture && !m.archived,
+      ).length,
+    };
+  }
+
+  /** INTO ARRIVAL: copy departure list to arrival; merge departure archive into arrival archive. */
+  applyDepartureToArrival(): DepartureToArrivalSyncPreview {
+    const preview = this.previewDepartureToArrival();
+    this.data.update((d) => {
+      let crew = d.crew.map((m) => this.mapCrewDepartureToArrival(m));
+      crew = this.mergeDepartureArchiveIntoArrivalArchive(crew);
+      crew = this.reorderCrewLikeList(crew, 'departure');
+      return { ...d, crew: this.rescueOrphanCrew(crew) };
+    });
+    void this.persist('saved');
+    return preview;
+  }
+
   previewDepartureToArrival(): DepartureToArrivalSyncPreview {
     const active = this.data().crew.filter((m) => !m.archived);
     return {
       onDeparture: active.filter((m) => m.onDepartureList).length,
       arrivalOnlyToArchive: active.filter((m) => m.onArrivalList && !m.onDepartureList).length,
+      departureArchiveMerged: this.data().crew.filter(
+        (m) => m.archivedFromDeparture && !m.archived,
+      ).length,
     };
-  }
-
-  /**
-   * Next port: departure list → new arrival baseline.
-   * On arrival but not on departure → archive (not left in limbo).
-   */
-  applyDepartureToArrival(): DepartureToArrivalSyncPreview {
-    const preview = this.previewDepartureToArrival();
-    this.data.update((d) => ({
-      ...d,
-      crew: d.crew.map((m) => this.mapCrewDepartureToArrival(m)),
-    }));
-    void this.persist('saved');
-    return preview;
   }
 
   /** Active crew on arrival but not departure → archive. Returns count archived. */
@@ -1152,9 +1204,15 @@ export class StorageService {
     this.data.update((d) => ({
       ...d,
       crew: d.crew.map((m) => {
-        const patch = this.archiveIfArrivalOnly(m);
-        if (patch) count++;
-        return patch ?? m;
+        if (m.archived || m.onDepartureList || !m.onArrivalList) return m;
+        count++;
+        return {
+          ...m,
+          archived: true,
+          onArrivalList: false,
+          onDepartureList: false,
+          archivedFromDeparture: false,
+        };
       }),
     }));
     if (count > 0) void this.persist(notify);
@@ -1163,49 +1221,106 @@ export class StorageService {
 
   private mapCrewDepartureToArrival(m: CrewMember): CrewMember {
     if (m.archived) return m;
-    const archived = this.archiveIfArrivalOnly(m);
-    if (archived) return archived;
     if (m.onDepartureList) {
-      return { ...m, onArrivalList: true, onDepartureList: true };
+      return {
+        ...m,
+        onArrivalList: true,
+        onDepartureList: true,
+        archivedFromDeparture: false,
+      };
+    }
+    if (m.onArrivalList) {
+      return {
+        ...m,
+        archived: true,
+        onArrivalList: false,
+        onDepartureList: false,
+        archivedFromDeparture: false,
+      };
     }
     return m;
-  }
-
-  private archiveIfArrivalOnly(m: CrewMember): CrewMember | null {
-    if (m.archived || m.onDepartureList || !m.onArrivalList) return null;
-    return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
   }
 
   private mapCrewArrivalToDepartureSync(m: CrewMember): CrewMember {
-    if (m.archived) return m;
-    const archived = this.archiveIfDepartureOnly(m);
-    if (archived) return archived;
+    if (m.archived) {
+      return {
+        ...m,
+        onArrivalList: false,
+        onDepartureList: false,
+        archivedFromDeparture: true,
+      };
+    }
     if (m.onArrivalList) {
-      return { ...m, onDepartureList: true };
+      return {
+        ...m,
+        onArrivalList: true,
+        onDepartureList: true,
+        archivedFromDeparture: false,
+      };
+    }
+    if (m.onDepartureList) {
+      return {
+        ...m,
+        archived: true,
+        onArrivalList: false,
+        onDepartureList: false,
+        archivedFromDeparture: true,
+      };
     }
     return m;
   }
 
-  private archiveIfDepartureOnly(m: CrewMember): CrewMember | null {
-    if (m.archived || m.onArrivalList || !m.onDepartureList) return null;
-    return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
+  private mergeDepartureArchiveIntoArrivalArchive(crew: CrewMember[]): CrewMember[] {
+    return crew.map((m) => {
+      if (!m.archivedFromDeparture || m.archived) return m;
+      return {
+        ...m,
+        archived: true,
+        onArrivalList: false,
+        onDepartureList: false,
+      };
+    });
   }
 
-  /**
-   * Remove from departure list. If also on arrival — stays on arrival (swap workflow).
-   * Departure-only members go to the archive.
-   */
+  private reorderCrewLikeList(crew: CrewMember[], list: CrewListKind): CrewMember[] {
+    const ordered = filterActiveCrewList(crew, list);
+    const orderedIds = new Set(ordered.map((m) => m.id));
+    const rest = crew.filter((m) => !orderedIds.has(m.id));
+    return [...ordered, ...rest];
+  }
+
+  /** Remove from departure list → departure archive (stays on arrival if listed there). */
   removeFromDepartureList(id: string): void {
     const member = this.data().crew.find((m) => m.id === id);
     if (!member) return;
 
-    if (member.archived) {
-      this.updateCrewMember(id, { onDepartureList: false }, 'silent');
+    const patch: Partial<CrewMember> = {
+      onDepartureList: false,
+      archivedFromDeparture: true,
+    };
+    if (!member.onArrivalList) {
+      patch.archived = true;
+      patch.onArrivalList = false;
+    }
+    this.updateCrewMember(id, patch, 'silent');
+  }
+
+  removeFromArrivalList(id: string): void {
+    if (areCrewListsInSync(this.data().crew)) {
+      this.archiveCrewMember(id);
       return;
     }
 
-    if (member.onArrivalList) {
-      this.updateCrewMember(id, { onDepartureList: false }, 'silent');
+    const member = this.data().crew.find((m) => m.id === id);
+    if (!member) return;
+
+    if (member.archived) {
+      this.updateCrewMember(id, { onArrivalList: false }, 'silent');
+      return;
+    }
+
+    if (member.onDepartureList) {
+      this.updateCrewMember(id, { onArrivalList: false }, 'silent');
       return;
     }
 
@@ -1217,15 +1332,6 @@ export class StorageService {
       if (m.archived || m.onArrivalList || m.onDepartureList) return m;
       return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
     });
-  }
-
-  private ensureDepartureBaseline(crew: CrewMember[]): CrewMember[] {
-    const hasArrival = crew.some((m) => !m.archived && m.onArrivalList);
-    const hasDeparture = crew.some((m) => !m.archived && m.onDepartureList);
-    if (!hasArrival || hasDeparture) return crew;
-    return crew.map((m) =>
-      !m.archived && m.onArrivalList ? { ...m, onDepartureList: true } : m,
-    );
   }
 
   removeCrewMember(id: string): void {
@@ -1271,10 +1377,21 @@ export class StorageService {
   }
 
   addPassengerToArrival(member?: Partial<PassengerMember>): PassengerMember {
+    const linked = arePassengerListsInSync(this.data().passengers);
     return this.addPassenger({
       ...member,
       archived: false,
       onArrivalList: true,
+      onDepartureList: linked,
+    });
+  }
+
+  addPassengerToDeparture(member?: Partial<PassengerMember>): PassengerMember {
+    const linked = arePassengerListsInSync(this.data().passengers);
+    return this.addPassenger({
+      ...member,
+      archived: false,
+      onArrivalList: linked,
       onDepartureList: true,
     });
   }
@@ -1297,11 +1414,19 @@ export class StorageService {
   }
 
   restorePassengerToList(id: string, list: PaxListKind): void {
+    const linked = arePassengerListsInSync(this.data().passengers);
     const patch =
       list === 'arrival'
-        ? { archived: false, onArrivalList: true, onDepartureList: true }
-        : { archived: false, onArrivalList: false, onDepartureList: true };
+        ? { archived: false, onArrivalList: true, onDepartureList: linked }
+        : { archived: false, onArrivalList: linked, onDepartureList: true };
     this.updatePassenger(id, patch, 'silent');
+  }
+
+  archiveFromPassengerList(id: string, _list: PaxListKind): 'archived' {
+    const member = this.data().passengers.find((m) => m.id === id);
+    if (!member || member.archived) return 'archived';
+    this.archivePassenger(id);
+    return 'archived';
   }
 
   syncPassengerDepartureFromArrival(): number {
@@ -1327,6 +1452,7 @@ export class StorageService {
     return {
       onDeparture: active.filter((m) => m.onDepartureList).length,
       arrivalOnlyToArchive: active.filter((m) => m.onArrivalList && !m.onDepartureList).length,
+      departureArchiveMerged: 0,
     };
   }
 
@@ -1385,6 +1511,11 @@ export class StorageService {
   }
 
   removePassengerFromDepartureList(id: string): void {
+    if (arePassengerListsInSync(this.data().passengers)) {
+      this.archivePassenger(id);
+      return;
+    }
+
     const member = this.data().passengers.find((m) => m.id === id);
     if (!member) return;
 
@@ -1401,20 +1532,33 @@ export class StorageService {
     this.archivePassenger(id);
   }
 
+  removePassengerFromArrivalList(id: string): void {
+    if (arePassengerListsInSync(this.data().passengers)) {
+      this.archivePassenger(id);
+      return;
+    }
+
+    const member = this.data().passengers.find((m) => m.id === id);
+    if (!member) return;
+
+    if (member.archived) {
+      this.updatePassenger(id, { onArrivalList: false }, 'silent');
+      return;
+    }
+
+    if (member.onDepartureList) {
+      this.updatePassenger(id, { onArrivalList: false }, 'silent');
+      return;
+    }
+
+    this.archivePassenger(id);
+  }
+
   private rescueOrphanPassengers(passengers: PassengerMember[]): PassengerMember[] {
     return passengers.map((m) => {
       if (m.archived || m.onArrivalList || m.onDepartureList) return m;
       return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
     });
-  }
-
-  private ensureDepartureBaselinePassengers(passengers: PassengerMember[]): PassengerMember[] {
-    const hasArrival = passengers.some((m) => !m.archived && m.onArrivalList);
-    const hasDeparture = passengers.some((m) => !m.archived && m.onDepartureList);
-    if (!hasArrival || hasDeparture) return passengers;
-    return passengers.map((m) =>
-      !m.archived && m.onArrivalList ? { ...m, onDepartureList: true } : m,
-    );
   }
 
   removePassenger(id: string): void {

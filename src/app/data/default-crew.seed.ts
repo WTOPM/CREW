@@ -36,6 +36,7 @@ type SeedRow = Omit<
   | 'givenNames'
   | 'onArrivalList'
   | 'onDepartureList'
+  | 'archivedFromDeparture'
   | 'passportPlaceOfIssue'
   | 'seamansBookPlaceOfIssue'
   | 'gender'
@@ -355,6 +356,7 @@ export function createSeedCrew(): CrewMember[] {
       archived,
       onArrivalList: !archived,
       onDepartureList: false,
+      archivedFromDeparture: false,
     };
   });
 }

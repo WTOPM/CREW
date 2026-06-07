@@ -16,7 +16,7 @@ export class PdfCrewVaccineService {
   private templateBytes: Uint8Array | null = null;
   private loadedVersion = 0;
   /** Bump when public/crew-vaccine-empty.pdf is regenerated. */
-  private readonly templateVersion = 1;
+  private readonly templateVersion = 2;
 
   async buildFinalBytes(data: AppData): Promise<Uint8Array> {
     const bytes = await this.build(data);
@@ -48,10 +48,10 @@ export class PdfCrewVaccineService {
     // Header fields - coordinates from actual PDF
     const headerFontSize = 10;
 
-    // X at 261, 749 - mark as Arrival document
+    // X at 259, 749 — mark as Arrival document
     page.drawText('X', {
-      x: 261,
-      y: 752,
+      x: 259,
+      y: 749,
       size: headerFontSize,
       font,
       color: black,

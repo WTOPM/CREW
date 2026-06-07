@@ -1,6 +1,6 @@
 {
   "name": "crew",
-  "version": "0.8.0",
+  "version": "0.75.0",
   "author": "WTOPM",
   "main": "electron/main.js",
   "scripts": {

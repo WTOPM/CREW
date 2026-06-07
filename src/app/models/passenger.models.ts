@@ -21,6 +21,36 @@ function parsePersonName(full: string): { familyName: string; givenNames: string
 
 export type PaxListKind = 'arrival' | 'departure';
 
+/** True when the same active passengers appear on arrival and departure (linked lists). */
+export function arePassengerListsInSync(passengers: readonly PassengerMember[]): boolean {
+  const arrival = new Set(
+    passengers.filter((m) => !m.archived && m.onArrivalList).map((m) => m.id),
+  );
+  const departure = new Set(
+    passengers.filter((m) => !m.archived && m.onDepartureList).map((m) => m.id),
+  );
+  if (arrival.size !== departure.size) return false;
+  for (const id of arrival) {
+    if (!departure.has(id)) return false;
+  }
+  return true;
+}
+
+/** Count active passengers present on only one list (lists diverged). */
+export function passengerListDiffCounts(passengers: readonly PassengerMember[]): {
+  arrivalOnly: number;
+  departureOnly: number;
+} {
+  let arrivalOnly = 0;
+  let departureOnly = 0;
+  for (const m of passengers) {
+    if (m.archived) continue;
+    if (m.onArrivalList && !m.onDepartureList) arrivalOnly++;
+    else if (m.onDepartureList && !m.onArrivalList) departureOnly++;
+  }
+  return { arrivalOnly, departureOnly };
+}
+
 export interface PassengerMember {
   id: string;
   familyName: string;

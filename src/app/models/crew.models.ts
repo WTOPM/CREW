@@ -180,6 +180,8 @@ export interface CrewMember {
   onArrivalList: boolean;
   /** Shown on CREW LIST DEPARTURE tab and Departure PDF. */
   onDepartureList: boolean;
+  /** Removed from departure list (departure-side archive); may still be active on arrival. */
+  archivedFromDeparture: boolean;
   /** Which PDF scans exist on disk (experimental). */
   documents?: CrewDocumentFlags;
 }
@@ -196,11 +198,52 @@ export function filterActiveCrewList(
   );
 }
 
+/** True when the same active members appear on arrival and departure (linked lists). */
+export function areCrewListsInSync(crew: readonly CrewMember[]): boolean {
+  const arrival = new Set(
+    crew.filter((m) => !m.archived && m.onArrivalList).map((m) => m.id),
+  );
+  const departure = new Set(
+    crew.filter((m) => !m.archived && m.onDepartureList).map((m) => m.id),
+  );
+  if (arrival.size !== departure.size) return false;
+  for (const id of arrival) {
+    if (!departure.has(id)) return false;
+  }
+  return true;
+}
+
+/** Count active members present on only one list (lists diverged). */
+export function crewListDiffCounts(crew: readonly CrewMember[]): {
+  arrivalOnly: number;
+  departureOnly: number;
+} {
+  let arrivalOnly = 0;
+  let departureOnly = 0;
+  for (const m of crew) {
+    if (m.archived) continue;
+    if (m.onArrivalList && !m.onDepartureList) arrivalOnly++;
+    else if (m.onDepartureList && !m.onArrivalList) departureOnly++;
+  }
+  return { arrivalOnly, departureOnly };
+}
+
 /** Summary shown before departure → arrival list sync. */
 export interface DepartureToArrivalSyncPreview {
   onDeparture: number;
   /** On arrival but not departure — will be moved to archive. */
   arrivalOnlyToArchive: number;
+  /** Departure-archive entries merged into arrival archive. */
+  departureArchiveMerged: number;
+}
+
+/** Summary for FROM ARRIVAL → departure sync. */
+export interface ArrivalToDepartureSyncPreview {
+  onArrival: number;
+  /** Active on departure only — will be moved to archive. */
+  departureOnlyToArchive: number;
+  /** Extra departure-archive entries merged into arrival archive. */
+  departureArchiveMerged: number;
 }
 
 /** Field 6 label and row values for crew-list PDF (passport vs seaman's book). */
@@ -426,6 +469,7 @@ export function createEmptyCrewMember(): CrewMember {
     archived: false,
     onArrivalList: false,
     onDepartureList: false,
+    archivedFromDeparture: false,
     documents: {},
   };
 }
@@ -453,12 +497,18 @@ export function normalizeCrewDocuments(member: CrewMember): CrewMember {
 }
 
 export function migrateCrewListFlags(member: CrewMember): CrewMember {
-  const raw = member as CrewMember & { onArrivalList?: boolean; onDepartureList?: boolean };
+  const raw = member as CrewMember & {
+    onArrivalList?: boolean;
+    onDepartureList?: boolean;
+    archivedFromDeparture?: boolean;
+  };
+  const archivedFromDeparture = !!raw.archivedFromDeparture;
   if (raw.onArrivalList !== undefined && raw.onDepartureList !== undefined) {
     return {
       ...member,
       onArrivalList: !!raw.onArrivalList,
       onDepartureList: !!raw.onDepartureList,
+      archivedFromDeparture,
     };
   }
   const onArrival = !member.archived;
@@ -466,6 +516,7 @@ export function migrateCrewListFlags(member: CrewMember): CrewMember {
     ...member,
     onArrivalList: onArrival,
     onDepartureList: onArrival,
+    archivedFromDeparture,
   };
 }
 
