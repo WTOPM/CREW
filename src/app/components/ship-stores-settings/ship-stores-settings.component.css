@@ -121,6 +121,14 @@
   font-weight: 600;
 }
 
+.ss-preview-row {
+  cursor: pointer;
+}
+
+.ss-preview-row:hover {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 6%, transparent);
+}
+
 .ss-preview-row--active {
   background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent);
 }

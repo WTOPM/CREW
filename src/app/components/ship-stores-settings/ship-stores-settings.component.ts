@@ -13,8 +13,6 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 export class ShipStoresSettingsComponent {
   private readonly storage = inject(StorageService);
 
-  protected readonly rowNumbers = Array.from({ length: SHIP_STORES_ROW_COUNT }, (_, i) => i + 1);
-
   protected selectedRow = signal(1);
   protected draftName = signal('');
   protected draftQuantity = signal('');
@@ -30,8 +28,9 @@ export class ShipStoresSettingsComponent {
     this.storage.updateShipStoresPlaceOfStorage(value);
   }
 
-  protected onRowChange(rowNo: number): void {
+  protected selectRow(rowNo: number): void {
     const n = Math.min(SHIP_STORES_ROW_COUNT, Math.max(1, Number(rowNo) || 1));
+    if (n === this.selectedRow()) return;
     this.selectedRow.set(n);
     this.loadDraftFromRow(n - 1);
   }

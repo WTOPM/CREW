@@ -1,6 +1,7 @@
 {
   "name": "crew",
-  "version": "0.0.0",
+  "version": "0.8.0",
+  "author": "WTOPM",
   "main": "electron/main.js",
   "scripts": {
     "ng": "ng",
