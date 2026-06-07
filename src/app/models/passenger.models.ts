@@ -51,6 +51,16 @@ export function passengerListDiffCounts(passengers: readonly PassengerMember[]):
   return { arrivalOnly, departureOnly };
 }
 
+/** Active passengers in Home table order. */
+export function filterActivePassengerList(
+  passengers: readonly PassengerMember[],
+  list: PaxListKind,
+): PassengerMember[] {
+  return passengers.filter((m) =>
+    !m.archived && (list === 'arrival' ? m.onArrivalList : m.onDepartureList),
+  );
+}
+
 export interface PassengerMember {
   id: string;
   familyName: string;
@@ -65,6 +75,8 @@ export interface PassengerMember {
   archived: boolean;
   onArrivalList: boolean;
   onDepartureList: boolean;
+  /** Removed from departure list (departure-side archive); may still be active on arrival. */
+  archivedFromDeparture: boolean;
 }
 
 export interface PaxArrFormSettings {
@@ -90,16 +102,23 @@ export function createEmptyPassenger(): PassengerMember {
     archived: false,
     onArrivalList: false,
     onDepartureList: false,
+    archivedFromDeparture: false,
   };
 }
 
 export function migratePassengerListFlags(member: PassengerMember): PassengerMember {
-  const raw = member as PassengerMember & { onArrivalList?: boolean; onDepartureList?: boolean };
+  const raw = member as PassengerMember & {
+    onArrivalList?: boolean;
+    onDepartureList?: boolean;
+    archivedFromDeparture?: boolean;
+  };
+  const archivedFromDeparture = !!raw.archivedFromDeparture;
   if (raw.onArrivalList !== undefined && raw.onDepartureList !== undefined) {
     return {
       ...member,
       onArrivalList: !!raw.onArrivalList,
       onDepartureList: !!raw.onDepartureList,
+      archivedFromDeparture,
     };
   }
   const onArrival = !member.archived;
@@ -107,6 +126,7 @@ export function migratePassengerListFlags(member: PassengerMember): PassengerMem
     ...member,
     onArrivalList: onArrival,
     onDepartureList: onArrival,
+    archivedFromDeparture,
   };
 }
 

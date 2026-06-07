@@ -28,7 +28,16 @@ export function crewListPlacementKey(listType: CrewListTypeId): CrewListPlacemen
   return listType === 'type2Alger' ? 'type2Alger' : 'type1';
 }
 
-/** Per-template stamp/signature coordinates (toggles stay on {@link CrewListDocumentPrefs}). */
+/** Per crew-list document variant: stamp toggles + placement. */
+export interface CrewListVariantSettings {
+  useStamp: boolean;
+  useSignature: boolean;
+  overlayRotation?: number;
+  stampBox?: PdfStampBox;
+  signatureBox?: PdfStampBox;
+}
+
+/** Stamp/signature placement bucket (legacy — Type 1 passport & seaman's book shared one layout). */
 export interface CrewListVariantPlacement {
   overlayRotation?: number;
   stampBox?: PdfStampBox;
@@ -47,18 +56,39 @@ export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
   'type2Alger',
 ];
 
-/** Crew list menu: which identity list variant to print. */
-export interface CrewListDocumentPrefs extends DocumentStampOptions {
+/** Which variant is selected in Crew list settings (for editing). */
+export interface CrewListDocumentPrefs {
   listType: CrewListTypeId;
-  /** Separate stamp/signature placement per PDF template (Type 1 vs Alger). */
-  byPlacement?: Partial<Record<CrewListPlacementKey, CrewListVariantPlacement>>;
+  /** Independent stamp/signature settings per document variant. */
+  byType: Partial<Record<CrewListTypeId, CrewListVariantSettings>>;
 }
 
-const CREW_LIST_PLACEMENT_FIELD_NAMES = [
+/** Fields accepted when updating crew list overlay (applies to active {@link CrewListDocumentPrefs.listType}). */
+export type CrewListOverlayUpdate = Partial<
+  Pick<CrewListDocumentPrefs, 'listType'> & CrewListVariantSettings
+>;
+
+export function defaultCrewListVariantSettings(): CrewListVariantSettings {
+  return { useStamp: false, useSignature: false };
+}
+
+export function getCrewListVariantSettings(
+  prefs: CrewListDocumentPrefs,
+  listType: CrewListTypeId = prefs.listType,
+): CrewListVariantSettings {
+  return {
+    ...defaultCrewListVariantSettings(),
+    ...prefs.byType?.[listType],
+  };
+}
+
+const CREW_LIST_VARIANT_FIELD_NAMES = [
+  'useStamp',
+  'useSignature',
   'overlayRotation',
   'stampBox',
   'signatureBox',
-] as const satisfies readonly (keyof CrewListVariantPlacement)[];
+] as const satisfies readonly (keyof CrewListVariantSettings)[];
 
 function mergeCrewListVariantPlacement(
   ...sources: (Partial<CrewListVariantPlacement> | undefined)[]
@@ -91,34 +121,85 @@ export function normalizeCrewListByPlacement(
   return out;
 }
 
-/** Resolved stamp options for the active crew list type (preview + PDF). */
-export function resolveCrewListStampOptions(prefs: CrewListDocumentPrefs): DocumentStampOptions {
-  const key = crewListPlacementKey(prefs.listType);
-  const legacy = mergeCrewListVariantPlacement({
-    overlayRotation: prefs.overlayRotation,
-    stampBox: prefs.stampBox,
-    signatureBox: prefs.signatureBox,
-  });
-  const placement = mergeCrewListVariantPlacement(legacy, prefs.byPlacement?.[key]) ?? {};
+/** Resolved stamp options for a crew list variant (preview + PDF). */
+export function resolveCrewListStampOptions(
+  prefs: CrewListDocumentPrefs,
+  listType: CrewListTypeId = prefs.listType,
+): DocumentStampOptions {
+  const variant = getCrewListVariantSettings(prefs, listType);
   return {
-    useStamp: prefs.useStamp,
-    useSignature: prefs.useSignature,
-    ...(placement.overlayRotation != null ? { overlayRotation: placement.overlayRotation } : {}),
-    ...(placement.stampBox ? { stampBox: { ...placement.stampBox } } : {}),
-    ...(placement.signatureBox ? { signatureBox: { ...placement.signatureBox } } : {}),
+    useStamp: variant.useStamp,
+    useSignature: variant.useSignature,
+    ...(variant.overlayRotation != null ? { overlayRotation: variant.overlayRotation } : {}),
+    ...(variant.stampBox ? { stampBox: { ...variant.stampBox } } : {}),
+    ...(variant.signatureBox ? { signatureBox: { ...variant.signatureBox } } : {}),
   };
 }
 
-export function crewListPlacementPatch(
-  partial: Partial<CrewListDocumentPrefs>,
-): Partial<CrewListVariantPlacement> | null {
-  const patch: Partial<CrewListVariantPlacement> = {};
-  for (const field of CREW_LIST_PLACEMENT_FIELD_NAMES) {
+export function crewListVariantPatch(
+  partial: CrewListOverlayUpdate,
+): Partial<CrewListVariantSettings> | null {
+  const patch: Partial<CrewListVariantSettings> = {};
+  for (const field of CREW_LIST_VARIANT_FIELD_NAMES) {
     if (field in partial) {
       (patch as Record<string, unknown>)[field] = partial[field];
     }
   }
   return Object.keys(patch).length ? patch : null;
+}
+
+/** @deprecated Use {@link crewListVariantPatch}. */
+export function crewListPlacementPatch(
+  partial: CrewListOverlayUpdate,
+): Partial<CrewListVariantPlacement> | null {
+  const patch: Partial<CrewListVariantPlacement> = {};
+  for (const field of ['overlayRotation', 'stampBox', 'signatureBox'] as const) {
+    if (field in partial) {
+      (patch as Record<string, unknown>)[field] = partial[field];
+    }
+  }
+  return Object.keys(patch).length ? patch : null;
+}
+
+/** Normalize saved crew list prefs (migrates legacy shared toggles/placement). */
+export function normalizeCrewListDocumentPrefs(
+  raw:
+    | (Partial<CrewListDocumentPrefs> & {
+        useStamp?: boolean;
+        useSignature?: boolean;
+        overlayRotation?: number;
+        stampBox?: PdfStampBox;
+        signatureBox?: PdfStampBox;
+        byPlacement?: Partial<Record<CrewListPlacementKey, Partial<CrewListVariantPlacement>>>;
+        type1Passport?: boolean;
+        type1SeamansBook?: boolean;
+      })
+    | undefined,
+): CrewListDocumentPrefs {
+  const listType = normalizeCrewListType(raw ?? {});
+  const legacyPlacement = mergeCrewListVariantPlacement({
+    overlayRotation: raw?.overlayRotation,
+    stampBox: raw?.stampBox,
+    signatureBox: raw?.signatureBox,
+  });
+  const byPlacement = normalizeCrewListByPlacement(raw?.byPlacement, legacyPlacement);
+  const legacyToggles = {
+    useStamp: raw?.useStamp ?? false,
+    useSignature: raw?.useSignature ?? false,
+  };
+
+  const byType: Partial<Record<CrewListTypeId, CrewListVariantSettings>> = {};
+  for (const id of CREW_LIST_TYPE_IDS) {
+    const placement = id === 'type2Alger' ? byPlacement.type2Alger : byPlacement.type1;
+    byType[id] = {
+      ...defaultCrewListVariantSettings(),
+      ...legacyToggles,
+      ...placement,
+      ...raw?.byType?.[id],
+    };
+  }
+
+  return { listType, byType };
 }
 
 /** Keys match document menu Settings modals. */
@@ -165,10 +246,7 @@ export interface ShipAssetsMeta {
 const DEFAULT_STAMP_OPTS: DocumentStampOptions = { useStamp: false, useSignature: false };
 
 export function createDefaultCrewListPrefs(): CrewListDocumentPrefs {
-  return {
-    ...DEFAULT_STAMP_OPTS,
-    listType: 'type1Passport',
-  };
+  return normalizeCrewListDocumentPrefs({ listType: 'type1Passport' });
 }
 
 /** Migrate saved data from old dual-checkbox crew list prefs. */

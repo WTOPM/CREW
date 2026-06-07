@@ -245,17 +245,14 @@
           Passenger list — Departure ({{ listPassengers().length }})
         }
         @if (passengerListsInSync()) {
-          <span class="list-sync-badge">Linked — same passengers on both lists; add/archive apply to both</span>
+          <span class="list-sync-badge">Linked — same passengers on both lists</span>
+        } @else if (paxListKind() === 'arrival') {
+          <span class="list-sync-badge list-sync-badge--split">
+            Lists differ — edit on Arrival; Departure is read-only for exit print
+          </span>
         } @else {
           <span class="list-sync-badge list-sync-badge--split">
-            Lists differ
-            @if (passengerListDiff().arrivalOnly > 0) {
-              · {{ passengerListDiff().arrivalOnly }} arrival only
-            }
-            @if (passengerListDiff().departureOnly > 0) {
-              · {{ passengerListDiff().departureOnly }} departure only
-            }
-            — use ✕ to remove from one list; archive removes completely
+            Read-only — use ✕ to remove from departure; sync with FROM ARRIVAL / INTO ARRIVAL
           </span>
         }
       </h2>
@@ -266,7 +263,6 @@
           <button type="button" class="btn btn-secondary" (click)="syncPassengerDepartureFromArrival()">
             FROM ARRIVAL
           </button>
-          <button type="button" class="btn btn-primary" (click)="addPassengerToDeparture()">+ Add passenger</button>
           <button type="button" class="btn btn-primary" (click)="applyPassengerDepartureToArrival()">
             INTO ARRIVAL
           </button>
@@ -278,7 +274,9 @@
       <table class="crew-table">
         <thead>
           <tr>
-            <th class="col-drag" aria-hidden="true"></th>
+            @if (paxListKind() === 'arrival') {
+              <th class="col-drag" aria-hidden="true"></th>
+            }
             <th>#</th>
             <th>Family Name</th>
             <th>Given Names</th>
@@ -290,8 +288,10 @@
         </thead>
         <tbody cdkDropList (cdkDropListDropped)="dropPassengers($event)">
           @for (member of listPassengers(); track member.id; let i = $index) {
-            <tr cdkDrag>
-              <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
+            <tr cdkDrag [cdkDragDisabled]="paxListKind() !== 'arrival'">
+              @if (paxListKind() === 'arrival') {
+                <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
+              }
               <td>{{ i + 1 }}</td>
               <td>{{ member.familyName }}</td>
               <td>{{ member.givenNames }}</td>
@@ -299,27 +299,40 @@
               <td>{{ member.nationality }}</td>
               <td>{{ member.passport }}</td>
               <td class="actions actions-icons">
-                <button
-                  type="button"
-                  class="crew-action crew-action--edit"
-                  title="Edit"
-                  aria-label="Edit"
-                  (click)="startPassengerEdit(member)"
-                >
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </button>
-                @if (paxListKind() === 'arrival' && !passengerListsInSync() && member.onDepartureList) {
+                @if (paxListKind() === 'arrival') {
                   <button
                     type="button"
-                    class="crew-action crew-action--off-arrival"
-                    title="Remove from arrival (stays on departure for exit print)"
-                    aria-label="Remove from arrival only"
-                    (click)="removePassengerFromArrival(member.id)"
+                    class="crew-action crew-action--edit"
+                    title="Edit"
+                    aria-label="Edit"
+                    (click)="startPassengerEdit(member)"
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                      <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
+                      <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                  @if (!passengerListsInSync() && member.onDepartureList) {
+                    <button
+                      type="button"
+                      class="crew-action crew-action--off-arrival"
+                      title="Remove from arrival (stays on departure for exit print)"
+                      aria-label="Remove from arrival only"
+                      (click)="removePassengerFromArrival(member.id)"
+                    >
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
+                      </svg>
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="crew-action crew-action--archive"
+                    title="Move to archive"
+                    aria-label="Move to archive"
+                    (click)="archivePassenger(member.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                   </button>
                 }
@@ -327,25 +340,12 @@
                   <button
                     type="button"
                     class="crew-action crew-action--off-departure"
-                    [title]="passengerListsInSync() ? 'Remove from both lists (archive)' : (member.onArrivalList ? 'Remove from departure (stays on arrival)' : 'Remove from departure (to archive)')"
-                    [attr.aria-label]="passengerListsInSync() ? 'Archive' : (member.onArrivalList ? 'Remove from departure only' : 'Remove from departure to archive')"
+                    title="Remove from departure list (to departure archive)"
+                    aria-label="Remove from departure list"
                     (click)="removePassengerFromDeparture(member.id)"
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                       <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
-                    </svg>
-                  </button>
-                }
-                @if (paxListKind() === 'arrival' || !member.onArrivalList || passengerListsInSync()) {
-                  <button
-                    type="button"
-                    class="crew-action crew-action--archive"
-                    title="Move to archive (both lists)"
-                    aria-label="Move to archive"
-                    (click)="archivePassenger(member.id)"
-                  >
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                      <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                   </button>
                 }
@@ -516,7 +516,7 @@
 
   @if (editDraft(); as draft) {
     <div class="modal-backdrop">
-      <div class="modal modal-crew-edit" appClickOutside (appClickOutside)="cancelEdit()" (click)="$event.stopPropagation()">
+      <div class="modal modal-crew-edit modal-crew-edit--scroll" appClickOutside (appClickOutside)="cancelEdit()" (click)="$event.stopPropagation()">
         <h3>{{ editingId() ? 'Edit crew member' : 'Add crew member' }}</h3>
 
         <div class="crew-form-layout">
@@ -701,9 +701,9 @@
     </div>
   }
 
-  @if (passengerEditDraft(); as draft) {
+  @if (passengerEditDraft(); as paxDraft) {
     <div class="modal-backdrop">
-      <div class="modal modal-crew-edit" appClickOutside (appClickOutside)="cancelPassengerEdit()" (click)="$event.stopPropagation()">
+      <div class="modal modal-crew-edit modal-crew-edit--scroll" appClickOutside (appClickOutside)="cancelPassengerEdit()" (click)="$event.stopPropagation()">
         <h3>{{ editingPassengerId() ? 'Edit passenger' : 'Add passenger' }}</h3>
 
         <div class="crew-form-layout">
@@ -712,23 +712,23 @@
             <div class="form-grid">
               <label>
                 <span>Family name</span>
-                <input [ngModel]="draft.familyName" (ngModelChange)="updatePassengerDraft('familyName', $event)" />
+                <input [ngModel]="paxDraft.familyName" (ngModelChange)="updatePassengerDraft('familyName', $event)" />
               </label>
               <label>
                 <span>Given names</span>
-                <input [ngModel]="draft.givenNames" (ngModelChange)="updatePassengerDraft('givenNames', $event)" />
+                <input [ngModel]="paxDraft.givenNames" (ngModelChange)="updatePassengerDraft('givenNames', $event)" />
               </label>
               <label>
                 <span>Nationality</span>
                 <app-lookup-select
-                  [value]="draft.nationality"
+                  [value]="paxDraft.nationality"
                   [options]="nationalities()"
                   (valueChange)="updatePassengerDraft('nationality', $event)"
                 />
               </label>
               <label>
                 <span>Gender</span>
-                <select [ngModel]="draft.gender" (ngModelChange)="updatePassengerDraft('gender', $event)">
+                <select [ngModel]="paxDraft.gender" (ngModelChange)="updatePassengerDraft('gender', $event)">
                   <option value="">— select —</option>
                   <option value="MALE">MALE</option>
                   <option value="FEMALE">FEMALE</option>
@@ -736,11 +736,11 @@
               </label>
               <label>
                 <span>Date of birth</span>
-                <app-date-picker [value]="draft.dateOfBirth" (valueChange)="updatePassengerDraft('dateOfBirth', $event)" />
+                <app-date-picker [value]="passengerEditDraft()!.dateOfBirth" (valueChange)="updatePassengerDraft('dateOfBirth', $event)" />
               </label>
               <label>
                 <span>Place of birth</span>
-                <input [ngModel]="draft.placeOfBirth" (ngModelChange)="updatePassengerDraft('placeOfBirth', $event)" />
+                <input [ngModel]="paxDraft.placeOfBirth" (ngModelChange)="updatePassengerDraft('placeOfBirth', $event)" />
               </label>
             </div>
           </section>
@@ -750,15 +750,15 @@
             <div class="form-grid">
               <label>
                 <span>Passport No.</span>
-                <input [ngModel]="draft.passport" (ngModelChange)="updatePassengerDraft('passport', $event)" />
+                <input [ngModel]="paxDraft.passport" (ngModelChange)="updatePassengerDraft('passport', $event)" />
               </label>
               <label>
                 <span>Issue date</span>
-                <app-date-picker [value]="draft.passportIssueDate" (valueChange)="updatePassengerDraft('passportIssueDate', $event)" />
+                <app-date-picker [value]="passengerEditDraft()!.passportIssueDate" (valueChange)="updatePassengerDraft('passportIssueDate', $event)" />
               </label>
               <label>
                 <span>Expiry date</span>
-                <app-date-picker [value]="draft.passportExpiryDate" (valueChange)="updatePassengerDraft('passportExpiryDate', $event)" />
+                <app-date-picker [value]="passengerEditDraft()!.passportExpiryDate" (valueChange)="updatePassengerDraft('passportExpiryDate', $event)" />
               </label>
             </div>
           </section>

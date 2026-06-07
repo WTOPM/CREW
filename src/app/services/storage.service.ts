@@ -60,6 +60,7 @@ import {
   sortPassengersByName,
   arePassengerListsInSync,
   passengerListDiffCounts,
+  filterActivePassengerList,
 } from '../models/passenger.models';
 import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-data';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
@@ -96,11 +97,11 @@ import {
   type NarcoticListFormSettings,
 } from '../models/narcotic-list.models';
 import {
-  crewListPlacementKey,
-  crewListPlacementPatch,
-  createDefaultCrewListPrefs,
-  CrewListVariantPlacement,
-  normalizeCrewListByPlacement,
+  crewListVariantPatch,
+  CREW_LIST_TYPE_IDS,
+  getCrewListVariantSettings,
+  normalizeCrewListDocumentPrefs,
+  CrewListOverlayUpdate,
 } from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 
@@ -419,24 +420,7 @@ export class StorageService {
   private normalizeCrewListPrefs(
     raw: Partial<AppData['documentOverlay']['crewList']> | undefined,
   ): AppData['documentOverlay']['crewList'] {
-    const defaults = createDefaultCrewListPrefs();
-    const listType = normalizeCrewListType(raw ?? {});
-    const legacy: CrewListVariantPlacement = {};
-    if (typeof raw?.overlayRotation === 'number') {
-      legacy.overlayRotation = raw.overlayRotation;
-    }
-    if (isValidStampBox(raw?.stampBox)) {
-      legacy.stampBox = { ...raw!.stampBox! };
-    }
-    if (isValidStampBox(raw?.signatureBox)) {
-      legacy.signatureBox = { ...raw!.signatureBox! };
-    }
-    return {
-      listType,
-      useStamp: raw?.useStamp ?? defaults.useStamp,
-      useSignature: raw?.useSignature ?? defaults.useSignature,
-      byPlacement: normalizeCrewListByPlacement(raw?.byPlacement, legacy),
-    };
+    return normalizeCrewListDocumentPrefs(raw);
   }
 
   private normalizePortCallHistory(
@@ -631,33 +615,30 @@ export class StorageService {
   }
 
   private updateCrewListOverlay(
-    partial: Partial<AppData['documentOverlay']['crewList']>,
+    partial: CrewListOverlayUpdate,
     notify: 'silent' | 'saved' = 'silent',
   ): void {
-    const placementPatch = crewListPlacementPatch(partial);
-    const { overlayRotation, stampBox, signatureBox, byPlacement: _bp, ...meta } = partial;
+    const variantPatch = crewListVariantPatch(partial);
 
     this.data.update((d) => {
       const current = d.documentOverlay.crewList;
-      let next: AppData['documentOverlay']['crewList'] = {
-        ...current,
-        ...(meta.listType != null ? { listType: meta.listType } : {}),
-        ...(meta.useStamp != null ? { useStamp: meta.useStamp } : {}),
-        ...(meta.useSignature != null ? { useSignature: meta.useSignature } : {}),
-      };
+      const nextListType = partial.listType ?? current.listType;
+      const byType = { ...current.byType };
 
-      if (placementPatch) {
-        const key = crewListPlacementKey(
-          (meta.listType as typeof current.listType | undefined) ?? current.listType,
-        );
-        const byPlacement = { ...current.byPlacement };
-        byPlacement[key] = { ...byPlacement[key], ...placementPatch };
-        next = { ...next, byPlacement };
+      if (variantPatch) {
+        const activeType = current.listType;
+        byType[activeType] = {
+          ...getCrewListVariantSettings(current, activeType),
+          ...variantPatch,
+        };
       }
 
       return {
         ...d,
-        documentOverlay: { ...d.documentOverlay, crewList: next },
+        documentOverlay: {
+          ...d.documentOverlay,
+          crewList: { listType: nextListType, byType },
+        },
       };
     });
     void this.persist(notify);
@@ -669,24 +650,31 @@ export class StorageService {
       useStamp,
       useSignature,
     };
-    this.data.update((d) => ({
-      ...d,
-      documentOverlay: {
-        crewList: { ...d.documentOverlay.crewList, ...patch },
-        pax: { ...d.documentOverlay.pax, ...patch },
-        portOfCall: { ...d.documentOverlay.portOfCall, ...patch },
-        mdh: { ...d.documentOverlay.mdh, ...patch },
-        crewVaccine: { ...d.documentOverlay.crewVaccine, ...patch },
-        shipStores: { ...d.documentOverlay.shipStores, ...patch },
-        crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
-        nilList: { ...d.documentOverlay.nilList, ...patch },
-        shipMoney: { ...d.documentOverlay.shipMoney, ...patch },
-        cashAdvance: { ...d.documentOverlay.cashAdvance, ...patch },
-        crewMoney: { ...d.documentOverlay.crewMoney, ...patch },
-        narcoticList: { ...d.documentOverlay.narcoticList, ...patch },
-        sso0108PortCalls: { ...d.documentOverlay.sso0108PortCalls, ...patch },
-      },
-    }));
+    this.data.update((d) => {
+      const crewList = d.documentOverlay.crewList;
+      const byType = { ...crewList.byType };
+      for (const id of CREW_LIST_TYPE_IDS) {
+        byType[id] = { ...getCrewListVariantSettings(crewList, id), ...patch };
+      }
+      return {
+        ...d,
+        documentOverlay: {
+          crewList: { ...crewList, byType },
+          pax: { ...d.documentOverlay.pax, ...patch },
+          portOfCall: { ...d.documentOverlay.portOfCall, ...patch },
+          mdh: { ...d.documentOverlay.mdh, ...patch },
+          crewVaccine: { ...d.documentOverlay.crewVaccine, ...patch },
+          shipStores: { ...d.documentOverlay.shipStores, ...patch },
+          crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
+          nilList: { ...d.documentOverlay.nilList, ...patch },
+          shipMoney: { ...d.documentOverlay.shipMoney, ...patch },
+          cashAdvance: { ...d.documentOverlay.cashAdvance, ...patch },
+          crewMoney: { ...d.documentOverlay.crewMoney, ...patch },
+          narcoticList: { ...d.documentOverlay.narcoticList, ...patch },
+          sso0108PortCalls: { ...d.documentOverlay.sso0108PortCalls, ...patch },
+        },
+      };
+    });
     void this.persist('saved');
   }
 
@@ -1082,17 +1070,18 @@ export class StorageService {
     return this.addCrewMember({
       ...member,
       archived: false,
+      archivedFromDeparture: false,
       onArrivalList: true,
       onDepartureList: linked,
     });
   }
 
   addCrewMemberToDeparture(member?: Partial<CrewMember>): CrewMember {
-    const linked = areCrewListsInSync(this.data().crew);
     return this.addCrewMember({
       ...member,
       archived: false,
-      onArrivalList: linked,
+      archivedFromDeparture: false,
+      onArrivalList: false,
       onDepartureList: true,
     });
   }
@@ -1121,22 +1110,18 @@ export class StorageService {
   }
 
   restoreCrewMemberToList(id: string, list: CrewListKind): void {
+    this.updateCrewMember(id, this.crewRestorePatch(list), 'silent');
+  }
+
+  /** When lists are linked, restore/add puts the person on both lists. */
+  private crewRestorePatch(list: CrewListKind): Partial<CrewMember> {
     const linked = areCrewListsInSync(this.data().crew);
-    const patch =
-      list === 'arrival'
-        ? {
-            archived: false,
-            archivedFromDeparture: false,
-            onArrivalList: true,
-            onDepartureList: linked,
-          }
-        : {
-            archived: false,
-            archivedFromDeparture: false,
-            onArrivalList: linked,
-            onDepartureList: true,
-          };
-    this.updateCrewMember(id, patch, 'silent');
+    return {
+      archived: false,
+      archivedFromDeparture: false,
+      onArrivalList: list === 'arrival' || linked,
+      onDepartureList: list === 'departure' || linked,
+    };
   }
 
   /**
@@ -1381,17 +1366,18 @@ export class StorageService {
     return this.addPassenger({
       ...member,
       archived: false,
+      archivedFromDeparture: false,
       onArrivalList: true,
       onDepartureList: linked,
     });
   }
 
   addPassengerToDeparture(member?: Partial<PassengerMember>): PassengerMember {
-    const linked = arePassengerListsInSync(this.data().passengers);
     return this.addPassenger({
       ...member,
       archived: false,
-      onArrivalList: linked,
+      archivedFromDeparture: false,
+      onArrivalList: false,
       onDepartureList: true,
     });
   }
@@ -1402,24 +1388,36 @@ export class StorageService {
       archived: true,
       onArrivalList: false,
       onDepartureList: false,
+      archivedFromDeparture: false,
     });
   }
 
   archivePassenger(id: string): void {
     this.updatePassenger(
       id,
-      { archived: true, onArrivalList: false, onDepartureList: false },
+      {
+        archived: true,
+        onArrivalList: false,
+        onDepartureList: false,
+        archivedFromDeparture: false,
+      },
       'silent',
     );
   }
 
   restorePassengerToList(id: string, list: PaxListKind): void {
+    this.updatePassenger(id, this.passengerRestorePatch(list), 'silent');
+  }
+
+  /** When lists are linked, restore/add puts the person on both lists. */
+  private passengerRestorePatch(list: PaxListKind): Partial<PassengerMember> {
     const linked = arePassengerListsInSync(this.data().passengers);
-    const patch =
-      list === 'arrival'
-        ? { archived: false, onArrivalList: true, onDepartureList: linked }
-        : { archived: false, onArrivalList: linked, onDepartureList: true };
-    this.updatePassenger(id, patch, 'silent');
+    return {
+      archived: false,
+      archivedFromDeparture: false,
+      onArrivalList: list === 'arrival' || linked,
+      onDepartureList: list === 'departure' || linked,
+    };
   }
 
   archiveFromPassengerList(id: string, _list: PaxListKind): 'archived' {
@@ -1429,22 +1427,41 @@ export class StorageService {
     return 'archived';
   }
 
-  syncPassengerDepartureFromArrival(): number {
-    let archived = 0;
-    this.data.update((d) => ({
-      ...d,
-      passengers: this.rescueOrphanPassengers(
-        d.passengers.map((m) => {
-          const next = this.mapPassengerArrivalToDepartureSync(m);
-          if (!m.archived && next.archived && m.onDepartureList && !m.onArrivalList) {
-            archived++;
-          }
-          return next;
-        }),
-      ),
-    }));
+  /** FROM ARRIVAL: copy arrival list + archive to departure; merge extra departure archive. */
+  syncPassengerDepartureFromArrival(): ArrivalToDepartureSyncPreview {
+    const preview = this.previewPassengerArrivalToDeparture();
+    this.data.update((d) => {
+      let passengers = d.passengers.map((m) => this.mapPassengerArrivalToDepartureSync(m));
+      passengers = this.mergePassengerDepartureArchiveIntoArrivalArchive(passengers);
+      passengers = this.reorderPassengerLikeList(passengers, 'arrival');
+      return { ...d, passengers: this.rescueOrphanPassengers(passengers) };
+    });
     void this.persist('saved');
-    return archived;
+    return preview;
+  }
+
+  previewPassengerArrivalToDeparture(): ArrivalToDepartureSyncPreview {
+    const active = this.data().passengers.filter((m) => !m.archived);
+    return {
+      onArrival: active.filter((m) => m.onArrivalList).length,
+      departureOnlyToArchive: active.filter((m) => m.onDepartureList && !m.onArrivalList).length,
+      departureArchiveMerged: this.data().passengers.filter(
+        (m) => m.archivedFromDeparture && !m.archived,
+      ).length,
+    };
+  }
+
+  /** INTO ARRIVAL: copy departure list to arrival; merge departure archive into arrival archive. */
+  applyPassengerDepartureToArrival(): DepartureToArrivalSyncPreview {
+    const preview = this.previewPassengerDepartureToArrival();
+    this.data.update((d) => {
+      let passengers = d.passengers.map((m) => this.mapPassengerDepartureToArrival(m));
+      passengers = this.mergePassengerDepartureArchiveIntoArrivalArchive(passengers);
+      passengers = this.reorderPassengerLikeList(passengers, 'departure');
+      return { ...d, passengers: this.rescueOrphanPassengers(passengers) };
+    });
+    void this.persist('saved');
+    return preview;
   }
 
   previewPassengerDepartureToArrival(): DepartureToArrivalSyncPreview {
@@ -1452,18 +1469,10 @@ export class StorageService {
     return {
       onDeparture: active.filter((m) => m.onDepartureList).length,
       arrivalOnlyToArchive: active.filter((m) => m.onArrivalList && !m.onDepartureList).length,
-      departureArchiveMerged: 0,
+      departureArchiveMerged: this.data().passengers.filter(
+        (m) => m.archivedFromDeparture && !m.archived,
+      ).length,
     };
-  }
-
-  applyPassengerDepartureToArrival(): DepartureToArrivalSyncPreview {
-    const preview = this.previewPassengerDepartureToArrival();
-    this.data.update((d) => ({
-      ...d,
-      passengers: d.passengers.map((m) => this.mapPassengerDepartureToArrival(m)),
-    }));
-    void this.persist('saved');
-    return preview;
   }
 
   archiveArrivalOnlyPassengers(notify: 'silent' | 'saved' = 'saved'): number {
@@ -1471,9 +1480,15 @@ export class StorageService {
     this.data.update((d) => ({
       ...d,
       passengers: d.passengers.map((m) => {
-        const patch = this.archivePassengerIfArrivalOnly(m);
-        if (patch) count++;
-        return patch ?? m;
+        if (m.archived || m.onDepartureList || !m.onArrivalList) return m;
+        count++;
+        return {
+          ...m,
+          archived: true,
+          onArrivalList: false,
+          onDepartureList: false,
+          archivedFromDeparture: false,
+        };
       }),
     }));
     if (count > 0) void this.persist(notify);
@@ -1482,54 +1497,93 @@ export class StorageService {
 
   private mapPassengerDepartureToArrival(m: PassengerMember): PassengerMember {
     if (m.archived) return m;
-    const archived = this.archivePassengerIfArrivalOnly(m);
-    if (archived) return archived;
     if (m.onDepartureList) {
-      return { ...m, onArrivalList: true, onDepartureList: true };
+      return {
+        ...m,
+        onArrivalList: true,
+        onDepartureList: true,
+        archivedFromDeparture: false,
+      };
+    }
+    if (m.onArrivalList) {
+      return {
+        ...m,
+        archived: true,
+        onArrivalList: false,
+        onDepartureList: false,
+        archivedFromDeparture: false,
+      };
     }
     return m;
-  }
-
-  private archivePassengerIfArrivalOnly(m: PassengerMember): PassengerMember | null {
-    if (m.archived || m.onDepartureList || !m.onArrivalList) return null;
-    return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
   }
 
   private mapPassengerArrivalToDepartureSync(m: PassengerMember): PassengerMember {
-    if (m.archived) return m;
-    const archived = this.archivePassengerIfDepartureOnly(m);
-    if (archived) return archived;
+    if (m.archived) {
+      return {
+        ...m,
+        onArrivalList: false,
+        onDepartureList: false,
+        archivedFromDeparture: true,
+      };
+    }
     if (m.onArrivalList) {
-      return { ...m, onDepartureList: true };
+      return {
+        ...m,
+        onArrivalList: true,
+        onDepartureList: true,
+        archivedFromDeparture: false,
+      };
+    }
+    if (m.onDepartureList) {
+      return {
+        ...m,
+        archived: true,
+        onArrivalList: false,
+        onDepartureList: false,
+        archivedFromDeparture: true,
+      };
     }
     return m;
   }
 
-  private archivePassengerIfDepartureOnly(m: PassengerMember): PassengerMember | null {
-    if (m.archived || m.onArrivalList || !m.onDepartureList) return null;
-    return { ...m, archived: true, onArrivalList: false, onDepartureList: false };
+  private mergePassengerDepartureArchiveIntoArrivalArchive(
+    passengers: PassengerMember[],
+  ): PassengerMember[] {
+    return passengers.map((m) => {
+      if (!m.archivedFromDeparture || m.archived) return m;
+      return {
+        ...m,
+        archived: true,
+        onArrivalList: false,
+        onDepartureList: false,
+      };
+    });
   }
 
-  removePassengerFromDepartureList(id: string): void {
-    if (arePassengerListsInSync(this.data().passengers)) {
-      this.archivePassenger(id);
-      return;
-    }
+  private reorderPassengerLikeList(
+    passengers: PassengerMember[],
+    list: PaxListKind,
+  ): PassengerMember[] {
+    const ordered = filterActivePassengerList(passengers, list);
+    const orderedIds = new Set(ordered.map((m) => m.id));
+    const rest = passengers.filter((m) => !orderedIds.has(m.id));
+    return [...ordered, ...rest];
+  }
 
+  /** Remove from departure list → departure archive (stays on arrival if listed there). */
+  removePassengerFromDepartureList(id: string): void {
     const member = this.data().passengers.find((m) => m.id === id);
     if (!member) return;
 
-    if (member.archived) {
-      this.updatePassenger(id, { onDepartureList: false }, 'silent');
-      return;
+    const patch: Partial<PassengerMember> = {
+      onDepartureList: false,
+      archivedFromDeparture: true,
+    };
+    if (!member.onArrivalList) {
+      patch.archived = true;
+      patch.onArrivalList = false;
     }
-
-    if (member.onArrivalList) {
-      this.updatePassenger(id, { onDepartureList: false }, 'silent');
-      return;
-    }
-
-    this.archivePassenger(id);
+    this.updatePassenger(id, patch, 'silent');
   }
 
   removePassengerFromArrivalList(id: string): void {

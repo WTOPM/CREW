@@ -418,6 +418,19 @@
   max-width: min(920px, 96vw);
 }
 
+.modal-crew-edit--scroll {
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.modal-crew-edit--scroll .crew-form-layout {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
 .crew-form-layout {
   display: flex;
   flex-direction: column;

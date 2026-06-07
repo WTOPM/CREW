@@ -243,7 +243,7 @@ export class HomeComponent {
 
     if (!draft || !id) return;
 
-    this.storage.updateCrewMember(id, draft, 'silent');
+    this.storage.updateCrewMember(id, this.crewProfilePatch(draft), 'silent');
 
     this.cancelEdit();
 
@@ -283,7 +283,7 @@ export class HomeComponent {
 
     if (!draft || !id) return;
 
-    this.storage.updatePassenger(id, draft, 'silent');
+    this.storage.updatePassenger(id, this.passengerProfilePatch(draft), 'silent');
 
     this.cancelPassengerEdit();
 
@@ -401,12 +401,8 @@ export class HomeComponent {
 
 
   protected syncPassengerDepartureFromArrival(): void {
-    const archived = this.storage.syncPassengerDepartureFromArrival();
-    if (archived > 0) {
-      this.toast.show(`${archived} departure-only moved to archive`, 'info');
-    } else {
-      this.toast.show('Departure list updated from arrival', 'success');
-    }
+    const preview = this.storage.syncPassengerDepartureFromArrival();
+    this.toast.show(this.passengerArrivalToDepartureToast(preview), 'success');
   }
 
 
@@ -476,6 +472,17 @@ export class HomeComponent {
     return parts.join('; ');
   }
 
+  private passengerArrivalToDepartureToast(preview: ArrivalToDepartureSyncPreview): string {
+    const parts = [`Passengers: ${preview.onArrival} from arrival → departure`];
+    if (preview.departureOnlyToArchive > 0) {
+      parts.push(`${preview.departureOnlyToArchive} departure-only to archive`);
+    }
+    if (preview.departureArchiveMerged > 0) {
+      parts.push(`${preview.departureArchiveMerged} departure archive merged`);
+    }
+    return parts.join('; ');
+  }
+
 
 
   protected removeFromDeparture(id: string): void {
@@ -505,14 +512,11 @@ export class HomeComponent {
 
   protected removePassengerFromDeparture(id: string): void {
     const member = this.storage.allPassengers().find((m) => m.id === id);
-    const linked = this.storage.passengerListsInSync();
     this.storage.removePassengerFromDepartureList(id);
-    if (linked) {
-      this.toast.showArchived();
-    } else if (member?.onArrivalList && !member.archived) {
+    if (member?.onArrivalList && !member.archived) {
       this.toast.show('Removed from departure (still on arrival)', 'info');
     } else {
-      this.toast.showArchived();
+      this.toast.show('Moved to archive from departure', 'info');
     }
   }
 
@@ -570,9 +574,8 @@ export class HomeComponent {
 
 
   protected dropPassengers(event: CdkDragDrop<PassengerMember[]>): void {
-
-    this.storage.reorderPassengerList(this.paxListKind(), event.previousIndex, event.currentIndex);
-
+    if (this.paxListKind() !== 'arrival') return;
+    this.storage.reorderPassengerList('arrival', event.previousIndex, event.currentIndex);
   }
 
 
@@ -613,6 +616,52 @@ export class HomeComponent {
 
     this.passengerEditDraft.set({ ...draft, [field]: value });
 
+  }
+
+  /** Persist only profile fields — list flags stay in storage unchanged. */
+  private passengerProfilePatch(draft: PassengerMember): Partial<PassengerMember> {
+    return {
+      familyName: draft.familyName,
+      givenNames: draft.givenNames,
+      gender: draft.gender,
+      nationality: draft.nationality,
+      dateOfBirth: draft.dateOfBirth,
+      placeOfBirth: draft.placeOfBirth,
+      passport: draft.passport,
+      passportIssueDate: draft.passportIssueDate,
+      passportExpiryDate: draft.passportExpiryDate,
+    };
+  }
+
+  private crewProfilePatch(draft: CrewMember): Partial<CrewMember> {
+    return {
+      familyName: draft.familyName,
+      givenNames: draft.givenNames,
+      rank: draft.rank,
+      nationality: draft.nationality,
+      gender: draft.gender,
+      dateOfBirth: draft.dateOfBirth,
+      placeOfBirth: draft.placeOfBirth,
+      passport: draft.passport,
+      passportPlaceOfIssue: draft.passportPlaceOfIssue,
+      passportIssueDate: draft.passportIssueDate,
+      passportExpiryDate: draft.passportExpiryDate,
+      seamansBook: draft.seamansBook,
+      seamansBookPlaceOfIssue: draft.seamansBookPlaceOfIssue,
+      sbookIssueDate: draft.sbookIssueDate,
+      sbookExpiryDate: draft.sbookExpiryDate,
+      cyprusSeamansBook: draft.cyprusSeamansBook,
+      cyprusIssueDate: draft.cyprusIssueDate,
+      cyprusExpiryDate: draft.cyprusExpiryDate,
+      visa: draft.visa,
+      visaIssueDate: draft.visaIssueDate,
+      visaExpiryDate: draft.visaExpiryDate,
+      joiningDate: draft.joiningDate,
+      joiningPort: draft.joiningPort,
+      vaccineMedicalProduct: draft.vaccineMedicalProduct,
+      dateOfVaccination: draft.dateOfVaccination,
+      documents: draft.documents,
+    };
   }
 
 }

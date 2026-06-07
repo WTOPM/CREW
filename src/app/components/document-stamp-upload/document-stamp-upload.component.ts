@@ -1,7 +1,9 @@
 import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  CREW_LIST_TYPE_IDS,
   DocumentOverlayPrefs,
+  getCrewListVariantSettings,
   ShipAssetKind,
 } from '../../models/document-overlay.models';
 import { ShipAssetsService } from '../../services/ship-assets.service';
@@ -312,8 +314,11 @@ function allDocumentsUse(
   overlay: DocumentOverlayPrefs,
   field: 'useStamp' | 'useSignature',
 ): boolean {
+  const crewAll = CREW_LIST_TYPE_IDS.every(
+    (id) => getCrewListVariantSettings(overlay.crewList, id)[field],
+  );
   return (
-    overlay.crewList[field] &&
+    crewAll &&
     overlay.pax[field] &&
     overlay.portOfCall[field] &&
     overlay.mdh[field] &&
