@@ -46,4 +46,18 @@ Thumbs.db
 
 # Electron
 /release
-/data
+
+# App data — never commit (exe / dev use local data/ or data-path.txt)
+/data/
+/data-path.txt
+**/crew-data.json
+public/crew-data.json
+
+# Local import / reference files
+DOCUMENT.xlsx
+*.xlsx
+reference-*.xlsx
+
+# Seed / sample data sources (dev-only; app starts empty via empty-app-data.ts)
+src/app/data/default-crew.seed.ts
+src/app/data/default-port-call.seed.ts

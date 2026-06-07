@@ -196,12 +196,9 @@ const { ship, crew, present, archive } = parseDocument(xlsxPath);
 const portCallFromXlsx = parsePortOfCallHistory();
 
 const dataDir = path.join(root, 'data');
-const publicDir = path.join(root, 'public');
 fs.mkdirSync(dataDir, { recursive: true });
-fs.mkdirSync(publicDir, { recursive: true });
 
 const outPath = path.join(dataDir, 'crew-data.json');
-const publicPath = path.join(publicDir, 'crew-data.json');
 
 let existing = {};
 if (fs.existsSync(outPath)) {
@@ -231,11 +228,9 @@ const payload = {
 
 const json = JSON.stringify(payload, null, 2);
 fs.writeFileSync(outPath, json, 'utf-8');
-fs.writeFileSync(publicPath, json, 'utf-8');
 
 console.log(`Imported from ${xlsxPath}`);
 console.log(`  Ship: ${ship.name}`);
 console.log(`  Arrival list: ${present} | Archive: ${archive} | Total: ${crew.length}`);
 console.log(`  Written: ${outPath}`);
-console.log(`  Written: ${publicPath}`);
 console.log(`  Port of call rows: ${payload.portCallHistory.length}`);

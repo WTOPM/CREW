@@ -1,6 +1,6 @@
-# Optional — shared data folder for several PCs.
+# Optional — shared data folder for multiple workstations.
 # Rename to data-path.txt and place next to CREW-Documents.exe.
-# First non-empty line (not starting with #) is used.
+# The first non-empty line (not starting with #) is used as the data path.
 #
 # Network share example:
 # \\SERVER\share\CREW-data
