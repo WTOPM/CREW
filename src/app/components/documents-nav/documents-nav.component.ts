@@ -196,6 +196,14 @@ export class DocumentsNavComponent {
     this.storage.finishFormSession();
   }
 
+  protected onMdhSettingsDocChange(value: 'mdh' | 'crewVaccine'): void {
+    if (value === this.mdhSettingsDoc()) return;
+    this.mdhSettingsDoc.set(value);
+    this.toast.showSelected(
+      value === 'mdh' ? 'Maritime Declaration of Health' : 'Crew Vaccine',
+    );
+  }
+
   protected openPortOfCallPdf(): void {
     void this.portOfCallPdf.openPreview(this.appData()).then((ok) => {
       if (!ok) this.toast.showError('Allow pop-ups to open Port of Call preview');
@@ -217,6 +225,12 @@ export class DocumentsNavComponent {
   protected closePortOfCallSettings(): void {
     this.showPortOfCallSettings.set(false);
     this.storage.finishFormSession();
+  }
+
+  protected onPortSettingsDocChange(value: 'portOfCall' | 'sso0108'): void {
+    if (value === this.portSettingsDoc()) return;
+    this.portSettingsDoc.set(value);
+    this.toast.showSelected(value === 'portOfCall' ? 'Port of Call' : 'SSO-0108 Port Calls');
   }
 
   protected onPdfPortCountChange(value: string | number): void {

@@ -31,6 +31,8 @@ export class PrintPackagesComponent implements OnInit {
 
   protected readonly currentPort = computed(() => this.storage.ship().portOfCall);
 
+  protected readonly catalogDocs = computed(() => this.catalog.available());
+
   /** Ports not yet configured (for the add dropdown). */
   protected readonly addablePorts = computed(() => {
     const used = new Set(this.packages().map((p) => p.port));
@@ -53,14 +55,6 @@ export class PrintPackagesComponent implements OnInit {
   protected close(): void {
     this.storage.finishFormSession();
     this.closed.emit();
-  }
-
-  protected docs(): { id: string; label: string; enabled: boolean }[] {
-    return this.catalog.available();
-  }
-
-  protected docLabel(id: string): string {
-    return this.catalog.label(id);
   }
 
   protected portDocCount(pkg: PortPackage): number {

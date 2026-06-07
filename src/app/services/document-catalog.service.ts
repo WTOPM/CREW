@@ -24,6 +24,10 @@ import { PdfCrewMoneyListService } from './pdf-crew-money-list.service';
 import { PdfNarcoticListService } from './pdf-narcotic-list.service';
 import { PdfMdhService } from './pdf-mdh.service';
 import { PdfCrewVaccineService } from './pdf-crew-vaccine.service';
+import {
+  buildPackageCatalog,
+  packageCatalogLabelForId,
+} from '../models/document-package-catalog.models';
 
 export interface CatalogDocument {
   id: string;
@@ -35,29 +39,6 @@ interface BuiltPdf {
   bytes: Uint8Array;
   fileName: string;
 }
-
-const DOCS: { id: string; label: string }[] = [
-  { id: 'crewListArrivalPassport', label: 'Crew List Arrival (Type 1 - Passport)' },
-  { id: 'crewListDeparturePassport', label: 'Crew List Departure (Type 1 - Passport)' },
-  { id: 'crewListArrivalSeaman', label: 'Crew List Arrival (Type 1 - Seamans Book)' },
-  { id: 'crewListDepartureSeaman', label: 'Crew List Departure (Type 1 - Seamans Book)' },
-  { id: 'crewListArrivalAlger', label: 'Crew List Arrival (Type 2 - Alger)' },
-  { id: 'paxArrival', label: 'Passenger List — Arrival' },
-  { id: 'paxDeparture', label: 'Passenger List — Departure' },
-  { id: 'portOfCall', label: 'Port of Call' },
-  { id: 'sso0108', label: 'SSO-0108 Port Calls' },
-  { id: 'shipStores', label: 'Ship Stores' },
-  { id: 'crewEffect', label: 'Crew Effect' },
-  { id: 'nilList', label: 'NIL List' },
-  { id: 'shipMoney', label: 'Ship Money' },
-  { id: 'cashAdvance', label: 'Cash Advance' },
-  { id: 'crewMoney', label: 'Crew Money' },
-  { id: 'narcotic', label: 'Narcotic List' },
-  { id: 'mdh', label: 'MDH' },
-  { id: 'crewVaccine', label: 'MDH Crew Vaccine' },
-];
-
-const LABELS = new Map(DOCS.map((d) => [d.id, d.label]));
 
 /** Central registry: list selectable documents and build final PDF bytes for each. */
 @Injectable({ providedIn: 'root' })
@@ -79,19 +60,15 @@ export class DocumentCatalogService {
 
   /** Selectable documents: built-ins plus user-uploaded PDFs. */
   available(): CatalogDocument[] {
-    const builtIn = DOCS.map((d) => ({ id: d.id, label: d.label, enabled: true }));
-    const custom = this.storage
-      .customDocuments()
-      .map((d) => ({ id: `custom:${d.id}`, label: d.name, enabled: true }));
-    return [...builtIn, ...custom];
+    return buildPackageCatalog(this.storage.customDocuments()).map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      enabled: true,
+    }));
   }
 
   label(id: string): string {
-    if (id.startsWith('custom:')) {
-      const docId = id.slice('custom:'.length);
-      return this.storage.customDocuments().find((d) => d.id === docId)?.name ?? id;
-    }
-    return LABELS.get(id) ?? id;
+    return packageCatalogLabelForId(id, this.storage.customDocuments());
   }
 
   /** Build the final (overlaid) PDF bytes + filename for a document id. */

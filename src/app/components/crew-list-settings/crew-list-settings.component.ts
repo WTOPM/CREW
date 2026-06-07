@@ -1,11 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  CREW_LIST_TYPE_IDS,
   CREW_LIST_TYPE_LABELS,
   CrewListTypeId,
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
+import { ToastService } from '../../services/toast.service';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
@@ -13,43 +13,125 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
   imports: [FormsModule, DocumentStampOptionsComponent],
   template: `
     <fieldset class="choice-group">
-      <legend class="choice-group__legend">List type</legend>
-      <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="List type">
-        @for (id of typeIds; track id) {
-          <label class="choice-segmented__item">
+      <legend class="choice-group__legend">Select document</legend>
+      <div class="crew-list-type-picker" role="radiogroup" aria-label="Select document">
+        <div class="crew-list-type-row">
+          @for (id of type1Ids; track id) {
+            <label class="crew-list-type-btn crew-list-type-btn--type1">
+              <input
+                type="radio"
+                name="crewListType"
+                [value]="id"
+                [ngModel]="listType()"
+                (ngModelChange)="onListTypeChange($event)"
+              />
+              <span class="crew-list-type-btn__text">{{ typeLabel(id) }}</span>
+            </label>
+          }
+        </div>
+        <div class="crew-list-type-row">
+          <label class="crew-list-type-btn crew-list-type-btn--alger">
             <input
               type="radio"
               name="crewListType"
-              [value]="id"
+              value="type2Alger"
               [ngModel]="listType()"
               (ngModelChange)="onListTypeChange($event)"
             />
-            <span class="choice-segmented__text">{{ typeLabel(id) }}</span>
+            <span class="crew-list-type-btn__text">{{ typeLabel('type2Alger') }}</span>
           </label>
-        }
+        </div>
       </div>
     </fieldset>
-    @if (listType() === 'type2Alger') {
-      <p class="crew-list-type2-note">
-        Type 2 — Alger (arrival only). Fills header + crew columns (passport and seaman&apos;s book per member).
-        Temperature column left empty. Departure is disabled in the CREW LIST menu.
-      </p>
-    }
     <app-document-stamp-options documentId="crewList" />
   `,
   styles: `
-    .crew-list-type2-note {
-      margin: 0 0 0.85rem;
-      font-size: 0.82rem;
+    .crew-list-type-picker {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      align-self: flex-start;
+      max-width: 100%;
+    }
+
+    .crew-list-type-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8fafc;
+      width: max-content;
+      max-width: 100%;
+    }
+
+    .crew-list-type-btn {
+      position: relative;
+      display: flex;
+      margin: 0;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .crew-list-type-btn + .crew-list-type-btn {
+      border-left: 1px solid var(--border);
+    }
+
+    .crew-list-type-btn input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      margin: 0;
+      pointer-events: none;
+    }
+
+    .crew-list-type-btn__text {
+      display: block;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      line-height: 1.3;
+      white-space: nowrap;
       color: var(--text-muted);
-      line-height: 1.4;
+      transition:
+        background 0.15s ease,
+        color 0.15s ease;
+    }
+
+    .crew-list-type-btn--type1:hover .crew-list-type-btn__text {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .crew-list-type-btn--type1:has(input:checked) .crew-list-type-btn__text {
+      background: #0369a1;
+      color: #fff;
+    }
+
+    .crew-list-type-btn--alger:hover .crew-list-type-btn__text {
+      background: #cffafe;
+      color: #0e7490;
+    }
+
+    .crew-list-type-btn--alger:has(input:checked) .crew-list-type-btn__text {
+      background: #0e7490;
+      color: #fff;
+    }
+
+    .crew-list-type-btn:has(input:focus-visible) .crew-list-type-btn__text {
+      outline: 2px solid var(--accent-soft);
+      outline-offset: -2px;
     }
   `,
 })
 export class CrewListSettingsComponent {
   private readonly storage = inject(StorageService);
+  private readonly toast = inject(ToastService);
 
-  protected readonly typeIds = CREW_LIST_TYPE_IDS;
+  protected readonly type1Ids: readonly CrewListTypeId[] = ['type1Passport', 'type1SeamansBook'];
 
   protected listType(): CrewListTypeId {
     return this.storage.documentOverlay().crewList.listType;
@@ -60,6 +142,8 @@ export class CrewListSettingsComponent {
   }
 
   protected onListTypeChange(value: CrewListTypeId): void {
-    this.storage.updateDocumentOverlay('crewList', { listType: value }, 'saved');
+    if (value === this.listType()) return;
+    this.storage.updateDocumentOverlay('crewList', { listType: value }, 'silent');
+    this.toast.showSelected(CREW_LIST_TYPE_LABELS[value]);
   }
 }

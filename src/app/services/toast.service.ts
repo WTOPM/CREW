@@ -27,6 +27,10 @@ export class ToastService {
     this.dismissTimers.set(id, timer);
   }
 
+  showSelected(label: string): void {
+    this.show(`SELECTED: ${label}`, 'success');
+  }
+
   showSaved(): void {
     this.show('Saved', 'success');
   }

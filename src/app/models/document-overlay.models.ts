@@ -36,9 +36,9 @@ export interface CrewListVariantPlacement {
 }
 
 export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = {
-  type1Passport: 'Type 1 — Passport',
-  type1SeamansBook: "Type 1 — Seaman's book",
-  type2Alger: 'Type 2 — Alger',
+  type1Passport: 'CREW LIST - PASSPORT',
+  type1SeamansBook: "CREW LIST - SEAMAN'S BOOK",
+  type2Alger: 'CREW LIST - ALGER',
 };
 
 export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [

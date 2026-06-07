@@ -107,7 +107,7 @@
                       (ngModelChange)="updateItem(pkg, authIdx, $index, { documentId: $event })"
                     >
                       <option value="">— select document —</option>
-                      @for (d of docs(); track d.id) {
+                      @for (d of catalogDocs(); track d.id) {
                         <option [value]="d.id" [disabled]="!d.enabled">{{ d.label }}</option>
                       }
                     </select>

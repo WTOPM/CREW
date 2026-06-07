@@ -412,15 +412,15 @@
       <h3>MDH Settings</h3>
 
       <fieldset class="choice-group">
-        <legend class="choice-group__legend">Document</legend>
-        <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="MDH document">
+        <legend class="choice-group__legend">Select document</legend>
+        <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="Select document">
           <label class="choice-segmented__item">
             <input
               type="radio"
               name="mdhSettingsDoc"
               value="mdh"
               [ngModel]="mdhSettingsDoc()"
-              (ngModelChange)="mdhSettingsDoc.set($event)"
+              (ngModelChange)="onMdhSettingsDocChange($event)"
             />
             <span class="choice-segmented__text">Maritime Declaration of Health</span>
           </label>
@@ -430,7 +430,7 @@
               name="mdhSettingsDoc"
               value="crewVaccine"
               [ngModel]="mdhSettingsDoc()"
-              (ngModelChange)="mdhSettingsDoc.set($event)"
+              (ngModelChange)="onMdhSettingsDocChange($event)"
             />
             <span class="choice-segmented__text">Crew Vaccine</span>
           </label>
@@ -458,15 +458,15 @@
       </header>
 
       <fieldset class="choice-group">
-        <legend class="choice-group__legend">Document</legend>
-        <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="Port document">
+        <legend class="choice-group__legend">Select document</legend>
+        <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="Select document">
           <label class="choice-segmented__item">
             <input
               type="radio"
               name="portSettingsDoc"
               value="portOfCall"
               [ngModel]="portSettingsDoc()"
-              (ngModelChange)="portSettingsDoc.set($event)"
+              (ngModelChange)="onPortSettingsDocChange($event)"
             />
             <span class="choice-segmented__text">Port of Call</span>
           </label>
@@ -476,7 +476,7 @@
               name="portSettingsDoc"
               value="sso0108"
               [ngModel]="portSettingsDoc()"
-              (ngModelChange)="portSettingsDoc.set($event)"
+              (ngModelChange)="onPortSettingsDocChange($event)"
             />
             <span class="choice-segmented__text">SSO-0108 Port Calls</span>
           </label>
