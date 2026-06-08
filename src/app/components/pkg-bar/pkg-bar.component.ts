@@ -82,6 +82,17 @@ export class PkgBarComponent {
     this.toast.show('Back to live package', 'success');
   }
 
+  protected deleteSnapshot(entry: PackageArchiveEntry, event: MouseEvent): void {
+    event.stopPropagation();
+    const wasLoaded = this.archive.loaded()?.id === entry.id;
+    this.archive.remove(entry.id);
+    if (wasLoaded) {
+      this.toast.show(`Deleted "${entry.label}" — back to live package`, 'success');
+    } else {
+      this.toast.show(`Deleted "${entry.label}"`, 'success');
+    }
+  }
+
   protected formatDate(iso: string): string {
     if (!iso) return '—';
     return formatDisplayDate(iso) || iso;
