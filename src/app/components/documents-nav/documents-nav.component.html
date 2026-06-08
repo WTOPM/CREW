@@ -292,6 +292,9 @@
       <h3>Crew list settings</h3>
       <app-crew-list-settings />
       <div class="modal-actions">
+        @if (crewListXlsVisible()) {
+          <app-xls-export-button (export)="exportCrewListXls()" />
+        }
         <button type="button" class="btn btn-primary" (click)="closeCrewListSettings()">Done</button>
       </div>
     </div>
@@ -457,7 +460,8 @@
         <h3>Port Settings</h3>
       </header>
 
-      <fieldset class="choice-group">
+      <div class="poc-modal-body">
+      <fieldset class="choice-group poc-modal-choice">
         <legend class="choice-group__legend">Select document</legend>
         <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="Select document">
           <label class="choice-segmented__item">
@@ -488,19 +492,29 @@
       <app-document-stamp-options documentId="sso0108PortCalls" />
       } @else {
       <div class="poc-settings-bar">
-        <label class="poc-pdf-count">
+        <label class="doc-count-field">
           <span>Ports in PDF</span>
-          <input
-            type="number"
-            [min]="pocMinPorts"
-            [max]="pocMaxPorts"
-            [ngModel]="portOfCall().pdfRowCount"
-            (ngModelChange)="onPdfPortCountChange($event)"
-          />
+          <div class="doc-count-row">
+            <input
+              type="number"
+              class="doc-count-input"
+              [min]="pocMinPorts"
+              [max]="pocMaxPorts"
+              [ngModel]="portOfCall().pdfRowCount"
+              (ngModelChange)="onPdfPortCountChange($event)"
+            />
+            <button
+              type="button"
+              class="doc-count-btn doc-count-btn--plus"
+              title="Add port call"
+              (click)="addPortCallRow()"
+            >
+              +
+            </button>
+          </div>
         </label>
-        <button type="button" class="btn btn-primary" (click)="addPortCallRow()">+ Add port call</button>
       </div>
-      <app-document-stamp-options documentId="portOfCall" />
+      <app-port-of-call-settings />
       <div class="poc-history-wrap">
         <table class="poc-history-table">
           <colgroup>
@@ -581,7 +595,11 @@
         </table>
       </div>
       }
-      <div class="modal-actions">
+      </div>
+      <div class="modal-actions poc-modal-actions">
+        @if (portSettingsDoc() === 'portOfCall') {
+          <app-xls-export-button (export)="exportPortOfCallXls()" />
+        }
         <button type="button" class="btn btn-primary" (click)="closePortOfCallSettings()">Done</button>
       </div>
     </div>

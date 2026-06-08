@@ -310,6 +310,10 @@
 
 /* —— Port of Call Settings modal —— */
 
+.modal.doc-overlay-modal {
+  overflow: visible;
+}
+
 .nil-modal.modal-wide,
 .sm-modal.modal-wide {
   max-width: 42rem;
@@ -353,9 +357,13 @@
 }
 
 .poc-modal.modal-wide {
-  max-width: 1140px;
-  width: min(1140px, 97vw);
-  padding: 1.25rem 1.5rem 1.35rem;
+  max-width: min(920px, 92vw);
+  width: min(920px, 92vw);
+  max-height: calc(100dvh - 2rem);
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  padding: 1rem 1.15rem 1rem;
 }
 
 .poc-modal-head {
@@ -363,8 +371,9 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+  flex-shrink: 0;
 }
 
 .poc-modal-head h3 {
@@ -372,11 +381,100 @@
   flex: 1 1 auto;
 }
 
+.poc-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.poc-modal-choice {
+  flex-shrink: 0;
+  margin-bottom: 0.65rem;
+}
+
 .poc-settings-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 0.75rem 1rem;
+  margin-bottom: 0.25rem;
+  flex-shrink: 0;
+}
+
+.poc-modal-body app-port-of-call-settings {
+  display: block;
+  flex-shrink: 0;
+}
+
+.doc-count-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.doc-count-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.doc-count-input {
+  width: 4.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.doc-count-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.doc-count-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.doc-count-btn--minus {
+  color: var(--danger);
+}
+
+.doc-count-btn--minus:hover:not(:disabled) {
+  background: rgb(220 38 38 / 10%);
+  border-color: rgb(220 38 38 / 35%);
+}
+
+.doc-count-btn--plus {
+  color: var(--accent);
+}
+
+.doc-count-btn--plus:hover {
+  background: rgb(37 99 235 / 10%);
+  border-color: rgb(37 99 235 / 35%);
+}
+
+.doc-count-btn:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
 }
 
 .poc-pdf-count {
@@ -395,7 +493,8 @@
 }
 
 .poc-history-wrap {
-  max-height: min(58vh, 520px);
+  flex: 1 1 auto;
+  min-height: 8rem;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -410,19 +509,19 @@
 }
 
 .poc-col-port {
-  width: 25%;
+  width: 22%;
 }
 
 .poc-col-country {
-  width: 16%;
+  width: 14%;
 }
 
 .poc-col-date {
-  width: 17%;
+  width: 16%;
 }
 
 .poc-col-time {
-  width: 8%;
+  width: 7%;
 }
 
 .poc-col-actions {
@@ -433,10 +532,10 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  padding: 0.55rem 0.5rem;
+  padding: 0.45rem 0.35rem;
   background: #f1f5f9;
   border-bottom: 2px solid #cbd5e1;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   white-space: nowrap;
 }
 
@@ -454,7 +553,7 @@
 }
 
 .poc-history-table .poc-cell {
-  padding: 0.45rem 0.4rem;
+  padding: 0.35rem 0.3rem;
   vertical-align: middle;
   border-bottom: 1px solid #e2e8f0;
 }
@@ -537,8 +636,13 @@
   background: rgb(220 38 38 / 12%);
 }
 
-.poc-modal .modal-actions {
-  margin-top: 1rem;
+.poc-modal-actions {
+  flex-shrink: 0;
+  margin-top: 0.75rem;
+  padding-top: 0.35rem;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
 }
 
 @media (max-width: 900px) {

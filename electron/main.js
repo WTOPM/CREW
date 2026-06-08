@@ -207,6 +207,18 @@ ipcMain.handle('open-directory', async (_event, dirPath) => {
   return err ? { ok: false, error: err } : { ok: true };
 });
 
+ipcMain.handle('open-temp-file', async (_event, fileName, base64) => {
+  const safeName = path.basename(String(fileName || 'export.xlsx'));
+  const p = path.join(app.getPath('temp'), safeName);
+  try {
+    fs.writeFileSync(p, Buffer.from(String(base64 || ''), 'base64'));
+    const err = await shell.openPath(p);
+    return err ? { ok: false, error: err } : { ok: true, path: p };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
 ipcMain.handle('list-directories', (_event, input) => {
   try {
     const raw = String(input || '').trim();

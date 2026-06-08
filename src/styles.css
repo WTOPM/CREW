@@ -434,8 +434,14 @@ th {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 0.75rem;
   margin-top: 1.25rem;
+}
+
+.modal-actions:has(app-xls-export-button) {
+  justify-content: space-between;
+  width: 100%;
 }
 
 .list-add {

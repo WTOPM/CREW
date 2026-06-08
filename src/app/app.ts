@@ -1,10 +1,10 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { PkgBarComponent } from './components/pkg-bar/pkg-bar.component';
 import { ToastComponent } from './components/toast/toast.component';
 import { StorageService } from './services/storage.service';
 import { FolderAccessService } from './services/folder-access.service';
-import { PackageRunnerService } from './services/package-runner.service';
 import { ToastService } from './services/toast.service';
 
 interface FolderOption {
@@ -14,7 +14,7 @@ interface FolderOption {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastComponent, FormsModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, PkgBarComponent, ToastComponent, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -24,8 +24,6 @@ export class App implements OnInit {
   private readonly storage = inject(StorageService);
   private readonly folderAccess = inject(FolderAccessService);
   private readonly toast = inject(ToastService);
-  protected readonly packageRunner = inject(PackageRunnerService);
-
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
   private folderHoldTriggered = false;
 

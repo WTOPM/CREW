@@ -57,6 +57,16 @@ export function crewListType2PdfFileName(
   return `Crew_List_Type2_Alger_${kind}_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function crewListV2PdfFileName(
+  shipName: string,
+  portOfCall: string,
+  voyageDate: string,
+  isArrival: boolean,
+): string {
+  const kind = isArrival ? 'Arrival' : 'Departure';
+  return `Crew_List_V2_${kind}_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function crewListIdentityPdfFileName(
   shipName: string,
   portOfCall: string,

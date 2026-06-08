@@ -6,11 +6,11 @@ import {
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
-import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
+import { DocumentExportSettingsComponent } from '../document-export-settings/document-export-settings.component';
 
 @Component({
   selector: 'app-crew-list-settings',
-  imports: [FormsModule, DocumentStampOptionsComponent],
+  imports: [FormsModule, DocumentExportSettingsComponent],
   template: `
     <fieldset class="choice-group">
       <legend class="choice-group__legend">Select document</legend>
@@ -40,10 +40,20 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
             />
             <span class="crew-list-type-btn__text">{{ typeLabel('type2Alger') }}</span>
           </label>
+          <label class="crew-list-type-btn crew-list-type-btn--v2">
+            <input
+              type="radio"
+              name="crewListType"
+              value="type3V2"
+              [ngModel]="listType()"
+              (ngModelChange)="onListTypeChange($event)"
+            />
+            <span class="crew-list-type-btn__text">{{ typeLabel('type3V2') }}</span>
+          </label>
         </div>
       </div>
     </fieldset>
-    <app-document-stamp-options documentId="crewList" />
+    <app-document-export-settings documentId="crewList" />
   `,
   styles: `
     .crew-list-type-picker {
@@ -118,6 +128,16 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 
     .crew-list-type-btn--alger:has(input:checked) .crew-list-type-btn__text {
       background: #0e7490;
+      color: #fff;
+    }
+
+    .crew-list-type-btn--v2:hover .crew-list-type-btn__text {
+      background: #ede9fe;
+      color: #6d28d9;
+    }
+
+    .crew-list-type-btn--v2:has(input:checked) .crew-list-type-btn__text {
+      background: #6d28d9;
       color: #fff;
     }
 

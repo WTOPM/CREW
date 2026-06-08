@@ -8,6 +8,7 @@ import { DocumentOverlayId } from '../models/document-overlay.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { PdfCrewArrService } from './pdf-crew-arr.service';
 import { PdfCrewListType2Service } from './pdf-crew-list-type2.service';
+import { PdfCrewListV2Service } from './pdf-crew-list-v2.service';
 import { PdfMdhService } from './pdf-mdh.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
@@ -29,6 +30,7 @@ export class DocumentOverlayPreviewService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
+  private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
   private readonly pocPdf = inject(PdfPortOfCallService);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
@@ -93,6 +95,10 @@ export class DocumentOverlayPreviewService {
         crewArr: { ...data.crewArr, isArrival: true },
       };
       return this.crewListType2Pdf.build(arrivalData, crew);
+    }
+
+    if (listType === 'type3V2') {
+      return this.crewListV2Pdf.build(data);
     }
 
     const identityDocumentType =

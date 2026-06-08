@@ -14,6 +14,7 @@ import { TimeInputComponent } from '../time-input/time-input.component';
 import { defaultIsoDateInCurrentMonth } from '../../utils/partial-date.util';
 import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfCrewListType2Service } from '../../services/pdf-crew-list-type2.service';
+import { PdfCrewListV2Service } from '../../services/pdf-crew-list-v2.service';
 import { PdfMdhService } from '../../services/pdf-mdh.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { PdfCrewEffectService } from '../../services/pdf-crew-effect.service';
@@ -25,12 +26,16 @@ import { PdfNarcoticListService } from '../../services/pdf-narcotic-list.service
 import { PdfSso0108PortCallsService } from '../../services/pdf-sso0108-port-calls.service';
 import { PdfCrewVaccineService } from '../../services/pdf-crew-vaccine.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
+import { CrewListExcelService } from '../../services/crew-list-excel.service';
+import { PortOfCallExcelService } from '../../services/port-of-call-excel.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-settings.component';
+import { PortOfCallSettingsComponent } from '../port-of-call-settings/port-of-call-settings.component';
+import { XlsExportButtonComponent } from '../xls-export-button/xls-export-button.component';
 import { CrewEffectSettingsComponent } from '../crew-effect-settings/crew-effect-settings.component';
 import { NilListSettingsComponent } from '../nil-list-settings/nil-list-settings.component';
 import { ShipMoneySettingsComponent } from '../ship-money-settings/ship-money-settings.component';
@@ -48,6 +53,8 @@ import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores
     TimeInputComponent,
     DocumentStampOptionsComponent,
     CrewListSettingsComponent,
+    PortOfCallSettingsComponent,
+    XlsExportButtonComponent,
     ShipStoresSettingsComponent,
     CrewEffectSettingsComponent,
     NilListSettingsComponent,
@@ -64,6 +71,7 @@ export class DocumentsNavComponent {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
+  private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
@@ -75,6 +83,8 @@ export class DocumentsNavComponent {
   private readonly crewMoneyListPdf = inject(PdfCrewMoneyListService);
   private readonly narcoticListPdf = inject(PdfNarcoticListService);
   private readonly sso0108PortCallsPdf = inject(PdfSso0108PortCallsService);
+  private readonly portOfCallExcel = inject(PortOfCallExcelService);
+  private readonly crewListExcel = inject(CrewListExcelService);
   private readonly toast = inject(ToastService);
 
   protected readonly pocMinPorts = POC_MIN_ROW_COUNT;
@@ -89,6 +99,11 @@ export class DocumentsNavComponent {
   protected readonly crewListType2Alger = computed(
     () => this.storage.documentOverlay().crewList.listType === 'type2Alger',
   );
+
+  protected readonly crewListXlsVisible = computed(() => {
+    const listType = this.storage.documentOverlay().crewList.listType;
+    return listType !== 'type2Alger' && listType !== 'type3V2';
+  });
 
   protected showPortOfCallSettings = signal(false);
   /** Which port document the unified Port Settings modal is editing. */
@@ -123,6 +138,10 @@ export class DocumentsNavComponent {
       void this.openCrewListType2();
       return;
     }
+    if (listType === 'type3V2') {
+      void this.openCrewListV2(isArrival);
+      return;
+    }
     const identityDocumentType =
       listType === 'type1SeamansBook' ? CREW_IDENTITY_SEAMANS_BOOK : CREW_IDENTITY_PASSPORT;
     void this.openCrewListPdf(isArrival, identityDocumentType);
@@ -137,6 +156,22 @@ export class DocumentsNavComponent {
     };
     try {
       const ok = await this.crewListType2Pdf.openPreview(data, crew);
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Crew List preview');
+      }
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Crew list preview failed');
+    }
+  }
+
+  private async openCrewListV2(isArrival: boolean): Promise<void> {
+    this.storage.updateCrewArr({ isArrival }, 'silent');
+    const data: AppData = {
+      ...this.appData(isArrival),
+      crewArr: { ...this.appData(isArrival).crewArr, isArrival },
+    };
+    try {
+      const ok = await this.crewListV2Pdf.openPreview(data);
       if (!ok) {
         this.toast.showError('Allow pop-ups to open Crew List preview');
       }
@@ -244,6 +279,23 @@ export class DocumentsNavComponent {
     this.storage.addPortCallEntry({
       arrivalDate: todayInMonth,
       departureDate: todayInMonth,
+    });
+  }
+
+  protected exportPortOfCallXls(): void {
+    void this.portOfCallExcel.open().then((ok) => {
+      if (!ok) {
+        this.toast.showError('Could not open Excel file');
+      }
+    });
+  }
+
+  protected exportCrewListXls(): void {
+    const listType = this.storage.documentOverlay().crewList.listType;
+    void this.crewListExcel.openForListType(listType).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Could not open Excel file');
+      }
     });
   }
 

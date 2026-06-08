@@ -13,6 +13,7 @@ import { base64ToUint8 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
 import { IMO_PASSENGER_LIST_TITLE, PdfCrewArrService } from './pdf-crew-arr.service';
 import { PdfCrewListType2Service } from './pdf-crew-list-type2.service';
+import { PdfCrewListV2Service } from './pdf-crew-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
@@ -46,6 +47,7 @@ export class DocumentCatalogService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly type2 = inject(PdfCrewListType2Service);
+  private readonly crewListV2 = inject(PdfCrewListV2Service);
   private readonly poc = inject(PdfPortOfCallService);
   private readonly sso = inject(PdfSso0108PortCallsService);
   private readonly shipStores = inject(PdfShipStoresService);
@@ -88,6 +90,10 @@ export class DocumentCatalogService {
         return this.crewType1Bytes(base, false, CREW_IDENTITY_SEAMANS_BOOK);
       case 'crewListArrivalAlger':
         return this.crewAlgerBytes(base);
+      case 'crewListArrivalV2':
+        return this.crewV2Bytes(base, true);
+      case 'crewListDepartureV2':
+        return this.crewV2Bytes(base, false);
       case 'paxArrival':
         return this.paxBytes(base, true);
       case 'paxDeparture':
@@ -180,6 +186,22 @@ export class DocumentCatalogService {
     );
     const bytes = await this.crewPdf.buildPdfBytes(data, crew, { overlayId: 'crewList', fileName });
     return { bytes, fileName };
+  }
+
+  /** Crew List v2 (template only; data fill TBD). */
+  private async crewV2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+    const data: AppData = {
+      ...base,
+      crewArr: { ...base.crewArr, isArrival },
+      documentOverlay: {
+        ...base.documentOverlay,
+        crewList: { ...base.documentOverlay.crewList, listType: 'type3V2' },
+      },
+    };
+    return {
+      bytes: await this.crewListV2.buildPreviewBytes(data),
+      fileName: this.crewListV2.fileName(data),
+    };
   }
 
   /** Type 2 — Alger crew list (arrival only). */

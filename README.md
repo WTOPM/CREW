@@ -2,7 +2,7 @@
 
 Desktop application for ship documentation: voyage data, crew and passenger lists, and PDF forms for IMO and port authorities.
 
-**Current release:** v0.75 · **Platform:** Windows portable · **Data:** stored locally next to the executable
+**Current release:** v0.8 · **Platform:** Windows portable · **Data:** stored locally next to the executable
 
 The repository contains **no user data**. A fresh download or build starts with an empty database.
 
@@ -13,7 +13,7 @@ The repository contains **no user data**. A fresh download or build starts with 
 For end users. No Node.js, npm, or build tools required.
 
 1. Open **[Releases](https://github.com/WTOPM/CREW/releases)**.
-2. Download **`CREW-Documents.exe`** from the latest release (v0.75).
+2. Download **`CREW-Documents.exe`** from the latest release (v0.8).
 3. Save the file to any folder (Desktop, USB drive, or network location).
 4. Double-click **`CREW-Documents.exe`** to launch.
 
