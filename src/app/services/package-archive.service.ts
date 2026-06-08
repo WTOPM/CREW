@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { PortPackage, PortPackageItem } from '../models/crew.models';
 import {
   PACKAGE_ARCHIVE_STORAGE_KEY,
@@ -16,6 +16,8 @@ export class PackageArchiveService {
   private readonly catalog = inject(DocumentCatalogService);
 
   readonly entries = signal<PackageArchiveEntry[]>(this.readEntries());
+  /** Newest snapshots first (for Load modal). */
+  readonly entriesNewestFirst = computed(() => this.sortNewestFirst(this.entries()));
   /** When set, Open all / Print all use this snapshot instead of live package config. */
   readonly loaded = signal<PackageArchiveEntry | null>(null);
   readonly saving = signal(false);
@@ -56,7 +58,7 @@ export class PackageArchiveService {
         documents,
       };
 
-      this.entries.update((list) => [...list, entry]);
+      this.entries.update((list) => [entry, ...list]);
       this.writeEntries();
       return entry;
     } finally {
@@ -122,9 +124,11 @@ export class PackageArchiveService {
       if (!raw) return [];
       const parsed = JSON.parse(raw) as unknown;
       if (!Array.isArray(parsed)) return [];
-      return parsed
-        .map((item) => this.normalizeEntry(item))
-        .filter((e): e is PackageArchiveEntry => e != null);
+      return this.sortNewestFirst(
+        parsed
+          .map((item) => this.normalizeEntry(item))
+          .filter((e): e is PackageArchiveEntry => e != null),
+      );
     } catch {
       return [];
     }
@@ -172,6 +176,10 @@ export class PackageArchiveService {
       },
       documents,
     };
+  }
+
+  private sortNewestFirst(list: PackageArchiveEntry[]): PackageArchiveEntry[] {
+    return [...list].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   }
 
   private normalizeDocuments(raw: unknown): PackageArchivePdf[] {

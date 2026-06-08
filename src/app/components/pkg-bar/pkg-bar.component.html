@@ -13,7 +13,7 @@
     >
       {{ archive.saving() ? '…' : 'Save' }}
     </button>
-    <button type="button" class="pkg-mini-btn" title="Load saved snapshot" (click)="toggleLoad()">
+    <button type="button" class="pkg-mini-btn" title="Load saved snapshot" (click)="openLoad()">
       Load
     </button>
     @if (archive.loaded()) {
@@ -36,28 +36,6 @@
       />
       <button type="button" class="pkg-mini-btn pkg-mini-btn--ok" (click)="confirmSave()">OK</button>
       <button type="button" class="pkg-mini-btn" (click)="cancelSave()">×</button>
-    </div>
-  }
-
-  @if (showLoadPanel()) {
-    <div class="pkg-panel pkg-panel--load" appClickOutside (appClickOutside)="closeLoad()">
-      @if (archive.entries().length === 0) {
-        <p class="pkg-panel-empty">No saved snapshots yet</p>
-      } @else {
-        <ul class="pkg-load-list">
-          @for (entry of archive.entries(); track entry.id) {
-            <li>
-              <button type="button" class="pkg-load-item" (click)="pickArchive(entry)">
-                <span class="pkg-load-item__label">{{ entry.label }}</span>
-                <span class="pkg-load-item__meta">
-                  {{ entry.portName }} · arr. {{ formatDate(entry.arrivalDate) }}
-                </span>
-                <span class="pkg-load-item__when">{{ formatSavedAt(entry.savedAt) }}</span>
-              </button>
-            </li>
-          }
-        </ul>
-      }
     </div>
   }
 
@@ -115,3 +93,67 @@
     </button>
   </div>
 </div>
+
+@if (showLoadModal()) {
+  <div class="modal-backdrop">
+    <div
+      class="modal pkg-load-modal"
+      appClickOutside
+      (appClickOutside)="closeLoad()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="pkg-load-head">
+        <div class="pkg-load-head__mark" aria-hidden="true"></div>
+        <div class="pkg-load-head__text">
+          <h3>Load snapshot</h3>
+          <p class="pkg-load-modal-hint">
+            Pick a saved package. Open all and Print all will use the frozen PDFs from that snapshot.
+          </p>
+        </div>
+      </header>
+
+      <div class="pkg-load-body">
+        @if (archive.entriesNewestFirst().length === 0) {
+          <div class="pkg-load-modal-empty">
+            <span class="pkg-load-modal-empty__title">No snapshots yet</span>
+            <span class="pkg-load-modal-empty__text">
+              Prepare documents for the port, then use <strong>Save</strong> on the package bar.
+            </span>
+          </div>
+        } @else {
+          <ul class="pkg-load-list">
+            @for (entry of archive.entriesNewestFirst(); track entry.id) {
+              <li>
+                <button
+                  type="button"
+                  class="pkg-load-card"
+                  [class.pkg-load-card--active]="archive.loaded()?.id === entry.id"
+                  (click)="pickArchive(entry)"
+                >
+                  <span class="pkg-load-card__header">
+                    <span class="pkg-load-card__label">{{ entry.label }}</span>
+                    @if (archive.loaded()?.id === entry.id) {
+                      <span class="pkg-load-card__badge">Loaded</span>
+                    }
+                  </span>
+                  <span class="pkg-load-card__chips">
+                    <span class="pkg-load-chip">{{ entry.portName }}</span>
+                    <span class="pkg-load-chip">Arr. {{ formatDate(entry.arrivalDate) }}</span>
+                    <span class="pkg-load-chip pkg-load-chip--pdf">
+                      {{ entry.documents.length }} PDF{{ entry.documents.length === 1 ? '' : 's' }}
+                    </span>
+                  </span>
+                  <span class="pkg-load-card__when">Saved {{ formatSavedAt(entry.savedAt) }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="modal-actions pkg-load-actions">
+        <button type="button" class="btn btn-primary" (click)="closeLoad()">Done</button>
+      </div>
+    </div>
+  </div>
+}

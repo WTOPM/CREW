@@ -19,12 +19,12 @@ export class PkgBarComponent {
   private readonly toast = inject(ToastService);
 
   protected readonly showSavePanel = signal(false);
-  protected readonly showLoadPanel = signal(false);
+  protected readonly showLoadModal = signal(false);
   protected saveLabel = '';
 
   protected startSave(): void {
     if (!this.canSave()) return;
-    this.showLoadPanel.set(false);
+    this.showLoadModal.set(false);
     this.saveLabel = '';
     this.showSavePanel.set(true);
   }
@@ -54,18 +54,18 @@ export class PkgBarComponent {
     });
   }
 
-  protected toggleLoad(): void {
+  protected openLoad(): void {
     this.showSavePanel.set(false);
-    this.showLoadPanel.update((v) => !v);
+    this.showLoadModal.set(true);
   }
 
   protected closeLoad(): void {
-    this.showLoadPanel.set(false);
+    this.showLoadModal.set(false);
   }
 
   protected pickArchive(entry: PackageArchiveEntry): void {
     if (this.archive.load(entry.id)) {
-      this.showLoadPanel.set(false);
+      this.showLoadModal.set(false);
       if (entry.documents.length === 0) {
         this.toast.show(
           'This snapshot has no frozen PDFs — re-save it to open archived documents',
@@ -89,16 +89,12 @@ export class PkgBarComponent {
 
   protected formatSavedAt(iso: string): string {
     if (!iso) return '';
-    try {
-      return new Date(iso).toLocaleString(undefined, {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return iso;
-    }
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${day} ${months[d.getMonth()]} ${d.getFullYear()}, ${hh}:${mm}`;
   }
 }
