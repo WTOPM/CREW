@@ -9,6 +9,7 @@ import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { PdfCrewArrService } from './pdf-crew-arr.service';
 import { PdfCrewListType2Service } from './pdf-crew-list-type2.service';
 import { PdfCrewListV2Service } from './pdf-crew-list-v2.service';
+import { PdfCrewListV3SbkService } from './pdf-crew-list-v3-sbk.service';
 import { PdfMdhService } from './pdf-mdh.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
@@ -31,6 +32,7 @@ export class DocumentOverlayPreviewService {
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
+  private readonly crewListV3SbkPdf = inject(PdfCrewListV3SbkService);
   private readonly pocPdf = inject(PdfPortOfCallService);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
@@ -102,6 +104,13 @@ export class DocumentOverlayPreviewService {
         ? this.storage.activeCrewArrival()
         : this.storage.activeCrewDeparture();
       return this.crewListV2Pdf.build(data, crew);
+    }
+
+    if (listType === 'type4V3Sbk') {
+      const crew = data.crewArr.isArrival
+        ? this.storage.activeCrewArrival()
+        : this.storage.activeCrewDeparture();
+      return this.crewListV3SbkPdf.build(data, crew);
     }
 
     const identityDocumentType =

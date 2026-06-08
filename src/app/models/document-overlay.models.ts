@@ -17,20 +17,27 @@ export interface DocumentStampOptions {
 }
 
 /** Active crew list variant (only one at a time). */
-export type CrewListTypeId = 'type1Passport' | 'type1SeamansBook' | 'type2Alger' | 'type3V2';
+export type CrewListTypeId =
+  | 'type1Passport'
+  | 'type1SeamansBook'
+  | 'type2Alger'
+  | 'type3V2'
+  | 'type4V3Sbk';
 
 /** Stamp/signature placement bucket (Type 1 passport & seaman's book share one layout). */
-export type CrewListPlacementKey = 'type1' | 'type2Alger' | 'type3V2';
+export type CrewListPlacementKey = 'type1' | 'type2Alger' | 'type3V2' | 'type4V3Sbk';
 
 export const CREW_LIST_PLACEMENT_KEYS: readonly CrewListPlacementKey[] = [
   'type1',
   'type2Alger',
   'type3V2',
+  'type4V3Sbk',
 ];
 
 export function crewListPlacementKey(listType: CrewListTypeId): CrewListPlacementKey {
   if (listType === 'type2Alger') return 'type2Alger';
   if (listType === 'type3V2') return 'type3V2';
+  if (listType === 'type4V3Sbk') return 'type4V3Sbk';
   return 'type1';
 }
 
@@ -55,6 +62,7 @@ export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = {
   type1SeamansBook: "CREW LIST - SEAMAN'S BOOK",
   type2Alger: 'CREW LIST - ALGER',
   type3V2: 'CREW LIST - V2',
+  type4V3Sbk: 'Crew List v3 - SBK',
 };
 
 export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
@@ -62,6 +70,7 @@ export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
   'type1SeamansBook',
   'type2Alger',
   'type3V2',
+  'type4V3Sbk',
 ];
 
 /** Which variant is selected in Crew list settings (for editing). */
@@ -203,7 +212,9 @@ export function normalizeCrewListDocumentPrefs(
         ? byPlacement.type2Alger
         : id === 'type3V2'
           ? byPlacement.type3V2
-          : byPlacement.type1;
+          : id === 'type4V3Sbk'
+            ? byPlacement.type4V3Sbk
+            : byPlacement.type1;
     byType[id] = {
       ...defaultCrewListVariantSettings(),
       ...legacyToggles,
@@ -271,7 +282,8 @@ export function normalizeCrewListType(raw: Partial<CrewListDocumentPrefs> & {
     raw.listType === 'type1Passport' ||
     raw.listType === 'type1SeamansBook' ||
     raw.listType === 'type2Alger' ||
-    raw.listType === 'type3V2'
+    raw.listType === 'type3V2' ||
+    raw.listType === 'type4V3Sbk'
   ) {
     return raw.listType;
   }
