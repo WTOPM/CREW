@@ -19,6 +19,7 @@ import { PdfCrewListV3SbkService } from '../../services/pdf-crew-list-v3-sbk.ser
 import { PdfCrewListV3SbkPService } from '../../services/pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from '../../services/pdf-crew-list-v3-sbk-p2.service';
 import { PdfMdhService } from '../../services/pdf-mdh.service';
+import { PdfPassengerListV2Service } from '../../services/pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { PdfCrewEffectService } from '../../services/pdf-crew-effect.service';
 import { PdfNilListService } from '../../services/pdf-nil-list.service';
@@ -36,6 +37,7 @@ import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
+import { PassengerListSettingsComponent } from '../passenger-list-settings/passenger-list-settings.component';
 import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-settings.component';
 import { PortOfCallSettingsComponent } from '../port-of-call-settings/port-of-call-settings.component';
 import { XlsExportButtonComponent } from '../xls-export-button/xls-export-button.component';
@@ -55,6 +57,7 @@ import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores
     PartialDateInputComponent,
     TimeInputComponent,
     DocumentStampOptionsComponent,
+    PassengerListSettingsComponent,
     CrewListSettingsComponent,
     PortOfCallSettingsComponent,
     XlsExportButtonComponent,
@@ -73,6 +76,7 @@ import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores
 export class DocumentsNavComponent {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
+  private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
   private readonly crewListV3SbkPdf = inject(PdfCrewListV3SbkService);
@@ -138,6 +142,13 @@ export class DocumentsNavComponent {
     const passengers = isArrival
       ? this.storage.activePassengersArrival()
       : this.storage.activePassengersDeparture();
+    const listType = this.storage.paxArr().listType;
+    if (listType === 'paxV2') {
+      void this.passengerListV2Pdf.openPreview(this.appData(), passengers).then((ok) => {
+        if (!ok) this.toast.showError('Allow pop-ups to open Passenger List v2 preview');
+      });
+      return;
+    }
     void this.crewPdf.openPassengerPreview(this.appData(), passengers).then((ok) => {
       if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');
     });

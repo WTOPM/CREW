@@ -239,6 +239,7 @@ export function normalizeCrewListDocumentPrefs(
 export type DocumentOverlayId =
   | 'crewList'
   | 'pax'
+  | 'paxV2'
   | 'portOfCall'
   | 'mdh'
   | 'crewVaccine'
@@ -256,6 +257,7 @@ export type ShipAssetKind = 'stamp' | 'signature';
 export interface DocumentOverlayPrefs {
   crewList: CrewListDocumentPrefs;
   pax: DocumentStampOptions;
+  paxV2: DocumentStampOptions;
   portOfCall: DocumentStampOptions;
   mdh: DocumentStampOptions;
   crewVaccine: DocumentStampOptions;
@@ -308,6 +310,7 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
   return {
     crewList: createDefaultCrewListPrefs(),
     pax: { ...DEFAULT_STAMP_OPTS },
+    paxV2: { ...DEFAULT_STAMP_OPTS },
     portOfCall: { ...DEFAULT_STAMP_OPTS },
     mdh: { ...DEFAULT_STAMP_OPTS },
     crewVaccine: { ...DEFAULT_STAMP_OPTS },
@@ -334,6 +337,7 @@ export function createEmptyShipAssetsMeta(): ShipAssetsMeta {
 export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   crewList: 'Crew list',
   pax: 'Passenger list',
+  paxV2: 'Passenger list v2',
   portOfCall: 'Port of Call',
   mdh: 'MDH',
   crewVaccine: 'Crew Vaccine',

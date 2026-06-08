@@ -38,10 +38,10 @@
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPassengerList(true)">
-        Passenger list — Arrival
+        Arrival
       </button>
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPassengerList(false)">
-        Passenger list — Departure
+        Departure
       </button>
       <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openPaxSettings()">
         <svg class="nav-doc-settings-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -305,7 +305,7 @@
   <div class="modal-backdrop">
     <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closePaxSettings()" (click)="$event.stopPropagation()">
       <h3>Passenger list settings</h3>
-      <app-document-stamp-options documentId="pax" />
+      <app-passenger-list-settings />
       <div class="modal-actions">
         <button type="button" class="btn btn-primary" (click)="closePaxSettings()">Done</button>
       </div>

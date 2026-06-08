@@ -53,6 +53,7 @@ import {
   PassengerMember,
   PaxListKind,
   createDefaultPaxArrSettings,
+  normalizePaxListType,
   PASSENGER_RANK,
   createEmptyPassenger,
   migratePassengerListFlags,
@@ -230,7 +231,11 @@ export class StorageService {
     crew = this.rescueOrphanCrew(crew);
     let passengers = (raw.passengers ?? []).map((m) => this.normalizePassenger(m, raw.ports));
     passengers = this.rescueOrphanPassengers(passengers);
-    const paxArr = { ...createDefaultPaxArrSettings(), ...raw.paxArr };
+    const paxArr = {
+      ...createDefaultPaxArrSettings(),
+      ...raw.paxArr,
+      listType: normalizePaxListType(raw.paxArr?.listType),
+    };
     const ranks = Array.isArray(raw.ranks)
       ? mergeUniqueList(raw.ranks)
       : mergeUniqueList([], ...crew.map((c) => c.rank));
@@ -375,6 +380,7 @@ export class StorageService {
     const out: AppData['documentOverlay'] = {
       crewList: this.normalizeCrewListPrefs(raw?.crewList),
       pax: this.normalizeStampDocumentPrefs(raw?.pax, defaults.pax),
+      paxV2: this.normalizeStampDocumentPrefs(raw?.paxV2, defaults.paxV2),
       portOfCall: this.normalizeStampDocumentPrefs(raw?.portOfCall, defaults.portOfCall),
       mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
       crewVaccine: this.normalizeStampDocumentPrefs(raw?.crewVaccine, defaults.crewVaccine),
@@ -661,6 +667,7 @@ export class StorageService {
         documentOverlay: {
           crewList: { ...crewList, byType },
           pax: { ...d.documentOverlay.pax, ...patch },
+          paxV2: { ...d.documentOverlay.paxV2, ...patch },
           portOfCall: { ...d.documentOverlay.portOfCall, ...patch },
           mdh: { ...d.documentOverlay.mdh, ...patch },
           crewVaccine: { ...d.documentOverlay.crewVaccine, ...patch },

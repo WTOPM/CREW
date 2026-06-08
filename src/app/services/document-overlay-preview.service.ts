@@ -5,6 +5,7 @@ import {
   CREW_IDENTITY_SEAMANS_BOOK,
 } from '../models/crew.models';
 import { DocumentOverlayId } from '../models/document-overlay.models';
+import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { PdfCrewArrService } from './pdf-crew-arr.service';
 import { PdfCrewListType2Service } from './pdf-crew-list-type2.service';
@@ -13,6 +14,7 @@ import { PdfCrewListV3SbkService } from './pdf-crew-list-v3-sbk.service';
 import { PdfCrewListV3SbkPService } from './pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
 import { PdfMdhService } from './pdf-mdh.service';
+import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
 import { PdfNilListService } from './pdf-nil-list.service';
@@ -32,6 +34,7 @@ export type MdhOverlayPreviewPage = 'form' | 'attachment';
 export class DocumentOverlayPreviewService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
+  private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
   private readonly crewListV3SbkPdf = inject(PdfCrewListV3SbkService);
@@ -56,6 +59,8 @@ export class DocumentOverlayPreviewService {
         return this.buildCrewList(data);
       case 'pax':
         return this.buildPassengerList(data);
+      case 'paxV2':
+        return this.buildPassengerListV2(data);
       case 'portOfCall':
         return this.pocPdf.buildPdfBytes(data);
       case 'mdh':
@@ -144,9 +149,24 @@ export class DocumentOverlayPreviewService {
     const passengers = this.storage.activePassengersArrival();
     const pdfData: AppData = {
       ...data,
-      crewArr: { ...data.crewArr, isArrival: data.paxArr.isArrival },
+      crewArr: {
+        ...data.crewArr,
+        isArrival: data.paxArr.isArrival,
+        identityDocumentType: PASSENGER_IDENTITY_DOCUMENT,
+      },
     };
     return this.crewPdf.buildPdfBytes(pdfData, passengersToCrewRows(passengers), { overlayId: 'pax' });
+  }
+
+  private buildPassengerListV2(data: AppData): Promise<Uint8Array> {
+    const passengers = data.paxArr.isArrival
+      ? this.storage.activePassengersArrival()
+      : this.storage.activePassengersDeparture();
+    const pdfData: AppData = {
+      ...data,
+      paxArr: { ...data.paxArr, isArrival: data.paxArr.isArrival },
+    };
+    return this.passengerListV2Pdf.buildPdfBytes(pdfData, passengers);
   }
 
   private appData(): AppData {

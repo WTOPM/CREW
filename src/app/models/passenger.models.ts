@@ -4,6 +4,9 @@ import { parseValidityRange } from '../utils/date.util';
 /** Rank on IMO passenger list (field 9). */
 export const PASSENGER_RANK = 'Passenger';
 
+/** Field 6 — nature of identity document on IMO passenger list. */
+export const PASSENGER_IDENTITY_DOCUMENT = 'Passport / ID CARD';
+
 function parsePersonName(full: string): { familyName: string; givenNames: string } {
   const trimmed = full.trim();
   if (!trimmed) return { familyName: '', givenNames: '' };
@@ -79,12 +82,26 @@ export interface PassengerMember {
   archivedFromDeparture: boolean;
 }
 
+export type PaxListTypeId = 'pax' | 'paxV2';
+
+export const PAX_LIST_TYPE_LABELS: Record<PaxListTypeId, string> = {
+  pax: 'Passenger list',
+  paxV2: 'Passenger list v2',
+};
+
+export const PAX_LIST_TYPE_IDS: readonly PaxListTypeId[] = ['pax', 'paxV2'];
+
+export function normalizePaxListType(raw: unknown): PaxListTypeId {
+  return raw === 'paxV2' ? 'paxV2' : 'pax';
+}
+
 export interface PaxArrFormSettings {
   isArrival: boolean;
+  listType: PaxListTypeId;
 }
 
 export function createDefaultPaxArrSettings(): PaxArrFormSettings {
-  return { isArrival: true };
+  return { isArrival: true, listType: 'pax' };
 }
 
 export function createEmptyPassenger(): PassengerMember {

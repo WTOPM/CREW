@@ -8,6 +8,7 @@ import {
   crewListIdentityPdfFileName,
   passengerListPdfFileName,
 } from '../utils/pdf-filename.util';
+import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { base64ToUint8 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
@@ -17,6 +18,7 @@ import { PdfCrewListV2Service } from './pdf-crew-list-v2.service';
 import { PdfCrewListV3SbkService } from './pdf-crew-list-v3-sbk.service';
 import { PdfCrewListV3SbkPService } from './pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
+import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
@@ -49,6 +51,7 @@ interface BuiltPdf {
 export class DocumentCatalogService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
+  private readonly passengerListV2 = inject(PdfPassengerListV2Service);
   private readonly type2 = inject(PdfCrewListType2Service);
   private readonly crewListV2 = inject(PdfCrewListV2Service);
   private readonly crewListV3Sbk = inject(PdfCrewListV3SbkService);
@@ -116,6 +119,10 @@ export class DocumentCatalogService {
         return this.paxBytes(base, true);
       case 'paxDeparture':
         return this.paxBytes(base, false);
+      case 'paxArrivalV2':
+        return this.paxV2Bytes(base, true);
+      case 'paxDepartureV2':
+        return this.paxV2Bytes(base, false);
       case 'portOfCall':
         return { bytes: await this.poc.buildFinalBytes(base), fileName: this.poc.fileName(base) };
       case 'sso0108':
@@ -302,7 +309,7 @@ export class DocumentCatalogService {
       : this.storage.activePassengersDeparture();
     const data: AppData = {
       ...base,
-      crewArr: { ...base.crewArr, isArrival, identityDocumentType: CREW_IDENTITY_PASSPORT },
+      crewArr: { ...base.crewArr, isArrival, identityDocumentType: PASSENGER_IDENTITY_DOCUMENT },
       paxArr: { ...base.paxArr, isArrival },
     };
     const { ship } = base;
@@ -313,6 +320,19 @@ export class DocumentCatalogService {
       title: IMO_PASSENGER_LIST_TITLE,
       fileName,
     });
+    return { bytes, fileName };
+  }
+
+  private async paxV2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+    const passengers = isArrival
+      ? this.storage.activePassengersArrival()
+      : this.storage.activePassengersDeparture();
+    const data: AppData = {
+      ...base,
+      paxArr: { ...base.paxArr, isArrival },
+    };
+    const fileName = this.passengerListV2.fileName(data);
+    const bytes = await this.passengerListV2.buildPdfBytes(data, passengers);
     return { bytes, fileName };
   }
 
