@@ -23,7 +23,8 @@ export type CrewListTypeId =
   | 'type2Alger'
   | 'type3V2'
   | 'type4V3Sbk'
-  | 'type5V3SbkP';
+  | 'type5V3SbkP'
+  | 'type6V3SbkP2';
 
 /** Stamp/signature placement bucket (Type 1 passport & seaman's book share one layout). */
 export type CrewListPlacementKey =
@@ -31,7 +32,8 @@ export type CrewListPlacementKey =
   | 'type2Alger'
   | 'type3V2'
   | 'type4V3Sbk'
-  | 'type5V3SbkP';
+  | 'type5V3SbkP'
+  | 'type6V3SbkP2';
 
 export const CREW_LIST_PLACEMENT_KEYS: readonly CrewListPlacementKey[] = [
   'type1',
@@ -39,6 +41,7 @@ export const CREW_LIST_PLACEMENT_KEYS: readonly CrewListPlacementKey[] = [
   'type3V2',
   'type4V3Sbk',
   'type5V3SbkP',
+  'type6V3SbkP2',
 ];
 
 export function crewListPlacementKey(listType: CrewListTypeId): CrewListPlacementKey {
@@ -46,6 +49,7 @@ export function crewListPlacementKey(listType: CrewListTypeId): CrewListPlacemen
   if (listType === 'type3V2') return 'type3V2';
   if (listType === 'type4V3Sbk') return 'type4V3Sbk';
   if (listType === 'type5V3SbkP') return 'type5V3SbkP';
+  if (listType === 'type6V3SbkP2') return 'type6V3SbkP2';
   return 'type1';
 }
 
@@ -72,6 +76,7 @@ export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = {
   type3V2: 'CREW LIST - V2',
   type4V3Sbk: 'Crew List v3 - SBK',
   type5V3SbkP: 'Crew List v3 - SBK/P',
+  type6V3SbkP2: 'Crew List v3 - SBK/P 2',
 };
 
 export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
@@ -81,6 +86,7 @@ export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
   'type3V2',
   'type4V3Sbk',
   'type5V3SbkP',
+  'type6V3SbkP2',
 ];
 
 /** Which variant is selected in Crew list settings (for editing). */
@@ -287,7 +293,8 @@ export function normalizeCrewListType(raw: Partial<CrewListDocumentPrefs> & {
     raw.listType === 'type2Alger' ||
     raw.listType === 'type3V2' ||
     raw.listType === 'type4V3Sbk' ||
-    raw.listType === 'type5V3SbkP'
+    raw.listType === 'type5V3SbkP' ||
+    raw.listType === 'type6V3SbkP2'
   ) {
     return raw.listType;
   }

@@ -46,7 +46,7 @@ export const CREW_LIST_V3_SBK_P_HEADER = {
   shipNationality: { x: 147, y: 111 },
   portOfCall: { x: 123, y: 258 },
   arrivalMark: { x: 93.4, y: 253 },
-  departureMark: { x: 346, y: 253 },
+  departureMark: { x: 93.4, y: 346.4 },
   portsFromTo: { x: 146, y: 256, maxWidth: 320 },
   voyageDate: { x: 123, y: 388 },
   imoNo: { x: 123, y: 527 },

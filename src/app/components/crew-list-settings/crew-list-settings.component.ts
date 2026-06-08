@@ -70,6 +70,16 @@ import { DocumentExportSettingsComponent } from '../document-export-settings/doc
             />
             <span class="crew-list-type-btn__text">{{ typeLabel('type5V3SbkP') }}</span>
           </label>
+          <label class="crew-list-type-btn crew-list-type-btn--v3sbkp2">
+            <input
+              type="radio"
+              name="crewListType"
+              value="type6V3SbkP2"
+              [ngModel]="listType()"
+              (ngModelChange)="onListTypeChange($event)"
+            />
+            <span class="crew-list-type-btn__text">{{ typeLabel('type6V3SbkP2') }}</span>
+          </label>
         </div>
       </div>
     </fieldset>
@@ -178,6 +188,16 @@ import { DocumentExportSettingsComponent } from '../document-export-settings/doc
 
     .crew-list-type-btn--v3sbkp:has(input:checked) .crew-list-type-btn__text {
       background: #db2777;
+      color: #fff;
+    }
+
+    .crew-list-type-btn--v3sbkp2:hover .crew-list-type-btn__text {
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    .crew-list-type-btn--v3sbkp2:has(input:checked) .crew-list-type-btn__text {
+      background: #4f46e5;
       color: #fff;
     }
 

@@ -16,6 +16,7 @@ import { PdfCrewListType2Service } from './pdf-crew-list-type2.service';
 import { PdfCrewListV2Service } from './pdf-crew-list-v2.service';
 import { PdfCrewListV3SbkService } from './pdf-crew-list-v3-sbk.service';
 import { PdfCrewListV3SbkPService } from './pdf-crew-list-v3-sbk-p.service';
+import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
@@ -52,6 +53,7 @@ export class DocumentCatalogService {
   private readonly crewListV2 = inject(PdfCrewListV2Service);
   private readonly crewListV3Sbk = inject(PdfCrewListV3SbkService);
   private readonly crewListV3SbkP = inject(PdfCrewListV3SbkPService);
+  private readonly crewListV3SbkP2 = inject(PdfCrewListV3SbkP2Service);
   private readonly poc = inject(PdfPortOfCallService);
   private readonly sso = inject(PdfSso0108PortCallsService);
   private readonly shipStores = inject(PdfShipStoresService);
@@ -106,6 +108,10 @@ export class DocumentCatalogService {
         return this.crewV3SbkPBytes(base, true);
       case 'crewListDepartureV3SbkP':
         return this.crewV3SbkPBytes(base, false);
+      case 'crewListArrivalV3SbkP2':
+        return this.crewV3SbkP2Bytes(base, true);
+      case 'crewListDepartureV3SbkP2':
+        return this.crewV3SbkP2Bytes(base, false);
       case 'paxArrival':
         return this.paxBytes(base, true);
       case 'paxDeparture':
@@ -233,6 +239,24 @@ export class DocumentCatalogService {
     return {
       bytes: await this.crewListV3SbkP.buildPreviewBytes(data, crew),
       fileName: this.crewListV3SbkP.fileName(data),
+    };
+  }
+
+  private async crewV3SbkP2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+    const crew = isArrival
+      ? this.storage.activeCrewArrival()
+      : this.storage.activeCrewDeparture();
+    const data: AppData = {
+      ...base,
+      crewArr: { ...base.crewArr, isArrival },
+      documentOverlay: {
+        ...base.documentOverlay,
+        crewList: { ...base.documentOverlay.crewList, listType: 'type6V3SbkP2' },
+      },
+    };
+    return {
+      bytes: await this.crewListV3SbkP2.buildPreviewBytes(data, crew),
+      fileName: this.crewListV3SbkP2.fileName(data),
     };
   }
 

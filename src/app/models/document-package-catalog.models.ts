@@ -17,6 +17,8 @@ export type PackageDocumentId =
   | 'crewListDepartureV3Sbk'
   | 'crewListArrivalV3SbkP'
   | 'crewListDepartureV3SbkP'
+  | 'crewListArrivalV3SbkP2'
+  | 'crewListDepartureV3SbkP2'
   | 'paxArrival'
   | 'paxDeparture'
   | 'portOfCall'
@@ -92,6 +94,14 @@ export const PACKAGE_CATALOG_ENTRIES: readonly PackageCatalogEntry[] = [
   {
     id: 'crewListDepartureV3SbkP',
     label: crewListPackageLabel('type5V3SbkP', 'Departure'),
+  },
+  {
+    id: 'crewListArrivalV3SbkP2',
+    label: crewListPackageLabel('type6V3SbkP2', 'Arrival'),
+  },
+  {
+    id: 'crewListDepartureV3SbkP2',
+    label: crewListPackageLabel('type6V3SbkP2', 'Departure'),
   },
   {
     id: 'paxArrival',
