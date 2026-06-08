@@ -77,6 +77,7 @@ export interface ShipInfo {
   imoNo: string;
   type: string;
   charterer: string;
+  voyageNumber: string;
   sanitationCertificateNo: string;
   sanitationCertificateIssuedAt: string;
   sanitationCertificateIssueDate: string;
@@ -389,6 +390,7 @@ export function createEmptyShip(): ShipInfo {
     imoNo: '',
     type: '',
     charterer: '',
+    voyageNumber: '',
     sanitationCertificateNo: '',
     sanitationCertificateIssuedAt: '',
     sanitationCertificateIssueDate: '',

@@ -22,22 +22,30 @@ export type CrewListTypeId =
   | 'type1SeamansBook'
   | 'type2Alger'
   | 'type3V2'
-  | 'type4V3Sbk';
+  | 'type4V3Sbk'
+  | 'type5V3SbkP';
 
 /** Stamp/signature placement bucket (Type 1 passport & seaman's book share one layout). */
-export type CrewListPlacementKey = 'type1' | 'type2Alger' | 'type3V2' | 'type4V3Sbk';
+export type CrewListPlacementKey =
+  | 'type1'
+  | 'type2Alger'
+  | 'type3V2'
+  | 'type4V3Sbk'
+  | 'type5V3SbkP';
 
 export const CREW_LIST_PLACEMENT_KEYS: readonly CrewListPlacementKey[] = [
   'type1',
   'type2Alger',
   'type3V2',
   'type4V3Sbk',
+  'type5V3SbkP',
 ];
 
 export function crewListPlacementKey(listType: CrewListTypeId): CrewListPlacementKey {
   if (listType === 'type2Alger') return 'type2Alger';
   if (listType === 'type3V2') return 'type3V2';
   if (listType === 'type4V3Sbk') return 'type4V3Sbk';
+  if (listType === 'type5V3SbkP') return 'type5V3SbkP';
   return 'type1';
 }
 
@@ -63,6 +71,7 @@ export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = {
   type2Alger: 'CREW LIST - ALGER',
   type3V2: 'CREW LIST - V2',
   type4V3Sbk: 'Crew List v3 - SBK',
+  type5V3SbkP: 'Crew List v3 - SBK/P',
 };
 
 export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
@@ -71,6 +80,7 @@ export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
   'type2Alger',
   'type3V2',
   'type4V3Sbk',
+  'type5V3SbkP',
 ];
 
 /** Which variant is selected in Crew list settings (for editing). */
@@ -207,14 +217,7 @@ export function normalizeCrewListDocumentPrefs(
 
   const byType: Partial<Record<CrewListTypeId, CrewListVariantSettings>> = {};
   for (const id of CREW_LIST_TYPE_IDS) {
-    const placement =
-      id === 'type2Alger'
-        ? byPlacement.type2Alger
-        : id === 'type3V2'
-          ? byPlacement.type3V2
-          : id === 'type4V3Sbk'
-            ? byPlacement.type4V3Sbk
-            : byPlacement.type1;
+    const placement = byPlacement[crewListPlacementKey(id)];
     byType[id] = {
       ...defaultCrewListVariantSettings(),
       ...legacyToggles,
@@ -283,7 +286,8 @@ export function normalizeCrewListType(raw: Partial<CrewListDocumentPrefs> & {
     raw.listType === 'type1SeamansBook' ||
     raw.listType === 'type2Alger' ||
     raw.listType === 'type3V2' ||
-    raw.listType === 'type4V3Sbk'
+    raw.listType === 'type4V3Sbk' ||
+    raw.listType === 'type5V3SbkP'
   ) {
     return raw.listType;
   }

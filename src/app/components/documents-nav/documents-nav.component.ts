@@ -16,6 +16,7 @@ import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfCrewListType2Service } from '../../services/pdf-crew-list-type2.service';
 import { PdfCrewListV2Service } from '../../services/pdf-crew-list-v2.service';
 import { PdfCrewListV3SbkService } from '../../services/pdf-crew-list-v3-sbk.service';
+import { PdfCrewListV3SbkPService } from '../../services/pdf-crew-list-v3-sbk-p.service';
 import { PdfMdhService } from '../../services/pdf-mdh.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { PdfCrewEffectService } from '../../services/pdf-crew-effect.service';
@@ -74,6 +75,7 @@ export class DocumentsNavComponent {
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
   private readonly crewListV3SbkPdf = inject(PdfCrewListV3SbkService);
+  private readonly crewListV3SbkPPdf = inject(PdfCrewListV3SbkPService);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
@@ -104,7 +106,12 @@ export class DocumentsNavComponent {
 
   protected readonly crewListXlsVisible = computed(() => {
     const listType = this.storage.documentOverlay().crewList.listType;
-    return listType !== 'type2Alger' && listType !== 'type3V2' && listType !== 'type4V3Sbk';
+    return (
+      listType !== 'type2Alger' &&
+      listType !== 'type3V2' &&
+      listType !== 'type4V3Sbk' &&
+      listType !== 'type5V3SbkP'
+    );
   });
 
   protected showPortOfCallSettings = signal(false);
@@ -148,6 +155,10 @@ export class DocumentsNavComponent {
       void this.openCrewListV3Sbk(isArrival);
       return;
     }
+    if (listType === 'type5V3SbkP') {
+      void this.openCrewListV3SbkP(isArrival);
+      return;
+    }
     const identityDocumentType =
       listType === 'type1SeamansBook' ? CREW_IDENTITY_SEAMANS_BOOK : CREW_IDENTITY_PASSPORT;
     void this.openCrewListPdf(isArrival, identityDocumentType);
@@ -178,9 +189,13 @@ export class DocumentsNavComponent {
     await this.openCrewListTemplatePdf(isArrival, this.crewListV3SbkPdf);
   }
 
+  private async openCrewListV3SbkP(isArrival: boolean): Promise<void> {
+    await this.openCrewListTemplatePdf(isArrival, this.crewListV3SbkPPdf);
+  }
+
   private async openCrewListTemplatePdf(
     isArrival: boolean,
-    pdf: PdfCrewListV2Service | PdfCrewListV3SbkService,
+    pdf: PdfCrewListV2Service | PdfCrewListV3SbkService | PdfCrewListV3SbkPService,
   ): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();

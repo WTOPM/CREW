@@ -39,9 +39,16 @@
             <span>Type</span>
             <input [ngModel]="ship().type" (ngModelChange)="onShipChange('type', $event)" />
           </label>
-          <label class="ship-field ship-field--span2">
+          <label class="ship-field">
             <span>Charterer</span>
             <input [ngModel]="ship().charterer" (ngModelChange)="onShipChange('charterer', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>Voyage Number</span>
+            <input
+              [ngModel]="ship().voyageNumber"
+              (ngModelChange)="onShipChange('voyageNumber', $event)"
+            />
           </label>
         </div>
       </div>
