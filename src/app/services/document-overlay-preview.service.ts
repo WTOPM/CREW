@@ -98,7 +98,10 @@ export class DocumentOverlayPreviewService {
     }
 
     if (listType === 'type3V2') {
-      return this.crewListV2Pdf.build(data);
+      const crew = data.crewArr.isArrival
+        ? this.storage.activeCrewArrival()
+        : this.storage.activeCrewDeparture();
+      return this.crewListV2Pdf.build(data, crew);
     }
 
     const identityDocumentType =

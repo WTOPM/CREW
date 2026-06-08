@@ -28,6 +28,7 @@ import {
 import { ShipAssetsService } from '../../services/ship-assets.service';
 import { StorageService } from '../../services/storage.service';
 import {
+  clientToViewportCss,
   CREW_LIST_PREVIEW_CSS_PX_PER_PT,
   openPdfJsPageView,
   pdfJsScreenStepToPdf,
@@ -138,6 +139,9 @@ type ResizeTarget = 'stamp' | 'signature';
           <div class="placement-readout" aria-live="polite">
             <span class="placement-readout-line placement-readout-line--cursor">
               Cursor: x {{ cursorPt()?.x ?? '—' }}, y {{ cursorPt()?.y ?? '—' }}
+              @if (cursorFromTop() != null) {
+                <span class="placement-readout-sub">(y from top: {{ cursorFromTop() | number: '1.0-1' }})</span>
+              }
             </span>
             @if (stampBoxOnPage(); as stamp) {
               <span>
@@ -164,7 +168,7 @@ type ResizeTarget = 'stamp' | 'signature';
             class="placement-scroll"
             #placementScroll
             [class.placement-scroll--panning]="viewPanning()"
-            [class.placement-scroll--coords]="placementMode() === 'none' && !viewPanning()"
+            [class.placement-scroll--probe]="coordProbeMode()"
             (wheel)="onPreviewWheel($event)"
             (pointermove)="onScrollPointerMove($event)"
             (pointerup)="onScrollPointerUp($event)"
@@ -189,7 +193,7 @@ type ResizeTarget = 'stamp' | 'signature';
                   <div
                     class="placement-overlay"
                     #placementOverlay
-                    [class.placement-overlay--coords]="placementMode() === 'none' && !viewPanning()"
+                    [class.placement-overlay--probe]="coordProbeMode()"
                     [class.placement-overlay--panning]="viewPanning()"
                     [class.placement-overlay--draggable]="placementMode() !== 'none' && !resizing()"
                     [class.placement-overlay--dragging]="pointerDragging()"
@@ -200,6 +204,11 @@ type ResizeTarget = 'stamp' | 'signature';
                     (pointercancel)="onOverlayPointerUp($event)"
                     (pointerleave)="onOverlayPointerLeave()"
                   >
+                    @if (pdfProbeMarkerStyle(); as probeStyle) {
+                      <span class="placement-pdf-probe" [ngStyle]="probeStyle" aria-hidden="true"
+                        >1</span
+                      >
+                    }
                 <div
                   class="placement-marker placement-marker--stamp"
                   [class.placement-marker--on]="options().useStamp"
@@ -248,7 +257,8 @@ type ResizeTarget = 'stamp' | 'signature';
         }
 
         <p class="placement-coords">
-          Base 96 dpi, preview {{ zoomPercent() }}% — {{ moveTargetLabel() }}, rotation {{ rotation() }}°
+          Base 96 dpi, preview {{ zoomPercent() }}% — {{ moveTargetLabel() }}, rotation {{ rotation() }}°.
+          Values match pdf-lib <code>drawText</code> (x, y from bottom-left). y from top = page height − y.
         </p>
 
         <div class="placement-actions">
@@ -375,6 +385,12 @@ type ResizeTarget = 'stamp' | 'signature';
 
     .placement-readout-line--cursor {
       min-height: 1.15em;
+      font-weight: 600;
+    }
+
+    .placement-readout-sub {
+      font-weight: 500;
+      color: var(--text-muted);
     }
 
     .placement-zoom {
@@ -409,11 +425,22 @@ type ResizeTarget = 'stamp' | 'signature';
       user-select: none;
     }
 
-    .placement-scroll--coords {
-      cursor:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cline x1='8.5' y1='0' x2='8.5' y2='17' stroke='%23000' stroke-width='1'/%3E%3Cline x1='0' y1='8.5' x2='17' y2='8.5' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E")
-          8 8,
-        crosshair;
+    .placement-scroll--probe,
+    .placement-overlay--probe {
+      cursor: none;
+    }
+
+    .placement-pdf-probe {
+      position: absolute;
+      z-index: 30;
+      pointer-events: none;
+      color: #dc2626;
+      font-family: Helvetica, Arial, sans-serif;
+      font-weight: normal;
+      line-height: 1;
+      text-shadow:
+        0 0 2px #fff,
+        0 0 2px #fff;
     }
 
     .placement-scroll-center {
@@ -479,13 +506,6 @@ type ResizeTarget = 'stamp' | 'signature';
 
     .placement-overlay--draggable {
       cursor: crosshair;
-    }
-
-    .placement-overlay--coords {
-      cursor:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cline x1='8.5' y1='0' x2='8.5' y2='17' stroke='%23000' stroke-width='1'/%3E%3Cline x1='0' y1='8.5' x2='17' y2='8.5' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E")
-          8 8,
-        crosshair;
     }
 
     .placement-overlay--panning {
@@ -671,6 +691,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected readonly loading = signal(true);
   protected readonly loadError = signal<string | null>(null);
   protected readonly cursorPt = signal<{ x: number; y: number } | null>(null);
+  protected readonly pdfProbeMarkerStyle = signal<Record<string, string> | null>(null);
   protected readonly stampPreviewUrl = signal<string | null>(null);
   protected readonly signaturePreviewUrl = signal<string | null>(null);
 
@@ -679,13 +700,27 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected readonly pageCssHeight = signal(0);
   protected readonly previewZoom = signal(1);
   protected readonly zoomPercent = computed(() => Math.round(this.previewZoom() * 100));
+  protected readonly cursorFromTop = computed(() => {
+    const pt = this.cursorPt();
+    if (!pt) return null;
+    return this.pageSizePt().heightPt - pt.y;
+  });
   protected readonly pageWrapWidth = computed(() => this.pageCssWidth() * this.previewZoom());
   protected readonly pageWrapHeight = computed(() => this.pageCssHeight() * this.previewZoom());
   protected readonly pageScaleTransform = computed(() => `scale(${this.previewZoom()})`);
 
+  protected readonly coordProbeMode = computed(
+    () => this.placementMode() === 'none' && !this.viewPanning(),
+  );
+
   private static readonly ZOOM_MIN = 0.5;
-  private static readonly ZOOM_MAX = 3;
+  private static readonly ZOOM_MAX = 10;
   private static readonly ZOOM_STEP = 0.1;
+  /** Mouse wheel zoom step (+/− 25% per notch). */
+  private static readonly WHEEL_ZOOM_STEP = 0.25;
+  /** Matches pdf-lib drawText probe (pt) — same as typical crew-list row font. */
+  private static readonly PDF_PROBE_FONT_PT = 8;
+  private static readonly PDF_PROBE_FONT_ASCENT = 0.72;
 
   private pageView: PdfJsPageView | null = null;
   private pdfBytes: Uint8Array | null = null;
@@ -760,7 +795,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       case 'signature':
         return 'Drag to move the signature; drag its edges/corners to resize.';
       default:
-        return 'Hover for PDF coordinates (crosshair). Wheel to zoom; drag with LMB to pan when zoomed.';
+        return 'Hover for pdf-lib coordinates. Red «1» marks exact drawText position for displayed x, y. Wheel to zoom (up to 1000%); drag LMB to pan when zoomed.';
     }
   });
 
@@ -796,8 +831,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   protected onPreviewWheel(event: WheelEvent): void {
     event.preventDefault();
-    const step = Math.min(0.12, Math.max(0.02, Math.abs(event.deltaY) * 0.0015));
-    const delta = event.deltaY > 0 ? -step : step;
+    const delta = event.deltaY > 0 ? -OverlayPlacementPickerComponent.WHEEL_ZOOM_STEP : OverlayPlacementPickerComponent.WHEEL_ZOOM_STEP;
     this.applyZoom(this.previewZoom() + delta, event.clientX, event.clientY);
   }
 
@@ -940,12 +974,11 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     this.updateCursor(event);
     if (!this.lastPointerClient || !this.pageView) return;
 
-    const el = this.placementOverlay()?.nativeElement;
-    if (!el) return;
+    const canvas = this.pdfCanvas()?.nativeElement;
+    if (!canvas) return;
 
-    const rect = el.getBoundingClientRect();
     const { dx, dy } = this.pointerDeltaPdf(
-      rect,
+      canvas,
       event.clientX,
       event.clientY,
       this.lastPointerClient.x,
@@ -967,7 +1000,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   }
 
   protected onOverlayPointerLeave(): void {
-    this.cursorPt.set(null);
+    this.clearCursorReadout();
   }
 
   protected onOverlayPointerUp(event: PointerEvent): void {
@@ -994,8 +1027,8 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     }
 
     if (!this.pointerDidMove && mode !== 'none' && el && this.pageView) {
-      const rect = el.getBoundingClientRect();
-      const css = this.overlayCssFromClient(event, rect);
+      const css = this.clientToPageCss(event.clientX, event.clientY);
+      if (!css) return;
       const pt = this.pageView.convertToPdfPoint(css.x, css.y);
       this.placeAt(mode, pt.x, pt.y);
       this.endPointerDrag(false);
@@ -1020,36 +1053,30 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     }
 
     event.preventDefault();
-    const el = this.placementOverlay()?.nativeElement;
+    const canvas = this.pdfCanvas()?.nativeElement;
     const view = this.pageView;
-    if (!el || !view) return;
+    if (!canvas || !view) return;
 
-    const rect = el.getBoundingClientRect();
     const stepPx = 8;
-    let cssDx = 0;
-    let cssDy = 0;
+    let screenDx = 0;
+    let screenDy = 0;
     switch (event.key) {
       case 'ArrowLeft':
-        cssDx = -stepPx;
+        screenDx = -stepPx;
         break;
       case 'ArrowRight':
-        cssDx = stepPx;
+        screenDx = stepPx;
         break;
       case 'ArrowUp':
-        cssDy = -stepPx;
+        screenDy = -stepPx;
         break;
       case 'ArrowDown':
-        cssDy = stepPx;
+        screenDy = stepPx;
         break;
       default:
         return;
     }
-    const { dx: pdfDx, dy: pdfDy } = pdfJsScreenStepToPdf(
-      view,
-      rect,
-      cssDx / this.previewZoom(),
-      cssDy / this.previewZoom(),
-    );
+    const { dx: pdfDx, dy: pdfDy } = pdfJsScreenStepToPdf(view, canvas, screenDx, screenDy);
     this.nudgeBy(mode, pdfDx, pdfDy, true);
   }
 
@@ -1148,31 +1175,50 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   }
 
   private updateCursor(event: PointerEvent | { clientX: number; clientY: number }): void {
-    const el = this.placementOverlay()?.nativeElement;
     const view = this.pageView;
-    if (!el || !view) return;
-    const rect = el.getBoundingClientRect();
-    const css = this.overlayCssFromClient(event, rect);
-    if (css.x < 0 || css.y < 0 || css.x > rect.width / this.previewZoom() || css.y > rect.height / this.previewZoom()) {
-      this.cursorPt.set(null);
+    if (!view) return;
+    const css = this.clientToPageCss(event.clientX, event.clientY);
+    if (!css) {
+      this.clearCursorReadout();
       return;
     }
-    this.cursorPt.set(view.convertToPdfPoint(css.x, css.y));
+    const pt = view.convertToPdfPoint(css.x, css.y);
+    this.cursorPt.set(pt);
+    this.updatePdfProbeMarker(pt);
   }
 
-  private overlayCssFromClient(
-    event: { clientX: number; clientY: number },
-    rect: DOMRect,
-  ): { x: number; y: number } {
-    const zoom = this.previewZoom();
-    return {
-      x: (event.clientX - rect.left) / zoom,
-      y: (event.clientY - rect.top) / zoom,
-    };
+  private updatePdfProbeMarker(pt: { x: number; y: number } | null): void {
+    const view = this.pageView;
+    if (!pt || !view || !this.coordProbeMode()) {
+      this.pdfProbeMarkerStyle.set(null);
+      return;
+    }
+    const css = view.convertToViewportCss(pt.x, pt.y);
+    const fontPx =
+      OverlayPlacementPickerComponent.PDF_PROBE_FONT_PT *
+      (view.width / view.pageWidthPt);
+    const ascentPx = fontPx * OverlayPlacementPickerComponent.PDF_PROBE_FONT_ASCENT;
+    this.pdfProbeMarkerStyle.set({
+      left: `${css.x}px`,
+      top: `${css.y - ascentPx}px`,
+      fontSize: `${fontPx}px`,
+    });
+  }
+
+  private clearCursorReadout(): void {
+    this.cursorPt.set(null);
+    this.pdfProbeMarkerStyle.set(null);
+  }
+
+  private clientToPageCss(clientX: number, clientY: number): { x: number; y: number } | null {
+    const canvas = this.pdfCanvas()?.nativeElement;
+    const view = this.pageView;
+    if (!canvas || !view) return null;
+    return clientToViewportCss(clientX, clientY, canvas, view);
   }
 
   private pointerDeltaPdf(
-    rect: DOMRect,
+    canvas: HTMLCanvasElement,
     clientX: number,
     clientY: number,
     prevClientX: number,
@@ -1180,16 +1226,12 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   ): { dx: number; dy: number } {
     const view = this.pageView;
     if (!view) return { dx: 0, dy: 0 };
-    const zoom = this.previewZoom();
-    const cur = view.convertToPdfPoint(
-      (clientX - rect.left) / zoom,
-      (clientY - rect.top) / zoom,
-    );
-    const prev = view.convertToPdfPoint(
-      (prevClientX - rect.left) / zoom,
-      (prevClientY - rect.top) / zoom,
-    );
-    return { dx: cur.x - prev.x, dy: cur.y - prev.y };
+    const cur = clientToViewportCss(clientX, clientY, canvas, view);
+    const prev = clientToViewportCss(prevClientX, prevClientY, canvas, view);
+    if (!cur || !prev) return { dx: 0, dy: 0 };
+    const curPt = view.convertToPdfPoint(cur.x, cur.y);
+    const prevPt = view.convertToPdfPoint(prev.x, prev.y);
+    return { dx: curPt.x - prevPt.x, dy: curPt.y - prevPt.y };
   }
 
   private startViewPan(event: PointerEvent): void {

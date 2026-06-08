@@ -177,6 +177,58 @@ export const STAMP_RESIZE_HANDLES: readonly StampResizeHandle[] = [
   'se',
 ];
 
+function isCornerResizeHandle(handle: StampResizeHandle): boolean {
+  return handle.length === 2;
+}
+
+/** Corner drag — keep aspect ratio; opposite corner stays fixed. */
+function resizeStampBoxCorner(
+  box: PdfStampBox,
+  handle: StampResizeHandle,
+  dx: number,
+  dy: number,
+): PdfStampBox {
+  const { x, y, width, height } = box;
+  if (width <= 0 || height <= 0) {
+    return box;
+  }
+
+  let proposedW = width;
+  let proposedH = height;
+  if (handle.includes('e')) proposedW += dx;
+  if (handle.includes('w')) proposedW -= dx;
+  if (handle.includes('n')) proposedH += dy;
+  if (handle.includes('s')) proposedH -= dy;
+
+  const scaleW = proposedW / width;
+  const scaleH = proposedH / height;
+  const scale =
+    Math.abs(scaleW - 1) >= Math.abs(scaleH - 1) ? scaleW : scaleH;
+
+  let newWidth = width * scale;
+  let newHeight = height * scale;
+  let newX = x;
+  let newY = y;
+
+  if (handle.includes('w')) {
+    newX = x + width - newWidth;
+  }
+  if (handle.includes('s')) {
+    newY = y + height - newHeight;
+  }
+
+  if (newWidth < 0) {
+    newX += newWidth;
+    newWidth = -newWidth;
+  }
+  if (newHeight < 0) {
+    newY += newHeight;
+    newHeight = -newHeight;
+  }
+
+  return { x: newX, y: newY, width: newWidth, height: newHeight };
+}
+
 /** Resize in pdf-lib space (origin bottom-left). dx/dy from pointer delta. */
 export function resizeStampBox(
   box: PdfStampBox,
@@ -186,6 +238,10 @@ export function resizeStampBox(
   pageW = A4_WIDTH_PT,
   pageH = A4_HEIGHT_PT,
 ): PdfStampBox {
+  if (isCornerResizeHandle(handle)) {
+    return clampStampBox(resizeStampBoxCorner(box, handle, dx, dy), pageW, pageH);
+  }
+
   let { x, y, width, height } = box;
 
   if (handle.includes('e')) width += dx;

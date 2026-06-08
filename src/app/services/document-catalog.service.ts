@@ -190,6 +190,9 @@ export class DocumentCatalogService {
 
   /** Crew List v2 (template only; data fill TBD). */
   private async crewV2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+    const crew = isArrival
+      ? this.storage.activeCrewArrival()
+      : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,
       crewArr: { ...base.crewArr, isArrival },
@@ -199,7 +202,7 @@ export class DocumentCatalogService {
       },
     };
     return {
-      bytes: await this.crewListV2.buildPreviewBytes(data),
+      bytes: await this.crewListV2.buildPreviewBytes(data, crew),
       fileName: this.crewListV2.fileName(data),
     };
   }

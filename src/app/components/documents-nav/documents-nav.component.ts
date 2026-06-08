@@ -166,12 +166,13 @@ export class DocumentsNavComponent {
 
   private async openCrewListV2(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...this.appData(isArrival),
       crewArr: { ...this.appData(isArrival).crewArr, isArrival },
     };
     try {
-      const ok = await this.crewListV2Pdf.openPreview(data);
+      const ok = await this.crewListV2Pdf.openPreview(data, crew);
       if (!ok) {
         this.toast.showError('Allow pop-ups to open Crew List preview');
       }

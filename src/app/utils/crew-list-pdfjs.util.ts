@@ -16,15 +16,98 @@ export interface ViewportCssRect {
   height: number;
 }
 
+interface PdfTextGlyph {
+  char: string;
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+}
+
+type PdfJsTextItem = {
+  str?: string;
+  transform: number[];
+  width?: number;
+  height?: number;
+};
+
+function buildPdfTextGlyphs(items: PdfJsTextItem[]): PdfTextGlyph[] {
+  const glyphs: PdfTextGlyph[] = [];
+  for (const raw of items) {
+    if (!('str' in raw)) continue;
+    const item = raw as {
+      str: string;
+      transform: number[];
+      width?: number;
+      height?: number;
+    };
+    const str = item.str;
+    if (!str) continue;
+    const t = item.transform;
+    const fontW = Math.hypot(t[0], t[1]) || 10;
+    const fontH = Math.hypot(t[2], t[3]) || fontW;
+    const x0 = t[4];
+    const y0 = t[5];
+    const totalW = item.width ?? str.length * fontW * 0.55;
+    const charW = totalW / Math.max(1, str.length);
+    const yMin = y0 - fontH * 0.75;
+    const yMax = y0 + fontH * 0.25;
+    for (let i = 0; i < str.length; i++) {
+      glyphs.push({
+        char: str[i],
+        xMin: x0 + i * charW,
+        xMax: x0 + (i + 1) * charW,
+        yMin,
+        yMax,
+      });
+    }
+  }
+  return glyphs;
+}
+
+function hitPdfTextGlyph(glyphs: PdfTextGlyph[], px: number, py: number): string | null {
+  for (const g of glyphs) {
+    if (px >= g.xMin && px < g.xMax && py >= g.yMin && py <= g.yMax) {
+      return g.char;
+    }
+  }
+  return null;
+}
+
 export interface PdfJsPageView {
   width: number;
   height: number;
   pageWidthPt: number;
   pageHeightPt: number;
   convertToPdfPoint(cssX: number, cssY: number): CrewListPdfJsPoint;
+  /** Inverse of convertToPdfPoint — pdf-lib baseline anchor in viewport CSS px. */
+  convertToViewportCss(pdfX: number, pdfY: number): { x: number; y: number };
+  charAtPdfPoint(px: number, py: number): string | null;
   boxToViewportCss(box: PdfStampBox): ViewportCssRect;
   render(canvas: HTMLCanvasElement): Promise<void>;
   destroy(): void;
+}
+
+/** Map screen pointer to PDF.js viewport CSS space (matches canvas, accounts for zoom). */
+export function clientToViewportCss(
+  clientX: number,
+  clientY: number,
+  canvas: HTMLCanvasElement,
+  view: Pick<PdfJsPageView, 'width' | 'height'>,
+): { x: number; y: number } | null {
+  const rect = canvas.getBoundingClientRect();
+  const relX = clientX - rect.left;
+  const relY = clientY - rect.top;
+  if (relX < 0 || relY < 0 || relX > rect.width || relY > rect.height) {
+    return null;
+  }
+  if (rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
+  return {
+    x: (relX / rect.width) * view.width,
+    y: (relY / rect.height) * view.height,
+  };
 }
 
 /** @deprecated Use PdfJsPageView */
@@ -102,10 +185,14 @@ export async function openPdfJsPageView(
   const page = await doc.getPage(pageNumber);
   /** pdf-lib user space (media box) — independent of /Rotate display. */
   const mediaViewport = page.getViewport({ scale: 1, rotation: 0 });
+  /** Display viewport follows /Rotate; convertToPdfPoint returns media-box pt (pdf-lib space). */
   const viewport = page.getViewport({ scale: cssPxPerPt });
   const outputScale = window.devicePixelRatio || 1;
   const pageWidthPt = mediaViewport.width;
   const pageHeightPt = mediaViewport.height;
+  const textGlyphs = buildPdfTextGlyphs(
+    (await page.getTextContent()).items as PdfJsTextItem[],
+  );
 
   return {
     width: viewport.width,
@@ -116,6 +203,13 @@ export async function openPdfJsPageView(
       const [x, y] = viewport.convertToPdfPoint(cssX, cssY);
       return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
     },
+    convertToViewportCss(pdfX, pdfY) {
+      const [x, y] = viewport.convertToViewportPoint(pdfX, pdfY);
+      return { x, y };
+    },
+    charAtPdfPoint(px, py) {
+      return hitPdfTextGlyph(textGlyphs, px, py);
+    },
     boxToViewportCss(box) {
       return stampBoxToViewportCss(box, viewport);
     },
@@ -124,8 +218,8 @@ export async function openPdfJsPageView(
       if (!ctx) return;
       canvas.width = Math.floor(viewport.width * outputScale);
       canvas.height = Math.floor(viewport.height * outputScale);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
       const transform =
         outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
       await page.render({
@@ -144,30 +238,35 @@ export const openCrewListPdfJsPage = openPdfJsPageView;
 /** Map on-screen pointer movement to pdf-lib pt delta (handles /Rotate 90 etc.). */
 export function pdfJsPointerDeltaPdf(
   view: PdfJsPageView,
-  overlayRect: DOMRect,
+  canvas: HTMLCanvasElement,
   clientX: number,
   clientY: number,
   prevClientX: number,
   prevClientY: number,
 ): { dx: number; dy: number } {
-  const cur = view.convertToPdfPoint(clientX - overlayRect.left, clientY - overlayRect.top);
-  const prev = view.convertToPdfPoint(
-    prevClientX - overlayRect.left,
-    prevClientY - overlayRect.top,
-  );
-  return { dx: cur.x - prev.x, dy: cur.y - prev.y };
+  const cur = clientToViewportCss(clientX, clientY, canvas, view);
+  const prev = clientToViewportCss(prevClientX, prevClientY, canvas, view);
+  if (!cur || !prev) {
+    return { dx: 0, dy: 0 };
+  }
+  const curPt = view.convertToPdfPoint(cur.x, cur.y);
+  const prevPt = view.convertToPdfPoint(prev.x, prev.y);
+  return { dx: curPt.x - prevPt.x, dy: curPt.y - prevPt.y };
 }
 
 /** Map a small on-screen step to pdf-lib pt delta (arrow keys). */
 export function pdfJsScreenStepToPdf(
   view: PdfJsPageView,
-  overlayRect: DOMRect,
-  cssDx: number,
-  cssDy: number,
+  canvas: HTMLCanvasElement,
+  screenDx: number,
+  screenDy: number,
 ): { dx: number; dy: number } {
-  const ox = overlayRect.width / 2;
-  const oy = overlayRect.height / 2;
+  const rect = canvas.getBoundingClientRect();
+  const ox = view.width / 2;
+  const oy = view.height / 2;
+  const scaleX = view.width / rect.width;
+  const scaleY = view.height / rect.height;
   const p0 = view.convertToPdfPoint(ox, oy);
-  const p1 = view.convertToPdfPoint(ox + cssDx, oy + cssDy);
+  const p1 = view.convertToPdfPoint(ox + screenDx * scaleX, oy + screenDy * scaleY);
   return { dx: p1.x - p0.x, dy: p1.y - p0.y };
 }
