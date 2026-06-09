@@ -70,13 +70,29 @@ export interface CrewListVariantPlacement {
 }
 
 export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = {
-  type1Passport: 'CREW LIST - PASSPORT',
-  type1SeamansBook: "CREW LIST - SEAMAN'S BOOK",
-  type2Alger: 'CREW LIST - ALGER',
-  type3V2: 'CREW LIST - V2',
-  type4V3Sbk: 'Crew List v3 - SBK',
-  type5V3SbkP: 'Crew List v3 - SBK/P',
-  type6V3SbkP2: 'Crew List v3 - SBK/P 2',
+  type1Passport: 'IMO CREW LIST - P',
+  type1SeamansBook: 'IMO CREW LIST - SBK',
+  type2Alger: 'IMO CREW LIST - P SBK J T',
+  type3V2: 'CREW LIST - P E PI G',
+  type4V3Sbk: 'CREW LIST - SBK E',
+  type5V3SbkP: 'CREW LIST - SBK PI E P J',
+  type6V3SbkP2: 'CREW LIST - SBK PI E P PI E',
+};
+
+export interface CrewListTypeOptionLabel {
+  prefix: string;
+  abbrs: readonly string[];
+}
+
+/** Settings UI: text prefix + colored abbreviation chips. */
+export const CREW_LIST_TYPE_OPTION_LABELS: Record<CrewListTypeId, CrewListTypeOptionLabel> = {
+  type1Passport: { prefix: 'IMO CREW LIST - ', abbrs: ['P'] },
+  type1SeamansBook: { prefix: 'IMO CREW LIST - ', abbrs: ['SBK'] },
+  type2Alger: { prefix: 'IMO CREW LIST - ', abbrs: ['P', 'SBK', 'J', 'T'] },
+  type3V2: { prefix: 'CREW LIST - ', abbrs: ['P', 'E', 'PI', 'G'] },
+  type4V3Sbk: { prefix: 'CREW LIST - ', abbrs: ['SBK', 'E'] },
+  type5V3SbkP: { prefix: 'CREW LIST - ', abbrs: ['SBK', 'PI', 'E', 'P', 'J'] },
+  type6V3SbkP2: { prefix: 'CREW LIST - ', abbrs: ['SBK', 'PI', 'E', 'P', 'PI', 'E'] },
 };
 
 export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
@@ -88,6 +104,32 @@ export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
   'type5V3SbkP',
   'type6V3SbkP2',
 ];
+
+export interface CrewListFieldAbbreviation {
+  abbr: string;
+  label: string;
+  /** Gradient top (lighter face). */
+  top: string;
+  /** Gradient bottom (darker face). */
+  bottom: string;
+  /** Cube edge / shadow color. */
+  edge: string;
+}
+
+/** Legend shown in Crew list settings — field shorthand used in layout chat. */
+export const CREW_LIST_FIELD_ABBREVIATIONS: readonly CrewListFieldAbbreviation[] = [
+  { abbr: 'P', top: '#3b82f6', bottom: '#2563eb', edge: '#1d4ed8', label: 'PASSPORT' },
+  { abbr: 'SBK', top: '#fb923c', bottom: '#ea580c', edge: '#c2410c', label: "SEAMAN'S BOOK" },
+  { abbr: 'PI', top: '#22d3ee', bottom: '#0891b2', edge: '#0e7490', label: 'PLACE OF ISSUE' },
+  { abbr: 'G', top: '#f472b6', bottom: '#db2777', edge: '#be185d', label: 'GENDER' },
+  { abbr: 'E', top: '#f87171', bottom: '#dc2626', edge: '#b91c1c', label: 'EXPIRY' },
+  { abbr: 'J', top: '#4ade80', bottom: '#16a34a', edge: '#15803d', label: 'JOINED PORT AND DATE' },
+  { abbr: 'T', top: '#a78bfa', bottom: '#7c3aed', edge: '#6d28d9', label: 'TEMPERATURE' },
+];
+
+export const CREW_LIST_FIELD_ABBREVIATIONS_BY_ABBR: Readonly<
+  Record<string, CrewListFieldAbbreviation>
+> = Object.fromEntries(CREW_LIST_FIELD_ABBREVIATIONS.map((item) => [item.abbr, item]));
 
 /** Which variant is selected in Crew list settings (for editing). */
 export interface CrewListDocumentPrefs {
@@ -336,8 +378,8 @@ export function createEmptyShipAssetsMeta(): ShipAssetsMeta {
 
 export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   crewList: 'Crew list',
-  pax: 'Passenger list',
-  paxV2: 'Passenger list v2',
+  pax: 'PAX - P ID',
+  paxV2: 'PAX P ID E',
   portOfCall: 'Port of Call',
   mdh: 'MDH',
   crewVaccine: 'Crew Vaccine',

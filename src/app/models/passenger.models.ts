@@ -84,12 +84,39 @@ export interface PassengerMember {
 
 export type PaxListTypeId = 'pax' | 'paxV2';
 
+export interface PaxListTypeOptionLabel {
+  prefix: string;
+  abbrs: readonly string[];
+}
+
+/** Settings UI: text prefix + colored abbreviation chips. */
+export const PAX_LIST_TYPE_OPTION_LABELS: Record<PaxListTypeId, PaxListTypeOptionLabel> = {
+  pax: { prefix: 'PAX - ', abbrs: ['P', 'ID'] },
+  paxV2: { prefix: 'PAX ', abbrs: ['P', 'ID', 'E'] },
+};
+
 export const PAX_LIST_TYPE_LABELS: Record<PaxListTypeId, string> = {
-  pax: 'Passenger list',
-  paxV2: 'Passenger list v2',
+  pax: 'PAX - P ID',
+  paxV2: 'PAX P ID E',
 };
 
 export const PAX_LIST_TYPE_IDS: readonly PaxListTypeId[] = ['pax', 'paxV2'];
+
+/** PAX-only field shorthand (P and E reuse crew list colors via shared chip lookup). */
+export interface PaxFieldAbbreviation {
+  abbr: string;
+  label: string;
+  top: string;
+  bottom: string;
+  edge: string;
+}
+
+export const PAX_LIST_FIELD_ABBREVIATIONS: readonly PaxFieldAbbreviation[] = [
+  { abbr: 'ID', top: '#fbbf24', bottom: '#d97706', edge: '#b45309', label: 'ID CARD' },
+];
+
+export const PAX_LIST_FIELD_ABBREVIATIONS_BY_ABBR: Readonly<Record<string, PaxFieldAbbreviation>> =
+  Object.fromEntries(PAX_LIST_FIELD_ABBREVIATIONS.map((item) => [item.abbr, item]));
 
 export function normalizePaxListType(raw: unknown): PaxListTypeId {
   return raw === 'paxV2' ? 'paxV2' : 'pax';
