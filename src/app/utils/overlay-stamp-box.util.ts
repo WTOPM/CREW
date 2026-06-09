@@ -116,7 +116,7 @@ export function defaultStampBoxForDocument(
   _mdhPage: 'form' | 'attachment' = 'form',
 ): PdfStampBox {
   const { widthPt, heightPt } = pageDimensions();
-  if (documentId === 'portOfCall') {
+  if (documentId === 'portOfCall' || documentId === 'portsOfCall') {
     const poc = pocStampBoxPdfLib(widthPt, heightPt);
     const scale = 0.72;
     return {

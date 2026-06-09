@@ -20,6 +20,7 @@ import { PdfCrewListV3SbkPService } from './pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
 import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
+import { PdfPortOfCallTemplateService } from './pdf-port-of-call-template.service';
 import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
@@ -58,6 +59,7 @@ export class DocumentCatalogService {
   private readonly crewListV3SbkP = inject(PdfCrewListV3SbkPService);
   private readonly crewListV3SbkP2 = inject(PdfCrewListV3SbkP2Service);
   private readonly poc = inject(PdfPortOfCallService);
+  private readonly pocTemplate = inject(PdfPortOfCallTemplateService);
   private readonly sso = inject(PdfSso0108PortCallsService);
   private readonly shipStores = inject(PdfShipStoresService);
   private readonly crewEffect = inject(PdfCrewEffectService);
@@ -125,6 +127,11 @@ export class DocumentCatalogService {
         return this.paxV2Bytes(base, false);
       case 'portOfCall':
         return { bytes: await this.poc.buildFinalBytes(base), fileName: this.poc.fileName(base) };
+      case 'portsOfCall':
+        return {
+          bytes: await this.pocTemplate.buildFinalBytes(base),
+          fileName: this.pocTemplate.fileName(base),
+        };
       case 'sso0108':
         return { bytes: await this.sso.buildFinalBytes(base), fileName: this.sso.fileName(base) };
       case 'shipStores':

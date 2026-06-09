@@ -283,6 +283,7 @@ export type DocumentOverlayId =
   | 'pax'
   | 'paxV2'
   | 'portOfCall'
+  | 'portsOfCall'
   | 'mdh'
   | 'crewVaccine'
   | 'shipStores'
@@ -301,6 +302,7 @@ export interface DocumentOverlayPrefs {
   pax: DocumentStampOptions;
   paxV2: DocumentStampOptions;
   portOfCall: DocumentStampOptions;
+  portsOfCall: DocumentStampOptions;
   mdh: DocumentStampOptions;
   crewVaccine: DocumentStampOptions;
   shipStores: DocumentStampOptions;
@@ -354,6 +356,7 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     pax: { ...DEFAULT_STAMP_OPTS },
     paxV2: { ...DEFAULT_STAMP_OPTS },
     portOfCall: { ...DEFAULT_STAMP_OPTS },
+    portsOfCall: { ...DEFAULT_STAMP_OPTS },
     mdh: { ...DEFAULT_STAMP_OPTS },
     crewVaccine: { ...DEFAULT_STAMP_OPTS },
     shipStores: { ...DEFAULT_STAMP_OPTS },
@@ -381,6 +384,7 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   pax: 'PAX - P ID',
   paxV2: 'PAX P ID E',
   portOfCall: 'Port of Call',
+  portsOfCall: 'PORTS OF CALL',
   mdh: 'MDH',
   crewVaccine: 'Crew Vaccine',
   shipStores: 'Ship Stores',

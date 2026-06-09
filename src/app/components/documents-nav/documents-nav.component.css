@@ -394,6 +394,68 @@
   margin-bottom: 0.65rem;
 }
 
+.port-settings-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-self: stretch;
+  max-width: 100%;
+}
+
+.port-settings-doc-option {
+  position: relative;
+  display: flex;
+  margin: 0;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.port-settings-doc-option:hover {
+  background: #fff7ed;
+  border-color: #fdba74;
+}
+
+.port-settings-doc-option--selected {
+  background: #fff7ed;
+  border-color: #fb923c;
+  box-shadow: inset 3px 0 0 #ea580c;
+}
+
+.port-settings-doc-option input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.port-settings-doc-option__label {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  color: #334155;
+}
+
+.port-settings-doc-option--selected .port-settings-doc-option__label {
+  color: #9a3412;
+}
+
+.port-settings-doc-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
+}
+
 .poc-settings-bar {
   display: flex;
   flex-wrap: wrap;

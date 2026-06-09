@@ -5,6 +5,9 @@ import {
   CREW_IDENTITY_PASSPORT,
   CREW_IDENTITY_SEAMANS_BOOK,
   PortCallHistoryEntry,
+  PORT_SETTINGS_DOC_IDS,
+  PORT_SETTINGS_DOC_LABELS,
+  PortSettingsDocId,
   portCountry,
 } from '../../models/crew.models';
 import { crewListIdentityPdfFileName } from '../../utils/pdf-filename.util';
@@ -21,6 +24,7 @@ import { PdfCrewListV3SbkP2Service } from '../../services/pdf-crew-list-v3-sbk-p
 import { PdfMdhService } from '../../services/pdf-mdh.service';
 import { PdfPassengerListV2Service } from '../../services/pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
+import { PdfPortOfCallTemplateService } from '../../services/pdf-port-of-call-template.service';
 import { PdfCrewEffectService } from '../../services/pdf-crew-effect.service';
 import { PdfNilListService } from '../../services/pdf-nil-list.service';
 import { PdfShipMoneyService } from '../../services/pdf-ship-money.service';
@@ -85,6 +89,7 @@ export class DocumentsNavComponent {
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
+  private readonly portOfCallTemplatePdf = inject(PdfPortOfCallTemplateService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
   private readonly nilListPdf = inject(PdfNilListService);
@@ -123,7 +128,8 @@ export class DocumentsNavComponent {
 
   protected showPortOfCallSettings = signal(false);
   /** Which port document the unified Port Settings modal is editing. */
-  protected portSettingsDoc = signal<'portOfCall' | 'sso0108'>('portOfCall');
+  protected readonly portSettingsDocIds = PORT_SETTINGS_DOC_IDS;
+  protected portSettingsDoc = signal<PortSettingsDocId>('portOfCall');
   protected showCrewListSettings = signal(false);
   protected showPaxSettings = signal(false);
   protected showMdhSettings = signal(false);
@@ -304,6 +310,14 @@ export class DocumentsNavComponent {
     });
   }
 
+  protected openPortsOfCallPdf(): void {
+    void this.portOfCallTemplatePdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) this.toast.showError('Allow pop-ups to open PORTS OF CALL preview');
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'PORTS OF CALL preview failed');
+    });
+  }
+
   protected openSso0108PortCallsPdf(): void {
     void this.sso0108PortCallsPdf.openPreview(this.appData()).then((ok) => {
       if (!ok) this.toast.showError('Allow pop-ups to open SSO-0108 Port Calls preview');
@@ -321,10 +335,14 @@ export class DocumentsNavComponent {
     this.storage.finishFormSession();
   }
 
-  protected onPortSettingsDocChange(value: 'portOfCall' | 'sso0108'): void {
+  protected portSettingsDocLabel(id: PortSettingsDocId): string {
+    return PORT_SETTINGS_DOC_LABELS[id];
+  }
+
+  protected onPortSettingsDocChange(value: PortSettingsDocId): void {
     if (value === this.portSettingsDoc()) return;
     this.portSettingsDoc.set(value);
-    this.toast.showSelected(value === 'portOfCall' ? 'Port of Call' : 'SSO-0108 Port Calls');
+    this.toast.showSelected(PORT_SETTINGS_DOC_LABELS[value]);
   }
 
   protected onPdfPortCountChange(value: string | number): void {

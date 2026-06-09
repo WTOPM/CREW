@@ -64,6 +64,9 @@
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPortOfCallPdf()">
         Port of Call
       </button>
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openPortsOfCallPdf()">
+        PORTS OF CALL
+      </button>
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openSso0108PortCallsPdf()">
         SSO-0108 Port Calls
       </button>
@@ -463,32 +466,27 @@
       <div class="poc-modal-body">
       <fieldset class="choice-group poc-modal-choice">
         <legend class="choice-group__legend">Select document</legend>
-        <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="Select document">
-          <label class="choice-segmented__item">
-            <input
-              type="radio"
-              name="portSettingsDoc"
-              value="portOfCall"
-              [ngModel]="portSettingsDoc()"
-              (ngModelChange)="onPortSettingsDocChange($event)"
-            />
-            <span class="choice-segmented__text">Port of Call</span>
-          </label>
-          <label class="choice-segmented__item">
-            <input
-              type="radio"
-              name="portSettingsDoc"
-              value="sso0108"
-              [ngModel]="portSettingsDoc()"
-              (ngModelChange)="onPortSettingsDocChange($event)"
-            />
-            <span class="choice-segmented__text">SSO-0108 Port Calls</span>
-          </label>
+        <div class="port-settings-doc-list" role="radiogroup" aria-label="Select document">
+          @for (id of portSettingsDocIds; track id) {
+            <label
+              class="port-settings-doc-option"
+              [class.port-settings-doc-option--selected]="portSettingsDoc() === id"
+            >
+              <input
+                type="radio"
+                name="portSettingsDoc"
+                [value]="id"
+                [ngModel]="portSettingsDoc()"
+                (ngModelChange)="onPortSettingsDocChange($event)"
+              />
+              <span class="port-settings-doc-option__label">{{ portSettingsDocLabel(id) }}</span>
+            </label>
+          }
         </div>
       </fieldset>
 
       @if (portSettingsDoc() === 'sso0108') {
-      <p class="doc-hint">Uses ship ISSC settings and port-call rows from Port of Call settings.</p>
+      <p class="doc-hint">Uses ship ISSC settings and port-call rows below.</p>
       <app-document-stamp-options documentId="sso0108PortCalls" />
       } @else {
       <div class="poc-settings-bar">
@@ -514,7 +512,11 @@
           </div>
         </label>
       </div>
-      <app-port-of-call-settings />
+      @if (portSettingsDoc() === 'portOfCall') {
+        <app-port-of-call-settings />
+      } @else {
+        <app-document-stamp-options documentId="portsOfCall" />
+      }
       <div class="poc-history-wrap">
         <table class="poc-history-table">
           <colgroup>

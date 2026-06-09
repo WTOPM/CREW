@@ -16,6 +16,7 @@ import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
 import { PdfMdhService } from './pdf-mdh.service';
 import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
+import { PdfPortOfCallTemplateService } from './pdf-port-of-call-template.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
 import { PdfNilListService } from './pdf-nil-list.service';
 import { PdfShipMoneyService } from './pdf-ship-money.service';
@@ -41,6 +42,7 @@ export class DocumentOverlayPreviewService {
   private readonly crewListV3SbkPPdf = inject(PdfCrewListV3SbkPService);
   private readonly crewListV3SbkP2Pdf = inject(PdfCrewListV3SbkP2Service);
   private readonly pocPdf = inject(PdfPortOfCallService);
+  private readonly pocTemplatePdf = inject(PdfPortOfCallTemplateService);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
@@ -63,6 +65,8 @@ export class DocumentOverlayPreviewService {
         return this.buildPassengerListV2(data);
       case 'portOfCall':
         return this.pocPdf.buildPdfBytes(data);
+      case 'portsOfCall':
+        return this.pocTemplatePdf.build(data);
       case 'mdh':
         return this.mdhPdf.build(data);
       case 'crewVaccine':

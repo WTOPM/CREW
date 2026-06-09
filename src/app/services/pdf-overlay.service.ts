@@ -67,6 +67,7 @@ export class PdfOverlayService {
   async applyToPdfBytes(
     bytes: Uint8Array,
     options: DocumentStampOptions,
+    documentId: DocumentOverlayId = 'crewList',
     pageIndex = 0,
   ): Promise<Uint8Array> {
     if (!options.useStamp && !options.useSignature) {
@@ -76,12 +77,16 @@ export class PdfOverlayService {
     const { PDFDocument } = await import('pdf-lib');
     const pdf = await PDFDocument.load(bytes);
     const pages = pdf.getPages();
-    const page = pages[pageIndex] ?? pages[0];
-    if (!page) return bytes;
+    const targets =
+      documentId === 'portOfCall' || documentId === 'portsOfCall'
+        ? pages
+        : [pages[pageIndex] ?? pages[0]].filter(Boolean);
+    if (!targets.length) return bytes;
 
-    const rotation =
-      resolveOverlayRotation(options, false) + page.getRotation().angle;
-    await this.drawOverlayOnPage(pdf, page, options, 'crewList', false, rotation);
+    for (const page of targets) {
+      const rotation = resolveOverlayRotation(options, false) + page.getRotation().angle;
+      await this.drawOverlayOnPage(pdf, page, options, documentId, false, rotation);
+    }
     return pdf.save();
   }
 

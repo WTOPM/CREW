@@ -320,7 +320,9 @@ function allDocumentsUse(
   return (
     crewAll &&
     overlay.pax[field] &&
+    overlay.paxV2[field] &&
     overlay.portOfCall[field] &&
+    overlay.portsOfCall[field] &&
     overlay.mdh[field] &&
     overlay.shipStores[field] &&
     overlay.crewEffect[field] &&

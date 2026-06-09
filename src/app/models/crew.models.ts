@@ -268,6 +268,26 @@ export interface PortCallHistoryEntry {
   departureTime: string;
 }
 
+/** Which port document Port Settings is editing. */
+export type PortSettingsDocId = 'portOfCall' | 'portsOfCall' | 'sso0108';
+
+export const PORT_SETTINGS_DOC_LABELS: Record<PortSettingsDocId, string> = {
+  portOfCall: 'Port of Call',
+  portsOfCall: 'PORTS OF CALL',
+  sso0108: 'SSO-0108 Port Calls',
+};
+
+export const PORT_SETTINGS_DOC_IDS: readonly PortSettingsDocId[] = [
+  'portOfCall',
+  'portsOfCall',
+  'sso0108',
+];
+
+export function normalizePortSettingsDocId(raw: unknown): PortSettingsDocId {
+  if (raw === 'portsOfCall' || raw === 'sso0108') return raw;
+  return 'portOfCall';
+}
+
 export interface PortOfCallSettings {
   /** How many latest port calls to print in the PDF (pages of 11 rows each). */
   pdfRowCount: number;

@@ -24,6 +24,7 @@ export type PackageDocumentId =
   | 'paxArrivalV2'
   | 'paxDepartureV2'
   | 'portOfCall'
+  | 'portsOfCall'
   | 'sso0108'
   | 'shipStores'
   | 'crewEffect'
@@ -122,6 +123,7 @@ export const PACKAGE_CATALOG_ENTRIES: readonly PackageCatalogEntry[] = [
     label: directionLabel(DOCUMENT_OVERLAY_LABELS.paxV2, 'Departure'),
   },
   { id: 'portOfCall', label: DOCUMENT_OVERLAY_LABELS.portOfCall },
+  { id: 'portsOfCall', label: DOCUMENT_OVERLAY_LABELS.portsOfCall },
   { id: 'sso0108', label: DOCUMENT_OVERLAY_LABELS.sso0108PortCalls },
   { id: 'shipStores', label: DOCUMENT_OVERLAY_LABELS.shipStores },
   { id: 'crewEffect', label: DOCUMENT_OVERLAY_LABELS.crewEffect },
