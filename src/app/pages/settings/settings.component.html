@@ -55,8 +55,8 @@
 
       <div class="ship-block ship-block--issc">
         <h3 class="ship-block-title">ISSC - Ship Security Certificate</h3>
-        <div class="ship-block-grid ship-block-grid--3">
-          <label class="ship-field ship-field--wide">
+        <div class="ship-block-grid ship-block-grid--issc-row">
+          <label class="ship-field ship-field--sso">
             <span>Ship Security Officer</span>
             <input
               [ngModel]="ship().shipSecurityOfficer"
@@ -64,35 +64,37 @@
               placeholder="Auto: SSO rank or Ch.Off if empty"
             />
           </label>
-          <label class="ship-field">
+          <label class="ship-field ship-field--date">
             <span>ISSC issued on</span>
             <app-date-picker
               [value]="ship().isscIssueDate"
               (valueChange)="onShipChange('isscIssueDate', $event)"
             />
           </label>
-          <label class="ship-field">
+          <label class="ship-field ship-field--date">
             <span>ISSC expiry</span>
             <app-date-picker
               [value]="ship().isscExpiryDate"
               (valueChange)="onShipChange('isscExpiryDate', $event)"
             />
           </label>
-          <label class="ship-field">
+          <label class="ship-field ship-field--rso">
             <span>ISSC issued by (RSO)</span>
             <input
               [ngModel]="ship().isscIssuedByRso"
               (ngModelChange)="onShipChange('isscIssuedByRso', $event)"
             />
           </label>
-          <label class="ship-field">
-            <span>Present ship MARSEC level</span>
-            <input
+          <label class="ship-field ship-field--marsec">
+            <span>MARSEC level</span>
+            <select
               [ngModel]="ship().presentMarsecLevel"
               (ngModelChange)="onShipChange('presentMarsecLevel', $event)"
-              maxlength="1"
-              placeholder="1"
-            />
+            >
+              @for (lvl of marsecLevelOptions; track lvl) {
+                <option [value]="lvl">{{ lvl }}</option>
+              }
+            </select>
           </label>
         </div>
       </div>

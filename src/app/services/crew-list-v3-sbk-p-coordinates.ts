@@ -64,22 +64,22 @@ export const CREW_LIST_V3_SBK_P_FOOTER = {
   masterName: { x: 466, y: 610 },
 } satisfies Record<string, CrewListV3SbkPTextPlacement>;
 
-/** Row No. — one (x, y) per slot (14 columns; X −1 pt from measured). */
+/** Row No. — one (x, y) per slot (14 columns). */
 export const CREW_LIST_V3_SBK_P_ROW_NO = [
-  { x: 170, y: 57 },
-  { x: 188, y: 57 },
-  { x: 207, y: 57 },
-  { x: 227, y: 57 },
-  { x: 246, y: 57 },
-  { x: 265, y: 57 },
-  { x: 285, y: 57 },
-  { x: 303, y: 57 },
-  { x: 323, y: 57 },
-  { x: 341, y: 57 },
-  { x: 361, y: 57 },
-  { x: 380, y: 57 },
-  { x: 399, y: 57 },
-  { x: 419, y: 57 },
+  { x: 172, y: 57 },
+  { x: 190, y: 57 },
+  { x: 209, y: 57 },
+  { x: 229, y: 57 },
+  { x: 248, y: 57 },
+  { x: 267, y: 57 },
+  { x: 287, y: 57 },
+  { x: 305, y: 57 },
+  { x: 325, y: 57 },
+  { x: 343, y: 57 },
+  { x: 363, y: 57 },
+  { x: 382, y: 57 },
+  { x: 401, y: 57 },
+  { x: 421, y: 57 },
 ] as const;
 
 export const CREW_LIST_V3_SBK_P_MAX_ROWS = CREW_LIST_V3_SBK_P_ROW_NO.length;
@@ -98,25 +98,58 @@ export const CREW_LIST_V3_SBK_P_COL_Y = {
   joiningDate: 732,
 } as const;
 
-/** Wrap fields — extent along column (next field Y − current Y). */
-export const CREW_LIST_V3_SBK_P_NAME_FIELD_MAX_PT =
-  CREW_LIST_V3_SBK_P_COL_Y.rank - CREW_LIST_V3_SBK_P_COL_Y.name - CREW_LIST_V3_SBK_P_FIELD_GAP_MARGIN;
-export const CREW_LIST_V3_SBK_P_SBOOK_PLACE_FIELD_MAX_PT =
-  CREW_LIST_V3_SBK_P_COL_Y.sbookExpiry -
-  CREW_LIST_V3_SBK_P_COL_Y.sbookPlaceOfIssue -
-  CREW_LIST_V3_SBK_P_FIELD_GAP_MARGIN;
-
 export type CrewListV3SbkPColField = keyof typeof CREW_LIST_V3_SBK_P_COL_Y;
+
+/** Body field order along each crew column (top → bottom). */
+export const CREW_LIST_V3_SBK_P_COL_FIELDS: readonly CrewListV3SbkPColField[] = [
+  'name',
+  'rank',
+  'nationality',
+  'dateOfBirth',
+  'sbookNo',
+  'sbookPlaceOfIssue',
+  'sbookExpiry',
+  'passport',
+  'joiningPort',
+  'joiningDate',
+];
+
+/** Max text extent along the column for any body cell (next field Y − current Y). */
+export function crewListV3SbkPFieldMaxPt(field: CrewListV3SbkPColField): number {
+  const idx = CREW_LIST_V3_SBK_P_COL_FIELDS.indexOf(field);
+  const y0 = CREW_LIST_V3_SBK_P_COL_Y[field];
+  if (idx >= 0 && idx < CREW_LIST_V3_SBK_P_COL_FIELDS.length - 1) {
+    const y1 = CREW_LIST_V3_SBK_P_COL_Y[CREW_LIST_V3_SBK_P_COL_FIELDS[idx + 1]];
+    return y1 - y0 - CREW_LIST_V3_SBK_P_FIELD_GAP_MARGIN;
+  }
+  return CREW_LIST_V3_SBK_P_PAGE.h - y0 - CREW_LIST_V3_SBK_P_FIELD_GAP_MARGIN - 12;
+}
+
+/** Landscape — shift every crew column (all fields + row No.) up 1 pt. */
+const CREW_LIST_V3_SBK_P_COL_X_OFFSET = -1;
+
+/** Extra per-column X shift (0-based index). */
+const CREW_LIST_V3_SBK_P_ROW_X_EXTRA_OFFSET: Partial<Record<number, number>> = {
+  13: -1, // row 14
+};
 
 export function crewListV3SbkPColX(colIndex: number): number {
   return crewListV3SbkPRowNoPlacement(colIndex).x;
 }
 
 export function crewListV3SbkPRowNoPlacement(rowIndex: number): { x: number; y: number } {
+  let x: number;
+  let y: number;
   if (rowIndex < CREW_LIST_V3_SBK_P_ROW_NO.length) {
-    return CREW_LIST_V3_SBK_P_ROW_NO[rowIndex];
+    ({ x, y } = CREW_LIST_V3_SBK_P_ROW_NO[rowIndex]);
+  } else {
+    const last = CREW_LIST_V3_SBK_P_ROW_NO[CREW_LIST_V3_SBK_P_ROW_NO.length - 1];
+    const step = CREW_LIST_V3_SBK_P_ROW_NO[1].x - CREW_LIST_V3_SBK_P_ROW_NO[0].x;
+    x = last.x + step * (rowIndex - CREW_LIST_V3_SBK_P_ROW_NO.length + 1);
+    y = last.y;
   }
-  const last = CREW_LIST_V3_SBK_P_ROW_NO[CREW_LIST_V3_SBK_P_ROW_NO.length - 1];
-  const step = CREW_LIST_V3_SBK_P_ROW_NO[1].x - CREW_LIST_V3_SBK_P_ROW_NO[0].x;
-  return { x: last.x + step * (rowIndex - CREW_LIST_V3_SBK_P_ROW_NO.length + 1), y: last.y };
+  return {
+    x: x + CREW_LIST_V3_SBK_P_COL_X_OFFSET + (CREW_LIST_V3_SBK_P_ROW_X_EXTRA_OFFSET[rowIndex] ?? 0),
+    y,
+  };
 }

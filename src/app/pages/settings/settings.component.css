@@ -117,6 +117,46 @@
   grid-template-columns: minmax(7rem, 0.75fr) minmax(0, 1.6fr) minmax(10rem, 1fr);
 }
 
+.ship-block-grid--issc-row {
+  grid-template-columns: minmax(0, 1.15fr) 10rem 10rem minmax(3.25rem, 0.4fr) 3.75rem;
+  align-items: end;
+}
+
+.ship-block-grid--issc-row .ship-field--date {
+  max-width: 10rem;
+}
+
+.ship-block-grid--issc-row .ship-field--marsec {
+  max-width: 3.75rem;
+}
+
+.ship-block-grid--issc-row .ship-field--date ::ng-deep .date-picker-row {
+  width: 100%;
+}
+
+.ship-block-grid--issc-row .ship-field--date ::ng-deep .date-picker-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.ship-block-grid--issc-row .ship-field--marsec select {
+  padding-left: 0.45rem;
+  padding-right: 0.35rem;
+  text-align: center;
+}
+
+@media (max-width: 960px) {
+  .ship-block-grid--issc-row {
+    grid-template-columns: minmax(7rem, 0.75fr) minmax(0, 1.6fr) minmax(10rem, 1fr);
+  }
+
+  .ship-block-grid--issc-row .ship-field--date,
+  .ship-block-grid--issc-row .ship-field--marsec {
+    max-width: none;
+  }
+}
+
 .ship-block-grid--2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

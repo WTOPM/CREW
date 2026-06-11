@@ -98,19 +98,32 @@ export const CREW_LIST_V3_SBK_P2_COL_Y = {
   passportExpiry: 732,
 } as const;
 
-/** Wrap fields — extent along column (next field Y − current Y). */
-export const CREW_LIST_V3_SBK_P2_NAME_FIELD_MAX_PT =
-  CREW_LIST_V3_SBK_P2_COL_Y.rank - CREW_LIST_V3_SBK_P2_COL_Y.name - CREW_LIST_V3_SBK_P2_FIELD_GAP_MARGIN;
-export const CREW_LIST_V3_SBK_P2_SBOOK_PLACE_FIELD_MAX_PT =
-  CREW_LIST_V3_SBK_P2_COL_Y.sbookExpiry -
-  CREW_LIST_V3_SBK_P2_COL_Y.sbookPlaceOfIssue -
-  CREW_LIST_V3_SBK_P2_FIELD_GAP_MARGIN;
-export const CREW_LIST_V3_SBK_P2_PASSPORT_PLACE_FIELD_MAX_PT =
-  CREW_LIST_V3_SBK_P2_COL_Y.passportExpiry -
-  CREW_LIST_V3_SBK_P2_COL_Y.passportPlaceOfIssue -
-  CREW_LIST_V3_SBK_P2_FIELD_GAP_MARGIN;
-
 export type CrewListV3SbkP2ColField = keyof typeof CREW_LIST_V3_SBK_P2_COL_Y;
+
+/** Body field order along each crew column (top → bottom). */
+export const CREW_LIST_V3_SBK_P2_COL_FIELDS: readonly CrewListV3SbkP2ColField[] = [
+  'name',
+  'rank',
+  'nationality',
+  'dateOfBirth',
+  'sbookNo',
+  'sbookPlaceOfIssue',
+  'sbookExpiry',
+  'passport',
+  'passportPlaceOfIssue',
+  'passportExpiry',
+];
+
+/** Max text extent along the column for any body cell (next field Y − current Y). */
+export function crewListV3SbkP2FieldMaxPt(field: CrewListV3SbkP2ColField): number {
+  const idx = CREW_LIST_V3_SBK_P2_COL_FIELDS.indexOf(field);
+  const y0 = CREW_LIST_V3_SBK_P2_COL_Y[field];
+  if (idx >= 0 && idx < CREW_LIST_V3_SBK_P2_COL_FIELDS.length - 1) {
+    const y1 = CREW_LIST_V3_SBK_P2_COL_Y[CREW_LIST_V3_SBK_P2_COL_FIELDS[idx + 1]];
+    return y1 - y0 - CREW_LIST_V3_SBK_P2_FIELD_GAP_MARGIN;
+  }
+  return CREW_LIST_V3_SBK_P2_PAGE.h - y0 - CREW_LIST_V3_SBK_P2_FIELD_GAP_MARGIN - 12;
+}
 
 export function crewListV3SbkP2ColX(colIndex: number): number {
   return crewListV3SbkP2RowNoPlacement(colIndex).x;

@@ -275,7 +275,7 @@ export class PdfCrewListV2Service {
       );
       this.drawRowCell(
         page,
-        member.passportPlaceOfIssue.trim(),
+        member.passportPlaceOfIssue.trim().toUpperCase(),
         CREW_LIST_V2_ROW_COLS.passportPlaceOfIssue,
         y,
         rowOpts,
@@ -311,8 +311,17 @@ export class PdfCrewListV2Service {
     lines.forEach((line, index) => {
       const lineY = y - index * CREW_LIST_V2_ROW_LINE_HEIGHT;
       const size = this.fitFontSize(opts.font, line, col.maxWidth, opts.size);
+      const textWidth = opts.font.widthOfTextAtSize(line, size);
+      const cellLeft = col.x;
+      const cellRight = col.drawRight ?? col.x + col.maxWidth;
+      let drawX = col.x;
+      if (col.align === 'center' && col.drawRight != null) {
+        drawX = cellLeft + (cellRight - cellLeft - textWidth) / 2;
+      } else if (col.align === 'right' && col.drawRight != null) {
+        drawX = cellRight - textWidth;
+      }
       page.drawText(line, {
-        x: col.x,
+        x: drawX,
         y: lineY,
         size,
         font: opts.font,
@@ -324,7 +333,7 @@ export class PdfCrewListV2Service {
   /** Shrink only when needed — full text, no ellipsis (dates, passport no.). */
   private fitFontSize(font: PDFFont, text: string, maxWidth: number, baseSize: number): number {
     let size = baseSize;
-    while (size > 5.5 && font.widthOfTextAtSize(text, size) > maxWidth) {
+    while (size > 4.75 && font.widthOfTextAtSize(text, size) > maxWidth) {
       size -= 0.25;
     }
     return size;
@@ -359,17 +368,17 @@ export class PdfCrewListV2Service {
       if (line) {
         lines.push(line);
         line = word;
-      } else {
+      } else if (truncate) {
         lines.push(this.truncateToWidth(font, word, size, maxWidth));
+        line = '';
+      } else {
+        lines.push(word);
         line = '';
       }
       if (lines.length === maxLines - 1) {
         const restWords = line ? [line, ...words.slice(wi + 1)] : words.slice(wi + 1);
-        const rest = restWords.join(' ');
-        lines.push(
-          truncate ? this.truncateToWidth(font, rest, size, maxWidth) : rest,
-        );
-        return lines;
+        lines.push(restWords.join(' '));
+        return lines.slice(0, maxLines);
       }
     }
     if (line) {

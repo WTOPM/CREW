@@ -89,18 +89,29 @@ export interface PaxListTypeOptionLabel {
   abbrs: readonly string[];
 }
 
+export const PAX_LIST_TYPE_IDS: readonly PaxListTypeId[] = ['pax', 'paxV2'];
+
+/** Base name without order prefix. */
+export const PAX_LIST_TYPE_NAMES: Record<PaxListTypeId, string> = {
+  pax: 'PAX - P ID',
+  paxV2: 'PAX P ID E',
+};
+
+export function paxListTypeOrderNo(id: PaxListTypeId): string {
+  const index = PAX_LIST_TYPE_IDS.indexOf(id);
+  return String(index + 1).padStart(2, '0');
+}
+
+/** Full label with order prefix (e.g. «01 - PAX - P ID»). */
+export const PAX_LIST_TYPE_LABELS: Record<PaxListTypeId, string> = Object.fromEntries(
+  PAX_LIST_TYPE_IDS.map((id) => [id, `${paxListTypeOrderNo(id)} - ${PAX_LIST_TYPE_NAMES[id]}`]),
+) as Record<PaxListTypeId, string>;
+
 /** Settings UI: text prefix + colored abbreviation chips. */
 export const PAX_LIST_TYPE_OPTION_LABELS: Record<PaxListTypeId, PaxListTypeOptionLabel> = {
   pax: { prefix: 'PAX - ', abbrs: ['P', 'ID'] },
   paxV2: { prefix: 'PAX ', abbrs: ['P', 'ID', 'E'] },
 };
-
-export const PAX_LIST_TYPE_LABELS: Record<PaxListTypeId, string> = {
-  pax: 'PAX - P ID',
-  paxV2: 'PAX P ID E',
-};
-
-export const PAX_LIST_TYPE_IDS: readonly PaxListTypeId[] = ['pax', 'paxV2'];
 
 /** PAX-only field shorthand (P and E reuse crew list colors via shared chip lookup). */
 export interface PaxFieldAbbreviation {

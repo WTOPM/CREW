@@ -287,10 +287,7 @@ export class PdfCrewListV3SbkService {
     );
     lines.forEach((line, index) => {
       const lineY = y - index * CREW_LIST_V3_SBK_ROW_LINE_HEIGHT;
-      const size =
-        !truncate && col.maxLines <= 1
-          ? this.fitFontSize(opts.font, line, col.maxWidth, opts.size)
-          : opts.size;
+      const size = this.fitFontSize(opts.font, line, col.maxWidth, opts.size);
       page.drawText(line, {
         x: col.x,
         y: lineY,
@@ -304,7 +301,7 @@ export class PdfCrewListV3SbkService {
   /** Shrink only when needed — full date/number, no ellipsis. */
   private fitFontSize(font: PDFFont, text: string, maxWidth: number, baseSize: number): number {
     let size = baseSize;
-    while (size > 5.5 && font.widthOfTextAtSize(text, size) > maxWidth) {
+    while (size > 4.75 && font.widthOfTextAtSize(text, size) > maxWidth) {
       size -= 0.25;
     }
     return size;
@@ -340,7 +337,7 @@ export class PdfCrewListV3SbkService {
         lines.push(line);
         line = word;
       } else {
-        lines.push(this.truncateToWidth(font, word, size, maxWidth));
+        lines.push(truncate ? this.truncateToWidth(font, word, size, maxWidth) : word);
         line = '';
       }
       if (lines.length === maxLines - 1) {

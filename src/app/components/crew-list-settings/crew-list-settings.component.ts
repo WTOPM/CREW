@@ -4,6 +4,7 @@ import {
   CREW_LIST_TYPE_IDS,
   CREW_LIST_TYPE_LABELS,
   CREW_LIST_TYPE_OPTION_LABELS,
+  crewListTypeOrderNo,
   CrewListTypeId,
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
@@ -31,6 +32,7 @@ import { DocumentExportSettingsComponent } from '../document-export-settings/doc
               (ngModelChange)="onListTypeChange($event)"
             />
             <span class="crew-list-type-option__label">
+              <span class="crew-list-type-option__order">{{ typeOrder(id) }} -</span>
               <span class="crew-list-type-option__prefix">{{ typeOption(id).prefix }}</span>
               <span class="crew-list-type-option__chips">
                 @for (abbr of typeOption(id).abbrs; track $index) {
@@ -105,6 +107,16 @@ import { DocumentExportSettingsComponent } from '../document-export-settings/doc
       color: #1e3a8a;
     }
 
+    .crew-list-type-option__order {
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      color: #64748b;
+    }
+
+    .crew-list-type-option--selected .crew-list-type-option__order {
+      color: #3b82f6;
+    }
+
     .crew-list-type-option__prefix {
       white-space: nowrap;
     }
@@ -134,6 +146,10 @@ export class CrewListSettingsComponent {
 
   protected typeOption(id: CrewListTypeId) {
     return CREW_LIST_TYPE_OPTION_LABELS[id];
+  }
+
+  protected typeOrder(id: CrewListTypeId): string {
+    return crewListTypeOrderNo(id);
   }
 
   protected onListTypeChange(value: CrewListTypeId): void {

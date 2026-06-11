@@ -1,4 +1,4 @@
-/** SSO-0108 Port Calls — pdf-lib coords (baselines from dump-pdf-text on filled sample). */
+/** SSO-0108 Port Calls — pdf-lib coords (measured on public/sso-0108-port-calls-empty.pdf). */
 
 export const SSO0108_PAGE_HEIGHT_PT = 841;
 
@@ -11,54 +11,24 @@ export interface Sso0108TextPlacement {
   maxWidth?: number;
 }
 
-function pdfLibY(baselineY: number): number {
-  return SSO0108_PAGE_HEIGHT_PT - baselineY;
-}
-
+/** Header value baselines — pdf-lib coords (user-measured on 123.pdf). */
 export const SSO0108_HEADER = {
-  /** +2 pt up vs template baseline 101 — avoids covering row line below. */
-  vesselName: { x: 169, y: pdfLibY(99), fontSize: SSO0108_FONT, maxWidth: 140 },
-  shipSecurityOfficer: { x: 369, y: pdfLibY(101), fontSize: SSO0108_FONT, maxWidth: 200 },
-  isscIssueDate: { x: 96, y: pdfLibY(126), fontSize: SSO0108_FONT, maxWidth: 90 },
-  isscExpiryDate: { x: 224, y: pdfLibY(126), fontSize: SSO0108_FONT, maxWidth: 90 },
-  isscIssuedByRso: { x: 329, y: pdfLibY(126), fontSize: SSO0108_FONT, maxWidth: 90 },
-  /** Full “1 (one) 1” line — replaces template “1 (one)” + trailing digit. */
-  presentMarsecLevel: { x: 472, y: pdfLibY(126), fontSize: SSO0108_FONT, maxWidth: 72 },
+  vesselName: { x: 140, y: 745, fontSize: SSO0108_FONT, maxWidth: 140 },
+  shipSecurityOfficer: { x: 365, y: 741, fontSize: SSO0108_FONT, maxWidth: 200 },
+  isscIssueDate: { x: 91, y: 716, fontSize: SSO0108_FONT, maxWidth: 90 },
+  isscExpiryDate: { x: 226, y: 716, fontSize: SSO0108_FONT, maxWidth: 90 },
+  isscIssuedByRso: { x: 361, y: 716, fontSize: SSO0108_FONT, maxWidth: 90 },
+  presentMarsecLevel: { x: 487, y: 716, fontSize: SSO0108_FONT, maxWidth: 72 },
 } as const satisfies Record<string, Sso0108TextPlacement>;
 
 export const SSO0108_TABLE_COL = {
   port: 75,
   arrival: 181,
   departure: 258,
-  /** Whited-out for every row, redrawn only for rows with port data. */
   marsecPort: 341,
   marsecShip: 394,
   measures: 435,
 } as const;
-
-/**
- * Template MARSEC "1" geometry (measured from the empty template via pdfjs).
- * The template pre-prints "1" in both MARSEC columns of every ruled row; we
- * white those out and redraw only for filled rows. These rows step uniformly
- * (≈16.6 pt), unlike the slightly drifting text-row model above, so the
- * whiteout boxes land exactly on the template digits without leaving remnants.
- */
-export const SSO0108_MARSEC_TEMPLATE = {
-  firstBaselineTopY: 187.1,
-  rowStep: 16.6,
-  rowCount: 28,
-  /** Glyph box used for the whiteout rectangle (pdf-lib bottom-left origin). */
-  whiteoutWidth: 10,
-  whiteoutHeight: 14,
-  whiteoutDescent: 3,
-} as const;
-
-/** pdf-lib Y (bottom-left) of a template MARSEC row baseline. */
-export function sso0108MarsecBaselinePdfY(rowIndex: number): number {
-  const topY =
-    SSO0108_MARSEC_TEMPLATE.firstBaselineTopY + rowIndex * SSO0108_MARSEC_TEMPLATE.rowStep;
-  return SSO0108_PAGE_HEIGHT_PT - topY;
-}
 
 /** First data row baseline (top-down Y); rows alternate +17 / +16 pt. */
 export const SSO0108_FIRST_ROW_Y = 187;

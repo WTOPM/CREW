@@ -5,6 +5,7 @@ import {
   PAX_LIST_TYPE_IDS,
   PAX_LIST_TYPE_LABELS,
   PAX_LIST_TYPE_OPTION_LABELS,
+  paxListTypeOrderNo,
   PaxListTypeId,
 } from '../../models/passenger.models';
 import { StorageService } from '../../services/storage.service';
@@ -32,6 +33,7 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
               (ngModelChange)="onListTypeChange($event)"
             />
             <span class="pax-list-type-option__label">
+              <span class="pax-list-type-option__order">{{ typeOrder(id) }} -</span>
               <span class="pax-list-type-option__prefix">{{ typeOption(id).prefix }}</span>
               <span class="pax-list-type-option__chips">
                 @for (abbr of typeOption(id).abbrs; track $index) {
@@ -106,6 +108,16 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
       color: #14532d;
     }
 
+    .pax-list-type-option__order {
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      color: #64748b;
+    }
+
+    .pax-list-type-option--selected .pax-list-type-option__order {
+      color: #16a34a;
+    }
+
     .pax-list-type-option__prefix {
       white-space: nowrap;
     }
@@ -137,6 +149,10 @@ export class PassengerListSettingsComponent {
 
   protected typeOption(id: PaxListTypeId) {
     return PAX_LIST_TYPE_OPTION_LABELS[id];
+  }
+
+  protected typeOrder(id: PaxListTypeId): string {
+    return paxListTypeOrderNo(id);
   }
 
   protected onListTypeChange(value: PaxListTypeId): void {

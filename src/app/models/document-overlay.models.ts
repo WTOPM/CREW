@@ -69,7 +69,19 @@ export interface CrewListVariantPlacement {
   signatureBox?: PdfStampBox;
 }
 
-export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = {
+/** Display order for crew list variants (settings, packages, toasts). */
+export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
+  'type1Passport',
+  'type1SeamansBook',
+  'type2Alger',
+  'type3V2',
+  'type4V3Sbk',
+  'type5V3SbkP',
+  'type6V3SbkP2',
+];
+
+/** Base name without order prefix (e.g. «IMO CREW LIST - P»). */
+export const CREW_LIST_TYPE_NAMES: Record<CrewListTypeId, string> = {
   type1Passport: 'IMO CREW LIST - P',
   type1SeamansBook: 'IMO CREW LIST - SBK',
   type2Alger: 'IMO CREW LIST - P SBK J T',
@@ -78,6 +90,16 @@ export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = {
   type5V3SbkP: 'CREW LIST - SBK PI E P J',
   type6V3SbkP2: 'CREW LIST - SBK PI E P PI E',
 };
+
+export function crewListTypeOrderNo(type: CrewListTypeId): string {
+  const index = CREW_LIST_TYPE_IDS.indexOf(type);
+  return String(index + 1).padStart(2, '0');
+}
+
+/** Full label with order prefix (e.g. «01 - IMO CREW LIST - P»). */
+export const CREW_LIST_TYPE_LABELS: Record<CrewListTypeId, string> = Object.fromEntries(
+  CREW_LIST_TYPE_IDS.map((id) => [id, `${crewListTypeOrderNo(id)} - ${CREW_LIST_TYPE_NAMES[id]}`]),
+) as Record<CrewListTypeId, string>;
 
 export interface CrewListTypeOptionLabel {
   prefix: string;
@@ -94,16 +116,6 @@ export const CREW_LIST_TYPE_OPTION_LABELS: Record<CrewListTypeId, CrewListTypeOp
   type5V3SbkP: { prefix: 'CREW LIST - ', abbrs: ['SBK', 'PI', 'E', 'P', 'J'] },
   type6V3SbkP2: { prefix: 'CREW LIST - ', abbrs: ['SBK', 'PI', 'E', 'P', 'PI', 'E'] },
 };
-
-export const CREW_LIST_TYPE_IDS: readonly CrewListTypeId[] = [
-  'type1Passport',
-  'type1SeamansBook',
-  'type2Alger',
-  'type3V2',
-  'type4V3Sbk',
-  'type5V3SbkP',
-  'type6V3SbkP2',
-];
 
 export interface CrewListFieldAbbreviation {
   abbr: string;
@@ -381,10 +393,10 @@ export function createEmptyShipAssetsMeta(): ShipAssetsMeta {
 
 export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   crewList: 'Crew list',
-  pax: 'PAX - P ID',
-  paxV2: 'PAX P ID E',
-  portOfCall: 'Port of Call',
-  portsOfCall: 'Port of Call - Security',
+  pax: '01 - PAX - P ID',
+  paxV2: '02 - PAX P ID E',
+  portOfCall: '01 - Port of Call',
+  portsOfCall: '02 - Port of Call - Security',
   mdh: 'MDH',
   crewVaccine: 'Crew Vaccine',
   shipStores: 'Ship Stores',
@@ -394,5 +406,5 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   cashAdvance: 'Cash Advance',
   crewMoney: 'Crew Money',
   narcoticList: 'Narcotic List',
-  sso0108PortCalls: 'Port of Call - SSO-0108',
+  sso0108PortCalls: '03 - Port of Call - SSO-0108',
 };

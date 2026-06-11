@@ -62,13 +62,13 @@
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPortOfCallPdf()">
-        Port of Call
+        {{ portSettingsDocLabel('portOfCall') }}
       </button>
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPortsOfCallPdf()">
-        Port of Call - Security
+        {{ portSettingsDocLabel('portsOfCall') }}
       </button>
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openSso0108PortCallsPdf()">
-        Port of Call - SSO-0108
+        {{ portSettingsDocLabel('sso0108') }}
       </button>
       <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openPortOfCallSettings()">
         <svg class="nav-doc-settings-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">

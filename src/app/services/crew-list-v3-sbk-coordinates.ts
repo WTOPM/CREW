@@ -41,7 +41,7 @@ export const CREW_LIST_V3_SBK_FOOTER = {
 export const CREW_LIST_V3_SBK_ROW_NO_X = 64;
 
 export const CREW_LIST_V3_SBK_ROW_Y = [
-  682, 663, 643, 623, 605, 585, 566, 547, 528, 508, 488, 469, 450, 431,
+  681, 662, 642, 622, 604, 584, 565, 546, 527, 507, 487, 468, 449, 430,
 ] as const;
 
 /** Fallback step for rows beyond CREW_LIST_V3_SBK_ROW_Y (≈19 pt). */
@@ -54,14 +54,16 @@ export interface CrewListV3SbkRowCol {
   truncate?: boolean;
 }
 
+const CREW_LIST_V3_SBK_COL_GAP = 3;
+
 export const CREW_LIST_V3_SBK_ROW_COLS = {
-  name: { x: 76, maxWidth: 85, maxLines: 2 },
-  rank: { x: 165, maxWidth: 45, maxLines: 2 },
-  nationality: { x: 214, maxWidth: 46, maxLines: 2 },
-  dateOfBirth: { x: 264, maxWidth: 43, maxLines: 1, truncate: false },
-  placeOfBirth: { x: 307, maxWidth: 80, maxLines: 2 },
-  sbookNo: { x: 391, maxWidth: 48, maxLines: 1, truncate: false },
-  sbookExpiry: { x: 443, maxWidth: 100, maxLines: 1, truncate: false },
+  name: { x: 76, maxWidth: 165 - 76 - CREW_LIST_V3_SBK_COL_GAP, maxLines: 2, truncate: false },
+  rank: { x: 167, maxWidth: 214 - 167 - CREW_LIST_V3_SBK_COL_GAP, maxLines: 2, truncate: false },
+  nationality: { x: 214, maxWidth: 264 - 214 - CREW_LIST_V3_SBK_COL_GAP, maxLines: 2, truncate: false },
+  dateOfBirth: { x: 264, maxWidth: 307 - 264 - CREW_LIST_V3_SBK_COL_GAP, maxLines: 1, truncate: false },
+  placeOfBirth: { x: 307, maxWidth: 391 - 307 - CREW_LIST_V3_SBK_COL_GAP, maxLines: 2, truncate: false },
+  sbookNo: { x: 393, maxWidth: 443 - 393 - CREW_LIST_V3_SBK_COL_GAP, maxLines: 2, truncate: false },
+  sbookExpiry: { x: 446, maxWidth: 543 - 446 - CREW_LIST_V3_SBK_COL_GAP, maxLines: 2, truncate: false },
 } satisfies Record<string, CrewListV3SbkRowCol>;
 
 export const CREW_LIST_V3_SBK_MAX_ROWS = 14;

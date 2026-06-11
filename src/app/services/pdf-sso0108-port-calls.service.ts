@@ -22,15 +22,11 @@ import {
 
   SSO0108_HEADER,
 
-  SSO0108_MARSEC_TEMPLATE,
-
   SSO0108_MAX_ROWS,
 
   SSO0108_TABLE_COL,
 
   type Sso0108TextPlacement,
-
-  sso0108MarsecBaselinePdfY,
 
   sso0108PdfLibY,
 
@@ -89,7 +85,7 @@ export class PdfSso0108PortCallsService {
 
   /** Bump when public/sso-0108-port-calls-empty.pdf is regenerated. */
 
-  private readonly templateVersion = 6;
+  private readonly templateVersion = 7;
 
 
 
@@ -197,8 +193,6 @@ export class PdfSso0108PortCallsService {
 
 
 
-    // No runtime white-out — sample text is stripped in public template at build time.
-
     draw(ship.name, SSO0108_HEADER.vesselName);
 
     draw(ssoName, SSO0108_HEADER.shipSecurityOfficer);
@@ -214,16 +208,6 @@ export class PdfSso0108PortCallsService {
 
 
     const rows = selectPortCallHistoryForPdf(data.portCallHistory, data.portOfCall.pdfRowCount);
-
-    // White-out all pre-baked "1" values in MARSEC columns for every ruled row,
-    // using the template's own (uniform) row geometry so no digit remnants remain.
-    const white = rgb(1, 1, 1);
-    const wo = SSO0108_MARSEC_TEMPLATE;
-    for (let r = 0; r < wo.rowCount; r++) {
-      const y = sso0108MarsecBaselinePdfY(r) - wo.whiteoutDescent;
-      page.drawRectangle({ x: SSO0108_TABLE_COL.marsecPort - 1, y, width: wo.whiteoutWidth, height: wo.whiteoutHeight, color: white });
-      page.drawRectangle({ x: SSO0108_TABLE_COL.marsecShip - 1, y, width: wo.whiteoutWidth, height: wo.whiteoutHeight, color: white });
-    }
 
     let rowIndex = 0;
 

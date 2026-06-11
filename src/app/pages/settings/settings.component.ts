@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
-import { ShipInfo } from '../../models/crew.models';
+import { PORT_SEC_LVL_OPTIONS, ShipInfo } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
 import { PrintPackagesComponent } from '../../components/print-packages/print-packages.component';
@@ -33,6 +33,7 @@ export class SettingsComponent {
   protected readonly dataPath = signal<string | null>(null);
 
   protected readonly ship = this.storage.ship;
+  protected readonly marsecLevelOptions = PORT_SEC_LVL_OPTIONS;
   protected readonly ports = this.storage.ports;
   protected readonly ranks = this.storage.ranks;
   protected readonly nationalities = this.storage.nationalities;

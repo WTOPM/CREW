@@ -284,17 +284,31 @@ export interface PortCallHistoryEntry {
 /** Which port document Port Settings is editing. */
 export type PortSettingsDocId = 'portOfCall' | 'portsOfCall' | 'sso0108';
 
-export const PORT_SETTINGS_DOC_LABELS: Record<PortSettingsDocId, string> = {
-  portOfCall: 'Port of Call',
-  portsOfCall: 'Port of Call - Security',
-  sso0108: 'Port of Call - SSO-0108',
-};
-
 export const PORT_SETTINGS_DOC_IDS: readonly PortSettingsDocId[] = [
   'portOfCall',
   'portsOfCall',
   'sso0108',
 ];
+
+/** Base name without order prefix. */
+export const PORT_SETTINGS_DOC_NAMES: Record<PortSettingsDocId, string> = {
+  portOfCall: 'Port of Call',
+  portsOfCall: 'Port of Call - Security',
+  sso0108: 'Port of Call - SSO-0108',
+};
+
+export function portSettingsDocOrderNo(id: PortSettingsDocId): string {
+  const index = PORT_SETTINGS_DOC_IDS.indexOf(id);
+  return String(index + 1).padStart(2, '0');
+}
+
+/** Full label with order prefix (e.g. «01 - Port of Call»). */
+export const PORT_SETTINGS_DOC_LABELS: Record<PortSettingsDocId, string> = Object.fromEntries(
+  PORT_SETTINGS_DOC_IDS.map((id) => [
+    id,
+    `${portSettingsDocOrderNo(id)} - ${PORT_SETTINGS_DOC_NAMES[id]}`,
+  ]),
+) as Record<PortSettingsDocId, string>;
 
 export function normalizePortSettingsDocId(raw: unknown): PortSettingsDocId {
   if (raw === 'portsOfCall' || raw === 'sso0108') return raw;

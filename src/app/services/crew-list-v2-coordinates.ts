@@ -51,8 +51,8 @@ export const CREW_LIST_V2_ROW_NO_X = 36;
 
 /** pdf-lib drawText baseline Y per row (0-based; row 1 = index 0) — user-measured. */
 export const CREW_LIST_V2_ROW_Y = [
-  662, 640, 618, 596, 574, 552, 529, 508, 486, // 1–9
-  464, 442, 420, 398, 376, 354, // 10–15
+  660, 638, 616, 594, 572, 550, 527, 506, 484, // 1–9
+  462, 440, 418, 396, 374, 352, // 10–15
 ] as const;
 
 /** Fallback step for rows beyond CREW_LIST_V2_ROW_Y (≈22 pt). */
@@ -64,19 +64,80 @@ export interface CrewListV2RowCol {
   maxLines: number;
   /** false = always draw full value (dates, passport no.) — no «…» truncation. */
   truncate?: boolean;
+  /** Horizontal alignment inside the cell (uses drawRight as inner right edge). */
+  align?: 'left' | 'center' | 'right';
+  /** Inner right edge of the cell (pt). */
+  drawRight?: number;
 }
 
-/** Table body columns (8+) — maxWidth = gap to next column; maxLines 2 where long text wraps. */
+const CREW_LIST_V2_COL_GAP = 3;
+
+/** Template vertical line between Place of issue and GENDER (pdf-lib x). */
+const CREW_LIST_V2_PLACE_CELL_RIGHT = 521;
+const CREW_LIST_V2_GENDER_CELL_LEFT = 529;
+const CREW_LIST_V2_GENDER_CELL_RIGHT = 565;
+
+/**
+ * Column right edges (template grid).
+ */
+const CREW_LIST_V2_COL_RIGHT = {
+  name: 152,
+  rank: 200,
+  nationality: 250,
+  dateOfBirth: 317,
+  placeOfBirth: 393,
+  passportNo: 443,
+  passportExpiry: 481,
+  passportPlaceOfIssue: CREW_LIST_V2_PLACE_CELL_RIGHT,
+  gender: CREW_LIST_V2_GENDER_CELL_RIGHT,
+} as const;
+
+/** Table body columns — maxWidth = gap to next column; all wrap up to 2 lines. */
 export const CREW_LIST_V2_ROW_COLS = {
-  name: { x: 54, maxWidth: 90, maxLines: 2, truncate: false },
-  rank: { x: 152, maxWidth: 44, maxLines: 2 },
-  nationality: { x: 200, maxWidth: 46, maxLines: 2 },
-  dateOfBirth: { x: 250, maxWidth: 64, maxLines: 1, truncate: false },
-  placeOfBirth: { x: 317, maxWidth: 73, maxLines: 2 },
-  passportNo: { x: 393, maxWidth: 42, maxLines: 1, truncate: false },
-  passportExpiry: { x: 438, maxWidth: 44, maxLines: 1, truncate: false },
-  passportPlaceOfIssue: { x: 482, maxWidth: 36, maxLines: 2, truncate: false },
-  gender: { x: 523, maxWidth: 48, maxLines: 1, truncate: false },
+  name: { x: 54, maxWidth: CREW_LIST_V2_COL_RIGHT.name - 54 - CREW_LIST_V2_COL_GAP, maxLines: 2, truncate: false },
+  rank: { x: 152, maxWidth: CREW_LIST_V2_COL_RIGHT.rank - 152 - CREW_LIST_V2_COL_GAP, maxLines: 2, truncate: false },
+  nationality: {
+    x: 200,
+    maxWidth: CREW_LIST_V2_COL_RIGHT.nationality - 200 - CREW_LIST_V2_COL_GAP,
+    maxLines: 2,
+    truncate: false,
+  },
+  dateOfBirth: {
+    x: 249,
+    maxWidth: CREW_LIST_V2_COL_RIGHT.dateOfBirth - 249 - CREW_LIST_V2_COL_GAP,
+    maxLines: 2,
+    truncate: false,
+  },
+  placeOfBirth: {
+    x: 317,
+    maxWidth: CREW_LIST_V2_COL_RIGHT.placeOfBirth - 317 - CREW_LIST_V2_COL_GAP,
+    maxLines: 2,
+    truncate: false,
+  },
+  passportNo: {
+    x: 393,
+    maxWidth: CREW_LIST_V2_COL_RIGHT.passportNo - 393 - CREW_LIST_V2_COL_GAP,
+    maxLines: 2,
+    truncate: false,
+  },
+  passportExpiry: {
+    x: 439,
+    maxWidth: CREW_LIST_V2_COL_RIGHT.passportExpiry - 439 - CREW_LIST_V2_COL_GAP,
+    maxLines: 2,
+    truncate: false,
+  },
+  passportPlaceOfIssue: {
+    x: 480,
+    maxWidth: CREW_LIST_V2_PLACE_CELL_RIGHT - 480,
+    maxLines: 2,
+    truncate: false,
+  },
+  gender: {
+    x: CREW_LIST_V2_GENDER_CELL_LEFT,
+    maxWidth: CREW_LIST_V2_GENDER_CELL_RIGHT - CREW_LIST_V2_GENDER_CELL_LEFT,
+    maxLines: 1,
+    truncate: false,
+  },
 } satisfies Record<string, CrewListV2RowCol>;
 
 export const CREW_LIST_V2_MAX_ROWS = 15;

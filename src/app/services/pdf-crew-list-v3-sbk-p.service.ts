@@ -9,15 +9,9 @@ import { resolveCrewListStampOptions } from '../models/document-overlay.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { PdfOverlayService } from './pdf-overlay.service';
 import {
-  CREW_LIST_V3_SBK_P_COL_TEXT_MAX_PT,
-  CREW_LIST_V3_SBK_P_NATIONALITY_FIELD_MAX_PT,
-  CREW_LIST_V3_SBK_P_NATIONALITY_MAX_LINES,
-  CREW_LIST_V3_SBK_P_NATIONALITY_LINE_STEP,
-  CREW_LIST_V3_SBK_P_NAME_FIELD_MAX_PT,
-  CREW_LIST_V3_SBK_P_SBOOK_PLACE_FIELD_MAX_PT,
   CREW_LIST_V3_SBK_P_WRAP_LINE_STEP,
   CREW_LIST_V3_SBK_P_WRAP_MAX_LINES,
-  CREW_LIST_V3_SBK_P_BIRTH_FIELD_MAX_PT,
+  crewListV3SbkPFieldMaxPt,
   CREW_LIST_V3_SBK_P_BIRTH_PLACE_GAP,
   CREW_LIST_V3_SBK_P_COL_Y,
   CREW_LIST_V3_SBK_P_FONT,
@@ -140,21 +134,6 @@ export class PdfCrewListV3SbkPService {
     });
   }
 
-  private drawFit(
-    page: PDFPage,
-    text: string,
-    placement: CrewListV3SbkPTextPlacement,
-    font: PDFFont,
-    color: RGB,
-    textRotate: ReturnType<typeof import('pdf-lib').degrees>,
-    maxWidth = CREW_LIST_V3_SBK_P_COL_TEXT_MAX_PT,
-  ): void {
-    const value = text.trim();
-    if (!value) return;
-    const size = this.fitFontSize(font, value, maxWidth, CREW_LIST_V3_SBK_P_FONT);
-    this.drawText(page, value, placement, font, color, textRotate, size);
-  }
-
   private drawHeader(
     page: PDFPage,
     font: PDFFont,
@@ -246,51 +225,33 @@ export class PdfCrewListV3SbkPService {
     rowOffset: number,
     textRotate: ReturnType<typeof import('pdf-lib').degrees>,
   ): void {
-    const draw = (
-      text: string,
-      colIndex: number,
-      field: CrewListV3SbkPColField,
-      mode: 'fit' | 'birth' | 'nationality' | 'wrap' | false = false,
-    ) => {
-      const placement = this.colAt(colIndex, field);
-      if (mode === 'wrap') {
-        const limits = this.wrapLimits(field);
-        if (!limits) return;
-        this.drawColWrap(page, text, placement, font, black, textRotate, limits.maxWidth, limits.maxLines);
-      } else if (mode === 'nationality') {
-        this.drawColWrap(
-          page,
-          text,
-          placement,
-          font,
-          black,
-          textRotate,
-          CREW_LIST_V3_SBK_P_NATIONALITY_FIELD_MAX_PT,
-          CREW_LIST_V3_SBK_P_NATIONALITY_MAX_LINES,
-        );
-      } else if (mode === 'birth') {
-        this.drawFit(page, text, placement, font, black, textRotate, CREW_LIST_V3_SBK_P_BIRTH_FIELD_MAX_PT);
-      } else if (mode === 'fit') {
-        this.drawFit(page, text, placement, font, black, textRotate);
-      } else {
-        this.drawText(page, text, placement, font, black, textRotate);
-      }
+    const drawCell = (text: string, colIndex: number, field: CrewListV3SbkPColField) => {
+      this.drawColWrap(
+        page,
+        text,
+        this.colAt(colIndex, field),
+        font,
+        black,
+        textRotate,
+        crewListV3SbkPFieldMaxPt(field),
+        CREW_LIST_V3_SBK_P_WRAP_MAX_LINES,
+      );
     };
 
     crew.forEach((member, colIndex) => {
       const no = crewListV3SbkPRowNoPlacement(colIndex);
       this.drawText(page, String(rowOffset + colIndex + 1), no, font, black, textRotate);
 
-      draw(this.formatName(member), colIndex, 'name', 'wrap');
-      draw(member.rank.trim(), colIndex, 'rank');
-      draw(member.nationality.trim(), colIndex, 'nationality', 'nationality');
-      draw(this.formatBirthAndPlace(member), colIndex, 'dateOfBirth', 'birth');
-      draw(member.seamansBook.trim(), colIndex, 'sbookNo');
-      draw(member.seamansBookPlaceOfIssue.trim(), colIndex, 'sbookPlaceOfIssue', 'wrap');
-      draw(formatDisplayDate(member.sbookExpiryDate), colIndex, 'sbookExpiry');
-      draw(member.passport.trim(), colIndex, 'passport');
-      draw(this.formatJoiningPort(member.joiningPort), colIndex, 'joiningPort');
-      draw(formatDisplayDate(member.joiningDate), colIndex, 'joiningDate');
+      drawCell(this.formatName(member), colIndex, 'name');
+      drawCell(member.rank.trim(), colIndex, 'rank');
+      drawCell(member.nationality.trim(), colIndex, 'nationality');
+      drawCell(this.formatBirthAndPlace(member), colIndex, 'dateOfBirth');
+      drawCell(member.seamansBook.trim(), colIndex, 'sbookNo');
+      drawCell(this.formatPlaceOfIssue(member.seamansBookPlaceOfIssue), colIndex, 'sbookPlaceOfIssue');
+      drawCell(formatDisplayDate(member.sbookExpiryDate), colIndex, 'sbookExpiry');
+      drawCell(member.passport.trim(), colIndex, 'passport');
+      drawCell(this.formatJoiningPort(member.joiningPort), colIndex, 'joiningPort');
+      drawCell(formatDisplayDate(member.joiningDate), colIndex, 'joiningDate');
     });
   }
 
@@ -327,25 +288,6 @@ export class PdfCrewListV3SbkPService {
     });
   }
 
-  private wrapLimits(
-    field: CrewListV3SbkPColField,
-  ): { maxWidth: number; maxLines: number } | null {
-    switch (field) {
-      case 'name':
-        return {
-          maxWidth: CREW_LIST_V3_SBK_P_NAME_FIELD_MAX_PT,
-          maxLines: CREW_LIST_V3_SBK_P_WRAP_MAX_LINES,
-        };
-      case 'sbookPlaceOfIssue':
-        return {
-          maxWidth: CREW_LIST_V3_SBK_P_SBOOK_PLACE_FIELD_MAX_PT,
-          maxLines: CREW_LIST_V3_SBK_P_WRAP_MAX_LINES,
-        };
-      default:
-        return null;
-    }
-  }
-
   private wrapCellLines(
     font: PDFFont,
     text: string,
@@ -380,8 +322,7 @@ export class PdfCrewListV3SbkPService {
       }
       if (lines.length === maxLines - 1) {
         const restWords = line ? [line, ...words.slice(wi + 1)] : words.slice(wi + 1);
-        const rest = restWords.join(' ');
-        lines.push(this.truncateToWidth(font, rest, size, maxWidth));
+        lines.push(restWords.join(' '));
         return lines.slice(0, maxLines);
       }
     }
@@ -405,21 +346,15 @@ export class PdfCrewListV3SbkPService {
     return formatPortCallPortName(portName).toUpperCase();
   }
 
+  /** Place of issue — ALL CAPS. */
+  private formatPlaceOfIssue(value: string): string {
+    return value.trim().toUpperCase();
+  }
+
   /** Surname and given names — ALL CAPS, space-separated (no comma). */
   private formatName(member: Pick<CrewMember, 'familyName' | 'givenNames'>): string {
     const parts = [member.familyName?.trim(), member.givenNames?.trim()].filter(Boolean);
     return parts.join(' ').toUpperCase();
-  }
-
-  private truncateToWidth(font: PDFFont, text: string, size: number, maxWidth: number): string {
-    if (font.widthOfTextAtSize(text, size) <= maxWidth) {
-      return text;
-    }
-    let trimmed = text;
-    while (trimmed.length > 1 && font.widthOfTextAtSize(`${trimmed}…`, size) > maxWidth) {
-      trimmed = trimmed.slice(0, -1);
-    }
-    return trimmed.length < text.length ? `${trimmed}…` : trimmed;
   }
 
   private fitFontSize(font: PDFFont, text: string, maxWidth: number, baseSize: number): number {
