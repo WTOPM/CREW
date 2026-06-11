@@ -310,10 +310,7 @@ export class PdfCrewListV2Service {
     );
     lines.forEach((line, index) => {
       const lineY = y - index * CREW_LIST_V2_ROW_LINE_HEIGHT;
-      const size =
-        !truncate && col.maxLines <= 1
-          ? this.fitFontSize(opts.font, line, col.maxWidth, opts.size)
-          : opts.size;
+      const size = this.fitFontSize(opts.font, line, col.maxWidth, opts.size);
       page.drawText(line, {
         x: col.x,
         y: lineY,

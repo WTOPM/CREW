@@ -7,6 +7,7 @@ import {
   chunkPortCallHistoryForPdf,
   formatPortCallPortName,
   portCode,
+  normalizePortSecLvl,
   portCountry,
   selectPortCallHistoryForPdf,
 } from '../models/crew.models';
@@ -18,7 +19,6 @@ import {
   POC_TEMPLATE_FONT,
   POC_TEMPLATE_HEADER,
   POC_TEMPLATE_ROWS_PER_PAGE,
-  POC_TEMPLATE_SEC_LVL_TEXT,
   POC_TEMPLATE_TABLE_COL,
   POC_TEMPLATE_URL,
   POC_TEMPLATE_VERSION,
@@ -163,7 +163,7 @@ export class PdfPortOfCallTemplateService {
       );
       this.drawAtBaseline(
         page,
-        POC_TEMPLATE_SEC_LVL_TEXT,
+        normalizePortSecLvl(entry.secLvl),
         POC_TEMPLATE_TABLE_COL.secLvl,
         y,
         font,

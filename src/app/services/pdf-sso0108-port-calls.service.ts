@@ -4,12 +4,10 @@ import {
 
   AppData,
 
+  normalizePortSecLvl,
   portCode,
-
   resolveShipSecurityOfficer,
-
   selectPortCallHistoryForPdf,
-
 } from '../models/crew.models';
 
 import { PdfDeliveryService } from './pdf-delivery.service';
@@ -247,9 +245,9 @@ export class PdfSso0108PortCallsService {
 
       drawAtBaseline(formatDisplayDate(entry.departureDate), SSO0108_TABLE_COL.departure, baselineY);
 
-      drawAtBaseline(marsecLevel, SSO0108_TABLE_COL.marsecPort, baselineY);
-
-      drawAtBaseline(marsecLevel, SSO0108_TABLE_COL.marsecShip, baselineY);
+      const rowSecLvl = normalizePortSecLvl(entry.secLvl);
+      drawAtBaseline(rowSecLvl, SSO0108_TABLE_COL.marsecPort, baselineY);
+      drawAtBaseline(rowSecLvl, SSO0108_TABLE_COL.marsecShip, baselineY);
 
       drawAtBaseline('NIL', SSO0108_TABLE_COL.measures, baselineY);
 

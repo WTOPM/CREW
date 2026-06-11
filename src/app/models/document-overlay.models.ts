@@ -384,7 +384,7 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   pax: 'PAX - P ID',
   paxV2: 'PAX P ID E',
   portOfCall: 'Port of Call',
-  portsOfCall: 'PORTS OF CALL',
+  portsOfCall: 'Port of Call - Security',
   mdh: 'MDH',
   crewVaccine: 'Crew Vaccine',
   shipStores: 'Ship Stores',
@@ -394,5 +394,5 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   cashAdvance: 'Cash Advance',
   crewMoney: 'Crew Money',
   narcoticList: 'Narcotic List',
-  sso0108PortCalls: 'SSO-0108 Port Calls',
+  sso0108PortCalls: 'Port of Call - SSO-0108',
 };

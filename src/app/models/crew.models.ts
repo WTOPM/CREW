@@ -258,6 +258,17 @@ export interface CrewArrFormSettings {
   identityDocumentType: string;
 }
 
+/** MARSEC / SEC. LVL. per port call (1–3). */
+export type PortSecLvl = '1' | '2' | '3';
+
+export const PORT_SEC_LVL_OPTIONS: readonly PortSecLvl[] = ['1', '2', '3'];
+
+export function normalizePortSecLvl(raw: unknown): PortSecLvl {
+  const s = String(raw ?? '1').trim();
+  if (s === '2' || s === '3') return s;
+  return '1';
+}
+
 export interface PortCallHistoryEntry {
   id: string;
   portName: string;
@@ -266,6 +277,8 @@ export interface PortCallHistoryEntry {
   arrivalTime: string;
   departureDate: string;
   departureTime: string;
+  /** Per-port security level for Security / SSO-0108 PDFs. */
+  secLvl: PortSecLvl;
 }
 
 /** Which port document Port Settings is editing. */
@@ -273,8 +286,8 @@ export type PortSettingsDocId = 'portOfCall' | 'portsOfCall' | 'sso0108';
 
 export const PORT_SETTINGS_DOC_LABELS: Record<PortSettingsDocId, string> = {
   portOfCall: 'Port of Call',
-  portsOfCall: 'PORTS OF CALL',
-  sso0108: 'SSO-0108 Port Calls',
+  portsOfCall: 'Port of Call - Security',
+  sso0108: 'Port of Call - SSO-0108',
 };
 
 export const PORT_SETTINGS_DOC_IDS: readonly PortSettingsDocId[] = [
@@ -563,6 +576,7 @@ export function createEmptyPortCallEntry(): PortCallHistoryEntry {
     arrivalTime: '',
     departureDate: '',
     departureTime: '',
+    secLvl: '1',
   };
 }
 

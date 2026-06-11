@@ -13,6 +13,10 @@ import {
   CREW_LIST_V3_SBK_P_NATIONALITY_FIELD_MAX_PT,
   CREW_LIST_V3_SBK_P_NATIONALITY_MAX_LINES,
   CREW_LIST_V3_SBK_P_NATIONALITY_LINE_STEP,
+  CREW_LIST_V3_SBK_P_NAME_FIELD_MAX_PT,
+  CREW_LIST_V3_SBK_P_SBOOK_PLACE_FIELD_MAX_PT,
+  CREW_LIST_V3_SBK_P_WRAP_LINE_STEP,
+  CREW_LIST_V3_SBK_P_WRAP_MAX_LINES,
   CREW_LIST_V3_SBK_P_BIRTH_FIELD_MAX_PT,
   CREW_LIST_V3_SBK_P_BIRTH_PLACE_GAP,
   CREW_LIST_V3_SBK_P_COL_Y,
@@ -246,10 +250,14 @@ export class PdfCrewListV3SbkPService {
       text: string,
       colIndex: number,
       field: CrewListV3SbkPColField,
-      mode: 'fit' | 'birth' | 'nationality' | false = false,
+      mode: 'fit' | 'birth' | 'nationality' | 'wrap' | false = false,
     ) => {
       const placement = this.colAt(colIndex, field);
-      if (mode === 'nationality') {
+      if (mode === 'wrap') {
+        const limits = this.wrapLimits(field);
+        if (!limits) return;
+        this.drawColWrap(page, text, placement, font, black, textRotate, limits.maxWidth, limits.maxLines);
+      } else if (mode === 'nationality') {
         this.drawColWrap(
           page,
           text,
@@ -273,12 +281,12 @@ export class PdfCrewListV3SbkPService {
       const no = crewListV3SbkPRowNoPlacement(colIndex);
       this.drawText(page, String(rowOffset + colIndex + 1), no, font, black, textRotate);
 
-      draw(this.formatName(member), colIndex, 'name');
+      draw(this.formatName(member), colIndex, 'name', 'wrap');
       draw(member.rank.trim(), colIndex, 'rank');
       draw(member.nationality.trim(), colIndex, 'nationality', 'nationality');
       draw(this.formatBirthAndPlace(member), colIndex, 'dateOfBirth', 'birth');
       draw(member.seamansBook.trim(), colIndex, 'sbookNo');
-      draw(member.seamansBookPlaceOfIssue.trim(), colIndex, 'sbookPlaceOfIssue');
+      draw(member.seamansBookPlaceOfIssue.trim(), colIndex, 'sbookPlaceOfIssue', 'wrap');
       draw(formatDisplayDate(member.sbookExpiryDate), colIndex, 'sbookExpiry');
       draw(member.passport.trim(), colIndex, 'passport');
       draw(this.formatJoiningPort(member.joiningPort), colIndex, 'joiningPort');
@@ -307,15 +315,35 @@ export class PdfCrewListV3SbkPService {
     );
     // Rotate 90°: text runs along Y — stack extra lines in +X (column width).
     lines.forEach((line, index) => {
+      const size = this.fitFontSize(font, line, maxWidth, CREW_LIST_V3_SBK_P_FONT);
       page.drawText(line, {
-        x: placement.x + index * CREW_LIST_V3_SBK_P_NATIONALITY_LINE_STEP,
+        x: placement.x + index * CREW_LIST_V3_SBK_P_WRAP_LINE_STEP,
         y: placement.y,
-        size: CREW_LIST_V3_SBK_P_FONT,
+        size,
         font,
         color,
         rotate: textRotate,
       });
     });
+  }
+
+  private wrapLimits(
+    field: CrewListV3SbkPColField,
+  ): { maxWidth: number; maxLines: number } | null {
+    switch (field) {
+      case 'name':
+        return {
+          maxWidth: CREW_LIST_V3_SBK_P_NAME_FIELD_MAX_PT,
+          maxLines: CREW_LIST_V3_SBK_P_WRAP_MAX_LINES,
+        };
+      case 'sbookPlaceOfIssue':
+        return {
+          maxWidth: CREW_LIST_V3_SBK_P_SBOOK_PLACE_FIELD_MAX_PT,
+          maxLines: CREW_LIST_V3_SBK_P_WRAP_MAX_LINES,
+        };
+      default:
+        return null;
+    }
   }
 
   private wrapCellLines(
@@ -352,7 +380,8 @@ export class PdfCrewListV3SbkPService {
       }
       if (lines.length === maxLines - 1) {
         const restWords = line ? [line, ...words.slice(wi + 1)] : words.slice(wi + 1);
-        lines.push(restWords.join(' '));
+        const rest = restWords.join(' ');
+        lines.push(this.truncateToWidth(font, rest, size, maxWidth));
         return lines.slice(0, maxLines);
       }
     }
@@ -380,6 +409,17 @@ export class PdfCrewListV3SbkPService {
   private formatName(member: Pick<CrewMember, 'familyName' | 'givenNames'>): string {
     const parts = [member.familyName?.trim(), member.givenNames?.trim()].filter(Boolean);
     return parts.join(' ').toUpperCase();
+  }
+
+  private truncateToWidth(font: PDFFont, text: string, size: number, maxWidth: number): string {
+    if (font.widthOfTextAtSize(text, size) <= maxWidth) {
+      return text;
+    }
+    let trimmed = text;
+    while (trimmed.length > 1 && font.widthOfTextAtSize(`${trimmed}…`, size) > maxWidth) {
+      trimmed = trimmed.slice(0, -1);
+    }
+    return trimmed.length < text.length ? `${trimmed}…` : trimmed;
   }
 
   private fitFontSize(font: PDFFont, text: string, maxWidth: number, baseSize: number): number {

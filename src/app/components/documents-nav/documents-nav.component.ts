@@ -5,6 +5,7 @@ import {
   CREW_IDENTITY_PASSPORT,
   CREW_IDENTITY_SEAMANS_BOOK,
   PortCallHistoryEntry,
+  PORT_SEC_LVL_OPTIONS,
   PORT_SETTINGS_DOC_IDS,
   PORT_SETTINGS_DOC_LABELS,
   PortSettingsDocId,
@@ -129,6 +130,7 @@ export class DocumentsNavComponent {
   protected showPortOfCallSettings = signal(false);
   /** Which port document the unified Port Settings modal is editing. */
   protected readonly portSettingsDocIds = PORT_SETTINGS_DOC_IDS;
+  protected readonly portSecLvlOptions = PORT_SEC_LVL_OPTIONS;
   protected portSettingsDoc = signal<PortSettingsDocId>('portOfCall');
   protected showCrewListSettings = signal(false);
   protected showPaxSettings = signal(false);
@@ -312,17 +314,17 @@ export class DocumentsNavComponent {
 
   protected openPortsOfCallPdf(): void {
     void this.portOfCallTemplatePdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) this.toast.showError('Allow pop-ups to open PORTS OF CALL preview');
+      if (!ok) this.toast.showError('Allow pop-ups to open Port of Call - Security preview');
     }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'PORTS OF CALL preview failed');
+      this.toast.showError(err instanceof Error ? err.message : 'Port of Call - Security preview failed');
     });
   }
 
   protected openSso0108PortCallsPdf(): void {
     void this.sso0108PortCallsPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) this.toast.showError('Allow pop-ups to open SSO-0108 Port Calls preview');
+      if (!ok) this.toast.showError('Allow pop-ups to open Port of Call - SSO-0108 preview');
     }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open SSO-0108 Port Calls');
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Port of Call - SSO-0108');
     });
   }
 

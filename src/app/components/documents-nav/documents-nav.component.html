@@ -65,10 +65,10 @@
         Port of Call
       </button>
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPortsOfCallPdf()">
-        PORTS OF CALL
+        Port of Call - Security
       </button>
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openSso0108PortCallsPdf()">
-        SSO-0108 Port Calls
+        Port of Call - SSO-0108
       </button>
       <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openPortOfCallSettings()">
         <svg class="nav-doc-settings-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -485,43 +485,35 @@
         </div>
       </fieldset>
 
-      @if (portSettingsDoc() === 'sso0108') {
-      <p class="doc-hint">Uses ship ISSC settings and port-call rows below.</p>
-      <app-document-stamp-options documentId="sso0108PortCalls" />
+      @if (portSettingsDoc() === 'portOfCall') {
+        <app-port-of-call-settings />
+      } @else if (portSettingsDoc() === 'portsOfCall') {
+        <app-document-stamp-options documentId="portsOfCall" />
       } @else {
+        <app-document-stamp-options documentId="sso0108PortCalls" />
+      }
+
       <div class="poc-settings-bar">
         <label class="doc-count-field">
           <span>Ports in PDF</span>
-          <div class="doc-count-row">
-            <input
-              type="number"
-              class="doc-count-input"
-              [min]="pocMinPorts"
-              [max]="pocMaxPorts"
-              [ngModel]="portOfCall().pdfRowCount"
-              (ngModelChange)="onPdfPortCountChange($event)"
-            />
-            <button
-              type="button"
-              class="doc-count-btn doc-count-btn--plus"
-              title="Add port call"
-              (click)="addPortCallRow()"
-            >
-              +
-            </button>
-          </div>
+          <input
+            type="number"
+            class="doc-count-input"
+            [min]="pocMinPorts"
+            [max]="pocMaxPorts"
+            [ngModel]="portOfCall().pdfRowCount"
+            (ngModelChange)="onPdfPortCountChange($event)"
+          />
         </label>
+        <button type="button" class="poc-add-port-btn" (click)="addPortCallRow()">+ Add New Port</button>
       </div>
-      @if (portSettingsDoc() === 'portOfCall') {
-        <app-port-of-call-settings />
-      } @else {
-        <app-document-stamp-options documentId="portsOfCall" />
-      }
+
       <div class="poc-history-wrap">
         <table class="poc-history-table">
           <colgroup>
             <col class="poc-col-port" />
             <col class="poc-col-country" />
+            <col class="poc-col-sec" />
             <col class="poc-col-date" />
             <col class="poc-col-time" />
             <col class="poc-col-date" />
@@ -532,6 +524,7 @@
             <tr>
               <th>Port</th>
               <th>Country</th>
+              <th class="poc-th-sec">SEC.</th>
               <th>Arr. date</th>
               <th>Arr. time</th>
               <th>Dep. date</th>
@@ -556,6 +549,17 @@
                     (ngModelChange)="updatePortCallField(row.id, 'country', $event)"
                     placeholder="ITALY"
                   />
+                </td>
+                <td class="poc-cell poc-cell--sec">
+                  <select
+                    class="poc-sec-select"
+                    [ngModel]="row.secLvl"
+                    (ngModelChange)="updatePortCallField(row.id, 'secLvl', $event)"
+                  >
+                    @for (lvl of portSecLvlOptions; track lvl) {
+                      <option [value]="lvl">{{ lvl }}</option>
+                    }
+                  </select>
                 </td>
                 <td class="poc-cell poc-cell--date">
                   <app-partial-date-input
@@ -596,7 +600,6 @@
           </tbody>
         </table>
       </div>
-      }
       </div>
       <div class="modal-actions poc-modal-actions">
         @if (portSettingsDoc() === 'portOfCall') {

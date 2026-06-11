@@ -47,6 +47,7 @@ import {
   shipFieldPersistNotify,
   areCrewListsInSync,
   crewListDiffCounts,
+  normalizePortSecLvl,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
 import {
@@ -443,6 +444,7 @@ export class StorageService {
     return history.map((entry) => ({
       ...entry,
       portName: resolvePortRef(entry.portName, ports)?.name ?? entry.portName,
+      secLvl: normalizePortSecLvl(entry.secLvl),
     }));
   }
 
@@ -1031,7 +1033,12 @@ export class StorageService {
   ): void {
     this.data.update((d) => ({
       ...d,
-      portCallHistory: d.portCallHistory.map((e) => (e.id === id ? { ...e, ...partial } : e)),
+      portCallHistory: d.portCallHistory.map((e) => {
+        if (e.id !== id) return e;
+        const next = { ...e, ...partial };
+        if (partial.secLvl != null) next.secLvl = normalizePortSecLvl(partial.secLvl);
+        return next;
+      }),
     }));
     const resolved =
       notify ??

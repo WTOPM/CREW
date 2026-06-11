@@ -19,7 +19,11 @@ export const CREW_LIST_V3_SBK_P_PORTS_FROM_TO_GAP = '       ';
 export const CREW_LIST_V3_SBK_P_NATIONALITY_FIELD_MAX_PT = 46;
 export const CREW_LIST_V3_SBK_P_NATIONALITY_MAX_LINES = 2;
 /** Second line offset — perpendicular to rotate-90 text (column width ~19 pt). */
-export const CREW_LIST_V3_SBK_P_NATIONALITY_LINE_STEP = CREW_LIST_V3_SBK_P_LINE_HEIGHT;
+export const CREW_LIST_V3_SBK_P_WRAP_LINE_STEP = CREW_LIST_V3_SBK_P_LINE_HEIGHT;
+export const CREW_LIST_V3_SBK_P_NATIONALITY_LINE_STEP = CREW_LIST_V3_SBK_P_WRAP_LINE_STEP;
+export const CREW_LIST_V3_SBK_P_WRAP_MAX_LINES = 2;
+
+const CREW_LIST_V3_SBK_P_FIELD_GAP_MARGIN = 3;
 
 /** Max text extent along a crew column (~19 pt spacing − margin). */
 export const CREW_LIST_V3_SBK_P_COL_TEXT_MAX_PT = 17;
@@ -93,6 +97,14 @@ export const CREW_LIST_V3_SBK_P_COL_Y = {
   joiningPort: 662,
   joiningDate: 732,
 } as const;
+
+/** Wrap fields — extent along column (next field Y − current Y). */
+export const CREW_LIST_V3_SBK_P_NAME_FIELD_MAX_PT =
+  CREW_LIST_V3_SBK_P_COL_Y.rank - CREW_LIST_V3_SBK_P_COL_Y.name - CREW_LIST_V3_SBK_P_FIELD_GAP_MARGIN;
+export const CREW_LIST_V3_SBK_P_SBOOK_PLACE_FIELD_MAX_PT =
+  CREW_LIST_V3_SBK_P_COL_Y.sbookExpiry -
+  CREW_LIST_V3_SBK_P_COL_Y.sbookPlaceOfIssue -
+  CREW_LIST_V3_SBK_P_FIELD_GAP_MARGIN;
 
 export type CrewListV3SbkPColField = keyof typeof CREW_LIST_V3_SBK_P_COL_Y;
 

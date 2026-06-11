@@ -40,9 +40,6 @@ export const POC_TEMPLATE_TABLE_COL = {
   secLvl: 491,
 } as const;
 
-/** SEC. LVL. — template expects literal 1. */
-export const POC_TEMPLATE_SEC_LVL_TEXT = '1';
-
 /** Row baselines — pdf-lib Y (rows 1–11). */
 export const POC_TEMPLATE_ROW_BASELINE_Y: readonly number[] = [
   603, 588, 574, 559, 545, 530, 515, 501, 486, 472, 457,

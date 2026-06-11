@@ -68,14 +68,14 @@ export interface CrewListV2RowCol {
 
 /** Table body columns (8+) — maxWidth = gap to next column; maxLines 2 where long text wraps. */
 export const CREW_LIST_V2_ROW_COLS = {
-  name: { x: 54, maxWidth: 94, maxLines: 2 },
+  name: { x: 54, maxWidth: 90, maxLines: 2, truncate: false },
   rank: { x: 152, maxWidth: 44, maxLines: 2 },
   nationality: { x: 200, maxWidth: 46, maxLines: 2 },
   dateOfBirth: { x: 250, maxWidth: 64, maxLines: 1, truncate: false },
   placeOfBirth: { x: 317, maxWidth: 73, maxLines: 2 },
   passportNo: { x: 393, maxWidth: 42, maxLines: 1, truncate: false },
   passportExpiry: { x: 438, maxWidth: 44, maxLines: 1, truncate: false },
-  passportPlaceOfIssue: { x: 482, maxWidth: 39, maxLines: 2 },
+  passportPlaceOfIssue: { x: 482, maxWidth: 36, maxLines: 2, truncate: false },
   gender: { x: 523, maxWidth: 48, maxLines: 1, truncate: false },
 } satisfies Record<string, CrewListV2RowCol>;
 
