@@ -18,13 +18,14 @@
   gap: 0.2rem;
   width: 100%;
   min-width: 0;
-  padding: 0.32rem 0.35rem;
+  padding-block: 0.42rem;
+  padding-inline: 0.3rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.76rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1.2;
@@ -34,12 +35,13 @@
 
 @media (min-width: 1280px) {
   .nav-docs {
-    grid-template-columns: repeat(11, minmax(0, 1fr));
+    grid-template-columns: repeat(9, minmax(0, 1fr));
   }
 
   .nav-doc-btn {
-    font-size: 0.72rem;
-    padding: 0.35rem 0.4rem;
+    font-size: 0.82rem;
+    padding-block: 0.46rem;
+    padding-inline: 0.32rem;
   }
 }
 
@@ -93,22 +95,10 @@
   color: #334155;
 }
 
-.doc-menu--ships .nav-doc-btn {
-  background: #d1fae5;
+.doc-menu--money .nav-doc-btn {
+  background: #ecfdf5;
   border-color: #059669;
   color: #065f46;
-}
-
-.doc-menu--cash .nav-doc-btn {
-  background: #fef9c3;
-  border-color: #ca8a04;
-  color: #854d0e;
-}
-
-.doc-menu--crews .nav-doc-btn {
-  background: #dbeafe;
-  border-color: #2563eb;
-  color: #1e40af;
 }
 
 .doc-menu--narcotic .nav-doc-btn {
@@ -133,12 +123,8 @@
 .doc-menu--effect .nav-doc-btn:focus-visible,
 .doc-menu--nil .nav-doc-btn:hover,
 .doc-menu--nil .nav-doc-btn:focus-visible,
-.doc-menu--ships .nav-doc-btn:hover,
-.doc-menu--ships .nav-doc-btn:focus-visible,
-.doc-menu--cash .nav-doc-btn:hover,
-.doc-menu--cash .nav-doc-btn:focus-visible,
-.doc-menu--crews .nav-doc-btn:hover,
-.doc-menu--crews .nav-doc-btn:focus-visible,
+.doc-menu--money .nav-doc-btn:hover,
+.doc-menu--money .nav-doc-btn:focus-visible,
 .doc-menu--narcotic .nav-doc-btn:hover,
 .doc-menu--narcotic .nav-doc-btn:focus-visible,
 .doc-menu--mdh .nav-doc-btn:hover,
@@ -147,7 +133,7 @@
 }
 
 .doc-menu-chevron {
-  font-size: 0.55rem;
+  font-size: 0.62rem;
   opacity: 0.85;
   flex-shrink: 0;
 }
@@ -240,14 +226,8 @@
 .doc-menu--nil .nav-doc-btn     { background: #f0f9ff; border-color: #7dd3fc; color: #0369a1; }
 .doc-menu--nil .nav-doc-btn:hover { background: #e0f2fe; border-color: #38bdf8; color: #075985; }
 
-.doc-menu--ships .nav-doc-btn   { background: #ecfdf5; border-color: #6ee7b7; color: #047857; }
-.doc-menu--ships .nav-doc-btn:hover { background: #d1fae5; border-color: #34d399; color: #065f46; }
-
-.doc-menu--cash .nav-doc-btn    { background: #fff1f2; border-color: #fda4af; color: #be123c; }
-.doc-menu--cash .nav-doc-btn:hover { background: #ffe4e6; border-color: #fb7185; color: #9f1239; }
-
-.doc-menu--crews .nav-doc-btn   { background: #f5f3ff; border-color: #c4b5fd; color: #6d28d9; }
-.doc-menu--crews .nav-doc-btn:hover { background: #ede9fe; border-color: #a78bfa; color: #5b21b6; }
+.doc-menu--money .nav-doc-btn   { background: #ecfdf5; border-color: #6ee7b7; color: #047857; }
+.doc-menu--money .nav-doc-btn:hover { background: #d1fae5; border-color: #34d399; color: #065f46; }
 
 .doc-menu--narcotic .nav-doc-btn { background: #fff0f6; border-color: #f9a8d4; color: #9d174d; }
 .doc-menu--narcotic .nav-doc-btn:hover { background: #fce7f3; border-color: #f472b6; color: #831843; }
@@ -276,17 +256,9 @@
 .doc-menu--nil .doc-menu-item:hover,
 .doc-menu--nil .doc-menu-item:focus-visible { background: #e0f2fe; color: #075985; }
 
-.doc-menu--ships .doc-menu-panel    { border-color: #6ee7b7; }
-.doc-menu--ships .doc-menu-item:hover,
-.doc-menu--ships .doc-menu-item:focus-visible { background: #d1fae5; color: #065f46; }
-
-.doc-menu--cash .doc-menu-panel     { border-color: #fda4af; }
-.doc-menu--cash .doc-menu-item:hover,
-.doc-menu--cash .doc-menu-item:focus-visible { background: #ffe4e6; color: #9f1239; }
-
-.doc-menu--crews .doc-menu-panel    { border-color: #c4b5fd; }
-.doc-menu--crews .doc-menu-item:hover,
-.doc-menu--crews .doc-menu-item:focus-visible { background: #ede9fe; color: #5b21b6; }
+.doc-menu--money .doc-menu-panel    { border-color: #6ee7b7; }
+.doc-menu--money .doc-menu-item:hover,
+.doc-menu--money .doc-menu-item:focus-visible { background: #d1fae5; color: #065f46; }
 
 .doc-menu--narcotic .doc-menu-panel { border-color: #f9a8d4; }
 .doc-menu--narcotic .doc-menu-item:hover,

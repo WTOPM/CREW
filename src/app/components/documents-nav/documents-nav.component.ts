@@ -63,6 +63,9 @@ import { NarcoticListSettingsComponent } from '../narcotic-list-settings/narcoti
 import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores-settings.component';
 import { NumberSpinDirective } from '../../directives/number-spin.directive';
 
+const MONEY_DOC_IDS = ['shipMoney', 'cashAdvance', 'crewMoney'] as const;
+type MoneyDocId = (typeof MONEY_DOC_IDS)[number];
+
 @Component({
   selector: 'app-documents-nav',
   imports: [
@@ -147,9 +150,9 @@ export class DocumentsNavComponent {
   protected readonly crewEffectDocIds = CREW_EFFECT_DOC_IDS;
   protected crewEffectSettingsDoc = signal<CrewEffectDocId>('crewEffect');
   protected showNilListSettings = signal(false);
-  protected showShipMoneySettings = signal(false);
-  protected showCashAdvanceSettings = signal(false);
-  protected showCrewMoneyListSettings = signal(false);
+  protected showMoneySettings = signal(false);
+  protected readonly moneyDocIds = MONEY_DOC_IDS;
+  protected moneySettingsDoc = signal<MoneyDocId>('shipMoney');
   protected showNarcoticListSettings = signal(false);
 
   protected openPassengerList(isArrival: boolean): void {
@@ -502,6 +505,30 @@ export class DocumentsNavComponent {
     this.storage.finishFormSession();
   }
 
+  protected openMoneySettings(): void {
+    this.showMoneySettings.set(true);
+  }
+
+  protected closeMoneySettings(): void {
+    this.showMoneySettings.set(false);
+    this.storage.finishFormSession();
+  }
+
+  protected moneyDocLabel(id: MoneyDocId): string {
+    const labels: Record<MoneyDocId, string> = {
+      shipMoney: 'Ship Money',
+      cashAdvance: 'Cash Advance',
+      crewMoney: 'Crew Money',
+    };
+    return labels[id];
+  }
+
+  protected onMoneySettingsDocChange(value: MoneyDocId): void {
+    if (value === this.moneySettingsDoc()) return;
+    this.moneySettingsDoc.set(value);
+    this.toast.showSelected(this.moneyDocLabel(value));
+  }
+
   protected openShipMoney(): void {
     void this.shipMoneyPdf.openPreview(this.appData()).then((ok) => {
       if (!ok) {
@@ -512,15 +539,6 @@ export class DocumentsNavComponent {
     });
   }
 
-  protected openShipMoneySettings(): void {
-    this.showShipMoneySettings.set(true);
-  }
-
-  protected closeShipMoneySettings(): void {
-    this.showShipMoneySettings.set(false);
-    this.storage.finishFormSession();
-  }
-
   protected openCashAdvance(): void {
     void this.cashAdvancePdf.openPreview(this.appData()).then((ok) => {
       if (!ok) this.toast.showError('Allow pop-ups to open Cash Advance preview');
@@ -529,30 +547,12 @@ export class DocumentsNavComponent {
     });
   }
 
-  protected openCashAdvanceSettings(): void {
-    this.showCashAdvanceSettings.set(true);
-  }
-
-  protected closeCashAdvanceSettings(): void {
-    this.showCashAdvanceSettings.set(false);
-    this.storage.finishFormSession();
-  }
-
   protected openCrewMoneyList(): void {
     void this.crewMoneyListPdf.openPreview(this.appData()).then((ok) => {
       if (!ok) this.toast.showError('Allow pop-ups to open Crew Money preview');
     }).catch((err) => {
       this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Money');
     });
-  }
-
-  protected openCrewMoneyListSettings(): void {
-    this.showCrewMoneyListSettings.set(true);
-  }
-
-  protected closeCrewMoneyListSettings(): void {
-    this.showCrewMoneyListSettings.set(false);
-    this.storage.finishFormSession();
   }
 
   protected openNarcoticList(): void {
