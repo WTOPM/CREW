@@ -300,6 +300,90 @@ input:focus {
   border-color: var(--accent);
 }
 
+/* Custom number steppers (NumberSpinDirective) — per-arrow hover highlight */
+.num-input {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+.num-input__field {
+  width: 100%;
+  min-width: 0;
+  padding-right: 1.35rem !important;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.num-input__field::-webkit-outer-spin-button,
+.num-input__field::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.num-input__spin {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  border-radius: 0 7px 7px 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.num-input__spin-btn {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: #f8fafc;
+  color: #94a3b8;
+  font-size: 0.42rem;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.num-input__spin-btn + .num-input__spin-btn {
+  border-top: 1px solid var(--border);
+}
+
+.num-input__spin-btn--up:hover,
+.num-input__spin-btn--up:focus-visible {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.num-input__spin-btn--down:hover,
+.num-input__spin-btn--down:focus-visible {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.num-input__spin-btn:active {
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+
+.num-input--sm .num-input__spin {
+  width: 1rem;
+}
+
+.num-input--sm .num-input__field {
+  padding-right: 1.2rem !important;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

@@ -31,10 +31,6 @@ function digitAtOrAfter(p: number): number {
   for (const e of MASK_DIGIT_POS) if (e >= p) return e;
   return 9;
 }
-function nextDigitPos(p: number): number {
-  for (const e of MASK_DIGIT_POS) if (e > p) return e;
-  return 9;
-}
 function prevDigitPos(p: number): number {
   let r = 0;
   for (const e of MASK_DIGIT_POS) {
@@ -519,7 +515,7 @@ export class DatePickerComponent {
           } else if (seg.start === 3) {
             this.selectSegment('year');
           } else {
-            el.setSelectionRange(9, 10);
+            this.finishEntry(s);
           }
           return;
         }
@@ -529,8 +525,13 @@ export class DatePickerComponent {
       s = s.slice(0, writePos) + key + s.slice(writePos + 1);
       if (writePos <= 1) s = clampDaySegment(s);
       else if (writePos >= 3 && writePos <= 4) s = clampMonthSegment(s);
-      this.writeMask(s, nextDigitPos(writePos));
-      this.emitFromMask(s);
+      const nextCaret = this.nextCaretAfter(writePos);
+      if (nextCaret === null) {
+        this.finishEntry(s);
+      } else {
+        this.writeMask(s, nextCaret);
+        this.emitFromMask(s);
+      }
       return;
     }
 
@@ -619,10 +620,30 @@ export class DatePickerComponent {
   }
 
   /** Set the input value + highlight the digit at `caret` (imperative; no caret jumps). */
+  private nextCaretAfter(writePos: number): number | null {
+    const seg = this.segmentBounds(writePos);
+    const nextPos = writePos + 1;
+    if (nextPos < seg.end) return nextPos;
+    if (seg.start === 0) return 3;
+    if (seg.start === 3) return 6;
+    return null;
+  }
+
+  private finishEntry(text: string): void {
+    const el = this.fieldRef()?.nativeElement;
+    if (!el) return;
+    const clamped = clampMonthSegment(clampDaySegment(text));
+    el.value = clamped;
+    this.text.set(clamped);
+    this.emitFromMask(clamped);
+    queueMicrotask(() => el.blur());
+  }
+
   private writeMask(text: string, caret: number): void {
     const el = this.fieldRef()?.nativeElement;
     if (!el) return;
     el.value = text;
+    this.text.set(text);
     const c = Math.max(0, Math.min(9, caret));
     el.setSelectionRange(c, c + 1);
   }

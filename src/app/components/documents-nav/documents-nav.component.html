@@ -602,7 +602,7 @@
       </div>
       </div>
       <div class="modal-actions poc-modal-actions">
-        @if (portSettingsDoc() === 'portOfCall') {
+        @if (portSettingsDoc() === 'portOfCall' || portSettingsDoc() === 'portsOfCall') {
           <app-xls-export-button (export)="exportPortOfCallXls()" />
         }
         <button type="button" class="btn btn-primary" (click)="closePortOfCallSettings()">Done</button>

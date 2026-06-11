@@ -5,10 +5,11 @@ import { StorageService } from '../../services/storage.service';
 import { DocumentCatalogService } from '../../services/document-catalog.service';
 import { PackageRunnerService } from '../../services/package-runner.service';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
+import { NumberSpinDirective } from '../../directives/number-spin.directive';
 
 @Component({
   selector: 'app-print-packages',
-  imports: [FormsModule, ClickOutsideDirective],
+  imports: [FormsModule, ClickOutsideDirective, NumberSpinDirective],
   templateUrl: './print-packages.component.html',
   styleUrl: './print-packages.component.css',
 })

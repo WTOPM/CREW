@@ -171,7 +171,8 @@
 .pkg-doc {
   flex: 1;
   min-width: 0;
-  padding: 0.4rem 0.5rem;
+  height: 2rem;
+  padding: 0 0.5rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: #fff;
@@ -185,20 +186,21 @@
   color: var(--text-muted);
 }
 
-.pkg-copies {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  font-size: 0.85rem;
-  color: var(--text-muted);
+.pkg-item .num-input:has(.pkg-copies) {
+  width: 3.2rem;
+  flex-shrink: 0;
+  height: 2rem;
 }
 
-.pkg-copies input {
-  width: 3.2rem;
-  padding: 0.4rem 0.4rem;
+.pkg-copies {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 0 0.4rem;
   border: 1px solid var(--border);
   border-radius: 6px;
+  font-size: 0.85rem;
   text-align: center;
+  background: #fff;
 }
 
 .pkg-mini {
@@ -258,8 +260,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   flex-shrink: 0;
   padding: 0;
   border: none;

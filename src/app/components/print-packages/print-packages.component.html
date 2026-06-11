@@ -111,16 +111,15 @@
                         <option [value]="d.id" [disabled]="!d.enabled">{{ d.label }}</option>
                       }
                     </select>
-                    <label class="pkg-copies">
-                      <span>×</span>
-                      <input
-                        type="number"
-                        min="1"
-                        max="99"
-                        [ngModel]="item.copies"
-                        (ngModelChange)="updateItem(pkg, authIdx, $index, { copies: +$event || 1 })"
-                      />
-                    </label>
+                    <input
+                      class="pkg-copies"
+                      type="number"
+                      min="1"
+                      max="99"
+                      title="Number of copies"
+                      [ngModel]="item.copies"
+                      (ngModelChange)="updateItem(pkg, authIdx, $index, { copies: +$event || 1 })"
+                    />
                     <button
                       type="button"
                       class="pkg-remove"

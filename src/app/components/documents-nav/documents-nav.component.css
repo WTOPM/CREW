@@ -511,12 +511,17 @@
   gap: 0.35rem;
 }
 
-.doc-count-input {
+.doc-count-field .num-input {
   width: 4.5rem;
+}
+
+.doc-count-input {
+  width: 100%;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 0.9rem;
+  text-align: center;
 }
 
 .doc-count-btn {

@@ -53,6 +53,7 @@ import { CashAdvanceSettingsComponent } from '../cash-advance-settings/cash-adva
 import { CrewMoneyListSettingsComponent } from '../crew-money-list-settings/crew-money-list-settings.component';
 import { NarcoticListSettingsComponent } from '../narcotic-list-settings/narcotic-list-settings.component';
 import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores-settings.component';
+import { NumberSpinDirective } from '../../directives/number-spin.directive';
 
 @Component({
   selector: 'app-documents-nav',
@@ -74,6 +75,7 @@ import { ShipStoresSettingsComponent } from '../ship-stores-settings/ship-stores
     CrewMoneyListSettingsComponent,
     NarcoticListSettingsComponent,
     ClickOutsideDirective,
+    NumberSpinDirective,
   ],
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',
@@ -116,16 +118,7 @@ export class DocumentsNavComponent {
     () => this.storage.documentOverlay().crewList.listType === 'type2Alger',
   );
 
-  protected readonly crewListXlsVisible = computed(() => {
-    const listType = this.storage.documentOverlay().crewList.listType;
-    return (
-      listType !== 'type2Alger' &&
-      listType !== 'type3V2' &&
-      listType !== 'type4V3Sbk' &&
-      listType !== 'type5V3SbkP' &&
-      listType !== 'type6V3SbkP2'
-    );
-  });
+  protected readonly crewListXlsVisible = computed(() => true);
 
   protected showPortOfCallSettings = signal(false);
   /** Which port document the unified Port Settings modal is editing. */
@@ -362,7 +355,7 @@ export class DocumentsNavComponent {
   }
 
   protected exportPortOfCallXls(): void {
-    void this.portOfCallExcel.open().then((ok) => {
+    void this.portOfCallExcel.openForDoc(this.portSettingsDoc()).then((ok) => {
       if (!ok) {
         this.toast.showError('Could not open Excel file');
       }

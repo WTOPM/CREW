@@ -5,10 +5,11 @@ import { CrewArrFormSettings } from '../../models/crew.models';
 import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
+import { NumberSpinDirective } from '../../directives/number-spin.directive';
 
 @Component({
   selector: 'app-crew-arr',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, NumberSpinDirective],
   templateUrl: './crew-arr.component.html',
   styleUrl: './crew-arr.component.css',
 })
