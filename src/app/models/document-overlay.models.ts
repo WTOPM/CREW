@@ -299,7 +299,9 @@ export type DocumentOverlayId =
   | 'mdh'
   | 'crewVaccine'
   | 'shipStores'
+  | 'shipStores02'
   | 'crewEffect'
+  | 'crewEffect02'
   | 'nilList'
   | 'shipMoney'
   | 'cashAdvance'
@@ -318,7 +320,9 @@ export interface DocumentOverlayPrefs {
   mdh: DocumentStampOptions;
   crewVaccine: DocumentStampOptions;
   shipStores: DocumentStampOptions;
+  shipStores02: DocumentStampOptions;
   crewEffect: DocumentStampOptions;
+  crewEffect02: DocumentStampOptions;
   nilList: DocumentStampOptions;
   shipMoney: DocumentStampOptions;
   cashAdvance: DocumentStampOptions;
@@ -372,7 +376,9 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     mdh: { ...DEFAULT_STAMP_OPTS },
     crewVaccine: { ...DEFAULT_STAMP_OPTS },
     shipStores: { ...DEFAULT_STAMP_OPTS },
+    shipStores02: { ...DEFAULT_STAMP_OPTS },
     crewEffect: { ...DEFAULT_STAMP_OPTS },
+    crewEffect02: { ...DEFAULT_STAMP_OPTS },
     nilList: { ...DEFAULT_STAMP_OPTS },
     shipMoney: { ...DEFAULT_STAMP_OPTS },
     cashAdvance: { ...DEFAULT_STAMP_OPTS },
@@ -399,8 +405,10 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   portsOfCall: '02 - Port of Call - Security',
   mdh: 'MDH',
   crewVaccine: 'Crew Vaccine',
-  shipStores: 'Ship Stores',
-  crewEffect: 'Crew Effect',
+  shipStores: '01 - Ship Stores',
+  shipStores02: '02 - Ship Stores - Germany',
+  crewEffect: '01 - Crew Effect',
+  crewEffect02: '02 - Crew Effect - Germany',
   nilList: 'NIL List',
   shipMoney: 'Ship Money',
   cashAdvance: 'Cash Advance',

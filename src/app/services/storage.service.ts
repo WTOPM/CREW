@@ -48,6 +48,8 @@ import {
   areCrewListsInSync,
   crewListDiffCounts,
   normalizePortSecLvl,
+  type CrewEffectDocId,
+  type ShipStoresDocId,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
 import {
@@ -68,6 +70,8 @@ import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-d
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
 import {
   normalizeCrewEffectForm,
+  normalizeCrewEffectForm02,
+  type CrewEffectForm02Settings,
   type CrewEffectFormSettings,
 } from '../models/crew-effect.models';
 import {
@@ -81,6 +85,9 @@ import {
 } from '../models/ship-money.models';
 import {
   normalizeShipStoresForm,
+  normalizeShipStoresForm02,
+  SHIP_STORES_02_ROW_COUNT,
+  SHIP_STORES_ROW_COUNT,
   type ShipStoresFormSettings,
   type ShipStoresRow,
 } from '../models/ship-stores.models';
@@ -124,7 +131,9 @@ export class StorageService {
   readonly portCallHistory = computed(() => this.data().portCallHistory);
   readonly portOfCall = computed(() => this.data().portOfCall);
   readonly shipStoresForm = computed(() => this.data().shipStoresForm);
+  readonly shipStoresForm02 = computed(() => this.data().shipStoresForm02);
   readonly crewEffectForm = computed(() => this.data().crewEffectForm);
+  readonly crewEffectForm02 = computed(() => this.data().crewEffectForm02);
   readonly nilListForm = computed(() => this.data().nilListForm);
   readonly shipMoneyForm = computed(() => this.data().shipMoneyForm);
   readonly cashAdvanceForm = computed(() => this.data().cashAdvanceForm);
@@ -254,7 +263,9 @@ export class StorageService {
     }
     const portOfCall = this.normalizePortOfCallSettings(raw.portOfCall);
     const shipStoresForm = normalizeShipStoresForm(raw.shipStoresForm);
+    const shipStoresForm02 = normalizeShipStoresForm02(raw.shipStoresForm02);
     const crewEffectForm = normalizeCrewEffectForm(raw.crewEffectForm);
+    const crewEffectForm02 = normalizeCrewEffectForm02(raw.crewEffectForm02);
     const nilListForm = normalizeNilListForm(raw.nilListForm);
     const shipMoneyForm = normalizeShipMoneyForm(raw.shipMoneyForm);
     const cashAdvanceForm = normalizeCashAdvanceForm(raw.cashAdvanceForm);
@@ -277,7 +288,9 @@ export class StorageService {
       portCallHistory,
       portOfCall,
       shipStoresForm,
+      shipStoresForm02,
       crewEffectForm,
+      crewEffectForm02,
       nilListForm,
       shipMoneyForm,
       cashAdvanceForm,
@@ -387,7 +400,9 @@ export class StorageService {
       mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
       crewVaccine: this.normalizeStampDocumentPrefs(raw?.crewVaccine, defaults.crewVaccine),
       shipStores: this.normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
+      shipStores02: this.normalizeStampDocumentPrefs(raw?.shipStores02, defaults.shipStores02),
       crewEffect: this.normalizeStampDocumentPrefs(raw?.crewEffect, defaults.crewEffect),
+      crewEffect02: this.normalizeStampDocumentPrefs(raw?.crewEffect02, defaults.crewEffect02),
       nilList: this.normalizeStampDocumentPrefs(raw?.nilList, defaults.nilList),
       shipMoney: this.normalizeStampDocumentPrefs(raw?.shipMoney, defaults.shipMoney),
       cashAdvance: this.normalizeStampDocumentPrefs(raw?.cashAdvance, defaults.cashAdvance),
@@ -676,7 +691,9 @@ export class StorageService {
           mdh: { ...d.documentOverlay.mdh, ...patch },
           crewVaccine: { ...d.documentOverlay.crewVaccine, ...patch },
           shipStores: { ...d.documentOverlay.shipStores, ...patch },
+          shipStores02: { ...d.documentOverlay.shipStores02, ...patch },
           crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
+          crewEffect02: { ...d.documentOverlay.crewEffect02, ...patch },
           nilList: { ...d.documentOverlay.nilList, ...patch },
           shipMoney: { ...d.documentOverlay.shipMoney, ...patch },
           cashAdvance: { ...d.documentOverlay.cashAdvance, ...patch },
@@ -914,25 +931,37 @@ export class StorageService {
     void this.persist('silent');
   }
 
-  updateShipStoresPlaceOfStorage(placeOfStorage: string): void {
-    this.patchShipStoresForm({ placeOfStorage });
+  updateShipStoresPlaceOfStorage(docId: ShipStoresDocId, placeOfStorage: string): void {
+    this.patchShipStoresForm(docId, { placeOfStorage });
   }
 
   updateCrewEffectForm(
-    partial: Partial<CrewEffectFormSettings>,
+    docId: CrewEffectDocId,
+    partial: Partial<CrewEffectFormSettings> | Partial<CrewEffectForm02Settings>,
     notify?: 'silent' | 'saved',
   ): void {
+    const field = docId === 'crewEffect02' ? ('crewEffectForm02' as const) : ('crewEffectForm' as const);
+    const normalize =
+      docId === 'crewEffect02' ? normalizeCrewEffectForm02 : normalizeCrewEffectForm;
     this.data.update((d) => ({
       ...d,
-      crewEffectForm: normalizeCrewEffectForm({ ...d.crewEffectForm, ...partial }),
+      [field]: normalize({ ...d[field], ...partial }),
     }));
     const resolved =
       notify ??
-      (partial.nilCigarettes !== undefined ||
-      partial.nilSpirits !== undefined ||
-      partial.nilWines !== undefined
-        ? 'saved'
-        : 'silent');
+      (docId === 'crewEffect02'
+        ? 'nilCigars' in partial ||
+          'nilWeapons' in partial ||
+          'nilAmmunition' in partial ||
+          partial.nilCigarettes !== undefined ||
+          partial.nilSpirits !== undefined
+          ? 'saved'
+          : 'silent'
+        : partial.nilCigarettes !== undefined ||
+            partial.nilSpirits !== undefined ||
+            'nilWines' in partial && partial.nilWines !== undefined
+          ? 'saved'
+          : 'silent');
     void this.persist(resolved);
   }
 
@@ -1000,20 +1029,33 @@ export class StorageService {
     void this.persist('silent');
   }
 
-  updateShipStoresRow(rowIndex: number, partial: Partial<ShipStoresRow>): void {
-    if (rowIndex < 0 || rowIndex >= 27) return;
+  updateShipStoresRow(
+    docId: ShipStoresDocId,
+    rowIndex: number,
+    partial: Partial<ShipStoresRow>,
+  ): void {
+    const rowCount = docId === 'shipStores02' ? SHIP_STORES_02_ROW_COUNT : SHIP_STORES_ROW_COUNT;
+    if (rowIndex < 0 || rowIndex >= rowCount) return;
+    const field =
+      docId === 'shipStores02' ? ('shipStoresForm02' as const) : ('shipStoresForm' as const);
     this.data.update((d) => {
-      const form = normalizeShipStoresForm(d.shipStoresForm);
+      const normalize =
+        docId === 'shipStores02' ? normalizeShipStoresForm02 : normalizeShipStoresForm;
+      const form = normalize(d[field]);
       const rows = form.rows.map((r, i) => (i === rowIndex ? { ...r, ...partial } : r));
-      return { ...d, shipStoresForm: normalizeShipStoresForm({ ...form, rows }) };
+      return { ...d, [field]: normalize({ ...form, rows }) };
     });
     void this.persist('silent');
   }
 
-  private patchShipStoresForm(partial: Partial<ShipStoresFormSettings>): void {
+  private patchShipStoresForm(docId: ShipStoresDocId, partial: Partial<ShipStoresFormSettings>): void {
+    const field =
+      docId === 'shipStores02' ? ('shipStoresForm02' as const) : ('shipStoresForm' as const);
+    const normalize =
+      docId === 'shipStores02' ? normalizeShipStoresForm02 : normalizeShipStoresForm;
     this.data.update((d) => ({
       ...d,
-      shipStoresForm: normalizeShipStoresForm({ ...d.shipStoresForm, ...partial }),
+      [field]: normalize({ ...d[field], ...partial }),
     }));
     void this.persist('silent');
   }

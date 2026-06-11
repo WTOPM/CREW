@@ -4,6 +4,7 @@ import {
   filterActiveCrewList,
   formatPortCallPortName,
 } from '../models/crew.models';
+import { filterActivePassengerList } from '../models/passenger.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { shipStoresPdfFileName } from '../utils/pdf-filename.util';
@@ -23,6 +24,7 @@ import {
   SHIP_STORES_FIELDS,
   SHIP_STORES_FONT,
   shipStoresBodyRowPdfLibY,
+  formatShipStoresPeriodOfStay,
   shipStoresPeriodDays,
   type ShipStoresTextPlacement,
 } from './ship-stores-field-positions';
@@ -78,9 +80,10 @@ export class PdfShipStoresService {
       });
     };
 
-    const crewArrival = filterActiveCrewList(data.crew, 'arrival');
+    const crewCount = filterActiveCrewList(data.crew, 'arrival').length;
+    const paxCount = filterActivePassengerList(data.passengers, 'arrival').length;
     const form = normalizeShipStoresForm(data.shipStoresForm);
-    this.drawHeader(draw, data, crewArrival.length, form.placeOfStorage);
+    this.drawHeader(draw, data, crewCount + paxCount, form.placeOfStorage);
     this.drawBodyTable(page, font, black, form);
 
     return doc.save();
@@ -109,7 +112,7 @@ export class PdfShipStoresService {
     draw(formatPortCallPortName(ship.nationality), SHIP_STORES_FIELDS.nationality, true);
     draw(portsRoute, SHIP_STORES_FIELDS.portsRoute, true);
     draw(String(personsOnBoard), SHIP_STORES_FIELDS.personsOnBoard, true);
-    draw(String(periodDays), SHIP_STORES_FIELDS.periodOfStay, true);
+    draw(formatShipStoresPeriodOfStay(periodDays), SHIP_STORES_FIELDS.periodOfStay, true);
     draw(placeOfStorage, SHIP_STORES_FIELDS.placeOfStorage, true);
   }
 

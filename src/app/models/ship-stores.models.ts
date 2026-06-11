@@ -1,4 +1,5 @@
 export const SHIP_STORES_ROW_COUNT = 27;
+export const SHIP_STORES_02_ROW_COUNT = 19;
 
 export interface ShipStoresRow {
   name: string;
@@ -16,11 +17,17 @@ export function createEmptyShipStoresRow(): ShipStoresRow {
   return { name: '', quantity: '', unit: '' };
 }
 
-export function createDefaultShipStoresForm(): ShipStoresFormSettings {
+export function createDefaultShipStoresForm(
+  rowCount: number = SHIP_STORES_ROW_COUNT,
+): ShipStoresFormSettings {
   return {
     placeOfStorage: '',
-    rows: Array.from({ length: SHIP_STORES_ROW_COUNT }, () => createEmptyShipStoresRow()),
+    rows: Array.from({ length: rowCount }, () => createEmptyShipStoresRow()),
   };
+}
+
+export function createDefaultShipStoresForm02(): ShipStoresFormSettings {
+  return createDefaultShipStoresForm(SHIP_STORES_02_ROW_COUNT);
 }
 
 /** Quantity column: NIL only when article name is set and quantity is empty or zero. */
@@ -43,20 +50,27 @@ export function formatShipStoresUnitText(articleName: string, _quantity: string,
 
 export function normalizeShipStoresForm(
   raw: Partial<ShipStoresFormSettings> | undefined,
+  rowCount: number = SHIP_STORES_ROW_COUNT,
 ): ShipStoresFormSettings {
-  const defaults = createDefaultShipStoresForm();
+  const defaults = createDefaultShipStoresForm(rowCount);
   const rows = [...(raw?.rows ?? [])];
-  while (rows.length < SHIP_STORES_ROW_COUNT) {
+  while (rows.length < rowCount) {
     rows.push(createEmptyShipStoresRow());
   }
   return {
     placeOfStorage: (raw?.placeOfStorage ?? defaults.placeOfStorage).trim(),
-    rows: rows.slice(0, SHIP_STORES_ROW_COUNT).map((r) => ({
+    rows: rows.slice(0, rowCount).map((r) => ({
       name: (r?.name ?? '').trim(),
       quantity: (r?.quantity ?? '').trim(),
       unit: normalizeShipStoresRowUnit(r?.unit),
     })),
   };
+}
+
+export function normalizeShipStoresForm02(
+  raw: Partial<ShipStoresFormSettings> | undefined,
+): ShipStoresFormSettings {
+  return normalizeShipStoresForm(raw, SHIP_STORES_02_ROW_COUNT);
 }
 
 function normalizeShipStoresRowUnit(raw: unknown): string {

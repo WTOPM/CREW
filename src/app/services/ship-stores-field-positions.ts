@@ -77,6 +77,11 @@ export function shipStoresPeriodDays(
   return days <= 0 ? 1 : days;
 }
 
+export function formatShipStoresPeriodOfStay(days: number): string {
+  const n = Math.max(1, Math.floor(days));
+  return n === 1 ? '1 day' : `${n} days`;
+}
+
 function parseIsoMidnight(value: string | undefined | null): Date | null {
   const v = (value ?? '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;

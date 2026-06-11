@@ -325,7 +325,9 @@ function allDocumentsUse(
     overlay.portsOfCall[field] &&
     overlay.mdh[field] &&
     overlay.shipStores[field] &&
+    overlay.shipStores02[field] &&
     overlay.crewEffect[field] &&
+    overlay.crewEffect02[field] &&
     overlay.nilList[field] &&
     overlay.shipMoney[field] &&
     overlay.cashAdvance[field] &&

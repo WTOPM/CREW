@@ -125,8 +125,16 @@ export function mdhPdfFileName(
   return `MDH_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function shipStores02PdfFileName(shipName: string, voyageDate: string): string {
+  return `Ship_Stores_02_${pdfFileToken(shipName)}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function shipStoresPdfFileName(shipName: string, voyageDate: string): string {
   return `Ship_Stores_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
+export function crewEffect02PdfFileName(shipName: string, voyageDate: string): string {
+  return `Crew_Effect_02_${pdfFileToken(shipName)}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
 export function crewEffectPdfFileName(shipName: string, voyageDate: string): string {

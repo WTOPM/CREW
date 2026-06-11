@@ -2,8 +2,11 @@ import { parseValidityRange } from '../utils/date.util';
 import { PassengerMember, PaxArrFormSettings } from './passenger.models';
 import type { DocumentOverlayPrefs, ShipAssetsMeta } from './document-overlay.models';
 import { createDefaultDocumentOverlayPrefs, createEmptyShipAssetsMeta } from './document-overlay.models';
-import type { CrewEffectFormSettings } from './crew-effect.models';
-import { createDefaultCrewEffectForm } from './crew-effect.models';
+import type { CrewEffectForm02Settings, CrewEffectFormSettings } from './crew-effect.models';
+import {
+  createDefaultCrewEffectForm,
+  createDefaultCrewEffectForm02,
+} from './crew-effect.models';
 import type { NilListFormSettings } from './nil-list.models';
 import { createDefaultNilListForm } from './nil-list.models';
 import type { ShipMoneyFormSettings } from './ship-money.models';
@@ -315,6 +318,68 @@ export function normalizePortSettingsDocId(raw: unknown): PortSettingsDocId {
   return 'portOfCall';
 }
 
+/** Which Ship Stores form Ship Stores settings is editing. */
+export type ShipStoresDocId = 'shipStores' | 'shipStores02';
+
+export const SHIP_STORES_DOC_IDS: readonly ShipStoresDocId[] = ['shipStores', 'shipStores02'];
+
+export const SHIP_STORES_DOC_NAMES: Record<ShipStoresDocId, string> = {
+  shipStores: 'Ship Stores',
+  shipStores02: 'Ship Stores - Germany',
+};
+
+export function shipStoresDocOrderNo(id: ShipStoresDocId): string {
+  const index = SHIP_STORES_DOC_IDS.indexOf(id);
+  return String(index + 1).padStart(2, '0');
+}
+
+export const SHIP_STORES_DOC_LABELS: Record<ShipStoresDocId, string> = Object.fromEntries(
+  SHIP_STORES_DOC_IDS.map((id) => [
+    id,
+    `${shipStoresDocOrderNo(id)} - ${SHIP_STORES_DOC_NAMES[id]}`,
+  ]),
+) as Record<ShipStoresDocId, string>;
+
+export function normalizeShipStoresDocId(raw: unknown): ShipStoresDocId {
+  return raw === 'shipStores02' ? 'shipStores02' : 'shipStores';
+}
+
+export function shipStoresFormField(id: ShipStoresDocId): 'shipStoresForm' | 'shipStoresForm02' {
+  return id === 'shipStores02' ? 'shipStoresForm02' : 'shipStoresForm';
+}
+
+/** Which Crew Effect form settings is editing. */
+export type CrewEffectDocId = 'crewEffect' | 'crewEffect02';
+
+export const CREW_EFFECT_DOC_IDS: readonly CrewEffectDocId[] = ['crewEffect', 'crewEffect02'];
+
+export const CREW_EFFECT_DOC_NAMES: Record<CrewEffectDocId, string> = {
+  crewEffect: 'Crew Effect',
+  crewEffect02: 'Crew Effect - Germany',
+};
+
+export function crewEffectDocOrderNo(id: CrewEffectDocId): string {
+  const index = CREW_EFFECT_DOC_IDS.indexOf(id);
+  return String(index + 1).padStart(2, '0');
+}
+
+export const CREW_EFFECT_DOC_LABELS: Record<CrewEffectDocId, string> = Object.fromEntries(
+  CREW_EFFECT_DOC_IDS.map((id) => [
+    id,
+    `${crewEffectDocOrderNo(id)} - ${CREW_EFFECT_DOC_NAMES[id]}`,
+  ]),
+) as Record<CrewEffectDocId, string>;
+
+export function normalizeCrewEffectDocId(raw: unknown): CrewEffectDocId {
+  return raw === 'crewEffect02' ? 'crewEffect02' : 'crewEffect';
+}
+
+export function crewEffectFormField(
+  id: CrewEffectDocId,
+): 'crewEffectForm' | 'crewEffectForm02' {
+  return id === 'crewEffect02' ? 'crewEffectForm02' : 'crewEffectForm';
+}
+
 export interface PortOfCallSettings {
   /** How many latest port calls to print in the PDF (pages of 11 rows each). */
   pdfRowCount: number;
@@ -331,10 +396,14 @@ export interface AppData {
   nationalities: string[];
   portCallHistory: PortCallHistoryEntry[];
   portOfCall: PortOfCallSettings;
-  /** Ship Stores table (articles, quantities, place of storage). */
+  /** Ship Stores 01 — table (articles, quantities, place of storage). */
   shipStoresForm: ShipStoresFormSettings;
-  /** Crew Effect (IMO Crew's Effects Declaration). */
+  /** Ship Stores 02 — separate table data. */
+  shipStoresForm02: ShipStoresFormSettings;
+  /** Crew Effect 01 (IMO Crew's Effects Declaration). */
   crewEffectForm: CrewEffectFormSettings;
+  /** Crew Effect 02 — Germany. */
+  crewEffectForm02: CrewEffectForm02Settings;
   /** NIL List — selectable phrases. */
   nilListForm: NilListFormSettings;
   /** Ship Money — amount & currency rows. */
@@ -399,8 +468,11 @@ export function createDefaultPrintPackages(): PortPackage[] {
   return [];
 }
 
-export type { CrewEffectFormSettings } from './crew-effect.models';
-export { createDefaultCrewEffectForm } from './crew-effect.models';
+export type { CrewEffectForm02Settings, CrewEffectFormSettings } from './crew-effect.models';
+export {
+  createDefaultCrewEffectForm,
+  createDefaultCrewEffectForm02,
+} from './crew-effect.models';
 export type { NilListFormSettings, NilListPhrase } from './nil-list.models';
 export { createDefaultNilListForm } from './nil-list.models';
 export type { ShipMoneyFormSettings, ShipMoneyEntry } from './ship-money.models';
@@ -422,8 +494,10 @@ export {
 } from './narcotic-list.models';
 export type { ShipStoresFormSettings, ShipStoresRow } from './ship-stores.models';
 export {
+  SHIP_STORES_02_ROW_COUNT,
   SHIP_STORES_ROW_COUNT,
   createDefaultShipStoresForm,
+  createDefaultShipStoresForm02,
   formatShipStoresQuantityText,
   formatShipStoresUnitText,
 } from './ship-stores.models';

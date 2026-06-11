@@ -35,3 +35,41 @@ export function normalizeCrewEffectForm(
     nilWines: Boolean(raw?.nilWines),
   };
 }
+
+/** Crew Effect 02 — Germany (1234.pdf). */
+export interface CrewEffectForm02Settings {
+  /** Column Others (e.g. - P. E. -). */
+  others: string;
+  nilCigarettes: boolean;
+  nilCigars: boolean;
+  nilSpirits: boolean;
+  nilWeapons: boolean;
+  nilAmmunition: boolean;
+}
+
+export function createDefaultCrewEffectForm02(): CrewEffectForm02Settings {
+  return {
+    others: '- P. E. -',
+    nilCigarettes: false,
+    nilCigars: false,
+    nilSpirits: false,
+    nilWeapons: false,
+    nilAmmunition: false,
+  };
+}
+
+export function normalizeCrewEffectForm02(
+  raw: Partial<CrewEffectForm02Settings> & { pageNo?: string; signatureText?: string } | undefined,
+): CrewEffectForm02Settings {
+  const defaults = createDefaultCrewEffectForm02();
+  const legacy = raw as { others?: string; signatureText?: string } | undefined;
+  const others = (legacy?.others ?? legacy?.signatureText ?? defaults.others).trim();
+  return {
+    others: others || defaults.others,
+    nilCigarettes: Boolean(raw?.nilCigarettes),
+    nilCigars: Boolean(raw?.nilCigars),
+    nilSpirits: Boolean(raw?.nilSpirits),
+    nilWeapons: Boolean(raw?.nilWeapons),
+    nilAmmunition: Boolean(raw?.nilAmmunition),
+  };
+}

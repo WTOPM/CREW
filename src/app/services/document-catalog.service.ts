@@ -23,6 +23,8 @@ import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfPortOfCallTemplateService } from './pdf-port-of-call-template.service';
 import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
+import { PdfShipStores02Service } from './pdf-ship-stores-02.service';
+import { PdfCrewEffect02Service } from './pdf-crew-effect-02.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
 import { PdfNilListService } from './pdf-nil-list.service';
 import { PdfShipMoneyService } from './pdf-ship-money.service';
@@ -62,7 +64,9 @@ export class DocumentCatalogService {
   private readonly pocTemplate = inject(PdfPortOfCallTemplateService);
   private readonly sso = inject(PdfSso0108PortCallsService);
   private readonly shipStores = inject(PdfShipStoresService);
+  private readonly shipStores02 = inject(PdfShipStores02Service);
   private readonly crewEffect = inject(PdfCrewEffectService);
+  private readonly crewEffect02 = inject(PdfCrewEffect02Service);
   private readonly nil = inject(PdfNilListService);
   private readonly shipMoney = inject(PdfShipMoneyService);
   private readonly cashAdvance = inject(PdfCashAdvanceService);
@@ -139,10 +143,20 @@ export class DocumentCatalogService {
           bytes: await this.shipStores.buildFinalBytes(base),
           fileName: this.shipStores.fileName(base),
         };
+      case 'shipStores02':
+        return {
+          bytes: await this.shipStores02.buildFinalBytes(base),
+          fileName: this.shipStores02.fileName(base),
+        };
       case 'crewEffect':
         return {
           bytes: await this.crewEffect.buildFinalBytes(base),
           fileName: this.crewEffect.fileName(base),
+        };
+      case 'crewEffect02':
+        return {
+          bytes: await this.crewEffect02.buildFinalBytes(base),
+          fileName: this.crewEffect02.fileName(base),
         };
       case 'nilList':
         return { bytes: await this.nil.buildFinalBytes(base), fileName: this.nil.fileName(base) };
@@ -356,7 +370,9 @@ export class DocumentCatalogService {
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
+      shipStoresForm02: this.storage.shipStoresForm02(),
       crewEffectForm: this.storage.crewEffectForm(),
+      crewEffectForm02: this.storage.crewEffectForm02(),
       nilListForm: this.storage.nilListForm(),
       shipMoneyForm: this.storage.shipMoneyForm(),
       cashAdvanceForm: this.storage.cashAdvanceForm(),

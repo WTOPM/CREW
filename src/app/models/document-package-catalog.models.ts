@@ -27,7 +27,9 @@ export type PackageDocumentId =
   | 'portsOfCall'
   | 'sso0108'
   | 'shipStores'
+  | 'shipStores02'
   | 'crewEffect'
+  | 'crewEffect02'
   | 'nilList'
   | 'shipMoney'
   | 'cashAdvance'
@@ -126,7 +128,9 @@ export const PACKAGE_CATALOG_ENTRIES: readonly PackageCatalogEntry[] = [
   { id: 'portsOfCall', label: DOCUMENT_OVERLAY_LABELS.portsOfCall },
   { id: 'sso0108', label: DOCUMENT_OVERLAY_LABELS.sso0108PortCalls },
   { id: 'shipStores', label: DOCUMENT_OVERLAY_LABELS.shipStores },
+  { id: 'shipStores02', label: DOCUMENT_OVERLAY_LABELS.shipStores02 },
   { id: 'crewEffect', label: DOCUMENT_OVERLAY_LABELS.crewEffect },
+  { id: 'crewEffect02', label: DOCUMENT_OVERLAY_LABELS.crewEffect02 },
   { id: 'nilList', label: DOCUMENT_OVERLAY_LABELS.nilList },
   { id: 'shipMoney', label: DOCUMENT_OVERLAY_LABELS.shipMoney },
   { id: 'cashAdvance', label: DOCUMENT_OVERLAY_LABELS.cashAdvance },

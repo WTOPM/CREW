@@ -94,7 +94,7 @@ type ResizeTarget = 'stamp' | 'signature';
           </label>
         </div>
 
-        @if (documentId() === 'mdh') {
+        @if (documentId() === 'mdh' || documentId() === 'shipStores02' || documentId() === 'crewEffect02') {
           <div class="placement-mdh-tabs" role="tablist">
             <button
               type="button"
@@ -112,7 +112,11 @@ type ResizeTarget = 'stamp' | 'signature';
               [class.placement-tab--active]="mdhPage() === 'attachment'"
               (click)="setMdhPage('attachment')"
             >
-              Pages 2+ (attachment)
+              @if (documentId() === 'shipStores02' || documentId() === 'crewEffect02') {
+                Page 2 (stamp)
+              } @else {
+                Pages 2+ (attachment)
+              }
             </button>
           </div>
         }
@@ -754,9 +758,23 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     this.revokePreviewUrls();
   }
 
-  protected readonly mdhAttachment = computed(
-    () => this.documentId() === 'mdh' && this.mdhPage() === 'attachment',
-  );
+  protected readonly mdhAttachment = computed(() => {
+    const id = this.documentId();
+    return (
+      (id === 'mdh' || id === 'shipStores02' || id === 'crewEffect02') &&
+      this.mdhPage() === 'attachment'
+    );
+  });
+
+  protected readonly stampPlacementOnPage = computed(() => {
+    if (
+      (this.documentId() === 'shipStores02' || this.documentId() === 'crewEffect02') &&
+      this.mdhPage() === 'form'
+    ) {
+      return false;
+    }
+    return true;
+  });
 
   protected markerRotateTransform = computed(() => `rotate(${this.rotation()}deg)`);
 
@@ -770,20 +788,34 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   protected canMoveStamp = computed(() => {
     const m = this.placementMode();
-    return this.options().useStamp && (m === 'stamp' || m === 'both');
+    return (
+      this.stampPlacementOnPage() &&
+      this.options().useStamp &&
+      (m === 'stamp' || m === 'both')
+    );
   });
 
   protected canMoveSignature = computed(() => {
     const m = this.placementMode();
-    return this.options().useSignature && (m === 'signature' || m === 'both');
+    return (
+      this.stampPlacementOnPage() &&
+      this.options().useSignature &&
+      (m === 'signature' || m === 'both')
+    );
   });
 
   protected canResizeStamp = computed(
-    () => this.options().useStamp && this.placementMode() !== 'none',
+    () =>
+      this.stampPlacementOnPage() &&
+      this.options().useStamp &&
+      this.placementMode() !== 'none',
   );
 
   protected canResizeSignature = computed(
-    () => this.options().useSignature && this.placementMode() !== 'none',
+    () =>
+      this.stampPlacementOnPage() &&
+      this.options().useSignature &&
+      this.placementMode() !== 'none',
   );
 
   protected placementHint = computed(() => {
@@ -1088,7 +1120,11 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     const signature = defaultSignatureBoxFromStamp(stamp, A4_HEIGHT_PT);
     this.persistBoxes(stamp, signature);
 
-    const rot: OverlayRotation = this.mdhAttachment() ? 180 : 0;
+    const rot: OverlayRotation = this.mdhAttachment()
+      ? this.documentId() === 'mdh'
+        ? 180
+        : 0
+      : 0;
     this.rotation.set(rot);
     this.persistRotation(rot);
     this.dragStampBoxPage.set(null);
@@ -1442,7 +1478,10 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     const o = this.options();
     this.rotation.set(
       this.mdhAttachment()
-        ? normalizeOverlayRotation(o.overlayRotationAttachment, 180)
+        ? normalizeOverlayRotation(
+            o.overlayRotationAttachment,
+            this.documentId() === 'mdh' ? 180 : 0,
+          )
         : normalizeOverlayRotation(o.overlayRotation, 0),
     );
   }

@@ -44,6 +44,45 @@ export class PdfOverlayService {
     return pdf.save();
   }
 
+  /** Stamp/signature on pages after the first (page 1 = form data). */
+  async applyAttachmentPageOverlay(
+    bytes: Uint8Array,
+    options: DocumentStampOptions,
+    documentId: DocumentOverlayId,
+  ): Promise<Uint8Array> {
+    if (!options.useStamp && !options.useSignature) {
+      return bytes;
+    }
+
+    const { PDFDocument } = await import('pdf-lib');
+    const pdf = await PDFDocument.load(bytes);
+    const pages = pdf.getPages();
+    if (pages.length < 2) return bytes;
+
+    for (let i = 1; i < pages.length; i++) {
+      const page = pages[i];
+      const rotation = resolveOverlayRotation(options, false);
+      await this.drawOverlayOnPage(pdf, page, options, documentId, true, rotation);
+    }
+    return pdf.save();
+  }
+
+  /** Ship Stores 02 — stamp/signature on page 2 only (page 1 = form data). */
+  async applyShipStores02Overlay(
+    bytes: Uint8Array,
+    options: DocumentStampOptions,
+  ): Promise<Uint8Array> {
+    return this.applyAttachmentPageOverlay(bytes, options, 'shipStores02');
+  }
+
+  /** Crew Effect 02 — stamp/signature on page 2 only (page 1 = form data). */
+  async applyCrewEffect02Overlay(
+    bytes: Uint8Array,
+    options: DocumentStampOptions,
+  ): Promise<Uint8Array> {
+    return this.applyAttachmentPageOverlay(bytes, options, 'crewEffect02');
+  }
+
   async applyMdhOverlay(bytes: Uint8Array, options: DocumentStampOptions): Promise<Uint8Array> {
     if (!options.useStamp && !options.useSignature) {
       return bytes;

@@ -9,6 +9,12 @@ import {
   PORT_SETTINGS_DOC_IDS,
   PORT_SETTINGS_DOC_LABELS,
   PortSettingsDocId,
+  CREW_EFFECT_DOC_IDS,
+  CREW_EFFECT_DOC_LABELS,
+  CrewEffectDocId,
+  SHIP_STORES_DOC_IDS,
+  SHIP_STORES_DOC_LABELS,
+  ShipStoresDocId,
   portCountry,
 } from '../../models/crew.models';
 import { crewListIdentityPdfFileName } from '../../utils/pdf-filename.util';
@@ -26,6 +32,7 @@ import { PdfMdhService } from '../../services/pdf-mdh.service';
 import { PdfPassengerListV2Service } from '../../services/pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { PdfPortOfCallTemplateService } from '../../services/pdf-port-of-call-template.service';
+import { PdfCrewEffect02Service } from '../../services/pdf-crew-effect-02.service';
 import { PdfCrewEffectService } from '../../services/pdf-crew-effect.service';
 import { PdfNilListService } from '../../services/pdf-nil-list.service';
 import { PdfShipMoneyService } from '../../services/pdf-ship-money.service';
@@ -35,6 +42,7 @@ import { PdfNarcoticListService } from '../../services/pdf-narcotic-list.service
 import { PdfSso0108PortCallsService } from '../../services/pdf-sso0108-port-calls.service';
 import { PdfCrewVaccineService } from '../../services/pdf-crew-vaccine.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
+import { PdfShipStores02Service } from '../../services/pdf-ship-stores-02.service';
 import { CrewListExcelService } from '../../services/crew-list-excel.service';
 import { PortOfCallExcelService } from '../../services/port-of-call-excel.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
@@ -94,7 +102,9 @@ export class DocumentsNavComponent {
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
   private readonly portOfCallTemplatePdf = inject(PdfPortOfCallTemplateService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
+  private readonly shipStores02Pdf = inject(PdfShipStores02Service);
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
+  private readonly crewEffect02Pdf = inject(PdfCrewEffect02Service);
   private readonly nilListPdf = inject(PdfNilListService);
   private readonly shipMoneyPdf = inject(PdfShipMoneyService);
   private readonly cashAdvancePdf = inject(PdfCashAdvanceService);
@@ -131,7 +141,11 @@ export class DocumentsNavComponent {
   /** Which MDH document the unified MDH Settings modal is editing. */
   protected mdhSettingsDoc = signal<'mdh' | 'crewVaccine'>('mdh');
   protected showShipStoresSettings = signal(false);
+  protected readonly shipStoresDocIds = SHIP_STORES_DOC_IDS;
+  protected shipStoresSettingsDoc = signal<ShipStoresDocId>('shipStores');
   protected showCrewEffectSettings = signal(false);
+  protected readonly crewEffectDocIds = CREW_EFFECT_DOC_IDS;
+  protected crewEffectSettingsDoc = signal<CrewEffectDocId>('crewEffect');
   protected showNilListSettings = signal(false);
   protected showShipMoneySettings = signal(false);
   protected showCashAdvanceSettings = signal(false);
@@ -391,8 +405,28 @@ export class DocumentsNavComponent {
     );
   }
 
+  protected shipStoresDocLabel(id: ShipStoresDocId): string {
+    return SHIP_STORES_DOC_LABELS[id];
+  }
+
+  protected onShipStoresSettingsDocChange(value: ShipStoresDocId): void {
+    if (value === this.shipStoresSettingsDoc()) return;
+    this.shipStoresSettingsDoc.set(value);
+    this.toast.showSelected(SHIP_STORES_DOC_LABELS[value]);
+  }
+
   protected openShipStores(): void {
     void this.shipStoresPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Ship Stores preview');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
+    });
+  }
+
+  protected openShipStores02(): void {
+    void this.shipStores02Pdf.openPreview(this.appData()).then((ok) => {
       if (!ok) {
         this.toast.showError('Allow pop-ups to open Ship Stores preview');
       }
@@ -410,8 +444,28 @@ export class DocumentsNavComponent {
     this.storage.finishFormSession();
   }
 
+  protected crewEffectDocLabel(id: CrewEffectDocId): string {
+    return CREW_EFFECT_DOC_LABELS[id];
+  }
+
+  protected onCrewEffectSettingsDocChange(value: CrewEffectDocId): void {
+    if (value === this.crewEffectSettingsDoc()) return;
+    this.crewEffectSettingsDoc.set(value);
+    this.toast.showSelected(CREW_EFFECT_DOC_LABELS[value]);
+  }
+
   protected openCrewEffect(): void {
     void this.crewEffectPdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Crew Effect preview');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
+    });
+  }
+
+  protected openCrewEffect02(): void {
+    void this.crewEffect02Pdf.openPreview(this.appData()).then((ok) => {
       if (!ok) {
         this.toast.showError('Allow pop-ups to open Crew Effect preview');
       }
@@ -552,7 +606,9 @@ export class DocumentsNavComponent {
       portCallHistory: this.storage.portCallHistory(),
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
+      shipStoresForm02: this.storage.shipStoresForm02(),
       crewEffectForm: this.storage.crewEffectForm(),
+      crewEffectForm02: this.storage.crewEffectForm02(),
       nilListForm: this.storage.nilListForm(),
       shipMoneyForm: this.storage.shipMoneyForm(),
       cashAdvanceForm: this.storage.cashAdvanceForm(),

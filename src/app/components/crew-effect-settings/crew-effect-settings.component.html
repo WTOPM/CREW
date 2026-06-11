@@ -1,30 +1,73 @@
 <section class="ce-settings">
   <fieldset class="ce-nil-group">
     <legend class="ce-nil-legend">Print NIL for all crew rows</legend>
-    <label class="ce-nil-check">
-      <input
-        type="checkbox"
-        [ngModel]="form().nilCigarettes"
-        (ngModelChange)="onNilToggle('nilCigarettes', $event)"
-      />
-      <span>Cigarettes</span>
-    </label>
-    <label class="ce-nil-check">
-      <input
-        type="checkbox"
-        [ngModel]="form().nilSpirits"
-        (ngModelChange)="onNilToggle('nilSpirits', $event)"
-      />
-      <span>Spirits (Ltr)</span>
-    </label>
-    <label class="ce-nil-check">
-      <input
-        type="checkbox"
-        [ngModel]="form().nilWines"
-        (ngModelChange)="onNilToggle('nilWines', $event)"
-      />
-      <span>Wines (Ltr)</span>
-    </label>
+    @if (isGermany()) {
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form02().nilCigarettes"
+          (ngModelChange)="onNilToggle02('nilCigarettes', $event)"
+        />
+        <span>Cigarettes (pcs)</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form02().nilCigars"
+          (ngModelChange)="onNilToggle02('nilCigars', $event)"
+        />
+        <span>Cigars (pcs)</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form02().nilSpirits"
+          (ngModelChange)="onNilToggle02('nilSpirits', $event)"
+        />
+        <span>Spirits (l)</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form02().nilWeapons"
+          (ngModelChange)="onNilToggle02('nilWeapons', $event)"
+        />
+        <span>Weapons (pcs)</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form02().nilAmmunition"
+          (ngModelChange)="onNilToggle02('nilAmmunition', $event)"
+        />
+        <span>Ammunition (pcs)</span>
+      </label>
+    } @else {
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form01().nilCigarettes"
+          (ngModelChange)="onNilToggle01('nilCigarettes', $event)"
+        />
+        <span>Cigarettes</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form01().nilSpirits"
+          (ngModelChange)="onNilToggle01('nilSpirits', $event)"
+        />
+        <span>Spirits (Ltr)</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form01().nilWines"
+          (ngModelChange)="onNilToggle01('nilWines', $event)"
+        />
+        <span>Wines (Ltr)</span>
+      </label>
+    }
   </fieldset>
 
   <label class="ce-field">
@@ -32,11 +75,11 @@
     <input
       type="text"
       class="ce-input"
-      [ngModel]="form().others"
+      [ngModel]="isGermany() ? form02().others : form01().others"
       (ngModelChange)="onOthersChange($event)"
       placeholder="- P. E. -"
     />
   </label>
 
-  <app-document-stamp-options documentId="crewEffect" />
+  <app-document-stamp-options [documentId]="stampDocumentId()" />
 </section>

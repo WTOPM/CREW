@@ -89,7 +89,10 @@
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openShipStores()">
-        Ship Stores
+        {{ shipStoresDocLabel('shipStores') }}
+      </button>
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openShipStores02()">
+        {{ shipStoresDocLabel('shipStores02') }}
       </button>
       <button
         type="button"
@@ -115,7 +118,10 @@
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewEffect()">
-        Crew Effect
+        {{ crewEffectDocLabel('crewEffect') }}
+      </button>
+      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewEffect02()">
+        {{ crewEffectDocLabel('crewEffect02') }}
       </button>
       <button
         type="button"
@@ -322,7 +328,29 @@
       <header class="ss-modal-head">
         <h3>Ship Stores settings</h3>
       </header>
-      <app-ship-stores-settings />
+
+      <fieldset class="choice-group ss-modal-choice">
+        <legend class="choice-group__legend">Select document</legend>
+        <div class="port-settings-doc-list" role="radiogroup" aria-label="Select Ship Stores form">
+          @for (id of shipStoresDocIds; track id) {
+            <label
+              class="port-settings-doc-option"
+              [class.port-settings-doc-option--selected]="shipStoresSettingsDoc() === id"
+            >
+              <input
+                type="radio"
+                name="shipStoresSettingsDoc"
+                [value]="id"
+                [ngModel]="shipStoresSettingsDoc()"
+                (ngModelChange)="onShipStoresSettingsDocChange($event)"
+              />
+              <span class="port-settings-doc-option__label">{{ shipStoresDocLabel(id) }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <app-ship-stores-settings [docId]="shipStoresSettingsDoc()" />
       <div class="modal-actions">
         <button type="button" class="btn btn-primary" (click)="closeShipStoresSettings()">Done</button>
       </div>
@@ -332,9 +360,33 @@
 
 @if (showCrewEffectSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closeCrewEffectSettings()" (click)="$event.stopPropagation()">
-      <h3>Crew Effect settings</h3>
-      <app-crew-effect-settings />
+    <div class="modal modal-wide ss-modal" appClickOutside (appClickOutside)="closeCrewEffectSettings()" (click)="$event.stopPropagation()">
+      <header class="ss-modal-head">
+        <h3>Crew Effect settings</h3>
+      </header>
+
+      <fieldset class="choice-group ss-modal-choice">
+        <legend class="choice-group__legend">Select document</legend>
+        <div class="port-settings-doc-list" role="radiogroup" aria-label="Select Crew Effect form">
+          @for (id of crewEffectDocIds; track id) {
+            <label
+              class="port-settings-doc-option"
+              [class.port-settings-doc-option--selected]="crewEffectSettingsDoc() === id"
+            >
+              <input
+                type="radio"
+                name="crewEffectSettingsDoc"
+                [value]="id"
+                [ngModel]="crewEffectSettingsDoc()"
+                (ngModelChange)="onCrewEffectSettingsDocChange($event)"
+              />
+              <span class="port-settings-doc-option__label">{{ crewEffectDocLabel(id) }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <app-crew-effect-settings [docId]="crewEffectSettingsDoc()" />
       <div class="modal-actions">
         <button type="button" class="btn btn-primary" (click)="closeCrewEffectSettings()">Done</button>
       </div>
