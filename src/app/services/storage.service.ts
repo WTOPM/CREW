@@ -50,6 +50,7 @@ import {
   normalizePortSecLvl,
   type CrewEffectDocId,
   type ShipStoresDocId,
+  crewEffectFormField,
   shipStoresFormField,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
@@ -72,7 +73,9 @@ import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates
 import {
   normalizeCrewEffectForm,
   normalizeCrewEffectForm02,
+  normalizeCrewEffectForm03,
   type CrewEffectForm02Settings,
+  type CrewEffectForm03Settings,
   type CrewEffectFormSettings,
 } from '../models/crew-effect.models';
 import {
@@ -138,6 +141,7 @@ export class StorageService {
   readonly shipStoresForm03 = computed(() => this.data().shipStoresForm03);
   readonly crewEffectForm = computed(() => this.data().crewEffectForm);
   readonly crewEffectForm02 = computed(() => this.data().crewEffectForm02);
+  readonly crewEffectForm03 = computed(() => this.data().crewEffectForm03);
   readonly nilListForm = computed(() => this.data().nilListForm);
   readonly shipMoneyForm = computed(() => this.data().shipMoneyForm);
   readonly cashAdvanceForm = computed(() => this.data().cashAdvanceForm);
@@ -269,7 +273,7 @@ export class StorageService {
     const shipStoresForm = normalizeShipStoresForm(raw.shipStoresForm);
     const { shipStoresForm02, shipStoresForm03 } = this.normalizeShipStoresForms(raw);
     const crewEffectForm = normalizeCrewEffectForm(raw.crewEffectForm);
-    const crewEffectForm02 = normalizeCrewEffectForm02(raw.crewEffectForm02);
+    const { crewEffectForm02, crewEffectForm03 } = this.normalizeCrewEffectForms(raw);
     const nilListForm = normalizeNilListForm(raw.nilListForm);
     const shipMoneyForm = normalizeShipMoneyForm(raw.shipMoneyForm);
     const cashAdvanceForm = normalizeCashAdvanceForm(raw.cashAdvanceForm);
@@ -298,6 +302,7 @@ export class StorageService {
       shipStoresForm03,
       crewEffectForm,
       crewEffectForm02,
+      crewEffectForm03,
       nilListForm,
       shipMoneyForm,
       cashAdvanceForm,
@@ -356,11 +361,15 @@ export class StorageService {
         ...(pkg as PortPackage),
         authorities: authorities.map((auth) => ({
           ...auth,
-          items: auth.items.map((item) =>
-            item.documentId === 'shipStores02'
-              ? { ...item, documentId: 'shipStores03' }
-              : item,
-          ),
+          items: auth.items.map((item) => {
+            if (item.documentId === 'shipStores02') {
+              return { ...item, documentId: 'shipStores03' };
+            }
+            if (item.documentId === 'crewEffect02') {
+              return { ...item, documentId: 'crewEffect03' };
+            }
+            return item;
+          }),
         })),
       };
     });
@@ -422,11 +431,15 @@ export class StorageService {
   ): AppData['documentOverlay'] {
     const defaults = createDefaultDocumentOverlayPrefs();
     const seedVersion = typeof appRaw?.seedVersion === 'number' ? appRaw.seedVersion : 0;
-    const migrateGermanyOverlay =
+    const migrateShipStoresOverlay =
       seedVersion < APP_DATA_SCHEMA_VERSION && raw?.shipStores03 == null && raw?.shipStores02 != null;
+    const migrateCrewEffectOverlay =
+      seedVersion < APP_DATA_SCHEMA_VERSION && raw?.crewEffect03 == null && raw?.crewEffect02 != null;
 
-    const shipStores02Raw = migrateGermanyOverlay ? undefined : raw?.shipStores02;
-    const shipStores03Raw = migrateGermanyOverlay ? raw?.shipStores02 : raw?.shipStores03;
+    const shipStores02Raw = migrateShipStoresOverlay ? undefined : raw?.shipStores02;
+    const shipStores03Raw = migrateShipStoresOverlay ? raw?.shipStores02 : raw?.shipStores03;
+    const crewEffect02Raw = migrateCrewEffectOverlay ? undefined : raw?.crewEffect02;
+    const crewEffect03Raw = migrateCrewEffectOverlay ? raw?.crewEffect02 : raw?.crewEffect03;
 
     const out: AppData['documentOverlay'] = {
       crewList: this.normalizeCrewListPrefs(raw?.crewList),
@@ -440,7 +453,8 @@ export class StorageService {
       shipStores02: this.normalizeStampDocumentPrefs(shipStores02Raw, defaults.shipStores02),
       shipStores03: this.normalizeStampDocumentPrefs(shipStores03Raw, defaults.shipStores03),
       crewEffect: this.normalizeStampDocumentPrefs(raw?.crewEffect, defaults.crewEffect),
-      crewEffect02: this.normalizeStampDocumentPrefs(raw?.crewEffect02, defaults.crewEffect02),
+      crewEffect02: this.normalizeStampDocumentPrefs(crewEffect02Raw, defaults.crewEffect02),
+      crewEffect03: this.normalizeStampDocumentPrefs(crewEffect03Raw, defaults.crewEffect03),
       nilList: this.normalizeStampDocumentPrefs(raw?.nilList, defaults.nilList),
       shipMoney: this.normalizeStampDocumentPrefs(raw?.shipMoney, defaults.shipMoney),
       cashAdvance: this.normalizeStampDocumentPrefs(raw?.cashAdvance, defaults.cashAdvance),
@@ -733,6 +747,7 @@ export class StorageService {
           shipStores03: { ...d.documentOverlay.shipStores03, ...patch },
           crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
           crewEffect02: { ...d.documentOverlay.crewEffect02, ...patch },
+          crewEffect03: { ...d.documentOverlay.crewEffect03, ...patch },
           nilList: { ...d.documentOverlay.nilList, ...patch },
           shipMoney: { ...d.documentOverlay.shipMoney, ...patch },
           cashAdvance: { ...d.documentOverlay.cashAdvance, ...patch },
@@ -976,19 +991,21 @@ export class StorageService {
 
   updateCrewEffectForm(
     docId: CrewEffectDocId,
-    partial: Partial<CrewEffectFormSettings> | Partial<CrewEffectForm02Settings>,
+    partial:
+      | Partial<CrewEffectFormSettings>
+      | Partial<CrewEffectForm02Settings>
+      | Partial<CrewEffectForm03Settings>,
     notify?: 'silent' | 'saved',
   ): void {
-    const field = docId === 'crewEffect02' ? ('crewEffectForm02' as const) : ('crewEffectForm' as const);
-    const normalize =
-      docId === 'crewEffect02' ? normalizeCrewEffectForm02 : normalizeCrewEffectForm;
+    const field = crewEffectFormField(docId);
+    const normalize = this.crewEffectNormalize(docId);
     this.data.update((d) => ({
       ...d,
       [field]: normalize({ ...d[field], ...partial }),
     }));
     const resolved =
       notify ??
-      (docId === 'crewEffect02'
+      (docId === 'crewEffect03'
         ? 'nilCigars' in partial ||
           'nilWeapons' in partial ||
           'nilAmmunition' in partial ||
@@ -996,11 +1013,18 @@ export class StorageService {
           partial.nilSpirits !== undefined
           ? 'saved'
           : 'silent'
-        : partial.nilCigarettes !== undefined ||
+        : docId === 'crewEffect02'
+          ? partial.nilCigarettes !== undefined ||
             partial.nilSpirits !== undefined ||
-            'nilWines' in partial && partial.nilWines !== undefined
-          ? 'saved'
-          : 'silent');
+            'nilBeer' in partial ||
+            'nilTobaccoCigars' in partial
+            ? 'saved'
+            : 'silent'
+          : partial.nilCigarettes !== undefined ||
+              partial.nilSpirits !== undefined ||
+              ('nilWines' in partial && partial.nilWines !== undefined)
+            ? 'saved'
+            : 'silent');
     void this.persist(resolved);
   }
 
@@ -1087,6 +1111,38 @@ export class StorageService {
       shipStoresForm02: normalizeShipStoresForm02(raw.shipStoresForm02),
       shipStoresForm03: normalizeShipStoresForm03(raw.shipStoresForm03),
     };
+  }
+
+  private normalizeCrewEffectForms(raw: Partial<AppData>): {
+    crewEffectForm02: ReturnType<typeof normalizeCrewEffectForm02>;
+    crewEffectForm03: ReturnType<typeof normalizeCrewEffectForm03>;
+  } {
+    const seedVersion = typeof raw.seedVersion === 'number' ? raw.seedVersion : 0;
+    const migrateGermanyTo03 =
+      seedVersion < APP_DATA_SCHEMA_VERSION && raw.crewEffectForm03 == null;
+
+    if (migrateGermanyTo03) {
+      return {
+        crewEffectForm02: normalizeCrewEffectForm02(undefined),
+        crewEffectForm03: normalizeCrewEffectForm03(raw.crewEffectForm02),
+      };
+    }
+
+    return {
+      crewEffectForm02: normalizeCrewEffectForm02(raw.crewEffectForm02),
+      crewEffectForm03: normalizeCrewEffectForm03(raw.crewEffectForm03),
+    };
+  }
+
+  private crewEffectNormalize(
+    docId: CrewEffectDocId,
+  ):
+    | typeof normalizeCrewEffectForm
+    | typeof normalizeCrewEffectForm02
+    | typeof normalizeCrewEffectForm03 {
+    if (docId === 'crewEffect03') return normalizeCrewEffectForm03;
+    if (docId === 'crewEffect02') return normalizeCrewEffectForm02;
+    return normalizeCrewEffectForm;
   }
 
   private shipStoresRowCount(docId: ShipStoresDocId): number {

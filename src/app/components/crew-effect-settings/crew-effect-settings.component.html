@@ -5,18 +5,59 @@
       <label class="ce-nil-check">
         <input
           type="checkbox"
-          [ngModel]="form02().nilCigarettes"
-          (ngModelChange)="onNilToggle02('nilCigarettes', $event)"
+          [ngModel]="form03().nilCigarettes"
+          (ngModelChange)="onNilToggle03('nilCigarettes', $event)"
         />
         <span>Cigarettes (pcs)</span>
       </label>
       <label class="ce-nil-check">
         <input
           type="checkbox"
-          [ngModel]="form02().nilCigars"
-          (ngModelChange)="onNilToggle02('nilCigars', $event)"
+          [ngModel]="form03().nilCigars"
+          (ngModelChange)="onNilToggle03('nilCigars', $event)"
         />
         <span>Cigars (pcs)</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form03().nilSpirits"
+          (ngModelChange)="onNilToggle03('nilSpirits', $event)"
+        />
+        <span>Spirits (l)</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form03().nilWeapons"
+          (ngModelChange)="onNilToggle03('nilWeapons', $event)"
+        />
+        <span>Weapons (pcs)</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form03().nilAmmunition"
+          (ngModelChange)="onNilToggle03('nilAmmunition', $event)"
+        />
+        <span>Ammunition (pcs)</span>
+      </label>
+    } @else if (isForm02()) {
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form02().nilCigarettes"
+          (ngModelChange)="onNilToggle02('nilCigarettes', $event)"
+        />
+        <span>Cigarettes</span>
+      </label>
+      <label class="ce-nil-check">
+        <input
+          type="checkbox"
+          [ngModel]="form02().nilTobaccoCigars"
+          (ngModelChange)="onNilToggle02('nilTobaccoCigars', $event)"
+        />
+        <span>Tobacco / Cigars</span>
       </label>
       <label class="ce-nil-check">
         <input
@@ -24,23 +65,15 @@
           [ngModel]="form02().nilSpirits"
           (ngModelChange)="onNilToggle02('nilSpirits', $event)"
         />
-        <span>Spirits (l)</span>
+        <span>Spirits</span>
       </label>
       <label class="ce-nil-check">
         <input
           type="checkbox"
-          [ngModel]="form02().nilWeapons"
-          (ngModelChange)="onNilToggle02('nilWeapons', $event)"
+          [ngModel]="form02().nilBeer"
+          (ngModelChange)="onNilToggle02('nilBeer', $event)"
         />
-        <span>Weapons (pcs)</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form02().nilAmmunition"
-          (ngModelChange)="onNilToggle02('nilAmmunition', $event)"
-        />
-        <span>Ammunition (pcs)</span>
+        <span>Beer</span>
       </label>
     } @else {
       <label class="ce-nil-check">
@@ -70,16 +103,29 @@
     }
   </fieldset>
 
-  <label class="ce-field">
-    <span class="ce-label">Others</span>
-    <input
-      type="text"
-      class="ce-input"
-      [ngModel]="isGermany() ? form02().others : form01().others"
-      (ngModelChange)="onOthersChange($event)"
-      placeholder="- P. E. -"
-    />
-  </label>
+  @if (isForm02()) {
+    <label class="ce-field">
+      <span class="ce-label">P.E.</span>
+      <input
+        type="text"
+        class="ce-input"
+        [ngModel]="form02().others"
+        (ngModelChange)="onOthersChange($event)"
+        placeholder="- P. E. -"
+      />
+    </label>
+  } @else {
+    <label class="ce-field">
+      <span class="ce-label">Others</span>
+      <input
+        type="text"
+        class="ce-input"
+        [ngModel]="othersValue()"
+        (ngModelChange)="onOthersChange($event)"
+        placeholder="- P. E. -"
+      />
+    </label>
+  }
 
   <app-document-stamp-options [documentId]="stampDocumentId()" />
 </section>

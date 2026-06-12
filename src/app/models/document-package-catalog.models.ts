@@ -31,6 +31,7 @@ export type PackageDocumentId =
   | 'shipStores03'
   | 'crewEffect'
   | 'crewEffect02'
+  | 'crewEffect03'
   | 'nilList'
   | 'shipMoney'
   | 'cashAdvance'
@@ -133,6 +134,7 @@ export const PACKAGE_CATALOG_ENTRIES: readonly PackageCatalogEntry[] = [
   { id: 'shipStores03', label: DOCUMENT_OVERLAY_LABELS.shipStores03 },
   { id: 'crewEffect', label: DOCUMENT_OVERLAY_LABELS.crewEffect },
   { id: 'crewEffect02', label: DOCUMENT_OVERLAY_LABELS.crewEffect02 },
+  { id: 'crewEffect03', label: DOCUMENT_OVERLAY_LABELS.crewEffect03 },
   { id: 'nilList', label: DOCUMENT_OVERLAY_LABELS.nilList },
   { id: 'shipMoney', label: DOCUMENT_OVERLAY_LABELS.shipMoney },
   { id: 'cashAdvance', label: DOCUMENT_OVERLAY_LABELS.cashAdvance },

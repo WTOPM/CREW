@@ -141,6 +141,10 @@ export function crewEffect02PdfFileName(shipName: string, voyageDate: string): s
   return `Crew_Effect_02_${pdfFileToken(shipName)}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function crewEffect03PdfFileName(shipName: string, voyageDate: string): string {
+  return `Crew_Effect_03_${pdfFileToken(shipName)}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function crewEffectPdfFileName(shipName: string, voyageDate: string): string {
   return `Crew_Effect_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
 }

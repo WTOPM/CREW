@@ -2,10 +2,15 @@ import { parseValidityRange } from '../utils/date.util';
 import { PassengerMember, PaxArrFormSettings } from './passenger.models';
 import type { DocumentOverlayPrefs, ShipAssetsMeta } from './document-overlay.models';
 import { createDefaultDocumentOverlayPrefs, createEmptyShipAssetsMeta } from './document-overlay.models';
-import type { CrewEffectForm02Settings, CrewEffectFormSettings } from './crew-effect.models';
+import type {
+  CrewEffectForm02Settings,
+  CrewEffectForm03Settings,
+  CrewEffectFormSettings,
+} from './crew-effect.models';
 import {
   createDefaultCrewEffectForm,
   createDefaultCrewEffectForm02,
+  createDefaultCrewEffectForm03,
 } from './crew-effect.models';
 import type { NilListFormSettings } from './nil-list.models';
 import { createDefaultNilListForm } from './nil-list.models';
@@ -360,13 +365,18 @@ export function shipStoresFormField(
 }
 
 /** Which Crew Effect form settings is editing. */
-export type CrewEffectDocId = 'crewEffect' | 'crewEffect02';
+export type CrewEffectDocId = 'crewEffect' | 'crewEffect02' | 'crewEffect03';
 
-export const CREW_EFFECT_DOC_IDS: readonly CrewEffectDocId[] = ['crewEffect', 'crewEffect02'];
+export const CREW_EFFECT_DOC_IDS: readonly CrewEffectDocId[] = [
+  'crewEffect',
+  'crewEffect02',
+  'crewEffect03',
+];
 
 export const CREW_EFFECT_DOC_NAMES: Record<CrewEffectDocId, string> = {
   crewEffect: 'Crew Effect',
-  crewEffect02: 'Crew Effect - Germany',
+  crewEffect02: 'Crew Effect',
+  crewEffect03: 'Crew Effect - Germany',
 };
 
 export function crewEffectDocOrderNo(id: CrewEffectDocId): string {
@@ -382,13 +392,17 @@ export const CREW_EFFECT_DOC_LABELS: Record<CrewEffectDocId, string> = Object.fr
 ) as Record<CrewEffectDocId, string>;
 
 export function normalizeCrewEffectDocId(raw: unknown): CrewEffectDocId {
-  return raw === 'crewEffect02' ? 'crewEffect02' : 'crewEffect';
+  if (raw === 'crewEffect03') return 'crewEffect03';
+  if (raw === 'crewEffect02') return 'crewEffect02';
+  return 'crewEffect';
 }
 
 export function crewEffectFormField(
   id: CrewEffectDocId,
-): 'crewEffectForm' | 'crewEffectForm02' {
-  return id === 'crewEffect02' ? 'crewEffectForm02' : 'crewEffectForm';
+): 'crewEffectForm' | 'crewEffectForm02' | 'crewEffectForm03' {
+  if (id === 'crewEffect03') return 'crewEffectForm03';
+  if (id === 'crewEffect02') return 'crewEffectForm02';
+  return 'crewEffectForm';
 }
 
 export interface PortOfCallSettings {
@@ -415,8 +429,10 @@ export interface AppData {
   shipStoresForm03: ShipStoresFormSettings;
   /** Crew Effect 01 (IMO Crew's Effects Declaration). */
   crewEffectForm: CrewEffectFormSettings;
-  /** Crew Effect 02 — Germany. */
+  /** Crew Effect 02 — IMO (123.pdf). */
   crewEffectForm02: CrewEffectForm02Settings;
+  /** Crew Effect 03 — Germany. */
+  crewEffectForm03: CrewEffectForm03Settings;
   /** NIL List — selectable phrases. */
   nilListForm: NilListFormSettings;
   /** Ship Money — amount & currency rows. */
@@ -481,10 +497,15 @@ export function createDefaultPrintPackages(): PortPackage[] {
   return [];
 }
 
-export type { CrewEffectForm02Settings, CrewEffectFormSettings } from './crew-effect.models';
+export type {
+  CrewEffectForm02Settings,
+  CrewEffectForm03Settings,
+  CrewEffectFormSettings,
+} from './crew-effect.models';
 export {
   createDefaultCrewEffectForm,
   createDefaultCrewEffectForm02,
+  createDefaultCrewEffectForm03,
 } from './crew-effect.models';
 export type { NilListFormSettings, NilListPhrase } from './nil-list.models';
 export { createDefaultNilListForm } from './nil-list.models';

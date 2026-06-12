@@ -94,7 +94,7 @@ type ResizeTarget = 'stamp' | 'signature';
           </label>
         </div>
 
-        @if (documentId() === 'mdh' || documentId() === 'shipStores03' || documentId() === 'crewEffect02') {
+        @if (documentId() === 'mdh' || documentId() === 'shipStores03' || documentId() === 'crewEffect03') {
           <div class="placement-mdh-tabs" role="tablist">
             <button
               type="button"
@@ -112,7 +112,7 @@ type ResizeTarget = 'stamp' | 'signature';
               [class.placement-tab--active]="mdhPage() === 'attachment'"
               (click)="setMdhPage('attachment')"
             >
-              @if (documentId() === 'shipStores03' || documentId() === 'crewEffect02') {
+              @if (documentId() === 'shipStores03' || documentId() === 'crewEffect03') {
                 Page 2 (stamp)
               } @else {
                 Pages 2+ (attachment)
@@ -761,14 +761,14 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected readonly mdhAttachment = computed(() => {
     const id = this.documentId();
     return (
-      (id === 'mdh' || id === 'shipStores03' || id === 'crewEffect02') &&
+      (id === 'mdh' || id === 'shipStores03' || id === 'crewEffect03') &&
       this.mdhPage() === 'attachment'
     );
   });
 
   protected readonly stampPlacementOnPage = computed(() => {
     if (
-      (this.documentId() === 'shipStores03' || this.documentId() === 'crewEffect02') &&
+      (this.documentId() === 'shipStores03' || this.documentId() === 'crewEffect03') &&
       this.mdhPage() === 'form'
     ) {
       return false;

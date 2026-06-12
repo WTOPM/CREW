@@ -303,6 +303,7 @@ export type DocumentOverlayId =
   | 'shipStores03'
   | 'crewEffect'
   | 'crewEffect02'
+  | 'crewEffect03'
   | 'nilList'
   | 'shipMoney'
   | 'cashAdvance'
@@ -325,6 +326,7 @@ export interface DocumentOverlayPrefs {
   shipStores03: DocumentStampOptions;
   crewEffect: DocumentStampOptions;
   crewEffect02: DocumentStampOptions;
+  crewEffect03: DocumentStampOptions;
   nilList: DocumentStampOptions;
   shipMoney: DocumentStampOptions;
   cashAdvance: DocumentStampOptions;
@@ -382,6 +384,7 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     shipStores03: { ...DEFAULT_STAMP_OPTS },
     crewEffect: { ...DEFAULT_STAMP_OPTS },
     crewEffect02: { ...DEFAULT_STAMP_OPTS },
+    crewEffect03: { ...DEFAULT_STAMP_OPTS },
     nilList: { ...DEFAULT_STAMP_OPTS },
     shipMoney: { ...DEFAULT_STAMP_OPTS },
     cashAdvance: { ...DEFAULT_STAMP_OPTS },
@@ -412,7 +415,8 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   shipStores02: '02 - Ship Stores - Long',
   shipStores03: '03 - Ship Stores - Germany',
   crewEffect: '01 - Crew Effect',
-  crewEffect02: '02 - Crew Effect - Germany',
+  crewEffect02: '02 - Crew Effect',
+  crewEffect03: '03 - Crew Effect - Germany',
   nilList: 'NIL List',
   shipMoney: 'Ship Money',
   cashAdvance: 'Cash Advance',

@@ -5,31 +5,29 @@ import {
   filterActiveCrewList,
   formatCrewListName,
   formatPortCallPortName,
-  portCountry,
 } from '../models/crew.models';
 import {
   CREW_EFFECT_NIL_LABEL,
-  normalizeCrewEffectForm02,
+  normalizeCrewEffectForm03,
 } from '../models/crew-effect.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
-import { formatDisplayDate } from '../utils/date.util';
-import { crewEffect02PdfFileName } from '../utils/pdf-filename.util';
+import { crewEffect03PdfFileName } from '../utils/pdf-filename.util';
 import {
-  CREW_EFFECT_02_COL,
-  CREW_EFFECT_02_FIELDS,
-  CREW_EFFECT_02_FONT,
-  CREW_EFFECT_02_ROW_COUNT,
-  CREW_EFFECT_02_TEMPLATE_VERSION,
-  crewEffect02RowPdfLibY,
-  type CrewEffect02TextPlacement,
-} from './crew-effect-02-field-positions';
+  CREW_EFFECT_03_COL,
+  CREW_EFFECT_03_FIELDS,
+  CREW_EFFECT_03_FONT,
+  CREW_EFFECT_03_ROW_COUNT,
+  CREW_EFFECT_03_TEMPLATE_VERSION,
+  crewEffect03RowPdfLibY,
+  type CrewEffect03TextPlacement,
+} from './crew-effect-03-field-positions';
 import { PdfOverlayService } from './pdf-overlay.service';
 
-const CREW_EFFECT_02_TEMPLATE_URL = '/crew-effect-02-empty.pdf';
+const CREW_EFFECT_03_TEMPLATE_URL = '/crew-effect-03-empty.pdf';
 
-/** Crew Effect 02 — IMO (123.pdf), 1 page. */
+/** Crew Effect 03 — Germany; 2 pages, stamp on page 2 only. */
 @Injectable({ providedIn: 'root' })
-export class PdfCrewEffect02Service {
+export class PdfCrewEffect03Service {
   private readonly overlay = inject(PdfOverlayService);
   private readonly delivery = inject(PdfDeliveryService);
 
@@ -38,7 +36,7 @@ export class PdfCrewEffect02Service {
 
   async buildFinalBytes(data: AppData): Promise<Uint8Array> {
     const bytes = await this.build(data);
-    return this.overlay.applyToPdfBytes(bytes, data.documentOverlay.crewEffect02);
+    return this.overlay.applyCrewEffect03Overlay(bytes, data.documentOverlay.crewEffect03);
   }
 
   async openPreview(data: AppData): Promise<boolean> {
@@ -49,61 +47,47 @@ export class PdfCrewEffect02Service {
   fileName(data: AppData): string {
     const { ship } = data;
     const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
-    return crewEffect02PdfFileName(ship.name, voyageDate);
+    return crewEffect03PdfFileName(ship.name, voyageDate);
   }
 
   async build(data: AppData): Promise<Uint8Array> {
     const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
     const template = await this.loadTemplate();
     const doc = await PDFDocument.load(template);
-    const page = doc.getPages()[0];
+    const pages = doc.getPages();
+    if (!pages.length) {
+      throw new Error('Crew Effect 03 template has no pages');
+    }
+
+    const page1 = pages[0];
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const black = rgb(0, 0, 0);
 
-    const draw = (text: string, placement: CrewEffect02TextPlacement, useBold = false) => {
+    const draw = (text: string, placement: CrewEffect03TextPlacement, useBold = false) => {
       const value = text.trim();
       if (!value) return;
-      page.drawText(value, {
+      page1.drawText(value, {
         x: placement.x,
         y: placement.y,
-        size: placement.fontSize ?? CREW_EFFECT_02_FONT,
+        size: placement.fontSize ?? CREW_EFFECT_03_FONT,
         font: useBold ? bold : font,
         color: black,
         ...(placement.maxWidth != null ? { maxWidth: placement.maxWidth } : {}),
       });
     };
 
-    const form = normalizeCrewEffectForm02(data.crewEffectForm02);
-    const { ship, crewArr, ports } = data;
-    const isArrival = crewArr.isArrival;
+    const form = normalizeCrewEffectForm03(data.crewEffectForm03);
+    const { ship } = data;
     const crew = this.arrivalCrewInHomeOrder(data);
-
-    const portName = formatPortCallPortName(ship.portOfCall);
-    const country = portCountry(ship.portOfCall, ports);
-    const portLine = country ? `${portName} / ${country}` : portName;
-
-    draw('1', CREW_EFFECT_02_FIELDS.pageNo);
-    if (isArrival) {
-      draw('X', CREW_EFFECT_02_FIELDS.arrivalMark);
-    } else {
-      draw('X', CREW_EFFECT_02_FIELDS.departureMark);
-    }
-    draw(ship.name, CREW_EFFECT_02_FIELDS.shipName, true);
-    draw(formatPortCallPortName(ship.nationality), CREW_EFFECT_02_FIELDS.nationality, true);
-    draw(portLine, CREW_EFFECT_02_FIELDS.portOfCall, true);
-    draw(
-      formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
-      CREW_EFFECT_02_FIELDS.voyageDate,
-      true,
-    );
-    draw(formatDisplayDate(ship.dateOfArrival), CREW_EFFECT_02_FIELDS.signatureDate, true);
-
-    this.drawCrewRows(page, font, black, crew, form);
+    draw('1', CREW_EFFECT_03_FIELDS.pageNo);
+    draw(ship.name, CREW_EFFECT_03_FIELDS.shipName, true);
+    draw(formatPortCallPortName(ship.nationality), CREW_EFFECT_03_FIELDS.nationality, true);
+    this.drawCrewRows(page1, font, black, crew, form);
 
     const master = this.findMaster(crew);
     if (master) {
-      draw(this.formatCaptainName(master), CREW_EFFECT_02_FIELDS.captainName, true);
+      draw(this.formatCaptainName(master), CREW_EFFECT_03_FIELDS.captainName, true);
     }
 
     return doc.save();
@@ -114,89 +98,60 @@ export class PdfCrewEffect02Service {
     font: import('pdf-lib').PDFFont,
     black: import('pdf-lib').RGB,
     crew: CrewMember[],
-    form: ReturnType<typeof normalizeCrewEffectForm02>,
+    form: ReturnType<typeof normalizeCrewEffectForm03>,
   ): void {
-    const pe = form.others.trim();
-    for (let i = 0; i < CREW_EFFECT_02_ROW_COUNT; i++) {
+    const others = form.others.trim();
+    for (let i = 0; i < CREW_EFFECT_03_ROW_COUNT; i++) {
       const member = crew[i];
-      const y = crewEffect02RowPdfLibY(i);
-      const fontSize = CREW_EFFECT_02_FONT;
+      const y = crewEffect03RowPdfLibY(i);
+      const fontSize = CREW_EFFECT_03_FONT;
       if (!member) continue;
-      this.drawTableCell(page, font, black, String(i + 1), CREW_EFFECT_02_COL.rowNo, y, fontSize);
+      this.drawTableCell(page, font, black, String(i + 1), CREW_EFFECT_03_COL.rowNo, y, fontSize);
       this.drawTableCell(
         page,
         font,
         black,
         formatCrewListName(member),
-        CREW_EFFECT_02_COL.name,
+        CREW_EFFECT_03_COL.name,
         y,
         fontSize,
-        CREW_EFFECT_02_COL.nameMaxWidth,
+        CREW_EFFECT_03_COL.nameMaxWidth,
       );
       this.drawTableCell(
         page,
         font,
         black,
         member.rank,
-        CREW_EFFECT_02_COL.rank,
+        CREW_EFFECT_03_COL.rank,
         y,
         fontSize,
-        CREW_EFFECT_02_COL.rankMaxWidth,
+        CREW_EFFECT_03_COL.rankMaxWidth,
       );
       if (form.nilCigarettes) {
-        this.drawTableCell(
-          page,
-          font,
-          black,
-          CREW_EFFECT_NIL_LABEL,
-          CREW_EFFECT_02_COL.cigarettes,
-          y,
-          fontSize,
-        );
+        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.cigarettes, y, fontSize);
       }
-      if (form.nilTobaccoCigars) {
-        this.drawTableCell(
-          page,
-          font,
-          black,
-          CREW_EFFECT_NIL_LABEL,
-          CREW_EFFECT_02_COL.tobaccoCigars,
-          y,
-          fontSize,
-        );
+      if (form.nilCigars) {
+        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.cigars, y, fontSize);
       }
       if (form.nilSpirits) {
-        this.drawTableCell(
-          page,
-          font,
-          black,
-          CREW_EFFECT_NIL_LABEL,
-          CREW_EFFECT_02_COL.spirits,
-          y,
-          fontSize,
-        );
+        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.spirits, y, fontSize);
       }
-      if (form.nilBeer) {
-        this.drawTableCell(
-          page,
-          font,
-          black,
-          CREW_EFFECT_NIL_LABEL,
-          CREW_EFFECT_02_COL.beer,
-          y,
-          fontSize,
-        );
+      if (form.nilWeapons) {
+        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.weapons, y, fontSize);
       }
-      if (pe) {
+      if (form.nilAmmunition) {
+        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.ammunition, y, fontSize);
+      }
+      if (others) {
         this.drawTableCell(
           page,
           font,
           black,
-          pe,
-          CREW_EFFECT_02_COL.other,
+          others,
+          CREW_EFFECT_03_COL.others,
           y,
           fontSize,
-          CREW_EFFECT_02_COL.otherMaxWidth,
+          CREW_EFFECT_03_COL.othersMaxWidth,
         );
       }
     }
@@ -264,22 +219,22 @@ export class PdfCrewEffect02Service {
   }
 
   private arrivalCrewInHomeOrder(data: AppData): CrewMember[] {
-    return filterActiveCrewList(data.crew, 'arrival').slice(0, CREW_EFFECT_02_ROW_COUNT);
+    return filterActiveCrewList(data.crew, 'arrival').slice(0, CREW_EFFECT_03_ROW_COUNT);
   }
 
   private async loadTemplate(): Promise<Uint8Array> {
-    if (this.templateBytes && this.loadedVersion === CREW_EFFECT_02_TEMPLATE_VERSION) {
+    if (this.templateBytes && this.loadedVersion === CREW_EFFECT_03_TEMPLATE_VERSION) {
       return this.templateBytes;
     }
     const res = await fetch(
-      `${CREW_EFFECT_02_TEMPLATE_URL}?v=${CREW_EFFECT_02_TEMPLATE_VERSION}`,
+      `${CREW_EFFECT_03_TEMPLATE_URL}?v=${CREW_EFFECT_03_TEMPLATE_VERSION}`,
       { cache: 'no-store' },
     );
     if (!res.ok) {
-      throw new Error('Crew Effect 02 template not found (public/crew-effect-02-empty.pdf)');
+      throw new Error('Crew Effect 03 template not found (public/crew-effect-03-empty.pdf)');
     }
     this.templateBytes = new Uint8Array(await res.arrayBuffer());
-    this.loadedVersion = CREW_EFFECT_02_TEMPLATE_VERSION;
+    this.loadedVersion = CREW_EFFECT_03_TEMPLATE_VERSION;
     return this.templateBytes;
   }
 }

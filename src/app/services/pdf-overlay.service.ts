@@ -83,12 +83,12 @@ export class PdfOverlayService {
     return this.applyAttachmentPageOverlay(bytes, options, 'shipStores03');
   }
 
-  /** Crew Effect 02 — stamp/signature on page 2 only (page 1 = form data). */
-  async applyCrewEffect02Overlay(
+  /** Crew Effect 03 (Germany) — stamp/signature on page 2 only. */
+  async applyCrewEffect03Overlay(
     bytes: Uint8Array,
     options: DocumentStampOptions,
   ): Promise<Uint8Array> {
-    return this.applyAttachmentPageOverlay(bytes, options, 'crewEffect02');
+    return this.applyAttachmentPageOverlay(bytes, options, 'crewEffect03');
   }
 
   async applyMdhOverlay(bytes: Uint8Array, options: DocumentStampOptions): Promise<Uint8Array> {

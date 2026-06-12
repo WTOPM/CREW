@@ -5,11 +5,8 @@ export const CREW_EFFECT_NIL_LABEL = 'NIL';
 export interface CrewEffectFormSettings {
   /** Column Others (e.g. - P. E. -). */
   others: string;
-  /** Print NIL in Cigarettes for every crew row. */
   nilCigarettes: boolean;
-  /** Print NIL in Spirits (Ltr) for every crew row. */
   nilSpirits: boolean;
-  /** Print NIL in Wines (Ltr) for every crew row. */
   nilWines: boolean;
 }
 
@@ -36,9 +33,44 @@ export function normalizeCrewEffectForm(
   };
 }
 
-/** Crew Effect 02 — Germany (1234.pdf). */
+/** Crew Effect 02 — IMO (123.pdf). */
 export interface CrewEffectForm02Settings {
-  /** Column Others (e.g. - P. E. -). */
+  /** P.E. text for Other column (e.g. - P. E. -). */
+  others: string;
+  nilCigarettes: boolean;
+  /** Tobacco / Cigars — single column. */
+  nilTobaccoCigars: boolean;
+  nilSpirits: boolean;
+  nilBeer: boolean;
+}
+
+export function createDefaultCrewEffectForm02(): CrewEffectForm02Settings {
+  return {
+    others: '- P. E. -',
+    nilCigarettes: false,
+    nilTobaccoCigars: false,
+    nilSpirits: false,
+    nilBeer: false,
+  };
+}
+
+export function normalizeCrewEffectForm02(
+  raw: Partial<CrewEffectForm02Settings> & { pageNo?: string; signatureText?: string } | undefined,
+): CrewEffectForm02Settings {
+  const defaults = createDefaultCrewEffectForm02();
+  const legacy = raw as { others?: string; signatureText?: string } | undefined;
+  const others = (legacy?.others ?? legacy?.signatureText ?? defaults.others).trim();
+  return {
+    others: others || defaults.others,
+    nilCigarettes: Boolean(raw?.nilCigarettes),
+    nilTobaccoCigars: Boolean(raw?.nilTobaccoCigars),
+    nilSpirits: Boolean(raw?.nilSpirits),
+    nilBeer: Boolean(raw?.nilBeer),
+  };
+}
+
+/** Crew Effect 03 — Germany (1234.pdf). */
+export interface CrewEffectForm03Settings {
   others: string;
   nilCigarettes: boolean;
   nilCigars: boolean;
@@ -47,7 +79,7 @@ export interface CrewEffectForm02Settings {
   nilAmmunition: boolean;
 }
 
-export function createDefaultCrewEffectForm02(): CrewEffectForm02Settings {
+export function createDefaultCrewEffectForm03(): CrewEffectForm03Settings {
   return {
     others: '- P. E. -',
     nilCigarettes: false,
@@ -58,10 +90,10 @@ export function createDefaultCrewEffectForm02(): CrewEffectForm02Settings {
   };
 }
 
-export function normalizeCrewEffectForm02(
-  raw: Partial<CrewEffectForm02Settings> & { pageNo?: string; signatureText?: string } | undefined,
-): CrewEffectForm02Settings {
-  const defaults = createDefaultCrewEffectForm02();
+export function normalizeCrewEffectForm03(
+  raw: Partial<CrewEffectForm03Settings> & { pageNo?: string; signatureText?: string } | undefined,
+): CrewEffectForm03Settings {
+  const defaults = createDefaultCrewEffectForm03();
   const legacy = raw as { others?: string; signatureText?: string } | undefined;
   const others = (legacy?.others ?? legacy?.signatureText ?? defaults.others).trim();
   return {

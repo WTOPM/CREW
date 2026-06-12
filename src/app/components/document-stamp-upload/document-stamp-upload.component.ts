@@ -329,6 +329,7 @@ function allDocumentsUse(
     overlay.shipStores03[field] &&
     overlay.crewEffect[field] &&
     overlay.crewEffect02[field] &&
+    overlay.crewEffect03[field] &&
     overlay.nilList[field] &&
     overlay.shipMoney[field] &&
     overlay.cashAdvance[field] &&

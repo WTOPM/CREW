@@ -33,6 +33,7 @@ import { PdfPassengerListV2Service } from '../../services/pdf-passenger-list-v2.
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { PdfPortOfCallTemplateService } from '../../services/pdf-port-of-call-template.service';
 import { PdfCrewEffect02Service } from '../../services/pdf-crew-effect-02.service';
+import { PdfCrewEffect03Service } from '../../services/pdf-crew-effect-03.service';
 import { PdfCrewEffectService } from '../../services/pdf-crew-effect.service';
 import { PdfNilListService } from '../../services/pdf-nil-list.service';
 import { PdfShipMoneyService } from '../../services/pdf-ship-money.service';
@@ -110,6 +111,7 @@ export class DocumentsNavComponent {
   private readonly shipStores03Pdf = inject(PdfShipStores03Service);
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
   private readonly crewEffect02Pdf = inject(PdfCrewEffect02Service);
+  private readonly crewEffect03Pdf = inject(PdfCrewEffect03Service);
   private readonly nilListPdf = inject(PdfNilListService);
   private readonly shipMoneyPdf = inject(PdfShipMoneyService);
   private readonly cashAdvancePdf = inject(PdfCashAdvanceService);
@@ -489,6 +491,16 @@ export class DocumentsNavComponent {
     });
   }
 
+  protected openCrewEffect03(): void {
+    void this.crewEffect03Pdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Crew Effect preview');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
+    });
+  }
+
   protected openCrewEffectSettings(): void {
     this.showCrewEffectSettings.set(true);
   }
@@ -622,6 +634,7 @@ export class DocumentsNavComponent {
       shipStoresForm03: this.storage.shipStoresForm03(),
       crewEffectForm: this.storage.crewEffectForm(),
       crewEffectForm02: this.storage.crewEffectForm02(),
+      crewEffectForm03: this.storage.crewEffectForm03(),
       nilListForm: this.storage.nilListForm(),
       shipMoneyForm: this.storage.shipMoneyForm(),
       cashAdvanceForm: this.storage.cashAdvanceForm(),

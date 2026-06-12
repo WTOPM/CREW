@@ -26,6 +26,7 @@ import { PdfShipStoresService } from './pdf-ship-stores.service';
 import { PdfShipStores02Service } from './pdf-ship-stores-02.service';
 import { PdfShipStores03Service } from './pdf-ship-stores-03.service';
 import { PdfCrewEffect02Service } from './pdf-crew-effect-02.service';
+import { PdfCrewEffect03Service } from './pdf-crew-effect-03.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
 import { PdfNilListService } from './pdf-nil-list.service';
 import { PdfShipMoneyService } from './pdf-ship-money.service';
@@ -69,6 +70,7 @@ export class DocumentCatalogService {
   private readonly shipStores03 = inject(PdfShipStores03Service);
   private readonly crewEffect = inject(PdfCrewEffectService);
   private readonly crewEffect02 = inject(PdfCrewEffect02Service);
+  private readonly crewEffect03 = inject(PdfCrewEffect03Service);
   private readonly nil = inject(PdfNilListService);
   private readonly shipMoney = inject(PdfShipMoneyService);
   private readonly cashAdvance = inject(PdfCashAdvanceService);
@@ -164,6 +166,11 @@ export class DocumentCatalogService {
         return {
           bytes: await this.crewEffect02.buildFinalBytes(base),
           fileName: this.crewEffect02.fileName(base),
+        };
+      case 'crewEffect03':
+        return {
+          bytes: await this.crewEffect03.buildFinalBytes(base),
+          fileName: this.crewEffect03.fileName(base),
         };
       case 'nilList':
         return { bytes: await this.nil.buildFinalBytes(base), fileName: this.nil.fileName(base) };
@@ -381,6 +388,7 @@ export class DocumentCatalogService {
       shipStoresForm03: this.storage.shipStoresForm03(),
       crewEffectForm: this.storage.crewEffectForm(),
       crewEffectForm02: this.storage.crewEffectForm02(),
+      crewEffectForm03: this.storage.crewEffectForm03(),
       nilListForm: this.storage.nilListForm(),
       shipMoneyForm: this.storage.shipMoneyForm(),
       cashAdvanceForm: this.storage.cashAdvanceForm(),

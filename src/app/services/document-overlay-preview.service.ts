@@ -18,6 +18,7 @@ import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfPortOfCallTemplateService } from './pdf-port-of-call-template.service';
 import { PdfCrewEffect02Service } from './pdf-crew-effect-02.service';
+import { PdfCrewEffect03Service } from './pdf-crew-effect-03.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
 import { PdfNilListService } from './pdf-nil-list.service';
 import { PdfShipMoneyService } from './pdf-ship-money.service';
@@ -53,6 +54,7 @@ export class DocumentOverlayPreviewService {
   private readonly shipStores03Pdf = inject(PdfShipStores03Service);
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
   private readonly crewEffect02Pdf = inject(PdfCrewEffect02Service);
+  private readonly crewEffect03Pdf = inject(PdfCrewEffect03Service);
   private readonly nilListPdf = inject(PdfNilListService);
   private readonly shipMoneyPdf = inject(PdfShipMoneyService);
   private readonly cashAdvancePdf = inject(PdfCashAdvanceService);
@@ -87,6 +89,8 @@ export class DocumentOverlayPreviewService {
         return this.crewEffectPdf.build(data);
       case 'crewEffect02':
         return this.crewEffect02Pdf.build(data);
+      case 'crewEffect03':
+        return this.crewEffect03Pdf.build(data);
       case 'nilList':
         return this.nilListPdf.build(data);
       case 'shipMoney':
@@ -109,7 +113,7 @@ export class DocumentOverlayPreviewService {
     if (
       (documentId === 'mdh' ||
         documentId === 'shipStores03' ||
-        documentId === 'crewEffect02') &&
+        documentId === 'crewEffect03') &&
       mdhPage === 'attachment'
     ) {
       return 2;
@@ -207,6 +211,7 @@ export class DocumentOverlayPreviewService {
       shipStoresForm03: this.storage.shipStoresForm03(),
       crewEffectForm: this.storage.crewEffectForm(),
       crewEffectForm02: this.storage.crewEffectForm02(),
+      crewEffectForm03: this.storage.crewEffectForm03(),
       nilListForm: this.storage.nilListForm(),
       shipMoneyForm: this.storage.shipMoneyForm(),
       cashAdvanceForm: this.storage.cashAdvanceForm(),
