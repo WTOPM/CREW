@@ -300,6 +300,7 @@ export type DocumentOverlayId =
   | 'crewVaccine'
   | 'shipStores'
   | 'shipStores02'
+  | 'shipStores03'
   | 'crewEffect'
   | 'crewEffect02'
   | 'nilList'
@@ -321,6 +322,7 @@ export interface DocumentOverlayPrefs {
   crewVaccine: DocumentStampOptions;
   shipStores: DocumentStampOptions;
   shipStores02: DocumentStampOptions;
+  shipStores03: DocumentStampOptions;
   crewEffect: DocumentStampOptions;
   crewEffect02: DocumentStampOptions;
   nilList: DocumentStampOptions;
@@ -377,6 +379,7 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     crewVaccine: { ...DEFAULT_STAMP_OPTS },
     shipStores: { ...DEFAULT_STAMP_OPTS },
     shipStores02: { ...DEFAULT_STAMP_OPTS },
+    shipStores03: { ...DEFAULT_STAMP_OPTS },
     crewEffect: { ...DEFAULT_STAMP_OPTS },
     crewEffect02: { ...DEFAULT_STAMP_OPTS },
     nilList: { ...DEFAULT_STAMP_OPTS },
@@ -405,8 +408,9 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   portsOfCall: '02 - Port of Call - Security',
   mdh: 'MDH',
   crewVaccine: 'Crew Vaccine',
-  shipStores: '01 - Ship Stores',
-  shipStores02: '02 - Ship Stores - Germany',
+  shipStores: '01 - Ship Stores - Short',
+  shipStores02: '02 - Ship Stores - Long',
+  shipStores03: '03 - Ship Stores - Germany',
   crewEffect: '01 - Crew Effect',
   crewEffect02: '02 - Crew Effect - Germany',
   nilList: 'NIL List',

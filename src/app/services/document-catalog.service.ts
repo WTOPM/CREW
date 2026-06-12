@@ -24,6 +24,7 @@ import { PdfPortOfCallTemplateService } from './pdf-port-of-call-template.servic
 import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
 import { PdfShipStores02Service } from './pdf-ship-stores-02.service';
+import { PdfShipStores03Service } from './pdf-ship-stores-03.service';
 import { PdfCrewEffect02Service } from './pdf-crew-effect-02.service';
 import { PdfCrewEffectService } from './pdf-crew-effect.service';
 import { PdfNilListService } from './pdf-nil-list.service';
@@ -65,6 +66,7 @@ export class DocumentCatalogService {
   private readonly sso = inject(PdfSso0108PortCallsService);
   private readonly shipStores = inject(PdfShipStoresService);
   private readonly shipStores02 = inject(PdfShipStores02Service);
+  private readonly shipStores03 = inject(PdfShipStores03Service);
   private readonly crewEffect = inject(PdfCrewEffectService);
   private readonly crewEffect02 = inject(PdfCrewEffect02Service);
   private readonly nil = inject(PdfNilListService);
@@ -147,6 +149,11 @@ export class DocumentCatalogService {
         return {
           bytes: await this.shipStores02.buildFinalBytes(base),
           fileName: this.shipStores02.fileName(base),
+        };
+      case 'shipStores03':
+        return {
+          bytes: await this.shipStores03.buildFinalBytes(base),
+          fileName: this.shipStores03.fileName(base),
         };
       case 'crewEffect':
         return {
@@ -371,6 +378,7 @@ export class DocumentCatalogService {
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
       shipStoresForm02: this.storage.shipStoresForm02(),
+      shipStoresForm03: this.storage.shipStoresForm03(),
       crewEffectForm: this.storage.crewEffectForm(),
       crewEffectForm02: this.storage.crewEffectForm02(),
       nilListForm: this.storage.nilListForm(),

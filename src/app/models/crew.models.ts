@@ -319,13 +319,18 @@ export function normalizePortSettingsDocId(raw: unknown): PortSettingsDocId {
 }
 
 /** Which Ship Stores form Ship Stores settings is editing. */
-export type ShipStoresDocId = 'shipStores' | 'shipStores02';
+export type ShipStoresDocId = 'shipStores' | 'shipStores02' | 'shipStores03';
 
-export const SHIP_STORES_DOC_IDS: readonly ShipStoresDocId[] = ['shipStores', 'shipStores02'];
+export const SHIP_STORES_DOC_IDS: readonly ShipStoresDocId[] = [
+  'shipStores',
+  'shipStores02',
+  'shipStores03',
+];
 
 export const SHIP_STORES_DOC_NAMES: Record<ShipStoresDocId, string> = {
-  shipStores: 'Ship Stores',
-  shipStores02: 'Ship Stores - Germany',
+  shipStores: 'Ship Stores - Short',
+  shipStores02: 'Ship Stores - Long',
+  shipStores03: 'Ship Stores - Germany',
 };
 
 export function shipStoresDocOrderNo(id: ShipStoresDocId): string {
@@ -341,11 +346,17 @@ export const SHIP_STORES_DOC_LABELS: Record<ShipStoresDocId, string> = Object.fr
 ) as Record<ShipStoresDocId, string>;
 
 export function normalizeShipStoresDocId(raw: unknown): ShipStoresDocId {
-  return raw === 'shipStores02' ? 'shipStores02' : 'shipStores';
+  if (raw === 'shipStores03') return 'shipStores03';
+  if (raw === 'shipStores02') return 'shipStores02';
+  return 'shipStores';
 }
 
-export function shipStoresFormField(id: ShipStoresDocId): 'shipStoresForm' | 'shipStoresForm02' {
-  return id === 'shipStores02' ? 'shipStoresForm02' : 'shipStoresForm';
+export function shipStoresFormField(
+  id: ShipStoresDocId,
+): 'shipStoresForm' | 'shipStoresForm02' | 'shipStoresForm03' {
+  if (id === 'shipStores03') return 'shipStoresForm03';
+  if (id === 'shipStores02') return 'shipStoresForm02';
+  return 'shipStoresForm';
 }
 
 /** Which Crew Effect form settings is editing. */
@@ -398,8 +409,10 @@ export interface AppData {
   portOfCall: PortOfCallSettings;
   /** Ship Stores 01 — table (articles, quantities, place of storage). */
   shipStoresForm: ShipStoresFormSettings;
-  /** Ship Stores 02 — separate table data. */
+  /** Ship Stores 02 — separate table data (123.pdf). */
   shipStoresForm02: ShipStoresFormSettings;
+  /** Ship Stores 03 — Germany. */
+  shipStoresForm03: ShipStoresFormSettings;
   /** Crew Effect 01 (IMO Crew's Effects Declaration). */
   crewEffectForm: CrewEffectFormSettings;
   /** Crew Effect 02 — Germany. */
@@ -495,9 +508,11 @@ export {
 export type { ShipStoresFormSettings, ShipStoresRow } from './ship-stores.models';
 export {
   SHIP_STORES_02_ROW_COUNT,
+  SHIP_STORES_03_ROW_COUNT,
   SHIP_STORES_ROW_COUNT,
   createDefaultShipStoresForm,
   createDefaultShipStoresForm02,
+  createDefaultShipStoresForm03,
   formatShipStoresQuantityText,
   formatShipStoresUnitText,
 } from './ship-stores.models';

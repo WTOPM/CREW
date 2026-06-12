@@ -28,6 +28,7 @@ export type PackageDocumentId =
   | 'sso0108'
   | 'shipStores'
   | 'shipStores02'
+  | 'shipStores03'
   | 'crewEffect'
   | 'crewEffect02'
   | 'nilList'
@@ -129,6 +130,7 @@ export const PACKAGE_CATALOG_ENTRIES: readonly PackageCatalogEntry[] = [
   { id: 'sso0108', label: DOCUMENT_OVERLAY_LABELS.sso0108PortCalls },
   { id: 'shipStores', label: DOCUMENT_OVERLAY_LABELS.shipStores },
   { id: 'shipStores02', label: DOCUMENT_OVERLAY_LABELS.shipStores02 },
+  { id: 'shipStores03', label: DOCUMENT_OVERLAY_LABELS.shipStores03 },
   { id: 'crewEffect', label: DOCUMENT_OVERLAY_LABELS.crewEffect },
   { id: 'crewEffect02', label: DOCUMENT_OVERLAY_LABELS.crewEffect02 },
   { id: 'nilList', label: DOCUMENT_OVERLAY_LABELS.nilList },

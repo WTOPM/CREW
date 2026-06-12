@@ -50,6 +50,7 @@ import {
   normalizePortSecLvl,
   type CrewEffectDocId,
   type ShipStoresDocId,
+  shipStoresFormField,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
 import {
@@ -86,7 +87,9 @@ import {
 import {
   normalizeShipStoresForm,
   normalizeShipStoresForm02,
+  normalizeShipStoresForm03,
   SHIP_STORES_02_ROW_COUNT,
+  SHIP_STORES_03_ROW_COUNT,
   SHIP_STORES_ROW_COUNT,
   type ShipStoresFormSettings,
   type ShipStoresRow,
@@ -132,6 +135,7 @@ export class StorageService {
   readonly portOfCall = computed(() => this.data().portOfCall);
   readonly shipStoresForm = computed(() => this.data().shipStoresForm);
   readonly shipStoresForm02 = computed(() => this.data().shipStoresForm02);
+  readonly shipStoresForm03 = computed(() => this.data().shipStoresForm03);
   readonly crewEffectForm = computed(() => this.data().crewEffectForm);
   readonly crewEffectForm02 = computed(() => this.data().crewEffectForm02);
   readonly nilListForm = computed(() => this.data().nilListForm);
@@ -263,7 +267,7 @@ export class StorageService {
     }
     const portOfCall = this.normalizePortOfCallSettings(raw.portOfCall);
     const shipStoresForm = normalizeShipStoresForm(raw.shipStoresForm);
-    const shipStoresForm02 = normalizeShipStoresForm02(raw.shipStoresForm02);
+    const { shipStoresForm02, shipStoresForm03 } = this.normalizeShipStoresForms(raw);
     const crewEffectForm = normalizeCrewEffectForm(raw.crewEffectForm);
     const crewEffectForm02 = normalizeCrewEffectForm02(raw.crewEffectForm02);
     const nilListForm = normalizeNilListForm(raw.nilListForm);
@@ -271,10 +275,12 @@ export class StorageService {
     const cashAdvanceForm = normalizeCashAdvanceForm(raw.cashAdvanceForm);
     const crewMoneyListForm = normalizeCrewMoneyListForm(raw.crewMoneyListForm);
     const narcoticListForm = normalizeNarcoticListForm(raw.narcoticListForm);
-    const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay);
+    const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay, raw);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     const outputSettings = this.normalizeOutputSettings(raw.outputSettings);
-    const printPackages = this.normalizePrintPackages(raw.printPackages);
+    const printPackages = this.normalizePrintPackages(
+      this.migrateLegacyPrintPackageDocIds(raw.printPackages, raw.seedVersion),
+    );
     const customDocuments = this.normalizeCustomDocuments(raw.customDocuments);
     return {
       ship,
@@ -289,6 +295,7 @@ export class StorageService {
       portOfCall,
       shipStoresForm,
       shipStoresForm02,
+      shipStoresForm03,
       crewEffectForm,
       crewEffectForm02,
       nilListForm,
@@ -335,6 +342,28 @@ export class StorageService {
       }
     }
     return [...map.values()];
+  }
+
+  private migrateLegacyPrintPackageDocIds(raw: unknown, seedVersion: unknown): unknown {
+    if (typeof seedVersion === 'number' && seedVersion >= APP_DATA_SCHEMA_VERSION) {
+      return raw;
+    }
+    if (!Array.isArray(raw)) return raw;
+    return raw.map((pkg) => {
+      const authorities = (pkg as PortPackage)?.authorities;
+      if (!Array.isArray(authorities)) return pkg;
+      return {
+        ...(pkg as PortPackage),
+        authorities: authorities.map((auth) => ({
+          ...auth,
+          items: auth.items.map((item) =>
+            item.documentId === 'shipStores02'
+              ? { ...item, documentId: 'shipStores03' }
+              : item,
+          ),
+        })),
+      };
+    });
   }
 
   private normalizePrintPackages(raw: unknown): PortPackage[] {
@@ -389,8 +418,16 @@ export class StorageService {
 
   private normalizeDocumentOverlay(
     raw: Partial<AppData['documentOverlay']> | undefined,
+    appRaw?: Partial<AppData>,
   ): AppData['documentOverlay'] {
     const defaults = createDefaultDocumentOverlayPrefs();
+    const seedVersion = typeof appRaw?.seedVersion === 'number' ? appRaw.seedVersion : 0;
+    const migrateGermanyOverlay =
+      seedVersion < APP_DATA_SCHEMA_VERSION && raw?.shipStores03 == null && raw?.shipStores02 != null;
+
+    const shipStores02Raw = migrateGermanyOverlay ? undefined : raw?.shipStores02;
+    const shipStores03Raw = migrateGermanyOverlay ? raw?.shipStores02 : raw?.shipStores03;
+
     const out: AppData['documentOverlay'] = {
       crewList: this.normalizeCrewListPrefs(raw?.crewList),
       pax: this.normalizeStampDocumentPrefs(raw?.pax, defaults.pax),
@@ -400,7 +437,8 @@ export class StorageService {
       mdh: this.normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
       crewVaccine: this.normalizeStampDocumentPrefs(raw?.crewVaccine, defaults.crewVaccine),
       shipStores: this.normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
-      shipStores02: this.normalizeStampDocumentPrefs(raw?.shipStores02, defaults.shipStores02),
+      shipStores02: this.normalizeStampDocumentPrefs(shipStores02Raw, defaults.shipStores02),
+      shipStores03: this.normalizeStampDocumentPrefs(shipStores03Raw, defaults.shipStores03),
       crewEffect: this.normalizeStampDocumentPrefs(raw?.crewEffect, defaults.crewEffect),
       crewEffect02: this.normalizeStampDocumentPrefs(raw?.crewEffect02, defaults.crewEffect02),
       nilList: this.normalizeStampDocumentPrefs(raw?.nilList, defaults.nilList),
@@ -692,6 +730,7 @@ export class StorageService {
           crewVaccine: { ...d.documentOverlay.crewVaccine, ...patch },
           shipStores: { ...d.documentOverlay.shipStores, ...patch },
           shipStores02: { ...d.documentOverlay.shipStores02, ...patch },
+          shipStores03: { ...d.documentOverlay.shipStores03, ...patch },
           crewEffect: { ...d.documentOverlay.crewEffect, ...patch },
           crewEffect02: { ...d.documentOverlay.crewEffect02, ...patch },
           nilList: { ...d.documentOverlay.nilList, ...patch },
@@ -1029,18 +1068,51 @@ export class StorageService {
     void this.persist('silent');
   }
 
+  private normalizeShipStoresForms(raw: Partial<AppData>): {
+    shipStoresForm02: ReturnType<typeof normalizeShipStoresForm02>;
+    shipStoresForm03: ReturnType<typeof normalizeShipStoresForm03>;
+  } {
+    const seedVersion = typeof raw.seedVersion === 'number' ? raw.seedVersion : 0;
+    const migrateGermanyTo03 =
+      seedVersion < APP_DATA_SCHEMA_VERSION && raw.shipStoresForm03 == null;
+
+    if (migrateGermanyTo03) {
+      return {
+        shipStoresForm02: normalizeShipStoresForm02(undefined),
+        shipStoresForm03: normalizeShipStoresForm03(raw.shipStoresForm02),
+      };
+    }
+
+    return {
+      shipStoresForm02: normalizeShipStoresForm02(raw.shipStoresForm02),
+      shipStoresForm03: normalizeShipStoresForm03(raw.shipStoresForm03),
+    };
+  }
+
+  private shipStoresRowCount(docId: ShipStoresDocId): number {
+    if (docId === 'shipStores03') return SHIP_STORES_03_ROW_COUNT;
+    if (docId === 'shipStores02') return SHIP_STORES_02_ROW_COUNT;
+    return SHIP_STORES_ROW_COUNT;
+  }
+
+  private shipStoresNormalize(
+    docId: ShipStoresDocId,
+  ): typeof normalizeShipStoresForm | typeof normalizeShipStoresForm02 | typeof normalizeShipStoresForm03 {
+    if (docId === 'shipStores03') return normalizeShipStoresForm03;
+    if (docId === 'shipStores02') return normalizeShipStoresForm02;
+    return normalizeShipStoresForm;
+  }
+
   updateShipStoresRow(
     docId: ShipStoresDocId,
     rowIndex: number,
     partial: Partial<ShipStoresRow>,
   ): void {
-    const rowCount = docId === 'shipStores02' ? SHIP_STORES_02_ROW_COUNT : SHIP_STORES_ROW_COUNT;
+    const rowCount = this.shipStoresRowCount(docId);
     if (rowIndex < 0 || rowIndex >= rowCount) return;
-    const field =
-      docId === 'shipStores02' ? ('shipStoresForm02' as const) : ('shipStoresForm' as const);
+    const field = shipStoresFormField(docId);
     this.data.update((d) => {
-      const normalize =
-        docId === 'shipStores02' ? normalizeShipStoresForm02 : normalizeShipStoresForm;
+      const normalize = this.shipStoresNormalize(docId);
       const form = normalize(d[field]);
       const rows = form.rows.map((r, i) => (i === rowIndex ? { ...r, ...partial } : r));
       return { ...d, [field]: normalize({ ...form, rows }) };
@@ -1049,10 +1121,8 @@ export class StorageService {
   }
 
   private patchShipStoresForm(docId: ShipStoresDocId, partial: Partial<ShipStoresFormSettings>): void {
-    const field =
-      docId === 'shipStores02' ? ('shipStoresForm02' as const) : ('shipStoresForm' as const);
-    const normalize =
-      docId === 'shipStores02' ? normalizeShipStoresForm02 : normalizeShipStoresForm;
+    const field = shipStoresFormField(docId);
+    const normalize = this.shipStoresNormalize(docId);
     this.data.update((d) => ({
       ...d,
       [field]: normalize({ ...d[field], ...partial }),

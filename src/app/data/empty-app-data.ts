@@ -24,10 +24,11 @@ import { createDefaultNarcoticListForm } from '../models/narcotic-list.models';
 import {
   createDefaultShipStoresForm,
   createDefaultShipStoresForm02,
+  createDefaultShipStoresForm03,
 } from '../models/ship-stores.models';
 
 /** Bump when saved JSON shape migrations are required (no bundled sample data). */
-export const APP_DATA_SCHEMA_VERSION = 9;
+export const APP_DATA_SCHEMA_VERSION = 10;
 
 /** Fresh install — no ship, crew, ports, or forms pre-filled. */
 export function createEmptyAppData(): AppData {
@@ -44,6 +45,7 @@ export function createEmptyAppData(): AppData {
     portOfCall: createDefaultPortOfCallSettings(),
     shipStoresForm: createDefaultShipStoresForm(),
     shipStoresForm02: createDefaultShipStoresForm02(),
+    shipStoresForm03: createDefaultShipStoresForm03(),
     crewEffectForm: createDefaultCrewEffectForm(),
     crewEffectForm02: createDefaultCrewEffectForm02(),
     nilListForm: createDefaultNilListForm(),

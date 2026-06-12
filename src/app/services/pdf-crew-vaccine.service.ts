@@ -174,8 +174,15 @@ export class PdfCrewVaccineService {
       familyGivenNames: 56, // Column 8: Family Name, Given Names
       rank: 211, // Column: Rank
       nationality: 278, // Column: Nationality
-      vaccineMedicalProduct: 336, // Column 11: Vaccine medical product (TODO: fill logic)
-      dateOfVaccination: 503, // Column: Date of vaccination (TODO: fill logic)
+      vaccineMedicalProduct: 336, // Column 11: Vaccine medical product
+      dateOfVaccination: 503, // Column: Date of vaccination
+    };
+    const colMaxWidth = {
+      familyGivenNames: colX.rank - colX.familyGivenNames - 4,
+      rank: colX.nationality - colX.rank - 4,
+      nationality: colX.vaccineMedicalProduct - colX.nationality - 4,
+      vaccineMedicalProduct: colX.dateOfVaccination - colX.vaccineMedicalProduct - 4,
+      dateOfVaccination: 72,
     };
 
     activeCrew.forEach((member, index) => {
@@ -206,52 +213,118 @@ export class PdfCrewVaccineService {
 
       // Family name, Given names
       const fullName = `${member.familyName || ''}${member.familyName && member.givenNames ? ', ' : ''}${member.givenNames || ''}`;
-      page.drawText(fullName, {
-        x: colX.familyGivenNames,
-        y,
-        size: fontSize,
+      this.drawTableCell(
+        page,
         font,
-        color: black,
-      });
+        black,
+        fullName,
+        colX.familyGivenNames,
+        y,
+        fontSize,
+        colMaxWidth.familyGivenNames,
+      );
 
       // Rank
-      page.drawText(member.rank || '', {
-        x: colX.rank,
-        y,
-        size: fontSize,
+      this.drawTableCell(
+        page,
         font,
-        color: black,
-      });
+        black,
+        member.rank || '',
+        colX.rank,
+        y,
+        fontSize,
+        colMaxWidth.rank,
+      );
 
-      // Nationality
-      page.drawText(member.nationality || '', {
-        x: colX.nationality,
-        y,
-        size: fontSize,
+      // Nationality — narrow column (~54 pt); shrink / truncate long values
+      this.drawTableCell(
+        page,
         font,
-        color: black,
-      });
+        black,
+        member.nationality || '',
+        colX.nationality,
+        y,
+        fontSize,
+        colMaxWidth.nationality,
+      );
 
       // Vaccine medical product
-      page.drawText(member.vaccineMedicalProduct || '', {
-        x: colX.vaccineMedicalProduct,
-        y,
-        size: fontSize,
+      this.drawTableCell(
+        page,
         font,
-        color: black,
-      });
+        black,
+        member.vaccineMedicalProduct || '',
+        colX.vaccineMedicalProduct,
+        y,
+        fontSize,
+        colMaxWidth.vaccineMedicalProduct,
+      );
 
       // Date of vaccination
-      page.drawText(formatDisplayDate(member.dateOfVaccination) || '', {
-        x: colX.dateOfVaccination,
-        y,
-        size: fontSize,
+      this.drawTableCell(
+        page,
         font,
-        color: black,
-      });
+        black,
+        formatDisplayDate(member.dateOfVaccination) || '',
+        colX.dateOfVaccination,
+        y,
+        fontSize,
+        colMaxWidth.dateOfVaccination,
+      );
     });
 
     return new Uint8Array(await doc.save());
+  }
+
+  /** One line — shrink font, then truncate; avoids pdf-lib maxWidth wrap into next column. */
+  private drawTableCell(
+    page: import('pdf-lib').PDFPage,
+    font: import('pdf-lib').PDFFont,
+    black: import('pdf-lib').RGB,
+    text: string,
+    x: number,
+    y: number,
+    fontSize: number,
+    maxWidth?: number,
+  ): void {
+    const value = text.trim();
+    if (!value) return;
+    let size = fontSize;
+    let line = value;
+    if (maxWidth != null) {
+      size = this.fitFontSize(font, line, maxWidth, fontSize);
+      line = this.truncateToWidth(font, line, size, maxWidth);
+    }
+    page.drawText(line, { x, y, size, font, color: black });
+  }
+
+  private fitFontSize(
+    font: import('pdf-lib').PDFFont,
+    text: string,
+    maxWidth: number,
+    baseSize: number,
+  ): number {
+    let size = baseSize;
+    while (size > 5.5 && font.widthOfTextAtSize(text, size) > maxWidth) {
+      size -= 0.25;
+    }
+    return size;
+  }
+
+  private truncateToWidth(
+    font: import('pdf-lib').PDFFont,
+    text: string,
+    size: number,
+    maxWidth: number,
+  ): string {
+    if (font.widthOfTextAtSize(text, size) <= maxWidth) {
+      return text;
+    }
+    let trimmed = text;
+    while (trimmed.length > 1 && font.widthOfTextAtSize(`${trimmed}…`, size) > maxWidth) {
+      trimmed = trimmed.slice(0, -1);
+    }
+    return trimmed.length < text.length ? `${trimmed}…` : trimmed;
   }
 
   private async loadTemplate(): Promise<Uint8Array> {

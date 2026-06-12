@@ -43,6 +43,7 @@ import { PdfSso0108PortCallsService } from '../../services/pdf-sso0108-port-call
 import { PdfCrewVaccineService } from '../../services/pdf-crew-vaccine.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { PdfShipStores02Service } from '../../services/pdf-ship-stores-02.service';
+import { PdfShipStores03Service } from '../../services/pdf-ship-stores-03.service';
 import { CrewListExcelService } from '../../services/crew-list-excel.service';
 import { PortOfCallExcelService } from '../../services/port-of-call-excel.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
@@ -106,6 +107,7 @@ export class DocumentsNavComponent {
   private readonly portOfCallTemplatePdf = inject(PdfPortOfCallTemplateService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
   private readonly shipStores02Pdf = inject(PdfShipStores02Service);
+  private readonly shipStores03Pdf = inject(PdfShipStores03Service);
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
   private readonly crewEffect02Pdf = inject(PdfCrewEffect02Service);
   private readonly nilListPdf = inject(PdfNilListService);
@@ -438,6 +440,16 @@ export class DocumentsNavComponent {
     });
   }
 
+  protected openShipStores03(): void {
+    void this.shipStores03Pdf.openPreview(this.appData()).then((ok) => {
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Ship Stores preview');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
+    });
+  }
+
   protected openShipStoresSettings(): void {
     this.showShipStoresSettings.set(true);
   }
@@ -607,6 +619,7 @@ export class DocumentsNavComponent {
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
       shipStoresForm02: this.storage.shipStoresForm02(),
+      shipStoresForm03: this.storage.shipStoresForm03(),
       crewEffectForm: this.storage.crewEffectForm(),
       crewEffectForm02: this.storage.crewEffectForm02(),
       nilListForm: this.storage.nilListForm(),

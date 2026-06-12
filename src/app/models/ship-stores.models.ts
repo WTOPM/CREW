@@ -1,5 +1,8 @@
 export const SHIP_STORES_ROW_COUNT = 27;
-export const SHIP_STORES_02_ROW_COUNT = 19;
+/** Form 02 (123.pdf) — 43 article rows. */
+export const SHIP_STORES_02_ROW_COUNT = 43;
+/** Form 03 (Germany) — 19 article rows. */
+export const SHIP_STORES_03_ROW_COUNT = 19;
 
 export interface ShipStoresRow {
   name: string;
@@ -30,13 +33,17 @@ export function createDefaultShipStoresForm02(): ShipStoresFormSettings {
   return createDefaultShipStoresForm(SHIP_STORES_02_ROW_COUNT);
 }
 
+export function createDefaultShipStoresForm03(): ShipStoresFormSettings {
+  return createDefaultShipStoresForm(SHIP_STORES_03_ROW_COUNT);
+}
+
 /** Quantity column: NIL only when article name is set and quantity is empty or zero. */
 export function formatShipStoresQuantityText(articleName: string, quantity: string): string {
   if (!articleName.trim()) return '';
   const v = quantity.trim();
-  if (!v) return ''; // empty quantity stays empty
+  if (!v) return '';
   const n = Number(v.replace(/\s/g, '').replace(',', '.'));
-  if (!Number.isNaN(n) && n === 0) return 'NIL'; // explicit 0 means NIL
+  if (!Number.isNaN(n) && n === 0) return 'NIL';
   return v;
 }
 
@@ -71,6 +78,12 @@ export function normalizeShipStoresForm02(
   raw: Partial<ShipStoresFormSettings> | undefined,
 ): ShipStoresFormSettings {
   return normalizeShipStoresForm(raw, SHIP_STORES_02_ROW_COUNT);
+}
+
+export function normalizeShipStoresForm03(
+  raw: Partial<ShipStoresFormSettings> | undefined,
+): ShipStoresFormSettings {
+  return normalizeShipStoresForm(raw, SHIP_STORES_03_ROW_COUNT);
 }
 
 function normalizeShipStoresRowUnit(raw: unknown): string {

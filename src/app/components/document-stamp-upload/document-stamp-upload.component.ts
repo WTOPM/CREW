@@ -326,6 +326,7 @@ function allDocumentsUse(
     overlay.mdh[field] &&
     overlay.shipStores[field] &&
     overlay.shipStores02[field] &&
+    overlay.shipStores03[field] &&
     overlay.crewEffect[field] &&
     overlay.crewEffect02[field] &&
     overlay.nilList[field] &&

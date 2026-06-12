@@ -129,6 +129,10 @@ export function shipStores02PdfFileName(shipName: string, voyageDate: string): s
   return `Ship_Stores_02_${pdfFileToken(shipName)}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function shipStores03PdfFileName(shipName: string, voyageDate: string): string {
+  return `Ship_Stores_03_${pdfFileToken(shipName)}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function shipStoresPdfFileName(shipName: string, voyageDate: string): string {
   return `Ship_Stores_${pdfFileToken(shipName, 'ship')}_${pdfFileDate(voyageDate)}.pdf`;
 }

@@ -1,11 +1,11 @@
 /**
  * Ship Stores 02 — pdf-lib placements (origin bottom-left, pt).
- * Template: public/ship-stores-02-empty.pdf (from 12.pdf).
+ * Template: public/ship-stores-02-empty.pdf (from 123.pdf).
  */
 
 import type { Port } from '../models/crew.models';
 
-export const SHIP_STORES_02_TEMPLATE_VERSION = 2;
+export const SHIP_STORES_02_TEMPLATE_VERSION = 8;
 
 export const SHIP_STORES_02_FONT = 9;
 
@@ -16,23 +16,25 @@ export interface ShipStores02TextPlacement {
   maxWidth?: number;
 }
 
-/** Header — user-measured on 12.pdf. */
+/** Header — user-measured on 123.pdf (pdf-lib, origin bottom-left). */
 export const SHIP_STORES_02_FIELDS = {
-  shipName: { x: 150, y: 749, fontSize: SHIP_STORES_02_FONT, maxWidth: 158 },
-  nationality: { x: 150, y: 726, fontSize: SHIP_STORES_02_FONT, maxWidth: 145 },
-  arrivalMark: { x: 285, y: 775, fontSize: SHIP_STORES_02_FONT },
-  departureMark: { x: 430, y: 775, fontSize: SHIP_STORES_02_FONT },
-  pageNo: { x: 545, y: 778, fontSize: SHIP_STORES_02_FONT },
-  portOfCall: { x: 314, y: 749, fontSize: SHIP_STORES_02_FONT, maxWidth: 128 },
-  voyageDate: { x: 450, y: 749, fontSize: SHIP_STORES_02_FONT, maxWidth: 88 },
-  portsRoute: { x: 302, y: 726, fontSize: SHIP_STORES_02_FONT, maxWidth: 238 },
-  personsOnBoard: { x: 150, y: 698, fontSize: SHIP_STORES_02_FONT, maxWidth: 82 },
-  periodOfStay: { x: 238, y: 698, fontSize: SHIP_STORES_02_FONT, maxWidth: 88 },
-  placeOfStorage: { x: 331, y: 698, fontSize: SHIP_STORES_02_FONT, maxWidth: 210 },
-  captainName: { x: 221, y: 74, fontSize: SHIP_STORES_02_FONT, maxWidth: 280 },
+  shipName: { x: 40, y: 734, fontSize: SHIP_STORES_02_FONT, maxWidth: 100 },
+  imoNo: { x: 145, y: 734, fontSize: SHIP_STORES_02_FONT, maxWidth: 70 },
+  callSign: { x: 220, y: 734, fontSize: SHIP_STORES_02_FONT, maxWidth: 90 },
+  /** Arrival mark — user-measured 317, 756. */
+  arrivalMark: { x: 317, y: 756, fontSize: SHIP_STORES_02_FONT },
+  /** Departure mark — reserved (432, 756). */
+  departureMark: { x: 432, y: 756, fontSize: SHIP_STORES_02_FONT },
+  pageNo: { x: 528, y: 756, fontSize: SHIP_STORES_02_FONT },
+  nationality: { x: 40, y: 711, fontSize: SHIP_STORES_02_FONT, maxWidth: 270 },
+  portsRoute: { x: 317, y: 711, fontSize: SHIP_STORES_02_FONT, maxWidth: 250 },
+  placeOfStorage: { x: 317, y: 689, fontSize: SHIP_STORES_02_FONT, maxWidth: 250 },
+  personsOnBoard: { x: 40, y: 689, fontSize: SHIP_STORES_02_FONT, maxWidth: 100 },
+  periodOfStay: { x: 145, y: 689, fontSize: SHIP_STORES_02_FONT, maxWidth: 130 },
+  captainName: { x: 293, y: 128, fontSize: SHIP_STORES_02_FONT, maxWidth: 280 },
 } as const satisfies Record<string, ShipStores02TextPlacement>;
 
-/** Field 5 — last / next port with country. */
+/** Last / next port — PORT / COUNTRY    PORT / COUNTRY. */
 export function formatShipStores02PortsRoute(
   lastPortOfCall: string,
   nextPortOfCall: string,
@@ -53,20 +55,28 @@ export function formatShipStores02PortsRoute(
   return from || to;
 }
 
-export const SHIP_STORES_02_BODY_FONT_SIZE = 9;
-/** Article name column — user-measured on 12.pdf. */
-export const SHIP_STORES_02_BODY_ARTICLE_X = 67;
-export const SHIP_STORES_02_BODY_QUANTITY_X = 213;
-export const SHIP_STORES_02_BODY_UNIT_X = 240;
+export const SHIP_STORES_02_BODY_FONT_SIZE = 8;
+export const SHIP_STORES_02_BODY_ARTICLE_X = 21;
+export const SHIP_STORES_02_BODY_QUANTITY_X = 232;
+export const SHIP_STORES_02_BODY_UNIT_X = 274;
 export const SHIP_STORES_02_BODY_ARTICLE_MAX_WIDTH =
-  SHIP_STORES_02_BODY_QUANTITY_X - SHIP_STORES_02_BODY_ARTICLE_X - 10;
+  SHIP_STORES_02_BODY_QUANTITY_X - SHIP_STORES_02_BODY_ARTICLE_X - 8;
 
-export const SHIP_STORES_02_BODY_ROW_COUNT = 19;
+export const SHIP_STORES_02_BODY_ROW_COUNT = 43;
 
-/** Rows 1–4, 6–19 measured; row 5 interpolated (541 → 484). */
-export const SHIP_STORES_02_BODY_ROW_PDFLIB_Y: readonly number[] = [
-  628, 598, 570, 541, 513, 484, 456, 427, 398, 370, 342, 315, 286, 257, 229, 201, 173, 144, 118,
-];
+/** 43 rows — first 21/665, last 21/147 (user-measured). */
+const SHIP_STORES_02_BODY_FIRST_Y = 665;
+const SHIP_STORES_02_BODY_LAST_Y = 147;
+
+export const SHIP_STORES_02_BODY_ROW_PDFLIB_Y: readonly number[] = Array.from(
+  { length: SHIP_STORES_02_BODY_ROW_COUNT },
+  (_, i) =>
+    Math.round(
+      SHIP_STORES_02_BODY_FIRST_Y -
+        (i * (SHIP_STORES_02_BODY_FIRST_Y - SHIP_STORES_02_BODY_LAST_Y)) /
+          (SHIP_STORES_02_BODY_ROW_COUNT - 1),
+    ),
+);
 
 export function shipStores02BodyRowPdfLibY(rowIndex: number): number {
   return SHIP_STORES_02_BODY_ROW_PDFLIB_Y[rowIndex] ?? SHIP_STORES_02_BODY_ROW_PDFLIB_Y[0];

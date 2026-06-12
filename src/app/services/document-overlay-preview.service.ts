@@ -28,6 +28,7 @@ import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
 import { PdfCrewVaccineService } from './pdf-crew-vaccine.service';
 import { PdfShipStoresService } from './pdf-ship-stores.service';
 import { PdfShipStores02Service } from './pdf-ship-stores-02.service';
+import { PdfShipStores03Service } from './pdf-ship-stores-03.service';
 import { StorageService } from './storage.service';
 
 export type MdhOverlayPreviewPage = 'form' | 'attachment';
@@ -49,6 +50,7 @@ export class DocumentOverlayPreviewService {
   private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
   private readonly shipStores02Pdf = inject(PdfShipStores02Service);
+  private readonly shipStores03Pdf = inject(PdfShipStores03Service);
   private readonly crewEffectPdf = inject(PdfCrewEffectService);
   private readonly crewEffect02Pdf = inject(PdfCrewEffect02Service);
   private readonly nilListPdf = inject(PdfNilListService);
@@ -79,6 +81,8 @@ export class DocumentOverlayPreviewService {
         return this.shipStoresPdf.build(data);
       case 'shipStores02':
         return this.shipStores02Pdf.build(data);
+      case 'shipStores03':
+        return this.shipStores03Pdf.build(data);
       case 'crewEffect':
         return this.crewEffectPdf.build(data);
       case 'crewEffect02':
@@ -104,7 +108,7 @@ export class DocumentOverlayPreviewService {
   pdfJsPageNumber(documentId: DocumentOverlayId, mdhPage: MdhOverlayPreviewPage): number {
     if (
       (documentId === 'mdh' ||
-        documentId === 'shipStores02' ||
+        documentId === 'shipStores03' ||
         documentId === 'crewEffect02') &&
       mdhPage === 'attachment'
     ) {
@@ -200,6 +204,7 @@ export class DocumentOverlayPreviewService {
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
       shipStoresForm02: this.storage.shipStoresForm02(),
+      shipStoresForm03: this.storage.shipStoresForm03(),
       crewEffectForm: this.storage.crewEffectForm(),
       crewEffectForm02: this.storage.crewEffectForm02(),
       nilListForm: this.storage.nilListForm(),

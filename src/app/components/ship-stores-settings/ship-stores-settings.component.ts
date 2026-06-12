@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { FormsModule } from '@angular/forms';
 import {
   SHIP_STORES_02_ROW_COUNT,
+  SHIP_STORES_03_ROW_COUNT,
   SHIP_STORES_ROW_COUNT,
   ShipStoresDocId,
 } from '../../models/crew.models';
@@ -25,19 +26,26 @@ export class ShipStoresSettingsComponent {
   protected draftQuantity = signal('');
   protected draftUnit = signal('');
 
-  protected readonly form = computed(() =>
-    this.docId() === 'shipStores02'
-      ? this.storage.shipStoresForm02()
-      : this.storage.shipStoresForm(),
-  );
+  protected readonly form = computed(() => {
+    const id = this.docId();
+    if (id === 'shipStores03') return this.storage.shipStoresForm03();
+    if (id === 'shipStores02') return this.storage.shipStoresForm02();
+    return this.storage.shipStoresForm();
+  });
 
-  protected readonly stampDocumentId = computed((): DocumentOverlayId =>
-    this.docId() === 'shipStores02' ? 'shipStores02' : 'shipStores',
-  );
+  protected readonly stampDocumentId = computed((): DocumentOverlayId => {
+    const id = this.docId();
+    if (id === 'shipStores03') return 'shipStores03';
+    if (id === 'shipStores02') return 'shipStores02';
+    return 'shipStores';
+  });
 
-  protected readonly rowCount = computed(() =>
-    this.docId() === 'shipStores02' ? SHIP_STORES_02_ROW_COUNT : SHIP_STORES_ROW_COUNT,
-  );
+  protected readonly rowCount = computed(() => {
+    const id = this.docId();
+    if (id === 'shipStores03') return SHIP_STORES_03_ROW_COUNT;
+    if (id === 'shipStores02') return SHIP_STORES_02_ROW_COUNT;
+    return SHIP_STORES_ROW_COUNT;
+  });
 
   constructor() {
     effect(() => {

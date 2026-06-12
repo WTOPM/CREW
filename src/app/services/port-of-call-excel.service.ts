@@ -93,6 +93,7 @@ export class PortOfCallExcelService {
       portOfCall: this.storage.portOfCall(),
       shipStoresForm: this.storage.shipStoresForm(),
       shipStoresForm02: this.storage.shipStoresForm02(),
+      shipStoresForm03: this.storage.shipStoresForm03(),
       crewEffectForm: this.storage.crewEffectForm(),
       crewEffectForm02: this.storage.crewEffectForm02(),
       nilListForm: this.storage.nilListForm(),
