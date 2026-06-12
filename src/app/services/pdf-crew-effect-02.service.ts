@@ -123,7 +123,7 @@ export class PdfCrewEffect02Service {
       const fontSize = CREW_EFFECT_02_FONT;
       if (!member) continue;
       this.drawTableCell(page, font, black, String(i + 1), CREW_EFFECT_02_COL.rowNo, y, fontSize);
-      this.drawTableCell(
+      this.drawNameCell(
         page,
         font,
         black,
@@ -200,6 +200,53 @@ export class PdfCrewEffect02Service {
         );
       }
     }
+  }
+
+  /** Family name, given names — fixed font; surname on row baseline, overflow below. */
+  private drawNameCell(
+    page: import('pdf-lib').PDFPage,
+    font: import('pdf-lib').PDFFont,
+    black: import('pdf-lib').RGB,
+    text: string,
+    x: number,
+    y: number,
+    fontSize: number,
+    maxWidth: number,
+  ): void {
+    const value = text.trim();
+    if (!value) return;
+
+    const lines = this.splitCrewEffectNameLines(font, value, fontSize, maxWidth);
+    lines.forEach((line, index) => {
+      page.drawText(line, { x, y: y - index * fontSize, size: fontSize, font, color: black });
+    });
+  }
+
+  /** Line 1 starts with surname; add given names while they fit; rest on line 2. */
+  private splitCrewEffectNameLines(
+    font: import('pdf-lib').PDFFont,
+    text: string,
+    fontSize: number,
+    maxWidth: number,
+  ): string[] {
+    const fits = (line: string) => font.widthOfTextAtSize(line, fontSize) <= maxWidth;
+    if (fits(text)) return [text];
+
+    const words = text.split(/\s+/).filter(Boolean);
+    if (words.length <= 1) return [text];
+
+    let line1 = words[0];
+    let nextIndex = 1;
+    for (; nextIndex < words.length; nextIndex++) {
+      const candidate = `${line1} ${words[nextIndex]}`;
+      if (!fits(candidate)) break;
+      line1 = candidate;
+    }
+
+    if (nextIndex >= words.length) return [line1];
+
+    const line2 = words.slice(nextIndex).join(' ');
+    return [line1, line2];
   }
 
   private drawTableCell(
