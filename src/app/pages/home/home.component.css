@@ -254,10 +254,62 @@
 }
 
 .actions-icons {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 0.35rem;
+  flex-wrap: nowrap;
+}
+
+.crew-table td.actions,
+.table-wrap td.actions {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.table-wrap tbody tr {
+  display: table-row;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-wrap tbody td {
+  display: table-cell;
+  border-bottom: none;
+}
+
+.crew-table {
+  width: 100%;
+  min-width: 52rem;
+}
+
+.crew-table th,
+.crew-table td {
+  vertical-align: middle;
+}
+
+.crew-table .col-index {
+  width: 2.25rem;
+  white-space: nowrap;
+}
+
+.crew-table .col-nowrap {
+  white-space: nowrap;
+}
+
+.crew-table .col-actions {
+  width: 7.4rem;
+  min-width: 7.4rem;
+  white-space: nowrap;
+}
+
+.crew-action-spacer {
+  visibility: hidden;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.crew-table tbody:not(.cdk-drop-list-dragging) > tr.cdk-drag {
+  transform: none !important;
 }
 
 .crew-action {
@@ -445,9 +497,9 @@
 }
 
 .crew-form-block-title {
-  margin: 0 0 0.65rem;
-  font-size: 0.8rem;
-  font-weight: 700;
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -610,4 +662,38 @@
 .crew-form-block--vaccination input {
   border-color: #fecaca;
   background: #fef8f8;
+}
+
+.crew-form-vaccine-kind {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #b91c1c;
+}
+
+.crew-form-block--vaccination .form-grid + .crew-form-vaccine-kind {
+  margin-top: 1rem;
+}
+
+.yellow-fever-expiry-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.yellow-fever-expiry-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  cursor: pointer;
+}
+
+.yellow-fever-expiry-toggle input[type='checkbox'] {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #dc2626;
 }

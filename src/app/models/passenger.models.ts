@@ -24,17 +24,68 @@ function parsePersonName(full: string): { familyName: string; givenNames: string
 
 export type PaxListKind = 'arrival' | 'departure';
 
-/** True when the same active passengers appear on arrival and departure (linked lists). */
-export function arePassengerListsInSync(passengers: readonly PassengerMember[]): boolean {
-  const arrival = new Set(
-    passengers.filter((m) => !m.archived && m.onArrivalList).map((m) => m.id),
+/** Active passenger ids in display order. */
+export function activePassengerListIds(
+  passengers: readonly PassengerMember[],
+  list: PaxListKind,
+  orderOverride?: readonly string[] | null,
+): string[] {
+  const activeIds = passengers
+    .filter((m) => !m.archived && (list === 'arrival' ? m.onArrivalList : m.onDepartureList))
+    .map((m) => m.id);
+  if (!orderOverride?.length) return activeIds;
+  const activeSet = new Set(activeIds);
+  const ordered: string[] = [];
+  for (const id of orderOverride) {
+    if (activeSet.has(id)) {
+      ordered.push(id);
+      activeSet.delete(id);
+    }
+  }
+  for (const id of activeIds) {
+    if (activeSet.has(id)) ordered.push(id);
+  }
+  return ordered;
+}
+
+/** Active passengers in Home table order. */
+export function filterActivePassengerList(
+  passengers: readonly PassengerMember[],
+  list: PaxListKind,
+  orderOverride?: readonly string[] | null,
+): PassengerMember[] {
+  const byId = new Map(passengers.map((m) => [m.id, m]));
+  return activePassengerListIds(passengers, list, orderOverride)
+    .map((id) => byId.get(id))
+    .filter((m): m is PassengerMember => m != null);
+}
+
+export function filterActivePassengerListFromData(
+  data: {
+    passengers: PassengerMember[];
+    passengerArrivalOrder?: string[];
+    passengerDepartureOrder?: string[];
+  },
+  list: PaxListKind,
+): PassengerMember[] {
+  return filterActivePassengerList(
+    data.passengers,
+    list,
+    list === 'arrival' ? data.passengerArrivalOrder : data.passengerDepartureOrder,
   );
-  const departure = new Set(
-    passengers.filter((m) => !m.archived && m.onDepartureList).map((m) => m.id),
-  );
-  if (arrival.size !== departure.size) return false;
-  for (const id of arrival) {
-    if (!departure.has(id)) return false;
+}
+
+/** True when the same active passengers appear on arrival and departure in the same order. */
+export function arePassengerListsInSync(
+  passengers: readonly PassengerMember[],
+  arrivalOrder?: readonly string[] | null,
+  departureOrder?: readonly string[] | null,
+): boolean {
+  const arrivalIds = activePassengerListIds(passengers, 'arrival', arrivalOrder);
+  const departureIds = activePassengerListIds(passengers, 'departure', departureOrder);
+  if (arrivalIds.length !== departureIds.length) return false;
+  for (let i = 0; i < arrivalIds.length; i++) {
+    if (arrivalIds[i] !== departureIds[i]) return false;
   }
   return true;
 }
@@ -52,16 +103,6 @@ export function passengerListDiffCounts(passengers: readonly PassengerMember[]):
     else if (m.onDepartureList && !m.onArrivalList) departureOnly++;
   }
   return { arrivalOnly, departureOnly };
-}
-
-/** Active passengers in Home table order. */
-export function filterActivePassengerList(
-  passengers: readonly PassengerMember[],
-  list: PaxListKind,
-): PassengerMember[] {
-  return passengers.filter((m) =>
-    !m.archived && (list === 'arrival' ? m.onArrivalList : m.onDepartureList),
-  );
 }
 
 export interface PassengerMember {

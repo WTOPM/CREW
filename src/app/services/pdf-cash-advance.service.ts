@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import {
   AppData,
   CrewMember,
-  filterActiveCrewList,
+  filterActiveCrewListFromData,
   formatCrewListName,
   formatPortCallPortName,
 } from '../models/crew.models';
@@ -81,7 +81,7 @@ export class PdfCashAdvanceService {
 
     const form = normalizeCashAdvanceForm(data.cashAdvanceForm);
     const { ship } = data;
-    const crew = filterActiveCrewList(data.crew, 'arrival');
+    const crew = filterActiveCrewListFromData(data, 'arrival');
     const master = this.findMaster(crew);
     const payrollDate = form.payrollDate || formatDisplayDate(ship.dateOfArrival);
     const title = form.title.trim();

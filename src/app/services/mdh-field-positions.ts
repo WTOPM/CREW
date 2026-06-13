@@ -49,18 +49,18 @@ export const MDH_FIELDS = {
   agentOwner: { x: 369, lineY: 138, lift: 1, maxWidth: 150 },
   /** ship.sanitationCertificateIssuedAt */
   sanitationIssuedAt: { x: 244, lineY: 157, lift: 1, maxWidth: 65 },
-  /** ship.sanitationCertificateIssueDate */
-  sanitationDated: { x: 369, lineY: 158, lift: 1, maxWidth: 80 },
+  /** ship.sanitationCertificateIssueDate (pdf-lib baseline Y=686) */
+  sanitationDated: { x: 368, lineY: 157, lift: 1, maxWidth: 80 },
   /** ship.waterTestPort + waterTestDate */
   waterTest: { x: 369, lineY: 177, lift: 1, maxWidth: 200 },
-  /** passengers — First Class */
-  passengerFirst: { x: 212, lineY: 198, lift: 1 },
-  /** passengers — Cabin Class */
-  passengerCabin: { x: 211, lineY: 207, lift: 1 },
-  /** passengers — Tourist Class */
-  passengerTourist: { x: 212, lineY: 218, lift: 1 },
-  /** passengers — Third Class */
-  passengerThird: { x: 212, lineY: 229, lift: 1 },
+  /** passengers — First Class (pdf-lib baseline Y=646) */
+  passengerFirst: { x: 210, lineY: 197, lift: 1 },
+  /** passengers — Cabin Class (pdf-lib baseline Y=636) */
+  passengerCabin: { x: 210, lineY: 207, lift: 1 },
+  /** passengers — Tourist Class (pdf-lib baseline Y=626) */
+  passengerTourist: { x: 210, lineY: 217, lift: 1 },
+  /** passengers — Third Class (pdf-lib baseline Y=615) */
+  passengerThird: { x: 210, lineY: 228, lift: 1 },
   /** crew arrival list count */
   crewCount: { x: 398, lineY: 198, lift: 1.5 },
   /** ship.imoNo */
@@ -75,27 +75,27 @@ export const MDH_FIELDS = {
 
 export type MdhFieldKey = keyof typeof MDH_FIELDS;
 
-/** Port call history — underline per row (max 10). */
+/** Port call history — underline per row (max 10). pdf-lib baseline Y per row. */
 export const MDH_PORT_ROWS: readonly MdhPlacement[] = [
-  { x: 0, lineY: 258, lift: 1.5 },
-  { x: 0, lineY: 268, lift: 1.5 },
-  { x: 0, lineY: 278, lift: 1.5 },
-  { x: 0, lineY: 288, lift: 1.5 },
-  { x: 0, lineY: 298, lift: 1.5 },
-  { x: 0, lineY: 308, lift: 1.5 },
-  { x: 0, lineY: 318, lift: 1.5 },
-  { x: 0, lineY: 328, lift: 1.5 },
-  { x: 0, lineY: 338, lift: 1.5 },
-  { x: 0, lineY: 350, lift: 1.5 },
+  { x: 0, lineY: 257, lift: 1 }, // Y=586
+  { x: 0, lineY: 268, lift: 1 }, // Y=575
+  { x: 0, lineY: 277, lift: 1 }, // Y=566
+  { x: 0, lineY: 287, lift: 1 }, // Y=556
+  { x: 0, lineY: 298, lift: 1 }, // Y=545
+  { x: 0, lineY: 307, lift: 1 }, // Y=536
+  { x: 0, lineY: 317, lift: 1 }, // Y=526
+  { x: 0, lineY: 327, lift: 1 }, // Y=516
+  { x: 0, lineY: 338, lift: 1 }, // Y=505
+  { x: 0, lineY: 350, lift: 1 }, // Y=493
 ];
 
 export const MDH_PORT_COL = {
   /** entry.portName */
-  port: { x: 135, lift: 1.5 },
+  port: { x: 133, lift: 1 },
   /** entry.departureDate */
-  date: { x: 385, lift: 2 },
+  date: { x: 383, lift: 1 },
   /** port code */
-  code: { x: 461, lift: 2 },
+  code: { x: 459, lift: 1 },
 } as const;
 
 /**

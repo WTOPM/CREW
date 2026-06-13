@@ -2,10 +2,10 @@ import { Injectable, inject } from '@angular/core';
 import {
   AppData,
   CrewMember,
-  filterActiveCrewList,
   formatCrewListName,
   formatPortCallPortName,
 } from '../models/crew.models';
+import { crewEffectListRows } from '../utils/passenger-pdf.util';
 import {
   CREW_EFFECT_NIL_LABEL,
   normalizeCrewEffectForm03,
@@ -79,7 +79,7 @@ export class PdfCrewEffect03Service {
 
     const form = normalizeCrewEffectForm03(data.crewEffectForm03);
     const { ship } = data;
-    const crew = this.arrivalCrewInHomeOrder(data);
+    const crew = crewEffectListRows(data, form.appendPassengers, CREW_EFFECT_03_ROW_COUNT);
     draw('1', CREW_EFFECT_03_FIELDS.pageNo);
     draw(ship.name, CREW_EFFECT_03_FIELDS.shipName, true);
     draw(formatPortCallPortName(ship.nationality), CREW_EFFECT_03_FIELDS.nationality, true);
@@ -216,10 +216,6 @@ export class PdfCrewEffect03Service {
   private formatCaptainName(member: Pick<CrewMember, 'familyName' | 'givenNames'>): string {
     const parts = [member.familyName?.trim(), member.givenNames?.trim()].filter(Boolean);
     return parts.join(' ').toUpperCase();
-  }
-
-  private arrivalCrewInHomeOrder(data: AppData): CrewMember[] {
-    return filterActiveCrewList(data.crew, 'arrival').slice(0, CREW_EFFECT_03_ROW_COUNT);
   }
 
   private async loadTemplate(): Promise<Uint8Array> {

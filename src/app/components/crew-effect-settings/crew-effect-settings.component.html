@@ -103,6 +103,15 @@
     }
   </fieldset>
 
+  <label class="ce-nil-check ce-append-passengers">
+    <input
+      type="checkbox"
+      [ngModel]="appendPassengers()"
+      (ngModelChange)="onAppendPassengersChange($event)"
+    />
+    <span>Append passengers after crew</span>
+  </label>
+
   @if (isForm02()) {
     <label class="ce-field">
       <span class="ce-label">P.E.</span>

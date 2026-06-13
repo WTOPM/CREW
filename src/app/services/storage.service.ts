@@ -43,6 +43,7 @@ import {
   resolvePortRef,
   crewRankOrder,
   filterActiveCrewList,
+  activeCrewListIds,
   sortCrewByRank,
   shipFieldPersistNotify,
   areCrewListsInSync,
@@ -67,6 +68,7 @@ import {
   arePassengerListsInSync,
   passengerListDiffCounts,
   filterActivePassengerList,
+  activePassengerListIds,
 } from '../models/passenger.models';
 import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-data';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
@@ -152,9 +154,19 @@ export class StorageService {
   readonly outputSettings = computed(() => this.data().outputSettings);
   readonly printPackages = computed(() => this.data().printPackages);
   readonly customDocuments = computed(() => this.data().customDocuments);
-  readonly activeCrewArrival = computed(() => filterActiveCrewList(this.data().crew, 'arrival'));
-  readonly activeCrewDeparture = computed(() => filterActiveCrewList(this.data().crew, 'departure'));
-  readonly crewListsInSync = computed(() => areCrewListsInSync(this.data().crew));
+  readonly activeCrewArrival = computed(() =>
+    filterActiveCrewList(this.data().crew, 'arrival', this.data().crewArrivalOrder),
+  );
+  readonly activeCrewDeparture = computed(() =>
+    filterActiveCrewList(this.data().crew, 'departure', this.data().crewDepartureOrder),
+  );
+  readonly crewListsInSync = computed(() =>
+    areCrewListsInSync(
+      this.data().crew,
+      this.data().crewArrivalOrder,
+      this.data().crewDepartureOrder,
+    ),
+  );
   readonly crewListDiff = computed(() => crewListDiffCounts(this.data().crew));
   /** @deprecated Use activeCrewArrival — kept for crew-arr page default. */
   readonly activeCrew = this.activeCrewArrival;
@@ -166,12 +178,26 @@ export class StorageService {
   readonly allCrew = computed(() => this.data().crew);
   readonly paxArr = computed(() => this.data().paxArr);
   readonly activePassengersArrival = computed(() =>
-    this.data().passengers.filter((m) => !m.archived && m.onArrivalList),
+    filterActivePassengerList(
+      this.data().passengers,
+      'arrival',
+      this.data().passengerArrivalOrder,
+    ),
   );
   readonly activePassengersDeparture = computed(() =>
-    this.data().passengers.filter((m) => !m.archived && m.onDepartureList),
+    filterActivePassengerList(
+      this.data().passengers,
+      'departure',
+      this.data().passengerDepartureOrder,
+    ),
   );
-  readonly passengerListsInSync = computed(() => arePassengerListsInSync(this.data().passengers));
+  readonly passengerListsInSync = computed(() =>
+    arePassengerListsInSync(
+      this.data().passengers,
+      this.data().passengerArrivalOrder,
+      this.data().passengerDepartureOrder,
+    ),
+  );
   readonly passengerListDiff = computed(() => passengerListDiffCounts(this.data().passengers));
   readonly archivedPassengers = computed(() =>
     sortPassengersByName(this.data().passengers.filter((m) => m.archived)),
@@ -289,8 +315,12 @@ export class StorageService {
     return {
       ship,
       crew,
+      crewArrivalOrder: this.normalizeListOrder(raw.crewArrivalOrder),
+      crewDepartureOrder: this.normalizeListOrder(raw.crewDepartureOrder),
       crewArr,
       passengers,
+      passengerArrivalOrder: this.normalizeListOrder(raw.passengerArrivalOrder),
+      passengerDepartureOrder: this.normalizeListOrder(raw.passengerDepartureOrder),
       paxArr,
       ports,
       ranks: mergeUniqueList(ranks),
@@ -315,6 +345,47 @@ export class StorageService {
       customDocuments,
       seedVersion: APP_DATA_SCHEMA_VERSION,
     };
+  }
+
+  private normalizeListOrder(raw: unknown): string[] | undefined {
+    if (!Array.isArray(raw)) return undefined;
+    const ids = raw.map((id) => String(id).trim()).filter(Boolean);
+    return ids.length ? ids : undefined;
+  }
+
+  private reorderIdList(ids: readonly string[], fromIndex: number, toIndex: number): string[] {
+    const next = [...ids];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    return next;
+  }
+
+  private reorderMembersInCrewArray(
+    crew: CrewMember[],
+    list: CrewListKind,
+    fromIndex: number,
+    toIndex: number,
+  ): CrewMember[] {
+    const inList = (m: CrewMember) =>
+      list === 'arrival'
+        ? !m.archived && m.onArrivalList
+        : !m.archived && m.onDepartureList;
+    const indices: number[] = [];
+    const members: CrewMember[] = [];
+    crew.forEach((m, i) => {
+      if (inList(m)) {
+        indices.push(i);
+        members.push(m);
+      }
+    });
+    const reordered = [...members];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    const next = [...crew];
+    indices.forEach((idx, j) => {
+      next[idx] = reordered[j];
+    });
+    return next;
   }
 
   private normalizeCustomDocuments(raw: unknown): CustomDocument[] {
@@ -1250,7 +1321,8 @@ export class StorageService {
   }
 
   addCrewMemberToArrival(member?: Partial<CrewMember>): CrewMember {
-    const linked = areCrewListsInSync(this.data().crew);
+    const d = this.data();
+    const linked = areCrewListsInSync(d.crew, d.crewArrivalOrder, d.crewDepartureOrder);
     return this.addCrewMember({
       ...member,
       archived: false,
@@ -1297,14 +1369,15 @@ export class StorageService {
     this.updateCrewMember(id, this.crewRestorePatch(list), 'silent');
   }
 
-  /** When lists are linked, restore/add puts the person on both lists. */
+  /** Linked lists: restore on arrival adds to both; restore on departure adds to departure only. */
   private crewRestorePatch(list: CrewListKind): Partial<CrewMember> {
-    const linked = areCrewListsInSync(this.data().crew);
+    const d = this.data();
+    const linked = areCrewListsInSync(d.crew, d.crewArrivalOrder, d.crewDepartureOrder);
     return {
       archived: false,
       archivedFromDeparture: false,
-      onArrivalList: list === 'arrival' || linked,
-      onDepartureList: list === 'departure' || linked,
+      onArrivalList: list === 'arrival',
+      onDepartureList: list === 'departure' || (list === 'arrival' && linked),
     };
   }
 
@@ -1325,8 +1398,13 @@ export class StorageService {
     this.data.update((d) => {
       let crew = d.crew.map((m) => this.mapCrewArrivalToDepartureSync(m));
       crew = this.mergeDepartureArchiveIntoArrivalArchive(crew);
-      crew = this.reorderCrewLikeList(crew, 'arrival');
-      return { ...d, crew: this.rescueOrphanCrew(crew) };
+      crew = this.reorderCrewLikeList(crew, 'arrival', d.crewArrivalOrder);
+      return {
+        ...d,
+        crew: this.rescueOrphanCrew(crew),
+        crewArrivalOrder: undefined,
+        crewDepartureOrder: undefined,
+      };
     });
     void this.persist('saved');
     return preview;
@@ -1349,8 +1427,13 @@ export class StorageService {
     this.data.update((d) => {
       let crew = d.crew.map((m) => this.mapCrewDepartureToArrival(m));
       crew = this.mergeDepartureArchiveIntoArrivalArchive(crew);
-      crew = this.reorderCrewLikeList(crew, 'departure');
-      return { ...d, crew: this.rescueOrphanCrew(crew) };
+      crew = this.reorderCrewLikeList(crew, 'departure', d.crewDepartureOrder);
+      return {
+        ...d,
+        crew: this.rescueOrphanCrew(crew),
+        crewArrivalOrder: undefined,
+        crewDepartureOrder: undefined,
+      };
     });
     void this.persist('saved');
     return preview;
@@ -1451,8 +1534,12 @@ export class StorageService {
     });
   }
 
-  private reorderCrewLikeList(crew: CrewMember[], list: CrewListKind): CrewMember[] {
-    const ordered = filterActiveCrewList(crew, list);
+  private reorderCrewLikeList(
+    crew: CrewMember[],
+    list: CrewListKind,
+    orderOverride?: readonly string[] | null,
+  ): CrewMember[] {
+    const ordered = filterActiveCrewList(crew, list, orderOverride);
     const orderedIds = new Set(ordered.map((m) => m.id));
     const rest = crew.filter((m) => !orderedIds.has(m.id));
     return [...ordered, ...rest];
@@ -1475,7 +1562,8 @@ export class StorageService {
   }
 
   removeFromArrivalList(id: string): void {
-    if (areCrewListsInSync(this.data().crew)) {
+    const d = this.data();
+    if (areCrewListsInSync(d.crew, d.crewArrivalOrder, d.crewDepartureOrder)) {
       this.archiveCrewMember(id);
       return;
     }
@@ -1546,7 +1634,12 @@ export class StorageService {
   }
 
   addPassengerToArrival(member?: Partial<PassengerMember>): PassengerMember {
-    const linked = arePassengerListsInSync(this.data().passengers);
+    const d = this.data();
+    const linked = arePassengerListsInSync(
+      d.passengers,
+      d.passengerArrivalOrder,
+      d.passengerDepartureOrder,
+    );
     return this.addPassenger({
       ...member,
       archived: false,
@@ -1593,14 +1686,19 @@ export class StorageService {
     this.updatePassenger(id, this.passengerRestorePatch(list), 'silent');
   }
 
-  /** When lists are linked, restore/add puts the person on both lists. */
+  /** Linked lists: restore on arrival adds to both; restore on departure adds to departure only. */
   private passengerRestorePatch(list: PaxListKind): Partial<PassengerMember> {
-    const linked = arePassengerListsInSync(this.data().passengers);
+    const d = this.data();
+    const linked = arePassengerListsInSync(
+      d.passengers,
+      d.passengerArrivalOrder,
+      d.passengerDepartureOrder,
+    );
     return {
       archived: false,
       archivedFromDeparture: false,
-      onArrivalList: list === 'arrival' || linked,
-      onDepartureList: list === 'departure' || linked,
+      onArrivalList: list === 'arrival',
+      onDepartureList: list === 'departure' || (list === 'arrival' && linked),
     };
   }
 
@@ -1617,8 +1715,13 @@ export class StorageService {
     this.data.update((d) => {
       let passengers = d.passengers.map((m) => this.mapPassengerArrivalToDepartureSync(m));
       passengers = this.mergePassengerDepartureArchiveIntoArrivalArchive(passengers);
-      passengers = this.reorderPassengerLikeList(passengers, 'arrival');
-      return { ...d, passengers: this.rescueOrphanPassengers(passengers) };
+      passengers = this.reorderPassengerLikeList(passengers, 'arrival', d.passengerArrivalOrder);
+      return {
+        ...d,
+        passengers: this.rescueOrphanPassengers(passengers),
+        passengerArrivalOrder: undefined,
+        passengerDepartureOrder: undefined,
+      };
     });
     void this.persist('saved');
     return preview;
@@ -1641,8 +1744,13 @@ export class StorageService {
     this.data.update((d) => {
       let passengers = d.passengers.map((m) => this.mapPassengerDepartureToArrival(m));
       passengers = this.mergePassengerDepartureArchiveIntoArrivalArchive(passengers);
-      passengers = this.reorderPassengerLikeList(passengers, 'departure');
-      return { ...d, passengers: this.rescueOrphanPassengers(passengers) };
+      passengers = this.reorderPassengerLikeList(passengers, 'departure', d.passengerDepartureOrder);
+      return {
+        ...d,
+        passengers: this.rescueOrphanPassengers(passengers),
+        passengerArrivalOrder: undefined,
+        passengerDepartureOrder: undefined,
+      };
     });
     void this.persist('saved');
     return preview;
@@ -1747,8 +1855,9 @@ export class StorageService {
   private reorderPassengerLikeList(
     passengers: PassengerMember[],
     list: PaxListKind,
+    orderOverride?: readonly string[] | null,
   ): PassengerMember[] {
-    const ordered = filterActivePassengerList(passengers, list);
+    const ordered = filterActivePassengerList(passengers, list, orderOverride);
     const orderedIds = new Set(ordered.map((m) => m.id));
     const rest = passengers.filter((m) => !orderedIds.has(m.id));
     return [...ordered, ...rest];
@@ -1771,7 +1880,14 @@ export class StorageService {
   }
 
   removePassengerFromArrivalList(id: string): void {
-    if (arePassengerListsInSync(this.data().passengers)) {
+    const d = this.data();
+    if (
+      arePassengerListsInSync(
+        d.passengers,
+        d.passengerArrivalOrder,
+        d.passengerDepartureOrder,
+      )
+    ) {
       this.archivePassenger(id);
       return;
     }
@@ -1806,56 +1922,113 @@ export class StorageService {
 
   reorderPassengerList(list: PaxListKind, fromIndex: number, toIndex: number): void {
     if (fromIndex === toIndex) return;
-    const inList = (m: PassengerMember) =>
-      list === 'arrival'
-        ? !m.archived && m.onArrivalList
-        : !m.archived && m.onDepartureList;
-
     this.data.update((d) => {
-      const indices: number[] = [];
-      const members: PassengerMember[] = [];
-      d.passengers.forEach((m, i) => {
-        if (inList(m)) {
-          indices.push(i);
-          members.push(m);
+      const linked = arePassengerListsInSync(
+        d.passengers,
+        d.passengerArrivalOrder,
+        d.passengerDepartureOrder,
+      );
+      if (list === 'arrival') {
+        if (linked) {
+          return {
+            ...d,
+            passengers: this.reorderMembersInPassengerArray(
+              d.passengers,
+              'arrival',
+              fromIndex,
+              toIndex,
+            ),
+            passengerArrivalOrder: undefined,
+            passengerDepartureOrder: undefined,
+          };
         }
-      });
-      const reordered = [...members];
-      const [moved] = reordered.splice(fromIndex, 1);
-      reordered.splice(toIndex, 0, moved);
-      const passengers = [...d.passengers];
-      indices.forEach((idx, j) => {
-        passengers[idx] = reordered[j];
-      });
-      return { ...d, passengers };
+        const ids = activePassengerListIds(
+          d.passengers,
+          'arrival',
+          d.passengerArrivalOrder,
+        );
+        return { ...d, passengerArrivalOrder: this.reorderIdList(ids, fromIndex, toIndex) };
+      }
+
+      const ids = activePassengerListIds(
+        d.passengers,
+        'departure',
+        d.passengerDepartureOrder,
+      );
+      const reordered = this.reorderIdList(ids, fromIndex, toIndex);
+      if (linked) {
+        const arrivalIds = activePassengerListIds(
+          d.passengers,
+          'arrival',
+          d.passengerArrivalOrder,
+        );
+        return {
+          ...d,
+          passengerArrivalOrder: arrivalIds,
+          passengerDepartureOrder: reordered,
+        };
+      }
+      return { ...d, passengerDepartureOrder: reordered };
     });
     void this.persist('debounced');
   }
 
-  reorderCrewList(list: CrewListKind, fromIndex: number, toIndex: number): void {
-    if (fromIndex === toIndex) return;
-    const inList = (m: CrewMember) =>
+  private reorderMembersInPassengerArray(
+    passengers: PassengerMember[],
+    list: PaxListKind,
+    fromIndex: number,
+    toIndex: number,
+  ): PassengerMember[] {
+    const inList = (m: PassengerMember) =>
       list === 'arrival'
         ? !m.archived && m.onArrivalList
         : !m.archived && m.onDepartureList;
+    const indices: number[] = [];
+    const members: PassengerMember[] = [];
+    passengers.forEach((m, i) => {
+      if (inList(m)) {
+        indices.push(i);
+        members.push(m);
+      }
+    });
+    const reordered = [...members];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    const next = [...passengers];
+    indices.forEach((idx, j) => {
+      next[idx] = reordered[j];
+    });
+    return next;
+  }
 
+  reorderCrewList(list: CrewListKind, fromIndex: number, toIndex: number): void {
+    if (fromIndex === toIndex) return;
     this.data.update((d) => {
-      const indices: number[] = [];
-      const members: CrewMember[] = [];
-      d.crew.forEach((m, i) => {
-        if (inList(m)) {
-          indices.push(i);
-          members.push(m);
+      const linked = areCrewListsInSync(d.crew, d.crewArrivalOrder, d.crewDepartureOrder);
+      if (list === 'arrival') {
+        if (linked) {
+          return {
+            ...d,
+            crew: this.reorderMembersInCrewArray(d.crew, 'arrival', fromIndex, toIndex),
+            crewArrivalOrder: undefined,
+            crewDepartureOrder: undefined,
+          };
         }
-      });
-      const reordered = [...members];
-      const [moved] = reordered.splice(fromIndex, 1);
-      reordered.splice(toIndex, 0, moved);
-      const crew = [...d.crew];
-      indices.forEach((idx, j) => {
-        crew[idx] = reordered[j];
-      });
-      return { ...d, crew };
+        const ids = activeCrewListIds(d.crew, 'arrival', d.crewArrivalOrder);
+        return { ...d, crewArrivalOrder: this.reorderIdList(ids, fromIndex, toIndex) };
+      }
+
+      const ids = activeCrewListIds(d.crew, 'departure', d.crewDepartureOrder);
+      const reordered = this.reorderIdList(ids, fromIndex, toIndex);
+      if (linked) {
+        const arrivalIds = activeCrewListIds(d.crew, 'arrival', d.crewArrivalOrder);
+        return {
+          ...d,
+          crewArrivalOrder: arrivalIds,
+          crewDepartureOrder: reordered,
+        };
+      }
+      return { ...d, crewDepartureOrder: reordered };
     });
     void this.persist('debounced');
   }

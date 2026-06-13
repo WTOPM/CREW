@@ -180,10 +180,18 @@ export interface CrewMember {
   joiningDate: string;
   /** Port name (code resolved from ports directory). */
   joiningPort: string;
-  /** Vaccine medical product name. */
+  /** COVID vaccine medical product name. */
   vaccineMedicalProduct: string;
-  /** Date of vaccination (ISO date). */
+  /** COVID date of vaccination (ISO date). */
   dateOfVaccination: string;
+  /** Yellow Fever date of vaccination (ISO date). */
+  dateOfYellowFeverVaccination: string;
+  /** Yellow Fever expiry date (ISO) when yellowFeverExpiryIsText is false. */
+  yellowFeverExpiryDate: string;
+  /** Yellow Fever expiry as free text (e.g. VALIDITY FOR LIFE OF PERSON). */
+  yellowFeverExpiryText: string;
+  /** When true, yellowFeverExpiryText is used instead of yellowFeverExpiryDate. */
+  yellowFeverExpiryIsText: boolean;
   archived: boolean;
   /** Shown on CREW LIST ARRIVAL tab and Arrival PDF. */
   onArrivalList: boolean;
@@ -197,27 +205,64 @@ export interface CrewMember {
 
 export type CrewListKind = 'arrival' | 'departure';
 
-/** Active crew in Home table order (drag-and-drop order in `crew` array). */
+/** Active crew ids in display order (crew array order unless overridden). */
+export function activeCrewListIds(
+  crew: readonly CrewMember[],
+  list: CrewListKind,
+  orderOverride?: readonly string[] | null,
+): string[] {
+  const activeIds = crew
+    .filter((m) => !m.archived && (list === 'arrival' ? m.onArrivalList : m.onDepartureList))
+    .map((m) => m.id);
+  if (!orderOverride?.length) return activeIds;
+  const activeSet = new Set(activeIds);
+  const ordered: string[] = [];
+  for (const id of orderOverride) {
+    if (activeSet.has(id)) {
+      ordered.push(id);
+      activeSet.delete(id);
+    }
+  }
+  for (const id of activeIds) {
+    if (activeSet.has(id)) ordered.push(id);
+  }
+  return ordered;
+}
+
+/** Active crew in Home / PDF list order. */
 export function filterActiveCrewList(
   crew: readonly CrewMember[],
   list: CrewListKind,
+  orderOverride?: readonly string[] | null,
 ): CrewMember[] {
-  return crew.filter((m) =>
-    !m.archived && (list === 'arrival' ? m.onArrivalList : m.onDepartureList),
+  const byId = new Map(crew.map((m) => [m.id, m]));
+  return activeCrewListIds(crew, list, orderOverride)
+    .map((id) => byId.get(id))
+    .filter((m): m is CrewMember => m != null);
+}
+
+export function filterActiveCrewListFromData(
+  data: Pick<AppData, 'crew' | 'crewArrivalOrder' | 'crewDepartureOrder'>,
+  list: CrewListKind,
+): CrewMember[] {
+  return filterActiveCrewList(
+    data.crew,
+    list,
+    list === 'arrival' ? data.crewArrivalOrder : data.crewDepartureOrder,
   );
 }
 
-/** True when the same active members appear on arrival and departure (linked lists). */
-export function areCrewListsInSync(crew: readonly CrewMember[]): boolean {
-  const arrival = new Set(
-    crew.filter((m) => !m.archived && m.onArrivalList).map((m) => m.id),
-  );
-  const departure = new Set(
-    crew.filter((m) => !m.archived && m.onDepartureList).map((m) => m.id),
-  );
-  if (arrival.size !== departure.size) return false;
-  for (const id of arrival) {
-    if (!departure.has(id)) return false;
+/** True when the same active members appear on arrival and departure in the same order. */
+export function areCrewListsInSync(
+  crew: readonly CrewMember[],
+  arrivalOrder?: readonly string[] | null,
+  departureOrder?: readonly string[] | null,
+): boolean {
+  const arrivalIds = activeCrewListIds(crew, 'arrival', arrivalOrder);
+  const departureIds = activeCrewListIds(crew, 'departure', departureOrder);
+  if (arrivalIds.length !== departureIds.length) return false;
+  for (let i = 0; i < arrivalIds.length; i++) {
+    if (arrivalIds[i] !== departureIds[i]) return false;
   }
   return true;
 }
@@ -413,8 +458,16 @@ export interface PortOfCallSettings {
 export interface AppData {
   ship: ShipInfo;
   crew: CrewMember[];
+  /** Home/PDF arrival order when lists diverge (member ids). */
+  crewArrivalOrder?: string[];
+  /** Home/PDF departure order when lists diverge (member ids). */
+  crewDepartureOrder?: string[];
   crewArr: CrewArrFormSettings;
   passengers: PassengerMember[];
+  /** Home/PDF passenger arrival order when lists diverge. */
+  passengerArrivalOrder?: string[];
+  /** Home/PDF passenger departure order when lists diverge. */
+  passengerDepartureOrder?: string[];
   paxArr: PaxArrFormSettings;
   ports: Port[];
   ranks: string[];
@@ -625,6 +678,10 @@ export function createEmptyCrewMember(): CrewMember {
     joiningPort: '',
     vaccineMedicalProduct: '',
     dateOfVaccination: '',
+    dateOfYellowFeverVaccination: '',
+    yellowFeverExpiryDate: '',
+    yellowFeverExpiryText: '',
+    yellowFeverExpiryIsText: false,
     archived: false,
     onArrivalList: false,
     onDepartureList: false,
@@ -903,6 +960,7 @@ export function migrateCrewMember(
   migrateLegacyValidity(base, raw.cyprusValidity, 'cyprusIssueDate', 'cyprusExpiryDate');
   migrateLegacyValidity(base, raw.visaValidity, 'visaIssueDate', 'visaExpiryDate');
   base.gender = normalizePersonGender(base.gender);
+  base.yellowFeverExpiryIsText = !!base.yellowFeverExpiryIsText;
 
   return base;
 }

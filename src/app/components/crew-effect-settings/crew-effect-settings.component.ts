@@ -55,6 +55,16 @@ export class CrewEffectSettingsComponent {
     this.storage.updateCrewEffectForm(this.docId(), { others: value });
   }
 
+  protected appendPassengers = computed(() => {
+    if (this.isGermany()) return this.form03().appendPassengers;
+    if (this.isForm02()) return this.form02().appendPassengers;
+    return this.form01().appendPassengers;
+  });
+
+  protected onAppendPassengersChange(value: boolean): void {
+    this.storage.updateCrewEffectForm(this.docId(), { appendPassengers: value }, 'saved');
+  }
+
   protected othersValue(): string {
     if (this.isGermany()) return this.form03().others;
     if (this.isForm02()) return this.form02().others;

@@ -8,6 +8,8 @@ export interface CrewEffectFormSettings {
   nilCigarettes: boolean;
   nilSpirits: boolean;
   nilWines: boolean;
+  /** Append arrival passengers after crew rows. */
+  appendPassengers: boolean;
 }
 
 export function createDefaultCrewEffectForm(): CrewEffectFormSettings {
@@ -16,6 +18,7 @@ export function createDefaultCrewEffectForm(): CrewEffectFormSettings {
     nilCigarettes: false,
     nilSpirits: false,
     nilWines: false,
+    appendPassengers: false,
   };
 }
 
@@ -30,6 +33,7 @@ export function normalizeCrewEffectForm(
     nilCigarettes: Boolean(raw?.nilCigarettes),
     nilSpirits: Boolean(raw?.nilSpirits),
     nilWines: Boolean(raw?.nilWines),
+    appendPassengers: Boolean(raw?.appendPassengers),
   };
 }
 
@@ -42,6 +46,8 @@ export interface CrewEffectForm02Settings {
   nilTobaccoCigars: boolean;
   nilSpirits: boolean;
   nilBeer: boolean;
+  /** Append arrival passengers after crew rows. */
+  appendPassengers: boolean;
 }
 
 export function createDefaultCrewEffectForm02(): CrewEffectForm02Settings {
@@ -51,6 +57,7 @@ export function createDefaultCrewEffectForm02(): CrewEffectForm02Settings {
     nilTobaccoCigars: false,
     nilSpirits: false,
     nilBeer: false,
+    appendPassengers: false,
   };
 }
 
@@ -66,6 +73,7 @@ export function normalizeCrewEffectForm02(
     nilTobaccoCigars: Boolean(raw?.nilTobaccoCigars),
     nilSpirits: Boolean(raw?.nilSpirits),
     nilBeer: Boolean(raw?.nilBeer),
+    appendPassengers: Boolean(raw?.appendPassengers),
   };
 }
 
@@ -77,6 +85,8 @@ export interface CrewEffectForm03Settings {
   nilSpirits: boolean;
   nilWeapons: boolean;
   nilAmmunition: boolean;
+  /** Append arrival passengers after crew rows. */
+  appendPassengers: boolean;
 }
 
 export function createDefaultCrewEffectForm03(): CrewEffectForm03Settings {
@@ -87,6 +97,7 @@ export function createDefaultCrewEffectForm03(): CrewEffectForm03Settings {
     nilSpirits: false,
     nilWeapons: false,
     nilAmmunition: false,
+    appendPassengers: false,
   };
 }
 
@@ -103,5 +114,6 @@ export function normalizeCrewEffectForm03(
     nilSpirits: Boolean(raw?.nilSpirits),
     nilWeapons: Boolean(raw?.nilWeapons),
     nilAmmunition: Boolean(raw?.nilAmmunition),
+    appendPassengers: Boolean(raw?.appendPassengers),
   };
 }

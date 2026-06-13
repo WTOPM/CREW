@@ -117,7 +117,7 @@
           </span>
         } @else {
           <span class="list-sync-badge list-sync-badge--split">
-            Read-only — use ✕ to remove from departure; sync with FROM ARRIVAL / INTO ARRIVAL
+            Lists differ — drag to reorder; sync with FROM ARRIVAL / INTO ARRIVAL
           </span>
         }
       </h2>
@@ -143,33 +143,29 @@
       <table class="crew-table">
         <thead>
           <tr>
-            @if (crewListKind() === 'arrival') {
-              <th class="col-drag" aria-hidden="true"></th>
-            }
-            <th>#</th>
+            <th class="col-drag" aria-hidden="true"></th>
+            <th class="col-index">#</th>
             <th>Family Name</th>
             <th>Given Names</th>
-            <th>Rank</th>
-            <th>Nationality</th>
-            <th>Passport</th>
+            <th class="col-nowrap">Rank</th>
+            <th class="col-nowrap">Nationality</th>
+            <th class="col-nowrap">Passport</th>
             <th class="col-scans" title="P passport · S seaman's book · CY Cyprus book · hold filled icon to delete">Scans</th>
-            <th>Joining Date</th>
+            <th class="col-nowrap">Joining Date</th>
             <th>Joining Port</th>
-            <th></th>
+            <th class="col-actions"></th>
           </tr>
         </thead>
         <tbody cdkDropList (cdkDropListDropped)="dropCrew($event)">
           @for (member of listCrew(); track member.id; let i = $index) {
-            <tr cdkDrag [cdkDragDisabled]="crewListKind() !== 'arrival'">
-              @if (crewListKind() === 'arrival') {
-                <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
-              }
-              <td>{{ i + 1 }}</td>
+            <tr cdkDrag>
+              <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
+              <td class="col-index">{{ i + 1 }}</td>
               <td>{{ member.familyName }}</td>
               <td>{{ member.givenNames }}</td>
-              <td>{{ member.rank }}</td>
-              <td>{{ member.nationality }}</td>
-              <td>{{ member.passport }}</td>
+              <td class="col-nowrap">{{ member.rank }}</td>
+              <td class="col-nowrap">{{ member.nationality }}</td>
+              <td class="col-nowrap">{{ member.passport }}</td>
               <td class="col-scans">
                 <div class="crew-doc-icons">
                   <app-crew-doc-icon [member]="member" docType="passport" (attached)="onCrewDocAttached()" />
@@ -177,9 +173,10 @@
                   <app-crew-doc-icon [member]="member" docType="cyprusPassport" (attached)="onCrewDocAttached()" />
                 </div>
               </td>
-              <td>{{ formatDate(member.joiningDate) }}</td>
+              <td class="col-nowrap">{{ formatDate(member.joiningDate) }}</td>
               <td>{{ member.joiningPort }}</td>
-              <td class="actions actions-icons">
+              <td class="actions col-actions">
+                <div class="actions-icons">
                 @if (crewListKind() === 'arrival') {
                   <button
                     type="button"
@@ -204,6 +201,8 @@
                         <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
                       </svg>
                     </button>
+                  } @else {
+                    <span class="crew-action crew-action-spacer" aria-hidden="true"></span>
                   }
                   <button
                     type="button"
@@ -230,6 +229,7 @@
                     </svg>
                   </button>
                 }
+                </div>
               </td>
             </tr>
           }
@@ -252,7 +252,7 @@
           </span>
         } @else {
           <span class="list-sync-badge list-sync-badge--split">
-            Read-only — use ✕ to remove from departure; sync with FROM ARRIVAL / INTO ARRIVAL
+            Lists differ — drag to reorder; sync with FROM ARRIVAL / INTO ARRIVAL
           </span>
         }
       </h2>
@@ -271,34 +271,31 @@
     </div>
 
     <div class="table-wrap">
-      <table class="crew-table">
+      <table class="crew-table crew-table--pax">
         <thead>
           <tr>
-            @if (paxListKind() === 'arrival') {
-              <th class="col-drag" aria-hidden="true"></th>
-            }
-            <th>#</th>
+            <th class="col-drag" aria-hidden="true"></th>
+            <th class="col-index">#</th>
             <th>Family Name</th>
             <th>Given Names</th>
-            <th>Rank</th>
-            <th>Nationality</th>
-            <th>Passport</th>
-            <th></th>
+            <th class="col-nowrap">Rank</th>
+            <th class="col-nowrap">Nationality</th>
+            <th class="col-nowrap">Passport</th>
+            <th class="col-actions"></th>
           </tr>
         </thead>
         <tbody cdkDropList (cdkDropListDropped)="dropPassengers($event)">
           @for (member of listPassengers(); track member.id; let i = $index) {
-            <tr cdkDrag [cdkDragDisabled]="paxListKind() !== 'arrival'">
-              @if (paxListKind() === 'arrival') {
-                <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
-              }
-              <td>{{ i + 1 }}</td>
+            <tr cdkDrag>
+              <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
+              <td class="col-index">{{ i + 1 }}</td>
               <td>{{ member.familyName }}</td>
               <td>{{ member.givenNames }}</td>
-              <td>{{ passengerRank }}</td>
-              <td>{{ member.nationality }}</td>
-              <td>{{ member.passport }}</td>
-              <td class="actions actions-icons">
+              <td class="col-nowrap">{{ passengerRank }}</td>
+              <td class="col-nowrap">{{ member.nationality }}</td>
+              <td class="col-nowrap">{{ member.passport }}</td>
+              <td class="actions col-actions">
+                <div class="actions-icons">
                 @if (paxListKind() === 'arrival') {
                   <button
                     type="button"
@@ -323,6 +320,8 @@
                         <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
                       </svg>
                     </button>
+                  } @else {
+                    <span class="crew-action crew-action-spacer" aria-hidden="true"></span>
                   }
                   <button
                     type="button"
@@ -349,6 +348,7 @@
                     </svg>
                   </button>
                 }
+                </div>
               </td>
             </tr>
           }
@@ -409,7 +409,8 @@
                     <app-crew-doc-icon [member]="member" docType="cyprusPassport" (attached)="onCrewDocAttached()" />
                   </div>
                 </td>
-                <td class="actions actions-icons">
+                <td class="actions">
+                  <div class="actions-icons">
                   <button
                     type="button"
                     class="crew-action crew-action--restore"
@@ -432,6 +433,7 @@
                       <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                   </button>
+                  </div>
                 </td>
               </tr>
             }
@@ -481,7 +483,8 @@
                 <td>{{ member.familyName }}</td>
                 <td>{{ member.givenNames }}</td>
                 <td>{{ member.nationality }}</td>
-                <td class="actions actions-icons">
+                <td class="actions">
+                  <div class="actions-icons">
                   <button
                     type="button"
                     class="crew-action crew-action--restore"
@@ -504,6 +507,7 @@
                       <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                   </button>
+                  </div>
                 </td>
               </tr>
             }
@@ -680,6 +684,8 @@
 
           <section class="crew-form-block crew-form-block--vaccination">
             <h4 class="crew-form-block-title">Vaccination</h4>
+
+            <p class="crew-form-vaccine-kind">COVID</p>
             <div class="form-grid">
               <label>
                 <span>Vaccine medical product</span>
@@ -688,6 +694,35 @@
               <label>
                 <span>Date of vaccination</span>
                 <app-date-picker [value]="draft.dateOfVaccination" (valueChange)="updateDraft('dateOfVaccination', $event)" />
+              </label>
+            </div>
+
+            <p class="crew-form-vaccine-kind">Yellow Fever</p>
+            <div class="form-grid">
+              <label>
+                <span>Date of vaccination</span>
+                <app-date-picker [value]="draft.dateOfYellowFeverVaccination" (valueChange)="updateDraft('dateOfYellowFeverVaccination', $event)" />
+              </label>
+              <label class="yellow-fever-expiry">
+                <span class="yellow-fever-expiry-head">
+                  Expiry
+                  <label class="yellow-fever-expiry-toggle" title="Free text instead of date">
+                    <input
+                      type="checkbox"
+                      [ngModel]="draft.yellowFeverExpiryIsText"
+                      (ngModelChange)="setYellowFeverExpiryIsText($event)"
+                    />
+                  </label>
+                </span>
+                @if (draft.yellowFeverExpiryIsText) {
+                  <input
+                    [ngModel]="draft.yellowFeverExpiryText"
+                    (ngModelChange)="updateDraft('yellowFeverExpiryText', $event)"
+                    placeholder="VALIDITY FOR LIFE OF PERSON"
+                  />
+                } @else {
+                  <app-date-picker [value]="draft.yellowFeverExpiryDate" (valueChange)="updateDraft('yellowFeverExpiryDate', $event)" />
+                }
               </label>
             </div>
           </section>

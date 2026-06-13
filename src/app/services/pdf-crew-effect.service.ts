@@ -2,10 +2,10 @@ import { Injectable, inject } from '@angular/core';
 import {
   AppData,
   CrewMember,
-  filterActiveCrewList,
   formatCrewListName,
   formatPortCallPortName,
 } from '../models/crew.models';
+import { crewEffectListRows } from '../utils/passenger-pdf.util';
 import { CREW_EFFECT_NIL_LABEL, normalizeCrewEffectForm } from '../models/crew-effect.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewEffectPdfFileName } from '../utils/pdf-filename.util';
@@ -71,7 +71,7 @@ export class PdfCrewEffectService {
 
     const form = normalizeCrewEffectForm(data.crewEffectForm);
     const { ship } = data;
-    const crew = this.arrivalCrewInHomeOrder(data);
+    const crew = crewEffectListRows(data, form.appendPassengers, CREW_EFFECT_ROW_COUNT);
     draw(this.crewEffectPageLabel(crew.length), CREW_EFFECT_FIELDS.pageNo);
     draw(ship.name, CREW_EFFECT_FIELDS.shipName, true);
     draw(formatPortCallPortName(ship.nationality), CREW_EFFECT_FIELDS.nationality, true);
@@ -143,11 +143,6 @@ export class PdfCrewEffectService {
   /** Page No. — always 1 while the PDF is a single page (up to CREW_EFFECT_ROW_COUNT crew). */
   private crewEffectPageLabel(_crewCount: number): string {
     return '1';
-  }
-
-  /** Same order as Arrival list on Home (no rank sort). */
-  private arrivalCrewInHomeOrder(data: AppData): CrewMember[] {
-    return filterActiveCrewList(data.crew, 'arrival').slice(0, CREW_EFFECT_ROW_COUNT);
   }
 
   private async loadTemplate(): Promise<Uint8Array> {

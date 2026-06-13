@@ -389,11 +389,7 @@ export class HomeComponent {
 
 
   protected applyDepartureToArrival(): void {
-    const preview = this.storage.previewDepartureToArrival();
-    if (!this.confirmDepartureToArrival(preview, 'crew')) {
-      return;
-    }
-    this.storage.applyDepartureToArrival();
+    const preview = this.storage.applyDepartureToArrival();
     this.listTab.set('crew-arrival');
     this.toast.show(this.departureToArrivalToast(preview, 'Crew'), 'success');
   }
@@ -408,43 +404,9 @@ export class HomeComponent {
 
 
   protected applyPassengerDepartureToArrival(): void {
-    const preview = this.storage.previewPassengerDepartureToArrival();
-    if (!this.confirmDepartureToArrival(preview, 'passengers')) {
-      return;
-    }
-    this.storage.applyPassengerDepartureToArrival();
+    const preview = this.storage.applyPassengerDepartureToArrival();
     this.listTab.set('pax-arrival');
     this.toast.show(this.departureToArrivalToast(preview, 'Passengers'), 'success');
-  }
-
-  private confirmDepartureToArrival(
-    preview: DepartureToArrivalSyncPreview,
-    label: 'crew' | 'passengers',
-  ): boolean {
-    if (
-      preview.onDeparture === 0 &&
-      preview.arrivalOnlyToArchive === 0 &&
-      preview.departureArchiveMerged === 0
-    ) {
-      this.toast.showError(`No active ${label} on departure or arrival`);
-      return false;
-    }
-    const lines = [
-      'Copy departure list into arrival?',
-      '',
-      `• On departure: ${preview.onDeparture} → will be on arrival`,
-    ];
-    if (preview.arrivalOnlyToArchive > 0) {
-      lines.push(
-        `• Only on arrival (not on departure): ${preview.arrivalOnlyToArchive} → moved to archive`,
-      );
-    }
-    if (preview.departureArchiveMerged > 0) {
-      lines.push(
-        `• Departure archive: ${preview.departureArchiveMerged} → merged into arrival archive`,
-      );
-    }
-    return confirm(lines.join('\n'));
   }
 
   private departureToArrivalToast(
@@ -567,15 +529,13 @@ export class HomeComponent {
 
 
   protected dropCrew(event: CdkDragDrop<CrewMember[]>): void {
-    if (this.crewListKind() !== 'arrival') return;
-    this.storage.reorderCrewList('arrival', event.previousIndex, event.currentIndex);
+    this.storage.reorderCrewList(this.crewListKind(), event.previousIndex, event.currentIndex);
   }
 
 
 
   protected dropPassengers(event: CdkDragDrop<PassengerMember[]>): void {
-    if (this.paxListKind() !== 'arrival') return;
-    this.storage.reorderPassengerList('arrival', event.previousIndex, event.currentIndex);
+    this.storage.reorderPassengerList(this.paxListKind(), event.previousIndex, event.currentIndex);
   }
 
 
@@ -604,6 +564,19 @@ export class HomeComponent {
 
     this.editDraft.set({ ...draft, [field]: value });
 
+  }
+
+  protected setYellowFeverExpiryIsText(checked: boolean): void {
+    const draft = this.editDraft();
+    if (!draft) return;
+    this.editDraft.set({
+      ...draft,
+      yellowFeverExpiryIsText: checked,
+      yellowFeverExpiryText:
+        checked && !draft.yellowFeverExpiryText.trim()
+          ? 'VALIDITY FOR LIFE OF PERSON'
+          : draft.yellowFeverExpiryText,
+    });
   }
 
 
@@ -660,6 +633,10 @@ export class HomeComponent {
       joiningPort: draft.joiningPort,
       vaccineMedicalProduct: draft.vaccineMedicalProduct,
       dateOfVaccination: draft.dateOfVaccination,
+      dateOfYellowFeverVaccination: draft.dateOfYellowFeverVaccination,
+      yellowFeverExpiryDate: draft.yellowFeverExpiryDate,
+      yellowFeverExpiryText: draft.yellowFeverExpiryText,
+      yellowFeverExpiryIsText: draft.yellowFeverExpiryIsText,
       documents: draft.documents,
     };
   }

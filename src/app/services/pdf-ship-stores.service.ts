@@ -1,10 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import {
   AppData,
-  filterActiveCrewList,
+  filterActiveCrewListFromData,
   formatPortCallPortName,
 } from '../models/crew.models';
-import { filterActivePassengerList } from '../models/passenger.models';
+import { filterActivePassengerListFromData } from '../models/passenger.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { shipStoresPdfFileName } from '../utils/pdf-filename.util';
@@ -80,8 +80,8 @@ export class PdfShipStoresService {
       });
     };
 
-    const crewCount = filterActiveCrewList(data.crew, 'arrival').length;
-    const paxCount = filterActivePassengerList(data.passengers, 'arrival').length;
+    const crewCount = filterActiveCrewListFromData(data, 'arrival').length;
+    const paxCount = filterActivePassengerListFromData(data, 'arrival').length;
     const form = normalizeShipStoresForm(data.shipStoresForm);
     this.drawHeader(draw, data, crewCount + paxCount, form.placeOfStorage);
     this.drawBodyTable(page, font, black, form);

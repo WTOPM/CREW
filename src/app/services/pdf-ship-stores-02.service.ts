@@ -2,11 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import {
   AppData,
   CrewMember,
-  filterActiveCrewList,
+  filterActiveCrewListFromData,
   formatPortCallPortName,
   portCountry,
 } from '../models/crew.models';
-import { filterActivePassengerList } from '../models/passenger.models';
+import { filterActivePassengerListFromData } from '../models/passenger.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { shipStores02PdfFileName } from '../utils/pdf-filename.util';
 import {
@@ -107,11 +107,9 @@ export class PdfShipStores02Service {
     );
     const periodDays = shipStoresPeriodDays(ship.dateOfArrival, ship.dateOfDeparture);
 
-    const crewCount = filterActiveCrewList(data.crew, isArrival ? 'arrival' : 'departure').length;
-    const paxCount = filterActivePassengerList(
-      data.passengers,
-      isArrival ? 'arrival' : 'departure',
-    ).length;
+    const list = isArrival ? 'arrival' : 'departure';
+    const crewCount = filterActiveCrewListFromData(data, list).length;
+    const paxCount = filterActivePassengerListFromData(data, list).length;
 
     draw('1', SHIP_STORES_02_FIELDS.pageNo);
     if (isArrival) {
@@ -128,9 +126,7 @@ export class PdfShipStores02Service {
     draw(String(crewCount + paxCount), SHIP_STORES_02_FIELDS.personsOnBoard, true);
     draw(formatShipStoresPeriodOfStay(periodDays), SHIP_STORES_02_FIELDS.periodOfStay, true);
 
-    const master = this.findMaster(
-      filterActiveCrewList(data.crew, isArrival ? 'arrival' : 'departure'),
-    );
+    const master = this.findMaster(filterActiveCrewListFromData(data, list));
     if (master) {
       draw(this.formatCaptainName(master), SHIP_STORES_02_FIELDS.captainName, true);
     }

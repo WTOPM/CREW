@@ -4,7 +4,7 @@ import type { PDFPage, RGB } from 'pdf-lib';
 import {
   AppData,
   CrewMember,
-  filterActiveCrewList,
+  filterActiveCrewListFromData,
   formatCrewListName,
   formatPortCallPortName,
   orderPortCallHistoryForPdf,
@@ -66,7 +66,7 @@ export class PdfMdhService {
     };
 
     const { ship, ports } = data;
-    const crewArrival = filterActiveCrewList(data.crew, 'arrival');
+    const crewArrival = filterActiveCrewListFromData(data, 'arrival');
     const paxArrival = data.passengers.filter((m) => !m.archived && m.onArrivalList);
     const master = this.findMaster(crewArrival);
     const paxCount = paxArrival.length;
