@@ -40,6 +40,7 @@ import {
   normalizeCrewDocuments,
   migrateCrewMember,
   migratePortsRaw,
+  resolveKnownPortName,
   resolvePortRef,
   crewRankOrder,
   filterActiveCrewList,
@@ -114,6 +115,21 @@ import {
   type NarcoticListFormSettings,
 } from '../models/narcotic-list.models';
 import {
+  createDgCargoLine,
+  createDgManifestDocument,
+  createDgOnboardContainer,
+  createDefaultDgLibrary,
+  dgDefaultVoyageFromShip,
+  normalizeDgLibrary,
+  onboardContainersFromImportRows,
+  findDgManifestDuplicate,
+  type DgCargoLine,
+  type DgLibrarySettings,
+  type DgManifestDocument,
+  type DgOnboardContainer,
+} from '../models/dg-manifest.models';
+import type { DgManifestImportResult } from './dg-manifest-import.service';
+import {
   crewListVariantPatch,
   CREW_LIST_TYPE_IDS,
   getCrewListVariantSettings,
@@ -149,6 +165,7 @@ export class StorageService {
   readonly cashAdvanceForm = computed(() => this.data().cashAdvanceForm);
   readonly crewMoneyListForm = computed(() => this.data().crewMoneyListForm);
   readonly narcoticListForm = computed(() => this.data().narcoticListForm);
+  readonly dgLibrary = computed(() => this.data().dgLibrary);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly outputSettings = computed(() => this.data().outputSettings);
@@ -305,6 +322,12 @@ export class StorageService {
     const cashAdvanceForm = normalizeCashAdvanceForm(raw.cashAdvanceForm);
     const crewMoneyListForm = normalizeCrewMoneyListForm(raw.crewMoneyListForm);
     const narcoticListForm = normalizeNarcoticListForm(raw.narcoticListForm);
+    const dgLibrary = normalizeDgLibrary(
+      raw.dgLibrary,
+      (raw as Partial<AppData & { dgManifestForm?: import('../models/dg-manifest.models').DgManifestFormSettings }>)
+        .dgManifestForm,
+      ports,
+    );
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay, raw);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     const outputSettings = this.normalizeOutputSettings(raw.outputSettings);
@@ -338,6 +361,7 @@ export class StorageService {
       cashAdvanceForm,
       crewMoneyListForm,
       narcoticListForm,
+      dgLibrary,
       documentOverlay,
       shipAssets,
       outputSettings,
@@ -920,6 +944,232 @@ export class StorageService {
       };
     });
     void this.persist('silent');
+  }
+
+  setActiveDgDocument(_id: string): void {
+    /* deprecated — manifests are import log only */
+  }
+
+  updateDgShowDischarged(showDischarged: boolean): void {
+    this.data.update((d) => ({
+      ...d,
+      dgLibrary: { ...normalizeDgLibrary(d.dgLibrary), showDischarged },
+    }));
+    void this.persist('silent');
+  }
+
+  applyDgPageSnapshot(
+    dgLibrary: DgLibrarySettings,
+    shipCtx: import('../models/dg-page-archive.models').DgPageShipContext,
+  ): void {
+    this.data.update((d) => ({
+      ...d,
+      dgLibrary: normalizeDgLibrary(structuredClone(dgLibrary), undefined, d.ports),
+      ship: {
+        ...d.ship,
+        voyageNumber: shipCtx.voyageNumber,
+        portOfCall: shipCtx.portOfCall,
+        nextPortOfCall: shipCtx.nextPortOfCall,
+        dateOfDeparture: shipCtx.dateOfDeparture,
+      },
+    }));
+    void this.persist('silent');
+  }
+
+  addDgOnboardContainer(partial?: Partial<Omit<DgOnboardContainer, 'id' | 'lines'>>): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
+      const loadPort = resolveKnownPortName(
+        partial?.loadPort ?? d.ship.portOfCall ?? '',
+        d.ports,
+      );
+      const dischargePort = resolveKnownPortName(
+        partial?.dischargePort ?? d.ship.nextPortOfCall ?? '',
+        d.ports,
+      );
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          onboard: [
+            ...lib.onboard,
+            createDgOnboardContainer({
+              ...partial,
+              loadPort,
+              dischargePort,
+              status: 'onboard',
+            }),
+          ],
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  updateDgOnboardContainer(
+    containerId: string,
+    partial: Partial<Omit<DgOnboardContainer, 'id' | 'lines' | 'sourceManifestId'>>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
+      const resolved: typeof partial = { ...partial };
+      if ('loadPort' in partial) {
+        resolved.loadPort = resolveKnownPortName(partial.loadPort ?? '', d.ports);
+      }
+      if ('dischargePort' in partial) {
+        resolved.dischargePort = resolveKnownPortName(partial.dischargePort ?? '', d.ports);
+      }
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          onboard: lib.onboard.map((c) =>
+            c.id === containerId ? { ...c, ...resolved } : c,
+          ),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  setDgOnboardContainerStatus(containerId: string, status: 'onboard' | 'discharged'): void {
+    this.updateDgOnboardContainer(containerId, { status });
+  }
+
+  removeDgOnboardContainer(containerId: string): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          onboard: lib.onboard.filter((c) => c.id !== containerId),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  updateDgOnboardCargoLine(
+    containerId: string,
+    lineId: string,
+    partial: Partial<Omit<DgCargoLine, 'id'>>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          onboard: lib.onboard.map((c) =>
+            c.id === containerId
+              ? {
+                  ...c,
+                  lines: c.lines.map((l) => (l.id === lineId ? { ...l, ...partial } : l)),
+                }
+              : c,
+          ),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  addDgOnboardCargoLine(
+    containerId: string,
+    partial?: Partial<Omit<DgCargoLine, 'id'>>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          onboard: lib.onboard.map((c) =>
+            c.id === containerId
+              ? { ...c, lines: [...c.lines, createDgCargoLine(partial)] }
+              : c,
+          ),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  removeDgOnboardCargoLine(containerId: string, lineId: string): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          onboard: lib.onboard.map((c) =>
+            c.id === containerId
+              ? { ...c, lines: c.lines.filter((l) => l.id !== lineId) }
+              : c,
+          ),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  removeDgManifest(id: string): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          manifests: lib.manifests.filter((m) => m.id !== id),
+          onboard: lib.onboard.filter((c) => c.sourceManifestId !== id),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  applyDgManifestImport(
+    result: DgManifestImportResult,
+    sourceName: string,
+    fingerprints?: { contentFingerprint?: string; pdfBytesFingerprint?: string },
+  ): DgManifestDocument | null {
+    const lib = normalizeDgLibrary(this.data().dgLibrary, undefined, this.data().ports);
+    const duplicate = findDgManifestDuplicate(lib.manifests, fingerprints ?? {});
+    if (duplicate) return duplicate;
+
+    this.data.update((d) => {
+      const libInner = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
+      const loadPort = resolveKnownPortName(result.header.portOfDeparture ?? '', d.ports);
+      const dischargePort = resolveKnownPortName(result.header.portOfArrival ?? '', d.ports);
+      const doc = createDgManifestDocument({
+        sourceName: sourceName.replace(/\.pdf$/i, '').trim() || 'PDF import',
+        voyageNumber:
+          result.header.voyageNumber?.trim() || dgDefaultVoyageFromShip(d.ship),
+        documentDate: result.header.departureDate?.trim() ?? '',
+        loadPort,
+        dischargePort,
+        contentFingerprint: fingerprints?.contentFingerprint?.trim() ?? '',
+        pdfBytesFingerprint: fingerprints?.pdfBytesFingerprint?.trim() ?? '',
+      });
+      const added = onboardContainersFromImportRows(
+        result.rows,
+        doc.id,
+        loadPort,
+        dischargePort,
+        d.ports,
+      );
+      return {
+        ...d,
+        dgLibrary: {
+          ...libInner,
+          manifests: [{ ...doc, containerCount: added.length }, ...libInner.manifests],
+          onboard: [...libInner.onboard, ...added],
+        },
+      };
+    });
+    void this.persist('silent');
+    return null;
   }
 
   updateShipAssets(partial: Partial<AppData['shipAssets']>): void {

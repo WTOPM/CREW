@@ -1,6 +1,8 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map, startWith } from 'rxjs';
 import { PkgBarComponent } from './components/pkg-bar/pkg-bar.component';
 import { ToastComponent } from './components/toast/toast.component';
 import { StorageService } from './services/storage.service';
@@ -24,6 +26,7 @@ export class App implements OnInit {
   private readonly storage = inject(StorageService);
   private readonly folderAccess = inject(FolderAccessService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
   private folderHoldTriggered = false;
 
@@ -44,6 +47,16 @@ export class App implements OnInit {
 
   protected readonly activeFolderId = computed(() =>
     this.hasElectron ? this.outputSettings().activePath : this.folderAccess.activeId(),
+  );
+
+  /** Package bar + save folder — hidden on DG page. */
+  protected readonly showDocToolbar = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map(() => !this.isDgRoute()),
+      startWith(!this.isDgRoute()),
+    ),
+    { initialValue: !this.isDgRoute() },
   );
 
   ngOnInit(): void {
@@ -134,5 +147,10 @@ export class App implements OnInit {
     if (res && !res.ok) {
       this.toast.showError(res.error ?? 'Could not open folder');
     }
+  }
+
+  private isDgRoute(): boolean {
+    const path = this.router.url.split('?')[0].split('#')[0];
+    return path === '/dg';
   }
 }

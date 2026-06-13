@@ -172,6 +172,7 @@ export class CrewListExcelService {
       cashAdvanceForm: this.storage.cashAdvanceForm(),
       crewMoneyListForm: this.storage.crewMoneyListForm(),
       narcoticListForm: this.storage.narcoticListForm(),
+      dgLibrary: this.storage.dgLibrary(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
       outputSettings: this.storage.outputSettings(),

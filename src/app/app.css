@@ -185,6 +185,22 @@
   background: var(--accent-soft);
 }
 
+.nav-dg {
+  font-weight: 700;
+  color: #b91c1c;
+  letter-spacing: 0.06em;
+}
+
+.nav-dg:hover {
+  color: #fff;
+  background: #dc2626;
+}
+
+.nav-dg.active {
+  color: #fff;
+  background: #b91c1c;
+}
+
 .nav-settings {
   display: inline-flex;
   align-items: center;

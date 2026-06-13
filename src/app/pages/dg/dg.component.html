@@ -1,0 +1,800 @@
+<div class="page dg-page">
+  <header class="page-header dg-page-header">
+    <div>
+      <a routerLink="/" class="back-link">← Home</a>
+      <h1>Dangerous Goods</h1>
+    </div>
+    <div class="dg-page-actions">
+      <button
+        type="button"
+        class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
+        title="Save current DG page to archive"
+        [disabled]="dgArchive.saving()"
+        (click)="startArchiveSave()"
+      >
+        <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+          />
+        </svg>
+        <span>{{ dgArchive.saving() ? 'Saving…' : 'Save snapshot' }}</span>
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary dg-page-action-btn dg-page-action-btn--load"
+        title="Load saved DG page from archive"
+        (click)="openArchiveLoad()"
+      >
+        <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+          />
+        </svg>
+        <span>Load snapshot</span>
+      </button>
+      @if (dgArchive.loaded()) {
+        <button
+          type="button"
+          class="btn btn-secondary dg-page-action-btn dg-page-action-btn--reset"
+          title="Return to live DG data"
+          (click)="resetArchiveView()"
+        >
+          Reset to live
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (ship().name || ship().voyageNumber) {
+    <section class="card dg-voyage-strip">
+      <div class="dg-voyage-item">
+        <span class="dg-voyage-label">Vessel</span>
+        <strong>{{ ship().name || '—' }}</strong>
+        @if (ship().callSign) {
+          <span class="dg-voyage-muted">/ {{ ship().callSign }}</span>
+        }
+      </div>
+      <div class="dg-voyage-item">
+        <span class="dg-voyage-label">Voyage</span>
+        <strong>{{ ship().voyageNumber || '—' }}</strong>
+      </div>
+      <div class="dg-voyage-item">
+        <span class="dg-voyage-label">Port of call</span>
+        <strong>{{ ship().portOfCall || '—' }}</strong>
+      </div>
+      <div class="dg-voyage-item">
+        <span class="dg-voyage-label">Departure</span>
+        <strong>{{ formatDate(ship().dateOfDeparture) || '—' }}</strong>
+      </div>
+    </section>
+  }
+
+  <div class="dg-layout">
+    <aside class="card dg-import-panel">
+      <h2 class="dg-panel-title">Import history</h2>
+
+      <div
+        class="dg-drop-compact"
+        [class.dg-drop-compact--active]="dragOver()"
+        [class.dg-drop-compact--busy]="importing()"
+        (click)="pickPdf()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave()"
+        (drop)="onDrop($event)"
+      >
+        <input #pdfFile type="file" accept="application/pdf,.pdf" hidden (change)="onPdfInput($event)" />
+        @if (importing()) {
+          <span>Reading PDF…</span>
+        } @else {
+          <span class="dg-drop-compact-icon" aria-hidden="true">📄</span>
+          <span>Drop PDF or click</span>
+        }
+      </div>
+
+      @if (importHistory().length === 0) {
+        <p class="dg-empty-hint">No manifests imported yet.</p>
+      } @else {
+        <ul class="dg-import-list">
+          @for (doc of importHistory(); track doc.id) {
+            <li
+              class="dg-import-item"
+              [class.dg-import-item--all-discharged]="manifestFullyDischarged(doc.id)"
+              [attr.title]="manifestDischargedTooltip(doc.id) || null"
+            >
+              <div class="dg-import-body">
+                <span class="dg-import-name">{{ doc.sourceName }}</span>
+                @if (manifestLabel(doc)) {
+                  <span class="dg-import-meta">{{ manifestLabel(doc) }}</span>
+                }
+                @if (manifestFullyDischarged(doc.id)) {
+                  <span class="dg-import-discharged-note">All containers discharged</span>
+                }
+              </div>
+              <button
+                type="button"
+                class="dg-import-remove btn btn-ghost btn-sm"
+                title="Remove manifest and all its containers"
+                (click)="removeManifest(doc.id, $event)"
+              >
+                ✕
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+
+    <main class="dg-main">
+      <section class="card dg-inventory" [class.dg-inventory--archive]="dgArchive.loaded()">
+        @if (dgArchive.loaded(); as snap) {
+          <div class="dg-archive-banner" role="status">
+            Page state loaded from archive:
+            <strong>{{ snap.label }}</strong>
+            · Voy {{ snap.ship.voyageNumber || '—' }}
+            · {{ formatDate(snap.ship.dateOfDeparture) || '—' }}
+          </div>
+        }
+        <div class="dg-inventory-head">
+          <div>
+            <h2>Onboard DG inventory</h2>
+            <p class="dg-inventory-meta">
+              <span>{{ stats().containerCount }} container(s)</span>
+              <span>{{ stats().lineCount }} DG line(s)</span>
+              @if (stats().dischargedCount > 0) {
+                <span>{{ stats().dischargedCount }} discharged</span>
+              }
+            </p>
+          </div>
+          <div class="dg-inventory-total">
+            <span class="dg-total-label">Total net, kg</span>
+            <strong class="dg-total-value">{{ stats().totalKg || '—' }}</strong>
+          </div>
+        </div>
+
+        <div class="dg-inventory-toolbar">
+          <label class="choice-label dg-show-discharged">
+            <input
+              type="checkbox"
+              [ngModel]="library().showDischarged"
+              (ngModelChange)="toggleShowDischarged($event)"
+            />
+            Show discharged
+          </label>
+          <div class="dg-inventory-toolbar-actions">
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm dg-pdf-btn"
+              [disabled]="exportingPdf()"
+              (click)="exportPdf()"
+            >
+              PDF
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm dg-excel-btn"
+              [disabled]="exportingExcel()"
+              (click)="exportExcel()"
+            >
+              Excel
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" (click)="addContainer()">
+              + Container
+            </button>
+          </div>
+        </div>
+
+        @if (visibleContainers().length === 0) {
+          <p class="dg-empty-hint">
+            No containers onboard. Import a port manifest or add a container manually.
+          </p>
+        } @else {
+          <div class="table-wrap dg-master-wrap">
+            <table class="dg-master-table">
+              <colgroup>
+                <col class="col-index" />
+                <col class="col-container" />
+                <col class="col-type" />
+                <col class="col-port" />
+                <col class="col-port" />
+                <col class="col-stowage" />
+                <col class="col-class" />
+                <col class="col-un" />
+                <col class="col-weight" />
+                <col class="col-name" />
+                <col class="col-line-act" />
+                <col class="col-actions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="col-index">#</th>
+                  <th
+                    class="col-container dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'containerNo'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'containerNo' && inventorySortDirection() === 'desc'"
+                    title="Sort by container"
+                    (click)="toggleInventorySort('containerNo')"
+                  >
+                    Container
+                  </th>
+                  <th
+                    class="col-type dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'type'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'type' && inventorySortDirection() === 'desc'"
+                    title="Sort by type"
+                    (click)="toggleInventorySort('type')"
+                  >
+                    Type
+                  </th>
+                  <th
+                    class="col-port dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'loadPort'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'loadPort' && inventorySortDirection() === 'desc'"
+                    title="Sort by load port"
+                    (click)="toggleInventorySort('loadPort')"
+                  >
+                    Load
+                  </th>
+                  <th
+                    class="col-port dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'dischargePort'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'dischargePort' && inventorySortDirection() === 'desc'"
+                    title="Sort by discharge port"
+                    (click)="toggleInventorySort('dischargePort')"
+                  >
+                    Disch.
+                  </th>
+                  <th
+                    class="col-stowage dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'stowage'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'stowage' && inventorySortDirection() === 'desc'"
+                    title="Sort by stowage"
+                    (click)="toggleInventorySort('stowage')"
+                  >
+                    Stow.
+                  </th>
+                  <th
+                    class="col-class dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'dgClass'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'dgClass' && inventorySortDirection() === 'desc'"
+                    title="Sort by class"
+                    (click)="toggleInventorySort('dgClass')"
+                  >
+                    Cl.
+                  </th>
+                  <th
+                    class="col-un dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'unNo'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'unNo' && inventorySortDirection() === 'desc'"
+                    title="Sort by UN number"
+                    (click)="toggleInventorySort('unNo')"
+                  >
+                    UN
+                  </th>
+                  <th
+                    class="col-weight dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'weightKg'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'weightKg' && inventorySortDirection() === 'desc'"
+                    title="Sort by weight"
+                    (click)="toggleInventorySort('weightKg')"
+                  >
+                    kg
+                  </th>
+                  <th
+                    class="col-name dg-sort-th"
+                    [class.dg-sort-th--active]="inventorySortColumn() === 'properShippingName'"
+                    [class.dg-sort-th--desc]="inventorySortColumn() === 'properShippingName' && inventorySortDirection() === 'desc'"
+                    title="Sort by proper shipping name"
+                    (click)="toggleInventorySort('properShippingName')"
+                  >
+                    Proper shipping name
+                  </th>
+                  <th class="col-line-act" aria-label="Remove line"></th>
+                  <th class="col-actions" aria-label="Container actions"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (container of visibleContainers(); track container.id; let ci = $index) {
+                  @if (container.lines.length === 0) {
+                    <tr
+                      class="dg-master-row dg-master-row--container-start dg-master-row--container-end"
+                      [class.dg-master-row--container-gap]="ci > 0"
+                      [attr.data-container-id]="container.id"
+                      [class.dg-master-row--discharged]="container.status === 'discharged'"
+                      [class.dg-master-row--container-hovered]="hoveredContainerId() === container.id"
+                      (mouseenter)="setContainerGroupHover(container.id)"
+                      (mouseleave)="onContainerGroupLeave($event, container.id)"
+                    >
+                      <td class="col-index">{{ ci + 1 }}</td>
+                      <td>
+                        <input
+                          type="text"
+                          class="dg-cell-input dg-cell-input--mono"
+                          [ngModel]="container.containerNo"
+                          (ngModelChange)="onContainerChange(container.id, 'containerNo', $event)"
+                          placeholder="CAIU3849740"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          class="dg-cell-input dg-cell-input--mono"
+                          [ngModel]="container.type"
+                          (ngModelChange)="onContainerChange(container.id, 'type', $event)"
+                          placeholder="22G1"
+                        />
+                      </td>
+                      <td>
+                        <div class="dg-cell-port-select">
+                          <app-port-select
+                            [ports]="ports()"
+                            [value]="container.loadPort"
+                            [compact]="true"
+                            (valueChange)="onContainerChange(container.id, 'loadPort', $event)"
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <div class="dg-cell-port-select">
+                          <app-port-select
+                            [ports]="ports()"
+                            [value]="container.dischargePort"
+                            [compact]="true"
+                            (valueChange)="onContainerChange(container.id, 'dischargePort', $event)"
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          class="dg-cell-input dg-cell-input--stowage"
+                          [ngModel]="container.stowage"
+                          (ngModelChange)="onContainerChange(container.id, 'stowage', $event)"
+                          placeholder="030082"
+                        />
+                      </td>
+                      <td colspan="4" class="dg-master-empty-cargo">
+                        <button
+                          type="button"
+                          class="dg-act dg-act--add dg-act--wide"
+                          title="Add DG line"
+                          (click)="addLine(container.id)"
+                        >
+                          <dg-act-icon kind="add" />
+                          <span>Line</span>
+                        </button>
+                      </td>
+                      <td class="col-line-act"></td>
+                      <td class="col-actions">
+                        <div class="dg-row-actions">
+                          @if (container.status === 'discharged') {
+                            <button
+                              type="button"
+                              class="dg-act dg-act--restore"
+                              title="Restore onboard"
+                              (click)="restoreOnboard(container.id)"
+                            >
+                              <dg-act-icon kind="restore" />
+                            </button>
+                          } @else {
+                            <button
+                              type="button"
+                              class="dg-act dg-act--discharge"
+                              title="Mark discharged"
+                              (click)="markDischarged(container.id)"
+                            >
+                              <dg-act-icon kind="discharge" />
+                            </button>
+                          }
+                          <button
+                            type="button"
+                            class="dg-act dg-act--add"
+                            title="Add DG line"
+                            (click)="addLine(container.id)"
+                          >
+                            <dg-act-icon kind="add" />
+                          </button>
+                          <button
+                            type="button"
+                            class="dg-act dg-act--remove"
+                            title="Remove container"
+                            (click)="removeContainer(container.id)"
+                          >
+                            <dg-act-icon kind="remove" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  } @else {
+                    @for (line of container.lines; track line.id; let first = $first; let last = $last) {
+                      <tr
+                        class="dg-master-row"
+                        [attr.data-container-id]="container.id"
+                        [class.dg-master-row--discharged]="container.status === 'discharged'"
+                        [class.dg-master-row--container-start]="first"
+                        [class.dg-master-row--container-end]="last"
+                        [class.dg-master-row--container-gap]="first && ci > 0"
+                        [class.dg-master-row--container-hovered]="hoveredContainerId() === container.id"
+                        [class.dg-master-row--line-hovered]="hoveredLineId() === line.id"
+                        (mouseenter)="setLineHover(container.id, line.id)"
+                        (mouseleave)="onContainerGroupLeave($event, container.id)"
+                      >
+                        @if (first) {
+                          <td
+                            class="col-index"
+                            [attr.rowspan]="container.lines.length"
+                            [attr.data-container-id]="container.id"
+                            (mouseenter)="setContainerGroupHover(container.id)"
+                          >
+                            {{ ci + 1 }}
+                          </td>
+                          <td
+                            [attr.rowspan]="container.lines.length"
+                            [attr.data-container-id]="container.id"
+                            (mouseenter)="setContainerGroupHover(container.id)"
+                          >
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--mono"
+                              [ngModel]="container.containerNo"
+                              (ngModelChange)="onContainerChange(container.id, 'containerNo', $event)"
+                              placeholder="CAIU3849740"
+                            />
+                          </td>
+                          <td
+                            [attr.rowspan]="container.lines.length"
+                            [attr.data-container-id]="container.id"
+                            (mouseenter)="setContainerGroupHover(container.id)"
+                          >
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--mono"
+                              [ngModel]="container.type"
+                              (ngModelChange)="onContainerChange(container.id, 'type', $event)"
+                              placeholder="22G1"
+                            />
+                          </td>
+                          <td
+                            [attr.rowspan]="container.lines.length"
+                            [attr.data-container-id]="container.id"
+                            (mouseenter)="setContainerGroupHover(container.id)"
+                          >
+                            <div class="dg-cell-port-select">
+                              <app-port-select
+                                [ports]="ports()"
+                                [value]="container.loadPort"
+                                [compact]="true"
+                                (valueChange)="onContainerChange(container.id, 'loadPort', $event)"
+                              />
+                            </div>
+                          </td>
+                          <td
+                            [attr.rowspan]="container.lines.length"
+                            [attr.data-container-id]="container.id"
+                            (mouseenter)="setContainerGroupHover(container.id)"
+                          >
+                            <div class="dg-cell-port-select">
+                              <app-port-select
+                                [ports]="ports()"
+                                [value]="container.dischargePort"
+                                [compact]="true"
+                                (valueChange)="onContainerChange(container.id, 'dischargePort', $event)"
+                              />
+                            </div>
+                          </td>
+                          <td
+                            [attr.rowspan]="container.lines.length"
+                            [attr.data-container-id]="container.id"
+                            (mouseenter)="setContainerGroupHover(container.id)"
+                          >
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--stowage"
+                              [ngModel]="container.stowage"
+                              (ngModelChange)="onContainerChange(container.id, 'stowage', $event)"
+                              placeholder="030082"
+                            />
+                          </td>
+                        }
+                        <td class="col-class">
+                          <input
+                            type="text"
+                            class="dg-cell-input"
+                            [ngModel]="line.dgClass"
+                            (ngModelChange)="onLineChange(container.id, line.id, 'dgClass', $event)"
+                            placeholder="2.1"
+                          />
+                        </td>
+                        <td class="col-un">
+                          <input
+                            type="text"
+                            class="dg-cell-input dg-cell-input--mono"
+                            [ngModel]="line.unNo"
+                            (ngModelChange)="onLineChange(container.id, line.id, 'unNo', $event)"
+                          />
+                        </td>
+                        <td class="col-weight">
+                          <input
+                            type="text"
+                            class="dg-cell-input dg-cell-input--weight"
+                            [ngModel]="line.weightKg"
+                            (ngModelChange)="onLineChange(container.id, line.id, 'weightKg', $event)"
+                            inputmode="decimal"
+                          />
+                        </td>
+                        <td class="col-name">
+                          <textarea
+                            rows="1"
+                            class="dg-cell-input dg-cell-input--name"
+                            [ngModel]="line.properShippingName"
+                            (ngModelChange)="onLineChange(container.id, line.id, 'properShippingName', $event)"
+                          ></textarea>
+                        </td>
+                        <td class="col-line-act">
+                          <button
+                            type="button"
+                            class="dg-act dg-act--line-remove"
+                            title="Remove DG line"
+                            (click)="removeLine(container.id, line.id)"
+                          >
+                            <dg-act-icon kind="line-remove" />
+                          </button>
+                        </td>
+                        @if (first) {
+                          <td
+                            class="col-actions"
+                            [attr.rowspan]="container.lines.length"
+                            [attr.data-container-id]="container.id"
+                            (mouseenter)="setContainerGroupHover(container.id)"
+                          >
+                            <div class="dg-row-actions">
+                              @if (container.status !== 'discharged') {
+                                <span class="dg-container-kg" [title]="'Container total, kg'">
+                                  {{ containerTotalKg(container) || 0 }}
+                                </span>
+                              }
+                              @if (container.status === 'discharged') {
+                                <button
+                                  type="button"
+                                  class="dg-act dg-act--restore"
+                                  title="Restore onboard"
+                                  (click)="restoreOnboard(container.id)"
+                                >
+                                  <dg-act-icon kind="restore" />
+                                </button>
+                              } @else {
+                                <button
+                                  type="button"
+                                  class="dg-act dg-act--discharge"
+                                  title="Mark discharged"
+                                  (click)="markDischarged(container.id)"
+                                >
+                                  <dg-act-icon kind="discharge" />
+                                </button>
+                              }
+                              <button
+                                type="button"
+                                class="dg-act dg-act--add"
+                                title="Add DG line"
+                                (click)="addLine(container.id)"
+                              >
+                                <dg-act-icon kind="add" />
+                              </button>
+                              <button
+                                type="button"
+                                class="dg-act dg-act--remove"
+                                title="Remove container"
+                                (click)="removeContainer(container.id)"
+                              >
+                                <dg-act-icon kind="remove" />
+                              </button>
+                            </div>
+                          </td>
+                        }
+                      </tr>
+                    }
+                  }
+                }
+              </tbody>
+              <tfoot>
+                <tr class="dg-master-total">
+                  <td colspan="12">
+                    <div class="dg-master-total-inner">
+                      <span class="dg-master-total-main">
+                        Onboard total:
+                        <strong class="dg-master-total-kg">{{ formatSummaryKg(stats().totalKg) }}</strong>
+                      </span>
+                      <span class="dg-master-total-counts">
+                        {{ stats().containerCount }} containers
+                        {{ stats().lineCount }} lines
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          @if (classSummaries().length > 0) {
+            <div class="dg-class-summary-wrap">
+              <table class="dg-class-summary">
+                <thead>
+                  <tr>
+                    <th class="dg-class-summary-class">Class</th>
+                    <th class="dg-class-summary-total">{{ formatSummaryKg(stats().totalKg) }}</th>
+                    <th class="dg-class-summary-un-head">UN numbers for operation report</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of classSummaries(); track row.dgClass) {
+                    <tr>
+                      <td class="dg-class-summary-class">{{ row.dgClass }}</td>
+                      <td class="dg-class-summary-kg">{{ formatSummaryKg(row.totalKg) }}</td>
+                      <td class="dg-class-summary-un">{{ row.unNumbers.join(' ') }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </section>
+    </main>
+  </div>
+</div>
+
+@if (showArchiveSaveModal()) {
+  <div class="modal-backdrop dg-archive-backdrop">
+    <div
+      class="modal dg-archive-modal dg-archive-modal--save"
+      role="dialog"
+      aria-labelledby="dg-archive-save-title"
+      appClickOutside
+      (appClickOutside)="cancelArchiveSave()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon dg-archive-modal__icon--save" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+            />
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="dg-archive-save-title">Save DG page snapshot</h3>
+          <p class="dg-archive-modal__hint">
+            Saves onboard inventory, import history, voyage and departure shown on this page.
+          </p>
+        </div>
+      </header>
+
+      <div class="dg-archive-modal__body">
+        <label class="dg-archive-field">
+          <span class="dg-archive-field__label">Snapshot name</span>
+          <input
+            type="text"
+            class="dg-archive-field__input"
+            [(ngModel)]="archiveSaveLabel"
+            placeholder="Snapshot name"
+            maxlength="80"
+            autofocus
+            (keydown.enter)="confirmArchiveSave()"
+            (keydown.escape)="cancelArchiveSave()"
+          />
+        </label>
+      </div>
+
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" (click)="cancelArchiveSave()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--save"
+          [disabled]="dgArchive.saving()"
+          (click)="confirmArchiveSave()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+            />
+          </svg>
+          {{ dgArchive.saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (showArchiveLoadModal()) {
+  <div class="modal-backdrop dg-archive-backdrop">
+    <div
+      class="modal dg-archive-modal dg-archive-modal--load"
+      role="dialog"
+      aria-labelledby="dg-archive-load-title"
+      appClickOutside
+      (appClickOutside)="closeArchiveLoad()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon dg-archive-modal__icon--load" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+            />
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="dg-archive-load-title">Load DG page snapshot</h3>
+          <p class="dg-archive-modal__hint">
+            Restores onboard inventory, import history, voyage and departure from a saved snapshot.
+          </p>
+        </div>
+      </header>
+
+      <div class="dg-archive-modal__body dg-archive-modal__body--list">
+        @if (dgArchive.entriesNewestFirst().length === 0) {
+          <div class="dg-archive-empty">
+            <span class="dg-archive-empty__title">No snapshots yet</span>
+            <span class="dg-archive-empty__text">
+              Use <strong>Save snapshot</strong> in the page header to store the current DG page.
+            </span>
+          </div>
+        } @else {
+          <ul class="dg-archive-load-list">
+            @for (entry of dgArchive.entriesNewestFirst(); track entry.id) {
+              <li class="dg-archive-load-row">
+                <button
+                  type="button"
+                  class="dg-archive-load-card"
+                  [class.dg-archive-load-card--active]="dgArchive.loaded()?.id === entry.id"
+                  (click)="pickArchiveSnapshot(entry)"
+                >
+                  <span class="dg-archive-load-card__header">
+                    <span class="dg-archive-load-card__label">{{ entry.label }}</span>
+                    @if (dgArchive.loaded()?.id === entry.id) {
+                      <span class="dg-archive-load-card__badge">Loaded</span>
+                    }
+                  </span>
+                  <span class="dg-archive-load-card__meta">
+                    Voy {{ entry.ship.voyageNumber || '—' }}
+                    · {{ entry.ship.portOfCall || '—' }}
+                    · Dep. {{ formatDate(entry.ship.dateOfDeparture) || '—' }}
+                  </span>
+                  <span class="dg-archive-load-card__stats">
+                    {{ entry.dgLibrary.onboard.length }} container(s)
+                    · saved {{ formatArchiveSavedAt(entry.savedAt) }}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="dg-archive-load-delete"
+                  title="Delete snapshot"
+                  aria-label="Delete snapshot {{ entry.label }}"
+                  (click)="deleteArchiveSnapshot(entry, $event)"
+                >
+                  ×
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--load" (click)="closeArchiveLoad()">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+            />
+          </svg>
+          Done
+        </button>
+      </footer>
+    </div>
+  </div>
+}

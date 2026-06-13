@@ -22,6 +22,7 @@ import type { CrewMoneyListFormSettings } from './crew-money-list.models';
 import { createDefaultCrewMoneyListForm } from './crew-money-list.models';
 import type { NarcoticListFormSettings } from './narcotic-list.models';
 import { createDefaultNarcoticListForm } from './narcotic-list.models';
+import type { DgLibrarySettings } from './dg-manifest.models';
 import type { ShipStoresFormSettings } from './ship-stores.models';
 import { createDefaultShipStoresForm } from './ship-stores.models';
 
@@ -282,6 +283,16 @@ export function crewListDiffCounts(crew: readonly CrewMember[]): {
   return { arrivalOnly, departureOnly };
 }
 
+/** Which list(s) a member is on when arrival and departure diverge. */
+export type CrewListMemberDiff = 'arrival-only' | 'departure-only';
+
+export function crewMemberListDiff(member: CrewMember): CrewListMemberDiff | null {
+  if (member.archived) return null;
+  if (member.onArrivalList && !member.onDepartureList) return 'arrival-only';
+  if (member.onDepartureList && !member.onArrivalList) return 'departure-only';
+  return null;
+}
+
 /** Summary shown before departure → arrival list sync. */
 export interface DepartureToArrivalSyncPreview {
   onDeparture: number;
@@ -493,6 +504,8 @@ export interface AppData {
   cashAdvanceForm: CashAdvanceFormSettings;
   crewMoneyListForm: CrewMoneyListFormSettings;
   narcoticListForm: NarcoticListFormSettings;
+  /** Dangerous Goods — library of manifests grouped by container. */
+  dgLibrary: DgLibrarySettings;
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
   /** Where generated PDFs are written when "save to folder" is enabled. */
@@ -579,6 +592,17 @@ export {
   createDefaultNarcoticListForm,
   createNarcoticMedicineEntry,
 } from './narcotic-list.models';
+export type { DgLibrarySettings, DgManifestDocument, DgOnboardContainer, DgCargoLine } from './dg-manifest.models';
+export {
+  createDefaultDgLibrary,
+  createDgManifestDocument,
+  createDgOnboardContainer,
+  dgOnboardInventoryStats,
+  dgContainerTotalKg,
+  sortDgDocuments,
+} from './dg-manifest.models';
+export type { DgManifestFormSettings, DgManifestRow } from './dg-manifest.models';
+export { createDefaultDgManifestForm } from './dg-manifest.models';
 export type { ShipStoresFormSettings, ShipStoresRow } from './ship-stores.models';
 export {
   SHIP_STORES_02_ROW_COUNT,
@@ -847,6 +871,18 @@ export function resolvePortRef(ref: string, ports: Port[] = []): Port | null {
   const byCode = ports.find((p) => p.code.toLowerCase() === lower);
   if (byCode) return { ...byCode };
   return { name: v, code: '' };
+}
+
+/** Canonical port name from the user's list, or empty when unknown. */
+export function resolveKnownPortName(ref: string, ports: readonly Port[] = []): string {
+  const v = ref.trim();
+  if (!v) return '';
+  const lower = v.toLowerCase();
+  const byName = ports.find((p) => p.name.toLowerCase() === lower);
+  if (byName) return byName.name;
+  const byCode = ports.find((p) => p.code && p.code.toLowerCase() === lower);
+  if (byCode) return byCode.name;
+  return '';
 }
 
 export function portCode(name: string, ports: Port[]): string {

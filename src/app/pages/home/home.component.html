@@ -113,11 +113,11 @@
           <span class="list-sync-badge">Linked — same crew on both lists</span>
         } @else if (crewListKind() === 'arrival') {
           <span class="list-sync-badge list-sync-badge--split">
-            Lists differ — edit on Arrival; Departure is read-only for exit print
+            Lists differ — <span class="list-sync-legend list-sync-legend--arrival">blue</span>: arrival only
           </span>
         } @else {
           <span class="list-sync-badge list-sync-badge--split">
-            Lists differ — drag to reorder; sync with FROM ARRIVAL / INTO ARRIVAL
+            Lists differ — <span class="list-sync-legend list-sync-legend--departure">red</span>: departure only
           </span>
         }
       </h2>
@@ -158,7 +158,12 @@
         </thead>
         <tbody cdkDropList (cdkDropListDropped)="dropCrew($event)">
           @for (member of listCrew(); track member.id; let i = $index) {
-            <tr cdkDrag>
+            <tr
+              cdkDrag
+              [class.crew-row--diff-arrival]="crewMemberDiff(member) === 'arrival-only'"
+              [class.crew-row--diff-departure]="crewMemberDiff(member) === 'departure-only'"
+              [attr.title]="crewMemberDiffTitle(member)"
+            >
               <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
               <td class="col-index">{{ i + 1 }}</td>
               <td>{{ member.familyName }}</td>

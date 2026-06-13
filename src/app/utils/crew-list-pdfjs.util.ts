@@ -170,6 +170,9 @@ async function loadPdfJs(): Promise<PdfJsModule> {
   return pdfJsModule;
 }
 
+/** Shared pdf.js loader with worker configured (browser / Electron). */
+export { loadPdfJs };
+
 export async function openPdfJsPageView(
   bytes: Uint8Array,
   cssPxPerPt = CREW_LIST_PREVIEW_CSS_PX_PER_PT,

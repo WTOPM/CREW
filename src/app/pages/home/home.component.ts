@@ -19,6 +19,8 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 import {
   CrewListKind,
   CrewMember,
+  crewMemberListDiff,
+  type CrewListMemberDiff,
   DepartureToArrivalSyncPreview,
   ArrivalToDepartureSyncPreview,
   ShipInfo,
@@ -145,6 +147,18 @@ export class HomeComponent {
 
   protected formatDate = formatDisplayDate;
   protected readonly passengerRank = PASSENGER_RANK;
+
+  protected crewMemberDiff(member: CrewMember): CrewListMemberDiff | null {
+    if (this.crewListsInSync()) return null;
+    return crewMemberListDiff(member);
+  }
+
+  protected crewMemberDiffTitle(member: CrewMember): string | undefined {
+    const diff = this.crewMemberDiff(member);
+    if (diff === 'arrival-only') return 'On arrival only — not on departure list';
+    if (diff === 'departure-only') return 'On departure only — not on arrival list';
+    return undefined;
+  }
 
   protected crewArchiveCountLabel(): string {
     return this.archiveCountLabel(this.archivedCrew().length, this.filteredArchivedCrew().length, this.crewArchiveSearch());
