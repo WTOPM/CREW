@@ -2,16 +2,25 @@ import { Component, computed, ElementRef, inject, signal, viewChild } from '@ang
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
-  dgContainerTotalKg,
   dgManifestAllContainersDischarged,
-  dgOnboardClassSummaries,
-  dgOnboardInventoryStats,
+  dgViewContainerTotalKg,
+  dgViewOnboardClassSummaries,
+  dgViewOnboardInventoryStats,
+  formatDgWeightKgDisplay,
   sortDgDocuments,
   type DgCargoLine,
   type DgManifestDocument,
+  type DgManifestViewOptions,
   type DgOnboardContainer,
   type DgOnboardContainerField,
 } from '../../models/dg-manifest.models';
+import type { DgManifestExportContext } from '../../models/dg-manifest-export.models';
+import {
+  buildDgContainerDisplayLines,
+  planDgInventoryWeightDisplays,
+  type DgCargoLineDisplay,
+} from '../../utils/dg-cargo-merge.util';
+import type { ShipInfo } from '../../models/crew.models';
 import { DgManifestExcelService } from '../../services/dg-manifest-excel.service';
 import { DgManifestPdfService } from '../../services/dg-manifest-pdf.service';
 import { DgManifestImportService } from '../../services/dg-manifest-import.service';
@@ -23,8 +32,11 @@ import { DgPageArchiveService } from '../../services/dg-page-archive.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import { formatDisplayDate } from '../../utils/date.util';
+import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
+import { ContainerTypeTooltipDirective } from '../../directives/container-type-tooltip.directive';
+import { DgClassTooltipDirective } from '../../directives/dg-class-tooltip.directive';
 import type { DgPageSnapshot } from '../../models/dg-page-archive.models';
 
 import {
@@ -39,7 +51,7 @@ type DgLineField = keyof Omit<DgCargoLine, 'id'>;
 
 @Component({
   selector: 'app-dg',
-  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, ClickOutsideDirective],
+  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ClickOutsideDirective, ContainerTypeTooltipDirective, DgClassTooltipDirective],
   templateUrl: './dg.component.html',
   styleUrl: './dg.component.css',
 })
@@ -72,12 +84,30 @@ export class DgComponent {
     return list;
   });
 
+  protected readonly viewOptions = computed((): DgManifestViewOptions => ({
+    manifestMergeLines: this.library().manifestMergeLines,
+    manifestGrossTotalKg: this.library().manifestGrossTotalKg,
+  }));
+
+  protected readonly inventoryWeightDisplays = computed(() =>
+    planDgInventoryWeightDisplays(this.visibleContainers(), this.viewOptions()),
+  );
+
   protected readonly stats = computed(() =>
-    dgOnboardInventoryStats(this.library().onboard, this.library().showDischarged),
+    dgViewOnboardInventoryStats(
+      this.library().onboard,
+      this.library().showDischarged,
+      this.viewOptions(),
+      (container) => this.containerDisplayLines(container).length,
+    ),
   );
 
   protected readonly classSummaries = computed(() =>
-    dgOnboardClassSummaries(this.library().onboard, this.library().showDischarged),
+    dgViewOnboardClassSummaries(
+      this.library().onboard,
+      this.library().showDischarged,
+      this.viewOptions(),
+    ),
   );
 
   protected readonly dragOver = signal(false);
@@ -95,7 +125,15 @@ export class DgComponent {
   protected archiveSaveLabel = '';
 
   protected toggleShowDischarged(checked: boolean): void {
-    this.storage.updateDgShowDischarged(checked);
+    this.storage.updateDgManifestView({ showDischarged: checked });
+  }
+
+  protected toggleManifestMergeLines(checked: boolean): void {
+    this.storage.updateDgManifestView({ manifestMergeLines: checked });
+  }
+
+  protected toggleManifestGrossTotalKg(checked: boolean): void {
+    this.storage.updateDgManifestView({ manifestGrossTotalKg: checked });
   }
 
   protected toggleInventorySort(column: DgInventorySortColumn): void {
@@ -113,13 +151,24 @@ export class DgComponent {
   }
 
   protected containerTotalKg(container: DgOnboardContainer): number {
-    return dgContainerTotalKg(container);
+    return dgViewContainerTotalKg(container, this.viewOptions());
+  }
+
+  protected containerDisplayLines(container: DgOnboardContainer): DgCargoLineDisplay[] {
+    return buildDgContainerDisplayLines(container, this.viewOptions(), this.inventoryWeightDisplays());
+  }
+
+  protected containerDisplayLineCount(container: DgOnboardContainer): number {
+    const count = this.containerDisplayLines(container).length;
+    return count || 1;
   }
 
   protected formatSummaryKg(value: number): string {
-    if (!value) return '0';
-    const rounded = Math.round(value * 10) / 10;
-    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    const lib = this.library();
+    if (lib.manifestGrossTotalKg) {
+      return formatDgWeightKgDisplay(Math.round(value)) || '0';
+    }
+    return formatDgWeightKgDisplay(value) || '0';
   }
 
   protected formatDate(value: string): string {
@@ -218,6 +267,10 @@ export class DgComponent {
     this.storage.updateDgOnboardContainer(containerId, { [field]: value });
   }
 
+  protected onShipChange(field: keyof ShipInfo, value: string): void {
+    this.storage.updateShip({ [field]: value });
+  }
+
   protected setContainerGroupHover(containerId: string): void {
     this.hoveredContainerId.set(containerId);
     this.hoveredLineId.set(null);
@@ -279,7 +332,7 @@ export class DgComponent {
     if (this.exportingPdf()) return;
 
     this.exportingPdf.set(true);
-    void this.dgPdf.openManifest().then((ok) => {
+    void this.dgPdf.openManifest(this.buildExportContext()).then((ok) => {
       if (ok) {
         this.toast.show('PDF manifest opened', 'success');
       } else {
@@ -300,7 +353,7 @@ export class DgComponent {
     }
 
     this.exportingExcel.set(true);
-    void this.dgExcel.openManifest().then((ok) => {
+    void this.dgExcel.openManifest(this.buildExportContext()).then((ok) => {
       if (ok) {
         this.toast.show('Excel manifest opened', 'success');
       } else {
@@ -314,13 +367,20 @@ export class DgComponent {
   }
 
   private hasExportData(): boolean {
-    const onboard = this.library().onboard.filter((c) => c.status === 'onboard');
-    return onboard.some(
+    return this.visibleContainers().some(
       (c) =>
         c.lines.some(
           (l) => l.dgClass || l.unNo || l.weightKg || l.properShippingName,
         ) || c.containerNo,
     );
+  }
+
+  private buildExportContext(): DgManifestExportContext {
+    return {
+      containers: this.visibleContainers(),
+      includeDischarged: this.library().showDischarged,
+      mergeLines: this.library().manifestMergeLines,
+    };
   }
 
   protected pickPdf(): void {

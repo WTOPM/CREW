@@ -1,14 +1,16 @@
 import { jsPDF } from 'jspdf';
 import {
-  dgOnboardInventoryStats,
-  parseDgWeightKg,
+  dgContainersExportTotalKg,
+  formatDgExportLineWeightKg,
   resolveDgMasterName,
   type DgLibrarySettings,
 } from '../models/dg-manifest.models';
-import { CrewMember, ShipInfo } from '../models/crew.models';
+import type { DgManifestExportContext } from '../models/dg-manifest-export.models';
+import { CrewMember, ShipInfo, type Port } from '../models/crew.models';
 import { formatDisplayDate } from './date.util';
 import {
-  dgOnboardToExcelRows,
+  dgContainersToExcelRows,
+  dgManifestHeaderPortName,
   formatDgVesselDisplay,
   type DgManifestExcelRow,
 } from './dg-manifest-excel-layout.util';
@@ -39,6 +41,10 @@ interface PdfCol {
   w: number;
   align: 'left' | 'center' | 'right';
   value: (row: DgManifestExcelRow, index: number) => string;
+  /** Keep value on one line (ISO codes, UN, etc.). */
+  singleLine?: boolean;
+  /** Fixed header lines (e.g. FLASH / POINT stacked). */
+  headerLines?: readonly string[];
 }
 
 const EMPTY_ROW: DgManifestExcelRow = {
@@ -56,26 +62,23 @@ const EMPTY_ROW: DgManifestExcelRow = {
 };
 
 const COLS: PdfCol[] = [
-  { label: '', w: 13, align: 'center', value: (_r, i) => (i >= 0 ? String(i + 1) : '') },
-  { label: 'POL', w: 26, align: 'center', value: (r) => r.pol },
-  { label: 'POD', w: 26, align: 'center', value: (r) => r.pod },
-  { label: 'Type', w: 17, align: 'center', value: (r) => r.type },
-  { label: 'Container-No.', w: 50, align: 'center', value: (r) => r.containerNo },
-  { label: 'Stowage', w: 26, align: 'center', value: (r) => r.stowage },
-  { label: 'Class', w: 20, align: 'center', value: (r) => r.dgClass },
-  { label: 'UN-No.', w: 24, align: 'center', value: (r) => r.unNo },
-  { label: 'MP/LQ', w: 18, align: 'center', value: (r) => r.mpLq },
-  { label: 'FLASH POINT', w: 26, align: 'center', value: (r) => r.flashPoint },
+  { label: '', w: 13, align: 'center', value: (_r, i) => (i >= 0 ? String(i + 1) : ''), singleLine: true },
+  { label: 'POL', w: 26, align: 'center', value: (r) => r.pol, singleLine: true },
+  { label: 'POD', w: 26, align: 'center', value: (r) => r.pod, singleLine: true },
+  { label: 'Type', w: 24, align: 'center', value: (r) => r.type, singleLine: true },
+  { label: 'Container-No.', w: 50, align: 'center', value: (r) => r.containerNo, singleLine: true },
+  { label: 'Stowage', w: 26, align: 'center', value: (r) => r.stowage, singleLine: true },
+  { label: 'Class', w: 20, align: 'center', value: (r) => r.dgClass, singleLine: true },
+  { label: 'UN-No.', w: 24, align: 'center', value: (r) => r.unNo, singleLine: true },
+  { label: 'MP/LQ', w: 22, align: 'center', value: (r) => r.mpLq, singleLine: true },
+  { label: 'FLASH POINT', headerLines: ['FLASH', 'POINT'], w: 26, align: 'center', value: (r) => r.flashPoint, singleLine: true },
   { label: 'PROPER SHIPPING NAME', w: 0, align: 'left', value: (r) => r.properShippingName },
   {
     label: 'Weight, kg',
     w: 30,
     align: 'center',
-    value: (r) => {
-      if (!r.weightKg) return '';
-      const n = parseDgWeightKg(r.weightKg);
-      return n ? String(Math.round(n * 10) / 10) : r.weightKg;
-    },
+    singleLine: true,
+    value: (r) => formatDgExportLineWeightKg(r.weightKg),
   },
 ];
 
@@ -97,9 +100,7 @@ function colXs(widths: number[]): number[] {
 }
 
 function formatTotalKg(value: number): string {
-  if (!value) return '';
-  const rounded = Math.round(value * 10) / 10;
-  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+  return value ? String(value) : '0';
 }
 
 function strokeRect(doc: jsPDF, x: number, y: number, w: number, h: number, lineWidth = 0.4): void {
@@ -119,15 +120,50 @@ function drawTextInCell(
   fontSize = 7,
   style: 'normal' | 'bold' | 'italic' | 'bolditalic' = 'bolditalic',
   color?: { r: number; g: number; b: number },
+  singleLine = false,
+  fontFamily: 'times' | 'helvetica' = 'times',
+  fixedLines?: readonly string[],
 ): void {
-  doc.setFont('times', style);
-  doc.setFontSize(fontSize);
-  if (color) doc.setTextColor(color.r, color.g, color.b);
-  else doc.setTextColor(0, 0, 0);
+  doc.setFont(fontFamily, style);
+  doc.setTextColor(color?.r ?? 0, color?.g ?? 0, color?.b ?? 0);
 
   const pad = 1.5;
   const maxW = Math.max(4, w - pad * 2);
-  const lines = (doc.splitTextToSize(text || '', maxW) as string[]).slice(0, 2);
+  const content = text || '';
+
+  let fs = fontSize;
+  doc.setFontSize(fs);
+
+  if (fixedLines?.length) {
+    const lines = [...fixedLines];
+    const lineH = fs + 1.2;
+    let textY = y + (h - lines.length * lineH) / 2 + fs * 0.85;
+    for (const line of lines) {
+      let textX = x + pad;
+      if (align === 'center') textX = x + w / 2;
+      else if (align === 'right') textX = x + w - pad;
+      doc.text(line, textX, textY, { align });
+      textY += lineH;
+    }
+    return;
+  }
+
+  if (singleLine) {
+    while (fs > 5.5 && doc.getTextWidth(content) > maxW) {
+      fs -= 0.25;
+      doc.setFontSize(fs);
+    }
+    doc.setFontSize(fs);
+    const textY = y + h / 2 + fs * 0.34;
+    let textX = x + pad;
+    if (align === 'center') textX = x + w / 2;
+    else if (align === 'right') textX = x + w - pad;
+    doc.text(content, textX, textY, { align });
+    return;
+  }
+
+  doc.setFontSize(fontSize);
+  const lines = (doc.splitTextToSize(content, maxW) as string[]).slice(0, 2);
   const lineH = fontSize + 1.5;
   let textY = y + (h - lines.length * lineH) / 2 + fontSize;
 
@@ -145,6 +181,7 @@ function drawManifestHeader(
   ship: ShipInfo,
   crew: readonly CrewMember[],
   totalKg: number,
+  ports: readonly Port[] = [],
 ): void {
   const y0 = MARGIN;
   strokeRect(doc, MARGIN, y0, CONTENT_W, HEADER_H, 0.6);
@@ -173,8 +210,8 @@ function drawManifestHeader(
   const totalW = CONTENT_W - leftW - midW;
   const rowH = META_H / 2;
 
-  const depPort = ship.portOfCall?.trim().toUpperCase() ?? '';
-  const arrPort = ship.nextPortOfCall?.trim().toUpperCase() ?? '';
+  const depPort = dgManifestHeaderPortName(ship.portOfCall ?? '', ports);
+  const arrPort = dgManifestHeaderPortName(ship.nextPortOfCall ?? '', ports);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
@@ -190,7 +227,9 @@ function drawManifestHeader(
   doc.setFont('times', 'bolditalic');
   doc.text(formatDisplayDate(ship.dateOfDeparture), MARGIN + leftW + 46, y + 9);
 
-  strokeRect(doc, totalX, y, totalW, META_H);
+  const metaEndY = MARGIN + HEADER_H;
+  const totalBoxH = metaEndY - y;
+  strokeRect(doc, totalX, y, totalW, totalBoxH);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
   doc.setTextColor(0, 0, 0);
@@ -228,15 +267,22 @@ function drawContinuationBanner(doc: jsPDF): void {
 function drawTableHeader(doc: jsPDF, y: number, widths: number[], xs: number[]): void {
   COLS.forEach((col, i) => {
     strokeRect(doc, xs[i], y, widths[i], TABLE_HEAD_H);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(5.5);
-    doc.setTextColor(0, 0, 0);
-    const labelLines = (doc.splitTextToSize(col.label, widths[i] - 3) as string[]).slice(0, 3);
-    let ly = y + 7;
-    for (const line of labelLines) {
-      doc.text(line, xs[i] + widths[i] / 2, ly, { align: 'center' });
-      ly += 6;
-    }
+    if (!col.label) return;
+    drawTextInCell(
+      doc,
+      col.label,
+      xs[i],
+      y,
+      widths[i],
+      TABLE_HEAD_H,
+      'center',
+      5.5,
+      'bold',
+      undefined,
+      !col.headerLines?.length,
+      'helvetica',
+      col.headerLines,
+    );
   });
 }
 
@@ -257,7 +303,7 @@ function drawDataRow(
     } else if (hasData) {
       text = col.value(row, globalIndex);
     }
-    drawTextInCell(doc, text, xs[i], y, widths[i], ROW_H, col.align, 6.5);
+    drawTextInCell(doc, text, xs[i], y, widths[i], ROW_H, col.align, 6.5, 'bolditalic', undefined, col.singleLine);
   });
 }
 
@@ -280,11 +326,12 @@ function drawTablePage(
   crew: readonly CrewMember[],
   totalKg: number,
   fullHeader: boolean,
+  ports: readonly Port[],
 ): void {
   if (pageIndex > 0) {
     drawContinuationBanner(doc);
   } else {
-    drawManifestHeader(doc, ship, crew, totalKg);
+    drawManifestHeader(doc, ship, crew, totalKg, ports);
   }
 
   const tableY = fullHeader ? TABLE_TOP : MARGIN + 21;
@@ -309,10 +356,14 @@ export function buildDgManifestPdf(
   ship: ShipInfo,
   crew: readonly CrewMember[],
   library: DgLibrarySettings,
+  ports: readonly Port[] = [],
+  exportContext?: DgManifestExportContext,
 ): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-  const allRows = dgOnboardToExcelRows(library.onboard);
-  const stats = dgOnboardInventoryStats(library.onboard, false);
+  const containers = exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
+  const mergeLines = exportContext?.mergeLines ?? true;
+  const allRows = dgContainersToExcelRows(containers, ports, { mergeLines });
+  const exportTotalKg = dgContainersExportTotalKg(containers);
   const widths = resolveColWidths();
   const xs = colXs(widths);
 
@@ -320,7 +371,19 @@ export function buildDgManifestPdf(
 
   for (let page = 0; page < totalPages; page++) {
     if (page > 0) doc.addPage();
-    drawTablePage(doc, page, totalPages, allRows, widths, xs, ship, crew, stats.totalKg, page === 0);
+    drawTablePage(
+      doc,
+      page,
+      totalPages,
+      allRows,
+      widths,
+      xs,
+      ship,
+      crew,
+      exportTotalKg,
+      page === 0,
+      ports,
+    );
   }
 
   return doc;
@@ -330,7 +393,9 @@ export function buildDgManifestPdfBytes(
   ship: ShipInfo,
   crew: readonly CrewMember[],
   library: DgLibrarySettings,
+  ports: readonly Port[] = [],
+  exportContext?: DgManifestExportContext,
 ): Uint8Array {
-  const doc = buildDgManifestPdf(ship, crew, library);
+  const doc = buildDgManifestPdf(ship, crew, library, ports, exportContext);
   return new Uint8Array(doc.output('arraybuffer') as ArrayBuffer);
 }

@@ -49,25 +49,49 @@
 
   @if (ship().name || ship().voyageNumber) {
     <section class="card dg-voyage-strip">
-      <div class="dg-voyage-item">
+      <div class="dg-voyage-item dg-voyage-item--readonly">
         <span class="dg-voyage-label">Vessel</span>
         <strong>{{ ship().name || '—' }}</strong>
         @if (ship().callSign) {
           <span class="dg-voyage-muted">/ {{ ship().callSign }}</span>
         }
       </div>
-      <div class="dg-voyage-item">
+      <div class="dg-voyage-item dg-voyage-item--readonly">
         <span class="dg-voyage-label">Voyage</span>
         <strong>{{ ship().voyageNumber || '—' }}</strong>
       </div>
-      <div class="dg-voyage-item">
+      <label class="dg-voyage-item dg-voyage-item--field">
         <span class="dg-voyage-label">Port of call</span>
-        <strong>{{ ship().portOfCall || '—' }}</strong>
-      </div>
-      <div class="dg-voyage-item">
+        <app-port-select
+          [ports]="ports()"
+          [value]="ship().portOfCall"
+          (valueChange)="onShipChange('portOfCall', $event)"
+        />
+      </label>
+      <label class="dg-voyage-item dg-voyage-item--field">
         <span class="dg-voyage-label">Departure</span>
-        <strong>{{ formatDate(ship().dateOfDeparture) || '—' }}</strong>
-      </div>
+        <app-date-picker
+          size="sm"
+          [value]="ship().dateOfDeparture"
+          (valueChange)="onShipChange('dateOfDeparture', $event)"
+        />
+      </label>
+      <label class="dg-voyage-item dg-voyage-item--field">
+        <span class="dg-voyage-label">Port of arrival</span>
+        <app-port-select
+          [ports]="ports()"
+          [value]="ship().nextPortOfCall"
+          (valueChange)="onShipChange('nextPortOfCall', $event)"
+        />
+      </label>
+      <label class="dg-voyage-item dg-voyage-item--field">
+        <span class="dg-voyage-label">Arrival</span>
+        <app-date-picker
+          size="sm"
+          [value]="ship().dateOfArrival"
+          (valueChange)="onShipChange('dateOfArrival', $event)"
+        />
+      </label>
     </section>
   }
 
@@ -149,39 +173,76 @@
           </div>
           <div class="dg-inventory-total">
             <span class="dg-total-label">Total net, kg</span>
-            <strong class="dg-total-value">{{ stats().totalKg || '—' }}</strong>
+            <strong class="dg-total-value">{{ formatSummaryKg(stats().totalKg) }}</strong>
           </div>
         </div>
 
         <div class="dg-inventory-toolbar">
-          <label class="choice-label dg-show-discharged">
-            <input
-              type="checkbox"
-              [ngModel]="library().showDischarged"
-              (ngModelChange)="toggleShowDischarged($event)"
-            />
-            Show discharged
-          </label>
-          <div class="dg-inventory-toolbar-actions">
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm dg-pdf-btn"
-              [disabled]="exportingPdf()"
-              (click)="exportPdf()"
-            >
-              PDF
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm dg-excel-btn"
-              [disabled]="exportingExcel()"
-              (click)="exportExcel()"
-            >
-              Excel
-            </button>
-            <button type="button" class="btn btn-primary btn-sm" (click)="addContainer()">
-              + Container
-            </button>
+          <div class="dg-toolbar-panel dg-toolbar-panel--display" role="group" aria-label="Inventory display options">
+            <span class="dg-toolbar-panel__label">Display</span>
+            <div class="dg-toolbar-panel__body dg-inventory-view-options">
+              <label class="choice-label dg-view-option">
+                <input
+                  type="checkbox"
+                  [ngModel]="library().showDischarged"
+                  (ngModelChange)="toggleShowDischarged($event)"
+                />
+                Show discharged
+              </label>
+              <label
+                class="choice-label dg-view-option"
+                title="Combine lines in the same container when class, UN, name and MP/LQ match (same as PDF export)"
+              >
+                <input
+                  type="checkbox"
+                  [ngModel]="library().manifestMergeLines"
+                  (ngModelChange)="toggleManifestMergeLines($event)"
+                />
+                Consolidate duplicate lines
+              </label>
+              <label
+                class="choice-label dg-view-option"
+                title="Round line weights to whole kg; totals stay as sum of raw weights rounded once (same as PDF export)"
+              >
+                <input
+                  type="checkbox"
+                  [ngModel]="library().manifestGrossTotalKg"
+                  (ngModelChange)="toggleManifestGrossTotalKg($event)"
+                />
+                Gross total weight
+              </label>
+            </div>
+          </div>
+
+          <div class="dg-toolbar-panel dg-toolbar-panel--generate" role="group" aria-label="Manifest generation">
+            <span class="dg-toolbar-panel__label">Generate</span>
+            <div class="dg-toolbar-panel__body">
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm dg-pdf-btn"
+                [disabled]="exportingPdf()"
+                (click)="exportPdf()"
+              >
+                PDF
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm dg-excel-btn"
+                [disabled]="exportingExcel()"
+                (click)="exportExcel()"
+              >
+                Excel
+              </button>
+            </div>
+          </div>
+
+          <div class="dg-toolbar-panel dg-toolbar-panel--add" role="group" aria-label="Add inventory">
+            <span class="dg-toolbar-panel__label">Add</span>
+            <div class="dg-toolbar-panel__body">
+              <button type="button" class="btn btn-primary btn-sm dg-add-container-btn" (click)="addContainer()">
+                + Container
+              </button>
+            </div>
           </div>
         </div>
 
@@ -201,6 +262,8 @@
                 <col class="col-stowage" />
                 <col class="col-class" />
                 <col class="col-un" />
+                <col class="col-mp-lq" />
+                <col class="col-flash" />
                 <col class="col-weight" />
                 <col class="col-name" />
                 <col class="col-line-act" />
@@ -272,6 +335,12 @@
                   >
                     UN
                   </th>
+                  <th class="col-mp-lq" title="Marine Pollutant / Limited Quantity">
+                    MP/LQ
+                  </th>
+                  <th class="col-flash" title="Flash point">
+                    <span class="dg-th-stack"><span>FLASH</span><span>POINT</span></span>
+                  </th>
                   <th
                     class="col-weight dg-sort-th"
                     [class.dg-sort-th--active]="inventorySortColumn() === 'weightKg'"
@@ -313,17 +382,19 @@
                           class="dg-cell-input dg-cell-input--mono"
                           [ngModel]="container.containerNo"
                           (ngModelChange)="onContainerChange(container.id, 'containerNo', $event)"
-                          placeholder="CAIU3849740"
+                          placeholder="—"
                         />
                       </td>
                       <td>
-                        <input
-                          type="text"
-                          class="dg-cell-input dg-cell-input--mono"
-                          [ngModel]="container.type"
-                          (ngModelChange)="onContainerChange(container.id, 'type', $event)"
-                          placeholder="22G1"
-                        />
+                        <span class="dg-hint-tooltip-host" [appContainerTypeTooltip]="container.type">
+                          <input
+                            type="text"
+                            class="dg-cell-input dg-cell-input--mono"
+                            [ngModel]="container.type"
+                            (ngModelChange)="onContainerChange(container.id, 'type', $event)"
+                            placeholder="—"
+                          />
+                        </span>
                       </td>
                       <td>
                         <div class="dg-cell-port-select">
@@ -351,10 +422,10 @@
                           class="dg-cell-input dg-cell-input--stowage"
                           [ngModel]="container.stowage"
                           (ngModelChange)="onContainerChange(container.id, 'stowage', $event)"
-                          placeholder="030082"
+                          placeholder="—"
                         />
                       </td>
-                      <td colspan="4" class="dg-master-empty-cargo">
+                      <td colspan="6" class="dg-master-empty-cargo">
                         <button
                           type="button"
                           class="dg-act dg-act--add dg-act--wide"
@@ -407,7 +478,7 @@
                       </td>
                     </tr>
                   } @else {
-                    @for (line of container.lines; track line.id; let first = $first; let last = $last) {
+                    @for (line of containerDisplayLines(container); track line.id; let first = $first; let last = $last) {
                       <tr
                         class="dg-master-row"
                         [attr.data-container-id]="container.id"
@@ -423,14 +494,14 @@
                         @if (first) {
                           <td
                             class="col-index"
-                            [attr.rowspan]="container.lines.length"
+                            [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
                           >
                             {{ ci + 1 }}
                           </td>
                           <td
-                            [attr.rowspan]="container.lines.length"
+                            [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
                           >
@@ -439,24 +510,26 @@
                               class="dg-cell-input dg-cell-input--mono"
                               [ngModel]="container.containerNo"
                               (ngModelChange)="onContainerChange(container.id, 'containerNo', $event)"
-                              placeholder="CAIU3849740"
+                              placeholder="—"
                             />
                           </td>
                           <td
-                            [attr.rowspan]="container.lines.length"
+                            [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
                           >
-                            <input
-                              type="text"
-                              class="dg-cell-input dg-cell-input--mono"
-                              [ngModel]="container.type"
-                              (ngModelChange)="onContainerChange(container.id, 'type', $event)"
-                              placeholder="22G1"
-                            />
+                            <span class="dg-hint-tooltip-host" [appContainerTypeTooltip]="container.type">
+                              <input
+                                type="text"
+                                class="dg-cell-input dg-cell-input--mono"
+                                [ngModel]="container.type"
+                                (ngModelChange)="onContainerChange(container.id, 'type', $event)"
+                                placeholder="—"
+                              />
+                            </span>
                           </td>
                           <td
-                            [attr.rowspan]="container.lines.length"
+                            [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
                           >
@@ -470,7 +543,7 @@
                             </div>
                           </td>
                           <td
-                            [attr.rowspan]="container.lines.length"
+                            [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
                           >
@@ -484,7 +557,7 @@
                             </div>
                           </td>
                           <td
-                            [attr.rowspan]="container.lines.length"
+                            [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
                           >
@@ -493,65 +566,116 @@
                               class="dg-cell-input dg-cell-input--stowage"
                               [ngModel]="container.stowage"
                               (ngModelChange)="onContainerChange(container.id, 'stowage', $event)"
-                              placeholder="030082"
+                              placeholder="—"
                             />
                           </td>
                         }
                         <td class="col-class">
-                          <input
-                            type="text"
-                            class="dg-cell-input"
-                            [ngModel]="line.dgClass"
-                            (ngModelChange)="onLineChange(container.id, line.id, 'dgClass', $event)"
-                            placeholder="2.1"
-                          />
+                          @if (line.editable) {
+                            <span class="dg-hint-tooltip-host" [appDgClassTooltip]="line.dgClass">
+                              <input
+                                type="text"
+                                class="dg-cell-input"
+                                [ngModel]="line.dgClass"
+                                (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'dgClass', $event)"
+                                placeholder="—"
+                              />
+                            </span>
+                          } @else {
+                            <span class="dg-cell-readonly dg-hint-tooltip-host" [appDgClassTooltip]="line.dgClass">
+                              {{ line.dgClass || '—' }}
+                            </span>
+                          }
                         </td>
                         <td class="col-un">
-                          <input
-                            type="text"
-                            class="dg-cell-input dg-cell-input--mono"
-                            [ngModel]="line.unNo"
-                            (ngModelChange)="onLineChange(container.id, line.id, 'unNo', $event)"
-                          />
+                          @if (line.editable) {
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--mono"
+                              [ngModel]="line.unNo"
+                              (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'unNo', $event)"
+                              placeholder="—"
+                            />
+                          } @else {
+                            <span class="dg-cell-readonly">{{ line.unNo || '—' }}</span>
+                          }
+                        </td>
+                        <td class="col-mp-lq">
+                          @if (line.editable) {
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--mono"
+                              [ngModel]="line.mpLq"
+                              (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'mpLq', $event)"
+                              placeholder="—"
+                            />
+                          } @else {
+                            <span class="dg-cell-readonly">{{ line.mpLq || '—' }}</span>
+                          }
+                        </td>
+                        <td class="col-flash">
+                          @if (line.editable) {
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--mono"
+                              [ngModel]="line.flashPoint"
+                              (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'flashPoint', $event)"
+                              placeholder="—"
+                            />
+                          } @else {
+                            <span class="dg-cell-readonly">{{ line.flashPoint || '—' }}</span>
+                          }
                         </td>
                         <td class="col-weight">
-                          <input
-                            type="text"
-                            class="dg-cell-input dg-cell-input--weight"
-                            [ngModel]="line.weightKg"
-                            (ngModelChange)="onLineChange(container.id, line.id, 'weightKg', $event)"
-                            inputmode="decimal"
-                          />
+                          @if (line.editable) {
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--weight"
+                              [ngModel]="line.weightKgDisplay"
+                              (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'weightKg', $event)"
+                              inputmode="decimal"
+                              placeholder="—"
+                            />
+                          } @else {
+                            <span class="dg-cell-readonly dg-cell-readonly--weight">{{ line.weightKgDisplay || '—' }}</span>
+                          }
                         </td>
                         <td class="col-name">
-                          <textarea
-                            rows="1"
-                            class="dg-cell-input dg-cell-input--name"
-                            [ngModel]="line.properShippingName"
-                            (ngModelChange)="onLineChange(container.id, line.id, 'properShippingName', $event)"
-                          ></textarea>
+                          @if (line.editable) {
+                            <textarea
+                              rows="1"
+                              class="dg-cell-input dg-cell-input--name"
+                              [ngModel]="line.properShippingName"
+                              (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'properShippingName', $event)"
+                              placeholder="—"
+                            ></textarea>
+                          } @else {
+                            <span class="dg-cell-readonly dg-cell-readonly--name">{{ line.properShippingName || '—' }}</span>
+                          }
                         </td>
                         <td class="col-line-act">
-                          <button
-                            type="button"
-                            class="dg-act dg-act--line-remove"
-                            title="Remove DG line"
-                            (click)="removeLine(container.id, line.id)"
-                          >
-                            <dg-act-icon kind="line-remove" />
-                          </button>
+                          @if (line.editable) {
+                            <button
+                              type="button"
+                              class="dg-act dg-act--line-remove"
+                              title="Remove DG line"
+                              (click)="removeLine(container.id, line.sourceLineIds[0])"
+                            >
+                              <dg-act-icon kind="line-remove" />
+                            </button>
+                          }
                         </td>
                         @if (first) {
                           <td
                             class="col-actions"
-                            [attr.rowspan]="container.lines.length"
+                            [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
                           >
                             <div class="dg-row-actions">
                               @if (container.status !== 'discharged') {
                                 <span class="dg-container-kg" [title]="'Container total, kg'">
-                                  {{ containerTotalKg(container) || 0 }}
+                                  {{ formatSummaryKg(containerTotalKg(container)) }}
                                 </span>
                               }
                               @if (container.status === 'discharged') {
@@ -629,7 +753,11 @@
                 <tbody>
                   @for (row of classSummaries(); track row.dgClass) {
                     <tr>
-                      <td class="dg-class-summary-class">{{ row.dgClass }}</td>
+                      <td class="dg-class-summary-class">
+                        <span class="dg-hint-tooltip-host dg-class-summary-class__hint" [appDgClassTooltip]="row.dgClass">
+                          {{ row.dgClass }}
+                        </span>
+                      </td>
                       <td class="dg-class-summary-kg">{{ formatSummaryKg(row.totalKg) }}</td>
                       <td class="dg-class-summary-un">{{ row.unNumbers.join(' ') }}</td>
                     </tr>

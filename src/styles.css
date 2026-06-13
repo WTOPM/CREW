@@ -955,3 +955,50 @@ th {
     min-width: 0;
   }
 }
+
+.dg-hint-tooltip-host,
+.dg-type-tooltip-host {
+  display: block;
+  width: 100%;
+}
+
+.dg-hint-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: min(18rem, calc(100vw - 1rem));
+  padding: 0.45rem 0.62rem;
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+  background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);
+  box-shadow:
+    0 10px 24px rgb(2 132 199 / 18%),
+    0 2px 6px rgb(15 23 42 / 8%);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.dg-hint-tooltip--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dg-hint-tooltip__code {
+  display: block;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #0369a1;
+  margin-bottom: 0.15rem;
+}
+
+.dg-hint-tooltip__text {
+  display: block;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: #0f172a;
+}

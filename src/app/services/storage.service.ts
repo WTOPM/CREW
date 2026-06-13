@@ -41,6 +41,7 @@ import {
   migrateCrewMember,
   migratePortsRaw,
   resolveKnownPortName,
+  resolveManifestPortName,
   resolvePortRef,
   crewRankOrder,
   filterActiveCrewList,
@@ -951,9 +952,17 @@ export class StorageService {
   }
 
   updateDgShowDischarged(showDischarged: boolean): void {
+    this.updateDgManifestView({ showDischarged });
+  }
+
+  updateDgManifestView(
+    partial: Partial<
+      Pick<DgLibrarySettings, 'showDischarged' | 'manifestMergeLines' | 'manifestGrossTotalKg'>
+    >,
+  ): void {
     this.data.update((d) => ({
       ...d,
-      dgLibrary: { ...normalizeDgLibrary(d.dgLibrary), showDischarged },
+      dgLibrary: { ...normalizeDgLibrary(d.dgLibrary, undefined, d.ports), ...partial },
     }));
     void this.persist('silent');
   }
@@ -971,6 +980,7 @@ export class StorageService {
         portOfCall: shipCtx.portOfCall,
         nextPortOfCall: shipCtx.nextPortOfCall,
         dateOfDeparture: shipCtx.dateOfDeparture,
+        dateOfArrival: shipCtx.dateOfArrival ?? '',
       },
     }));
     void this.persist('silent');
@@ -1038,7 +1048,7 @@ export class StorageService {
 
   removeDgOnboardContainer(containerId: string): void {
     this.data.update((d) => {
-      const lib = normalizeDgLibrary(d.dgLibrary);
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
       return {
         ...d,
         dgLibrary: {
@@ -1056,7 +1066,7 @@ export class StorageService {
     partial: Partial<Omit<DgCargoLine, 'id'>>,
   ): void {
     this.data.update((d) => {
-      const lib = normalizeDgLibrary(d.dgLibrary);
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
       return {
         ...d,
         dgLibrary: {
@@ -1080,7 +1090,7 @@ export class StorageService {
     partial?: Partial<Omit<DgCargoLine, 'id'>>,
   ): void {
     this.data.update((d) => {
-      const lib = normalizeDgLibrary(d.dgLibrary);
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
       return {
         ...d,
         dgLibrary: {
@@ -1098,7 +1108,7 @@ export class StorageService {
 
   removeDgOnboardCargoLine(containerId: string, lineId: string): void {
     this.data.update((d) => {
-      const lib = normalizeDgLibrary(d.dgLibrary);
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
       return {
         ...d,
         dgLibrary: {
@@ -1116,7 +1126,7 @@ export class StorageService {
 
   removeDgManifest(id: string): void {
     this.data.update((d) => {
-      const lib = normalizeDgLibrary(d.dgLibrary);
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
       return {
         ...d,
         dgLibrary: {
@@ -1140,8 +1150,8 @@ export class StorageService {
 
     this.data.update((d) => {
       const libInner = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
-      const loadPort = resolveKnownPortName(result.header.portOfDeparture ?? '', d.ports);
-      const dischargePort = resolveKnownPortName(result.header.portOfArrival ?? '', d.ports);
+      const loadPort = resolveManifestPortName(result.header.portOfDeparture ?? '', d.ports);
+      const dischargePort = resolveManifestPortName(result.header.portOfArrival ?? '', d.ports);
       const doc = createDgManifestDocument({
         sourceName: sourceName.replace(/\.pdf$/i, '').trim() || 'PDF import',
         voyageNumber:

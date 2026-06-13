@@ -5,6 +5,7 @@ import {
   formatShipSecurityOfficerName,
   resolveKnownPortName,
 } from './crew.models';
+import { mergeDgCargoLines } from '../utils/dg-cargo-merge.util';
 
 /** @deprecated Legacy flat row — migrated into onboard inventory. */
 export interface DgManifestRow {
@@ -43,6 +44,10 @@ export interface DgCargoLine {
   unNo: string;
   weightKg: string;
   properShippingName: string;
+  /** MP / LQ abbreviations from manifest fields (4) and (5). */
+  mpLq: string;
+  /** Flash point temperature from manifest field (3), e.g. -10 °C. */
+  flashPoint: string;
 }
 
 /** One container on the cumulative onboard DG list. */
@@ -84,10 +89,21 @@ export interface DgLibrarySettings {
   manifests: DgManifestDocument[];
   onboard: DgOnboardContainer[];
   showDischarged: boolean;
+  /** Preview consolidated cargo lines (same rule as PDF export). */
+  manifestMergeLines: boolean;
+  /** Preview gross totals: sum raw weights, round once (same rule as PDF export). */
+  manifestGrossTotalKg: boolean;
+  /** @deprecated Renamed to manifestMergeLines — read during normalize only */
+  manifestRoundLineKg?: boolean;
   /** @deprecated */
   documents?: DgManifestDocument[];
   activeDocumentId?: string;
   sortBy?: DgSortMode;
+}
+
+export interface DgManifestViewOptions {
+  manifestMergeLines: boolean;
+  manifestGrossTotalKg: boolean;
 }
 
 export function createDgCargoLine(
@@ -100,6 +116,8 @@ export function createDgCargoLine(
     unNo: (partial?.unNo ?? '').trim(),
     weightKg: (partial?.weightKg ?? '').trim(),
     properShippingName: (partial?.properShippingName ?? '').trim(),
+    mpLq: (partial?.mpLq ?? '').trim(),
+    flashPoint: (partial?.flashPoint ?? '').trim(),
   };
 }
 
@@ -171,6 +189,8 @@ export function createDefaultDgLibrary(): DgLibrarySettings {
     manifests: [],
     onboard: [],
     showDischarged: false,
+    manifestMergeLines: false,
+    manifestGrossTotalKg: false,
   };
 }
 
@@ -222,6 +242,8 @@ export function normalizeDgLibrary(
       manifests,
       onboard,
       showDischarged: raw.showDischarged === true,
+      manifestMergeLines: raw.manifestMergeLines === true || raw.manifestRoundLineKg === true,
+      manifestGrossTotalKg: raw.manifestGrossTotalKg === true,
     };
   }
 
@@ -285,6 +307,8 @@ function migrateLegacyDgForm(
     manifests: [{ ...doc, containerCount: onboard.length }],
     onboard,
     showDischarged: false,
+    manifestMergeLines: false,
+    manifestGrossTotalKg: false,
   };
 }
 
@@ -329,7 +353,7 @@ export function groupLegacyRowsIntoContainers(
 ): Pick<DgOnboardContainer, 'containerNo' | 'type' | 'stowage' | 'lines'>[] {
   const map = new Map<string, Pick<DgOnboardContainer, 'containerNo' | 'type' | 'stowage' | 'lines'>>();
   for (const row of rows) {
-    const hasCargo = row.unNo || row.dgClass || row.properShippingName || row.weightKg;
+    const hasCargo = row.unNo || row.dgClass || row.properShippingName || row.weightKg || row.mpLq || row.flashPoint;
     if (!hasCargo && !row.containerNo) continue;
 
     const key = (row.containerNo ?? '').trim() || '__no_container__';
@@ -351,6 +375,8 @@ export function groupLegacyRowsIntoContainers(
           unNo: row.unNo,
           weightKg: row.weightKg,
           properShippingName: row.properShippingName,
+          mpLq: row.mpLq,
+          flashPoint: row.flashPoint,
         }),
       );
     }
@@ -367,21 +393,19 @@ export function onboardContainersFromImportRows(
 ): DgOnboardContainer[] {
   const grouped = groupLegacyRowsIntoContainers(rows);
   return grouped.map((g) => {
-    const rowWithPorts = rows.find(
-      (r) => (r.containerNo ?? '').trim() === g.containerNo && (r.pol || r.pod),
+    const rowsForContainer = rows.filter(
+      (r) => (r.containerNo ?? '').trim() === g.containerNo,
     );
-    const loadPort = resolveKnownPortName(
-      (rowWithPorts?.pol ?? defaultLoadPort).trim(),
-      ports,
-    );
-    const dischargePort = resolveKnownPortName(
-      (rowWithPorts?.pod ?? defaultDischargePort).trim(),
-      ports,
-    );
+    const rowWithPorts = rowsForContainer.find((r) => r.pol || r.pod);
+    let loadPort = (rowWithPorts?.pol ?? defaultLoadPort).trim();
+    let dischargePort = defaultDischargePort.trim();
+    for (const row of rowsForContainer) {
+      if (row.pod?.trim()) dischargePort = row.pod.trim();
+    }
     return createDgOnboardContainer({
       ...g,
-      loadPort,
-      dischargePort,
+      loadPort: resolveKnownPortName(loadPort, ports),
+      dischargePort: resolveKnownPortName(dischargePort, ports),
       status: 'onboard',
       sourceManifestId: manifestId,
     });
@@ -412,19 +436,121 @@ export function sortDgDocuments(
   }
 }
 
+/** Normalize manifest weight text (comma = thousands, dot = decimal). */
+function normalizeDgWeightInput(raw: string): string {
+  const s = raw.replace(/\s/g, '').trim();
+  if (!s) return '';
+
+  const hasComma = s.includes(',');
+  const hasDot = s.includes('.');
+
+  if (hasComma && hasDot) {
+    const lastComma = s.lastIndexOf(',');
+    const lastDot = s.lastIndexOf('.');
+    if (lastDot > lastComma) {
+      // 15,300.000 — comma thousands, dot decimal
+      return s.replace(/,/g, '');
+    }
+    // 15.300,000 — dot thousands, comma decimal
+    return s.replace(/\./g, '').replace(',', '.');
+  }
+
+  if (hasComma) {
+    // 15,300 — thousands only
+    if (/^\d{1,3}(,\d{3})+$/.test(s)) {
+      return s.replace(/,/g, '');
+    }
+    // 22,600 — decimal comma
+    return s.replace(',', '.');
+  }
+
+  return s;
+}
+
 export function parseDgWeightKg(value: string | undefined | null): number {
-  const cleaned = String(value ?? '')
-    .replace(/\s/g, '')
-    .replace(',', '.');
+  const cleaned = normalizeDgWeightInput(String(value ?? ''));
   if (!cleaned) return 0;
   const n = parseFloat(cleaned);
-  return Number.isFinite(n) ? n : 0;
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 1000) / 1000;
+}
+
+/** Display/import weight: trim trailing zeros, keep up to 3 decimal places (22.600 → 22.6, 980.000 → 980). */
+export function formatDgWeightKgDisplay(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'string' && !value.trim()) return '';
+
+  const n = typeof value === 'number' ? value : parseDgWeightKg(value);
+  if (!n) {
+    if (typeof value === 'string') {
+      const raw = value.trim();
+      if (raw && !Number.isFinite(parseFloat(normalizeDgWeightInput(raw)))) return raw;
+    }
+    return '';
+  }
+
+  const rounded = Math.round(n * 1000) / 1000;
+  return rounded.toFixed(3).replace(/\.?0+$/, '');
+}
+
+export function roundDgWeightKgSum(total: number): number {
+  if (!Number.isFinite(total)) return 0;
+  return Math.round(total * 1000) / 1000;
+}
+
+/** Nearest kg for one cargo line in DG export (500.5 → 501, 500.49 → 500). */
+export function roundDgExportLineWeightKg(value: string | number | undefined | null): number {
+  const n = typeof value === 'number' ? value : parseDgWeightKg(value);
+  if (!n) return 0;
+  return Math.round(n);
+}
+
+export function formatDgExportLineWeightKg(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'string' && !value.trim()) return '';
+  const n = roundDgExportLineWeightKg(value);
+  return n ? String(n) : '';
+}
+
+/** Manifest export total: sum raw line weights, then round — not sum of rounded lines. */
+export function dgOnboardExportTotalKg(
+  onboard: readonly DgOnboardContainer[],
+  includeDischarged = false,
+): number {
+  const visible = includeDischarged
+    ? onboard
+    : onboard.filter((c) => c.status === 'onboard');
+  return dgContainersExportTotalKg(visible);
+}
+
+export function dgContainersExportTotalKg(
+  containers: readonly DgOnboardContainer[],
+): number {
+  const sum = containers.reduce(
+    (total, container) =>
+      total + container.lines.reduce((lineSum, line) => lineSum + parseDgWeightKg(line.weightKg), 0),
+    0,
+  );
+  return Math.round(sum);
+}
+
+export function dgViewContainerTotalKg(
+  container: Pick<DgOnboardContainer, 'lines'>,
+  options: DgManifestViewOptions,
+): number {
+  if (options.manifestGrossTotalKg) {
+    const sum = container.lines.reduce((s, l) => s + parseDgWeightKg(l.weightKg), 0);
+    return Math.round(sum);
+  }
+  return dgContainerTotalKg(container);
 }
 
 export function dgContainerTotalKg(
   container: Pick<DgOnboardContainer, 'lines'>,
 ): number {
-  return container.lines.reduce((sum, line) => sum + parseDgWeightKg(line.weightKg), 0);
+  return roundDgWeightKgSum(
+    container.lines.reduce((sum, line) => sum + parseDgWeightKg(line.weightKg), 0),
+  );
 }
 
 /** True when every container linked to this manifest import is discharged. */
@@ -453,8 +579,29 @@ export function dgOnboardInventoryStats(
   return {
     containerCount: visible.length,
     lineCount: visible.reduce((n, c) => n + c.lines.length, 0),
-    totalKg: visible.reduce((n, c) => n + dgContainerTotalKg(c), 0),
+    totalKg: roundDgWeightKgSum(visible.reduce((n, c) => n + dgContainerTotalKg(c), 0)),
     dischargedCount,
+  };
+}
+
+export function dgViewOnboardInventoryStats(
+  onboard: readonly DgOnboardContainer[],
+  includeDischarged: boolean,
+  options: DgManifestViewOptions,
+  displayLineCount?: (container: DgOnboardContainer) => number,
+): ReturnType<typeof dgOnboardInventoryStats> {
+  const base = dgOnboardInventoryStats(onboard, includeDischarged);
+  const visible = includeDischarged
+    ? onboard
+    : onboard.filter((c) => c.status === 'onboard');
+  return {
+    ...base,
+    lineCount: displayLineCount
+      ? visible.reduce((n, c) => n + displayLineCount(c), 0)
+      : base.lineCount,
+    totalKg: options.manifestGrossTotalKg
+      ? dgOnboardExportTotalKg(onboard, includeDischarged)
+      : base.totalKg,
   };
 }
 
@@ -482,14 +629,62 @@ export function dgOnboardClassSummaries(
   const visible = includeDischarged
     ? onboard
     : onboard.filter((c) => c.status === 'onboard');
+  return dgClassSummariesFromLines(visible, (line) => parseDgWeightKg(line.weightKg), (total) =>
+    roundDgWeightKgSum(total),
+  );
+}
 
+export function dgViewOnboardClassSummaries(
+  onboard: readonly DgOnboardContainer[],
+  includeDischarged: boolean,
+  options: DgManifestViewOptions,
+): DgClassSummaryRow[] {
+  const visible = includeDischarged
+    ? onboard
+    : onboard.filter((c) => c.status === 'onboard');
+  const containers = options.manifestMergeLines
+    ? visible.map((container) => ({
+        ...container,
+        lines: mergeDgCargoLinesForSummary(container.lines),
+      }))
+    : visible;
+  if (options.manifestGrossTotalKg) {
+    return dgClassSummariesFromLines(containers, (line) => parseDgWeightKg(line.weightKg), (total) =>
+      Math.round(total),
+    );
+  }
+  if (options.manifestMergeLines) {
+    return dgClassSummariesFromLines(containers, (line) => parseDgWeightKg(line.weightKg), (total) =>
+      roundDgWeightKgSum(total),
+    );
+  }
+  return dgOnboardClassSummaries(onboard, includeDischarged);
+}
+
+function mergeDgCargoLinesForSummary(lines: readonly DgCargoLine[]): DgCargoLine[] {
+  return mergeDgCargoLines(lines).map((row) => ({
+    id: row.mergeKey,
+    dgClass: row.dgClass,
+    unNo: row.unNo,
+    mpLq: row.mpLq,
+    flashPoint: row.flashPoint,
+    properShippingName: row.properShippingName,
+    weightKg: formatDgWeightKgDisplay(row.weightSum) || String(row.weightSum),
+  }));
+}
+
+function dgClassSummariesFromLines(
+  containers: readonly DgOnboardContainer[],
+  lineWeight: (line: DgCargoLine) => number,
+  finalizeTotal: (total: number) => number,
+): DgClassSummaryRow[] {
   const map = new Map<string, { dgClass: string; totalKg: number; unSet: Set<string> }>();
 
-  for (const container of visible) {
+  for (const container of containers) {
     for (const line of container.lines) {
       const dgClass = line.dgClass.trim();
       const unNo = line.unNo.trim();
-      const weight = parseDgWeightKg(line.weightKg);
+      const weight = lineWeight(line);
       if (!dgClass && !unNo && !weight) continue;
 
       const key = dgClass.replace(',', '.').toLowerCase() || '__unknown__';
@@ -506,7 +701,7 @@ export function dgOnboardClassSummaries(
   return [...map.values()]
     .map((entry) => ({
       dgClass: entry.dgClass,
-      totalKg: entry.totalKg,
+      totalKg: finalizeTotal(entry.totalKg),
       unNumbers: [...entry.unSet].sort((a, b) => {
         const cmp = dgUnSortKey(a) - dgUnSortKey(b);
         return cmp || a.localeCompare(b, undefined, { sensitivity: 'base' });

@@ -873,6 +873,27 @@ export function resolvePortRef(ref: string, ports: Port[] = []): Port | null {
   return { name: v, code: '' };
 }
 
+/** Match manifest city names (GENOA, MARSEILLE) to the user's port list. */
+export function resolveManifestPortName(ref: string, ports: readonly Port[] = []): string {
+  const known = resolveKnownPortName(ref, ports);
+  if (known) return known;
+
+  const v = ref.trim().toLowerCase();
+  if (!v) return '';
+
+  const byPrefix = ports.find((p) => p.name.toLowerCase().startsWith(v));
+  if (byPrefix) return byPrefix.name;
+
+  const byContains = ports.find((p) => {
+    const n = p.name.toLowerCase();
+    const c = (p.code ?? '').toLowerCase();
+    return n.includes(v) || v.includes(n.split(/\s+/)[0] ?? '') || (c && c.includes(v));
+  });
+  if (byContains) return byContains.name;
+
+  return '';
+}
+
 /** Canonical port name from the user's list, or empty when unknown. */
 export function resolveKnownPortName(ref: string, ports: readonly Port[] = []): string {
   const v = ref.trim();
@@ -885,9 +906,9 @@ export function resolveKnownPortName(ref: string, ports: readonly Port[] = []): 
   return '';
 }
 
-export function portCode(name: string, ports: Port[]): string {
+export function portCode(name: string, ports: readonly Port[] = []): string {
   if (!name) return '';
-  return ports.find((p) => p.name === name)?.code ?? resolvePortRef(name, ports)?.code ?? '';
+  return ports.find((p) => p.name === name)?.code ?? resolvePortRef(name, [...ports])?.code ?? '';
 }
 
 export function portCountry(name: string, ports: Port[]): string {

@@ -1,36 +1,71 @@
 import ExcelJS from 'exceljs';
 import {
-  dgOnboardInventoryStats,
+  dgContainersExportTotalKg,
+  dgOnboardClassSummaries,
+  formatDgWeightKgDisplay,
   parseDgWeightKg,
   resolveDgMasterName,
+  roundDgExportLineWeightKg,
+  type DgCargoLine,
   type DgLibrarySettings,
   type DgOnboardContainer,
 } from '../models/dg-manifest.models';
+import type { DgManifestExportContext } from '../models/dg-manifest-export.models';
+import {
+  dgCargoLineHasCargo,
+  mergeDgCargoLines,
+} from './dg-cargo-merge.util';
 import { compareDgManifestExportRowsByClass } from './dg-inventory-sort.util';
-import { CrewMember, ShipInfo } from '../models/crew.models';
+import {
+  CrewMember,
+  portCode,
+  resolveManifestPortName,
+  ShipInfo,
+  type Port,
+} from '../models/crew.models';
 import { formatDisplayDate } from './date.util';
 import { workbookToBytes } from './crew-list-excel-layout.util';
 
 export const DG_MANIFEST_COLS = 12;
-export const DG_MANIFEST_SHEET = 'DG Manifest';
+export const DG_MANIFEST_SHEET = 'IMO list  ';
 
-const LABEL_FONT = 'Arial';
-const DATA_FONT = 'Times New Roman';
-const BORDER_COLOR = 'FF000000';
-const PORT_RED = 'FFB91C1C';
-const TOTAL_BLUE = 'FF0284C7';
+const DATA_START = 10;
+const TABLE_HEAD_ROW = 9;
 
-const thin = { style: 'thin' as const, color: { argb: BORDER_COLOR } };
-const medium = { style: 'medium' as const, color: { argb: BORDER_COLOR } };
+/** Side panel columns (after separator M). */
+const COL_N = 14;
+const COL_P = 16;
+const COL_R = 18;
+const COL_U = 21;
 
-const THIN_BORDER: Partial<ExcelJS.Borders> = {
-  top: thin,
-  left: thin,
-  bottom: thin,
-  right: thin,
+const COL_WIDTHS: readonly number[] = [
+  4.9, 9.7, 9.7, 5.3, 18.6, 11.9, 5.7, 7.6, 9.1, 12.0, 25.7, 14.9,
+];
+
+const TIMES = 'Times New Roman';
+const ARIAL = 'Arial';
+
+const CLR = {
+  gray: 'FF424242',
+  brown: 'FF996633',
+  cyan: 'FF00CCFF',
+  red: 'FFFF0000',
+  green: 'FF008000',
+  navy: 'FF333399',
+  muted: 'FF666699',
+  white: 'FFFFFFFF',
+  black: 'FF000000',
+} as const;
+
+const thinEdge = { style: 'thin' as const, color: { argb: CLR.black } };
+const mediumEdge = { style: 'medium' as const, color: { argb: CLR.black } };
+const THIN: Partial<ExcelJS.Borders> = { top: thinEdge, left: thinEdge, bottom: thinEdge, right: thinEdge };
+const MEDIUM: Partial<ExcelJS.Borders> = {
+  top: mediumEdge,
+  left: mediumEdge,
+  bottom: mediumEdge,
+  right: mediumEdge,
 };
-
-const COL_WIDTHS = [4.2, 8.5, 8.5, 5.5, 14.5, 8.5, 5.5, 7, 5.5, 10, 42, 10];
 
 export interface DgManifestExcelRow {
   pol: string;
@@ -46,43 +81,334 @@ export interface DgManifestExcelRow {
   weightKg: string;
 }
 
-function merge(ws: ExcelJS.Worksheet, r1: number, c1: number, r2: number, c2: number): void {
+function mergeCells(ws: ExcelJS.Worksheet, r1: number, c1: number, r2: number, c2: number): void {
   if (r1 === r2 && c1 === c2) return;
   ws.mergeCells(r1, c1, r2, c2);
 }
 
-function setBorder(cell: ExcelJS.Cell, border: Partial<ExcelJS.Borders>): void {
-  cell.border = border as ExcelJS.Borders;
+function setCell(
+  ws: ExcelJS.Worksheet,
+  row: number,
+  col: number,
+  value: ExcelJS.CellValue,
+  style: {
+    font?: Partial<ExcelJS.Font>;
+    alignment?: Partial<ExcelJS.Alignment>;
+    border?: Partial<ExcelJS.Borders>;
+    fill?: ExcelJS.Fill;
+    numFmt?: string;
+  } = {},
+): ExcelJS.Cell {
+  const cell = ws.getCell(row, col);
+  cell.value = value;
+  if (style.font) cell.font = style.font as ExcelJS.Font;
+  if (style.alignment) cell.alignment = style.alignment as ExcelJS.Alignment;
+  if (style.border) cell.border = style.border as ExcelJS.Borders;
+  if (style.fill) cell.fill = style.fill;
+  if (style.numFmt) cell.numFmt = style.numFmt;
+  return cell;
 }
 
-function styleMetaLabel(cell: ExcelJS.Cell): void {
-  cell.font = { name: LABEL_FONT, size: 9 };
-  cell.alignment = { horizontal: 'left', vertical: 'bottom', wrapText: true };
-  setBorder(cell, THIN_BORDER);
+function solidFill(hex: string): ExcelJS.Fill {
+  return { type: 'pattern', pattern: 'solid', fgColor: { argb: hex } };
 }
 
-function styleMetaValue(cell: ExcelJS.Cell, opts?: { color?: string; bold?: boolean }): void {
-  cell.font = {
-    name: DATA_FONT,
-    size: 10,
-    bold: opts?.bold ?? true,
-    italic: true,
-    color: opts?.color ? { argb: opts.color } : undefined,
-  };
-  cell.alignment = { horizontal: 'left', vertical: 'bottom', wrapText: true };
-  setBorder(cell, THIN_BORDER);
+function addRangeBorder(
+  ws: ExcelJS.Worksheet,
+  r1: number,
+  c1: number,
+  r2: number,
+  c2: number,
+  edges: { top?: boolean; bottom?: boolean; left?: boolean; right?: boolean },
+): void {
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      const cell = ws.getCell(r, c);
+      const border = { ...(cell.border ?? {}) } as ExcelJS.Borders;
+      if (edges.top && r === r1) border.top = thinEdge;
+      if (edges.bottom && r === r2) border.bottom = thinEdge;
+      if (edges.left && c === c1) border.left = thinEdge;
+      if (edges.right && c === c2) border.right = thinEdge;
+      cell.border = border;
+    }
+  }
 }
 
-function styleTableHead(cell: ExcelJS.Cell): void {
-  cell.font = { name: LABEL_FONT, size: 8, bold: true };
-  cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-  setBorder(cell, THIN_BORDER);
+function exportClassTotalKg(rows: readonly DgManifestExcelRow[], dgClass: string): number {
+  const key = dgClass.trim();
+  const sum = rows
+    .filter((r) => r.dgClass.trim() === key)
+    .reduce((total, r) => total + parseDgWeightKg(r.weightKg), 0);
+  return Math.round(sum);
 }
 
-function styleTableData(cell: ExcelJS.Cell, align: 'left' | 'center' | 'right' = 'left'): void {
-  cell.font = { name: DATA_FONT, size: 9, bold: true, italic: true };
-  cell.alignment = { horizontal: align, vertical: 'middle', wrapText: true };
-  setBorder(cell, THIN_BORDER);
+function uniqueUnNumbers(rows: readonly DgManifestExcelRow[]): string {
+  const set = new Set<string>();
+  for (const row of rows) {
+    const un = row.unNo.trim();
+    if (un) set.add(un);
+  }
+  return [...set].sort((a, b) => {
+    const cmp = parseInt(a, 10) - parseInt(b, 10);
+    return cmp || a.localeCompare(b, undefined, { numeric: true });
+  }).join(' ');
+}
+
+function applyColumnWidths(ws: ExcelJS.Worksheet): void {
+  COL_WIDTHS.forEach((w, i) => {
+    ws.getColumn(i + 1).width = w;
+  });
+  ws.getColumn(13).width = 8.43;
+  ws.getColumn(COL_N).width = 12.9;
+  ws.getColumn(15).width = 10;
+  ws.getColumn(COL_P).width = 14.3;
+  for (let c = 17; c <= COL_U; c++) {
+    ws.getColumn(c).width = 10;
+  }
+}
+
+function buildReadinessBlock(ws: ExcelJS.Worksheet, ready: boolean): void {
+  mergeCells(ws, 1, COL_N, 1, COL_P);
+  setCell(ws, 1, COL_N, 'RED - NOT READY', {
+    font: { name: TIMES, size: 20, bold: true, color: { argb: CLR.white } },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+    fill: solidFill(CLR.red),
+    border: MEDIUM,
+  });
+
+  mergeCells(ws, 1, 17, 1, COL_U);
+  setCell(ws, 1, 17, 'GREEN - READY', {
+    font: { name: TIMES, size: 21, bold: true, color: { argb: CLR.white } },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+    fill: solidFill(CLR.green),
+    border: MEDIUM,
+  });
+
+  mergeCells(ws, 3, COL_N, 5, COL_U);
+  const statusLabel = ready ? 'READY' : 'NOT READY';
+  const statusFill = ready ? CLR.green : CLR.red;
+  setCell(ws, 3, COL_N, statusLabel, {
+    font: {
+      name: TIMES,
+      size: 36,
+      bold: true,
+      color: { argb: ready ? CLR.black : CLR.white },
+    },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    fill: solidFill(statusFill),
+    border: MEDIUM,
+  });
+}
+
+function buildManifestHeader(
+  ws: ExcelJS.Worksheet,
+  ship: ShipInfo,
+  crew: readonly CrewMember[],
+  ports: readonly Port[],
+  totalKg: number,
+): void {
+  mergeCells(ws, 1, 1, 1, 12);
+  setCell(ws, 1, 1, 'DANGEROUS GOODS MANIFEST', {
+    font: { name: TIMES, size: 20, bold: true, color: { argb: CLR.gray } },
+    alignment: { horizontal: 'center', vertical: 'bottom' },
+    border: THIN,
+  });
+
+  mergeCells(ws, 3, 1, 3, 4);
+  setCell(ws, 3, 1, formatDgVesselDisplay(ship), {
+    font: { name: ARIAL, size: 14, color: { argb: CLR.gray } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+
+  setCell(ws, 3, 5, 'Voy. No.', {
+    font: { name: ARIAL, size: 14, color: { argb: CLR.gray } },
+    alignment: { horizontal: 'right', vertical: 'middle' },
+  });
+
+  mergeCells(ws, 3, 6, 3, 9);
+  setCell(ws, 3, 6, ship.voyageNumber?.trim() ?? '', {
+    font: { name: ARIAL, size: 16, bold: true, italic: true, color: { argb: CLR.gray } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+
+  mergeCells(ws, 2, 10, 3, 12);
+  setCell(ws, 2, 10, `Master: ${resolveDgMasterName(crew)}`, {
+    font: { name: ARIAL, size: 14, color: { argb: CLR.black } },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+    border: THIN,
+  });
+
+  mergeCells(ws, 6, 1, 6, 3);
+  setCell(ws, 6, 1, 'Port of departure:', {
+    font: { name: ARIAL, size: 12, color: { argb: CLR.black } },
+    alignment: { horizontal: 'right', vertical: 'middle' },
+  });
+  setCell(ws, 6, 4, dgManifestHeaderPortName(ship.portOfCall ?? '', ports), {
+    font: { name: ARIAL, size: 12, bold: true, color: { argb: CLR.brown } },
+    alignment: { horizontal: 'left', vertical: 'middle' },
+  });
+  setCell(ws, 6, 6, 'Dep. Date:', {
+    font: { name: ARIAL, size: 11, color: { argb: CLR.gray } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+  const dep = splitDgManifestExcelDate(ship.dateOfDeparture);
+  setCell(ws, 6, 7, dep.day, {
+    font: { name: ARIAL, size: 14, bold: true, color: { argb: CLR.brown } },
+    alignment: { horizontal: 'right', vertical: 'middle' },
+  });
+  setCell(ws, 6, 8, dep.rest, {
+    font: { name: ARIAL, size: 14, bold: true, color: { argb: CLR.brown } },
+    alignment: { horizontal: 'left', vertical: 'middle' },
+  });
+
+  mergeCells(ws, 7, 1, 7, 3);
+  setCell(ws, 7, 1, 'Port of arrival:', {
+    font: { name: ARIAL, size: 12, color: { argb: CLR.black } },
+    alignment: { horizontal: 'right', vertical: 'middle' },
+  });
+  setCell(ws, 7, 4, dgManifestHeaderPortName(ship.nextPortOfCall ?? '', ports), {
+    font: { name: ARIAL, size: 12, bold: true, color: { argb: CLR.brown } },
+    alignment: { horizontal: 'left', vertical: 'middle' },
+  });
+  setCell(ws, 7, 6, 'Arr. Date:', {
+    font: { name: ARIAL, size: 11, color: { argb: CLR.gray } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+  const arr = splitDgManifestExcelDate(ship.dateOfArrival);
+  setCell(ws, 7, 7, arr.day, {
+    font: { name: ARIAL, size: 14, bold: true, color: { argb: CLR.brown } },
+    alignment: { horizontal: 'right', vertical: 'middle' },
+  });
+  setCell(ws, 7, 8, arr.rest, {
+    font: { name: ARIAL, size: 14, bold: true, color: { argb: CLR.brown } },
+    alignment: { horizontal: 'left', vertical: 'middle' },
+  });
+
+  setCell(ws, 6, 11, 'Total, kg:', {
+    font: { name: ARIAL, size: 16, color: { argb: CLR.black } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+  setCell(ws, 7, 11, totalKg || null, {
+    font: { name: ARIAL, size: 20, bold: true, color: { argb: CLR.cyan } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+
+  addRangeBorder(ws, 7, 1, 7, 12, { bottom: true });
+  addRangeBorder(ws, 1, 12, 8, 12, { right: true });
+  addRangeBorder(ws, 2, 4, 3, 4, { right: true });
+  addRangeBorder(ws, 3, 1, 3, 9, { bottom: true });
+}
+
+function buildTableHeaderRow(ws: ExcelJS.Worksheet): void {
+  const headers: { col: number; text: string; size?: number }[] = [
+    { col: 1, text: 'NO.' },
+    { col: 2, text: 'POL' },
+    { col: 3, text: 'POD' },
+    { col: 4, text: 'Type' },
+    { col: 5, text: 'Container-No.' },
+    { col: 6, text: 'Stowage' },
+    { col: 7, text: 'Class' },
+    { col: 8, text: 'UN-No.' },
+    { col: 9, text: 'MP/LQ' },
+    { col: 10, text: 'FLASH POINT', size: 8 },
+    { col: 11, text: 'PROPER SHIPPING NAME' },
+    { col: 12, text: 'Weight, kg' },
+  ];
+  ws.getRow(TABLE_HEAD_ROW).height = 19.5;
+  for (const h of headers) {
+    setCell(ws, TABLE_HEAD_ROW, h.col, h.text, {
+      font: { name: TIMES, size: h.size ?? 10, bold: false, color: { argb: CLR.black } },
+      alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+      border: THIN,
+    });
+  }
+}
+
+function writeDataRow(
+  ws: ExcelJS.Worksheet,
+  rowIndex: number,
+  row: DgManifestExcelRow,
+  rowNo: number | '',
+): void {
+  ws.getRow(rowIndex).height = 30;
+  const weight = row.weightKg.trim() ? roundDgExportLineWeightKg(row.weightKg) : null;
+  const values: { col: number; value: ExcelJS.CellValue; size?: number }[] = [
+    { col: 1, value: rowNo === '' ? null : rowNo },
+    { col: 2, value: row.pol },
+    { col: 3, value: row.pod },
+    { col: 4, value: row.type },
+    { col: 5, value: row.containerNo },
+    { col: 6, value: row.stowage },
+    { col: 7, value: row.dgClass },
+    { col: 8, value: row.unNo },
+    { col: 9, value: row.mpLq },
+    { col: 10, value: formatFlashPointExcel(row.flashPoint) },
+    { col: 11, value: row.properShippingName, size: 8 },
+    { col: 12, value: weight },
+  ];
+  for (const v of values) {
+    setCell(ws, rowIndex, v.col, v.value, {
+      font: { name: ARIAL, size: v.size ?? 10, color: { argb: CLR.black } },
+      alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+      border: THIN,
+      fill: solidFill(CLR.white),
+    });
+  }
+}
+
+function buildClassSideBlock(
+  ws: ExcelJS.Worksheet,
+  containers: readonly DgOnboardContainer[],
+  dataRows: readonly DgManifestExcelRow[],
+  totalKg: number,
+): void {
+  const classes = dgOnboardClassSummaries(containers, true);
+
+  setCell(ws, 7, COL_N, 'CLASS', {
+    font: { name: TIMES, size: 18, bold: true, color: { argb: CLR.red } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    border: MEDIUM,
+  });
+  setCell(ws, 7, COL_P, totalKg || null, {
+    font: { name: ARIAL, size: 20, bold: true, color: { argb: CLR.cyan } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    border: MEDIUM,
+  });
+
+  let row = DATA_START;
+  for (const entry of classes) {
+    const classKg = exportClassTotalKg(dataRows, entry.dgClass);
+
+    setCell(ws, row, COL_N, entry.dgClass, {
+      font: { name: ARIAL, size: 24, bold: true, color: { argb: CLR.red } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+      border: THIN,
+    });
+    setCell(ws, row, COL_P, classKg || null, {
+      font: { name: ARIAL, size: 20, bold: true, color: { argb: CLR.navy } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+      border: THIN,
+      fill: solidFill(CLR.white),
+    });
+    row += 1;
+  }
+}
+
+function buildUnReportBlock(ws: ExcelJS.Worksheet, dataRows: readonly DgManifestExcelRow[]): void {
+  mergeCells(ws, 8, COL_R, 8, COL_U);
+  setCell(ws, 8, COL_R, 'UN numbers for operation report', {
+    font: { name: ARIAL, size: 12, color: { argb: CLR.muted } },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+    border: MEDIUM,
+  });
+
+  const unText = uniqueUnNumbers(dataRows);
+  mergeCells(ws, DATA_START, COL_R, DATA_START, COL_U);
+  setCell(ws, DATA_START, COL_R, unText, {
+    font: { name: ARIAL, size: 11, color: { argb: CLR.muted } },
+    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+    border: THIN,
+  });
 }
 
 export function formatDgVesselDisplay(ship: ShipInfo): string {
@@ -93,21 +419,63 @@ export function formatDgVesselDisplay(ship: ShipInfo): string {
   return cs ?? '';
 }
 
-/** ISO type 22G1 → 20, 42G1 → 40 (matches paper manifest). */
-export function dgExcelContainerType(type: string): string {
-  const t = type.trim().toUpperCase();
-  if (/^2/.test(t)) return '20';
-  if (/^4/.test(t)) return '40';
-  return t;
+/** POL/POD in manifest exports — port code, not full name. */
+export function dgManifestPortCode(ref: string, ports: readonly Port[] = []): string {
+  const code = portCode(ref, ports).trim();
+  if (code) return code.toUpperCase();
+  const v = ref.trim();
+  if (!v) return '';
+  const byCode = ports.find((p) => p.code && p.code.toLowerCase() === v.toLowerCase());
+  return (byCode?.code ?? v).toUpperCase();
 }
 
-export function dgOnboardToExcelRows(onboard: readonly DgOnboardContainer[]): DgManifestExcelRow[] {
+function mergeDgExportRowsInContainer(
+  base: Pick<DgManifestExcelRow, 'pol' | 'pod' | 'type' | 'containerNo' | 'stowage'>,
+  lines: readonly DgCargoLine[],
+): DgManifestExcelRow[] {
+  return mergeDgCargoLines(lines).map((row) => ({
+    ...base,
+    dgClass: row.dgClass,
+    unNo: row.unNo,
+    mpLq: row.mpLq,
+    flashPoint: row.flashPoint,
+    properShippingName: row.properShippingName,
+    weightKg: formatDgWeightKgDisplay(row.weightSum) || String(row.weightSum),
+  }));
+}
+
+function dgUnmergedExportRowsInContainer(
+  base: Pick<DgManifestExcelRow, 'pol' | 'pod' | 'type' | 'containerNo' | 'stowage'>,
+  lines: readonly DgCargoLine[],
+): DgManifestExcelRow[] {
   const rows: DgManifestExcelRow[] = [];
-  for (const container of onboard.filter((c) => c.status === 'onboard')) {
+  for (const line of lines) {
+    if (!dgCargoLineHasCargo(line)) continue;
+    rows.push({
+      ...base,
+      dgClass: line.dgClass.trim(),
+      unNo: line.unNo.trim(),
+      mpLq: line.mpLq.trim(),
+      flashPoint: line.flashPoint.trim(),
+      properShippingName: line.properShippingName.trim(),
+      weightKg: line.weightKg.trim(),
+    });
+  }
+  return rows;
+}
+
+export function dgContainersToExcelRows(
+  containers: readonly import('../models/dg-manifest.models').DgOnboardContainer[],
+  ports: readonly Port[] = [],
+  options?: { mergeLines?: boolean },
+): DgManifestExcelRow[] {
+  const mergeLines = options?.mergeLines !== false;
+  const rows: DgManifestExcelRow[] = [];
+  for (const container of containers) {
     const base = {
-      pol: container.loadPort.trim(),
-      pod: container.dischargePort.trim(),
-      type: dgExcelContainerType(container.type),
+      pol: dgManifestPortCode(container.loadPort, ports),
+      pod: dgManifestPortCode(container.dischargePort, ports),
+      type: container.type.trim().toUpperCase(),
       containerNo: container.containerNo.trim(),
       stowage: container.stowage.trim(),
     };
@@ -123,239 +491,116 @@ export function dgOnboardToExcelRows(onboard: readonly DgOnboardContainer[]): Dg
       });
       continue;
     }
-    for (const line of container.lines) {
-      const hasCargo =
-        line.dgClass.trim() ||
-        line.unNo.trim() ||
-        line.weightKg.trim() ||
-        line.properShippingName.trim();
-      if (!hasCargo) continue;
-      rows.push({
-        ...base,
-        dgClass: line.dgClass.trim(),
-        unNo: line.unNo.trim(),
-        mpLq: '',
-        flashPoint: '',
-        properShippingName: line.properShippingName.trim(),
-        weightKg: line.weightKg.trim(),
-      });
-    }
+    rows.push(
+      ...(mergeLines
+        ? mergeDgExportRowsInContainer(base, container.lines)
+        : dgUnmergedExportRowsInContainer(base, container.lines)),
+    );
   }
-  return rows.sort(compareDgManifestExportRowsByClass);
+  return rows;
 }
 
-function formatTotalKg(value: number): number | string {
+export function dgOnboardToExcelRows(
+  onboard: readonly import('../models/dg-manifest.models').DgOnboardContainer[],
+  ports: readonly Port[] = [],
+): DgManifestExcelRow[] {
+  const containers = onboard.filter((c) => c.status === 'onboard');
+  return dgContainersToExcelRows(containers, ports).sort(compareDgManifestExportRowsByClass);
+}
+
+function formatDgManifestExcelDate(value: string | undefined | null): string {
   if (!value) return '';
-  const rounded = Math.round(value * 10) / 10;
-  return Number.isInteger(rounded) ? rounded : rounded;
-}
-
-function applyTotalBoxBorder(ws: ExcelJS.Worksheet, top: number, bottom: number): void {
-  for (let r = top; r <= bottom; r++) {
-    for (let c = 9; c <= DG_MANIFEST_COLS; c++) {
-      const cell = ws.getCell(r, c);
-      const border = { ...cell.border } as ExcelJS.Borders;
-      if (r === top) border.top = medium;
-      if (r === bottom) border.bottom = medium;
-      if (c === 9) border.left = medium;
-      if (c === DG_MANIFEST_COLS) border.right = medium;
-      cell.border = border;
-    }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-');
+    return `${d}.${m}. ${y}`;
   }
+  return formatDisplayDate(value);
 }
 
-export function buildDgManifestWorksheet(
+function splitDgManifestExcelDate(value: string | undefined | null): { day: string; rest: string } {
+  const formatted = formatDgManifestExcelDate(value);
+  if (!formatted) return { day: '', rest: '' };
+  const m = formatted.match(/^(\d{1,2})(\.\d{2}\.\s*\d{4})$/);
+  if (m) return { day: m[1], rest: m[2] };
+  return { day: formatted, rest: '' };
+}
+
+/** Port name in manifest header (PDF/Excel meta) — uppercase, not UN/LOC code. */
+export function dgManifestHeaderPortName(ref: string, ports: readonly Port[] = []): string {
+  const name = resolveManifestPortName(ref, ports);
+  if (name) return name.toUpperCase();
+  const v = ref.trim();
+  return v ? v.toUpperCase() : '';
+}
+
+function formatFlashPointExcel(value: string): string {
+  const v = value.trim();
+  if (!v) return '';
+  return v.replace(/\s*°C$/i, '').trim();
+}
+
+export async function buildDgManifestWorksheet(
   ws: ExcelJS.Worksheet,
   ship: ShipInfo,
   crew: readonly CrewMember[],
   library: DgLibrarySettings,
-): number {
-  COL_WIDTHS.forEach((w, i) => {
-    ws.getColumn(i + 1).width = w;
-  });
+  ports: readonly Port[] = [],
+  exportContext?: DgManifestExportContext,
+): Promise<number> {
+  const containers = exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
+  const mergeLines = exportContext?.mergeLines ?? true;
+  const dataRows = dgContainersToExcelRows(containers, ports, { mergeLines });
+  const totalKg = dgContainersExportTotalKg(containers);
+  const hasExportData = dataRows.some(
+    (r) => r.dgClass || r.unNo || r.weightKg || r.properShippingName || r.containerNo,
+  );
 
-  const dataRows = dgOnboardToExcelRows(library.onboard);
-  const stats = dgOnboardInventoryStats(library.onboard, false);
-  const totalKg = stats.totalKg;
+  applyColumnWidths(ws);
+  buildReadinessBlock(ws, hasExportData);
+  buildManifestHeader(ws, ship, crew, ports, totalKg);
+  buildTableHeaderRow(ws);
 
-  const titleRow = 2;
-  const headerRow = 3;
-  const metaTop = 5;
-  const metaBottom = 6;
-  const tableHeadRow = 8;
-  const dataStart = 9;
-  const dataEnd = Math.max(dataStart, dataStart + dataRows.length - 1);
-  const lastRow = dataEnd;
-
-  ws.getRow(1).height = 6;
-
-  merge(ws, titleRow, 1, titleRow, DG_MANIFEST_COLS);
-  const titleCell = ws.getCell(titleRow, 1);
-  titleCell.value = 'DANGEROUS GOODS MANIFEST';
-  titleCell.font = { name: DATA_FONT, size: 14, bold: true };
-  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  ws.getRow(titleRow).height = 22;
-
-  merge(ws, headerRow, 1, headerRow, 4);
-  const vesselCell = ws.getCell(headerRow, 1);
-  vesselCell.value = formatDgVesselDisplay(ship);
-  vesselCell.font = { name: DATA_FONT, size: 10, bold: true, italic: true };
-  vesselCell.alignment = { horizontal: 'left', vertical: 'middle' };
-
-  merge(ws, headerRow, 5, headerRow, 8);
-  const voyCell = ws.getCell(headerRow, 5);
-  voyCell.value = `Voy. No. ${ship.voyageNumber?.trim() ?? ''}`;
-  voyCell.font = { name: DATA_FONT, size: 10, bold: true, italic: true };
-  voyCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-  merge(ws, headerRow, 9, headerRow, DG_MANIFEST_COLS);
-  const masterCell = ws.getCell(headerRow, 9);
-  masterCell.value = `Master: ${resolveDgMasterName(crew)}`;
-  masterCell.font = { name: DATA_FONT, size: 10, bold: true, italic: true };
-  masterCell.alignment = { horizontal: 'right', vertical: 'middle' };
-  ws.getRow(headerRow).height = 18;
-
-  ws.getCell(metaTop, 1).value = 'Port of departure:';
-  styleMetaLabel(ws.getCell(metaTop, 1));
-  merge(ws, metaTop, 2, metaTop, 4);
-  styleMetaValue(ws.getCell(metaTop, 2), { color: PORT_RED });
-  ws.getCell(metaTop, 2).value = ship.portOfCall?.trim().toUpperCase() ?? '';
-
-  ws.getCell(metaTop, 5).value = 'Dep. Date:';
-  styleMetaLabel(ws.getCell(metaTop, 5));
-  merge(ws, metaTop, 6, metaTop, 8);
-  styleMetaValue(ws.getCell(metaTop, 6));
-  ws.getCell(metaTop, 6).value = formatDisplayDate(ship.dateOfDeparture);
-
-  merge(ws, metaTop, 9, metaTop, DG_MANIFEST_COLS);
-  const totalLabelCell = ws.getCell(metaTop, 9);
-  totalLabelCell.value = 'Total, kg:';
-  totalLabelCell.font = { name: LABEL_FONT, size: 9, bold: true };
-  totalLabelCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  setBorder(totalLabelCell, THIN_BORDER);
-
-  ws.getCell(metaBottom, 1).value = 'Port of arrival:';
-  styleMetaLabel(ws.getCell(metaBottom, 1));
-  merge(ws, metaBottom, 2, metaBottom, 4);
-  styleMetaValue(ws.getCell(metaBottom, 2), { color: PORT_RED });
-  ws.getCell(metaBottom, 2).value = ship.nextPortOfCall?.trim().toUpperCase() ?? '';
-
-  ws.getCell(metaBottom, 5).value = 'Arr. Date:';
-  styleMetaLabel(ws.getCell(metaBottom, 5));
-  merge(ws, metaBottom, 6, metaBottom, 8);
-  styleMetaValue(ws.getCell(metaBottom, 6));
-  ws.getCell(metaBottom, 6).value = formatDisplayDate(ship.dateOfArrival);
-
-  merge(ws, metaBottom, 9, metaBottom, DG_MANIFEST_COLS);
-  const totalValueCell = ws.getCell(metaBottom, 9);
-  totalValueCell.value = formatTotalKg(totalKg);
-  totalValueCell.font = { name: DATA_FONT, size: 14, bold: true, italic: true, color: { argb: TOTAL_BLUE } };
-  totalValueCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  setBorder(totalValueCell, THIN_BORDER);
-  applyTotalBoxBorder(ws, metaTop, metaBottom);
-
-  ws.getRow(metaTop).height = 16;
-  ws.getRow(metaBottom).height = 20;
-
-  const headers = [
-    '',
-    'POL',
-    'POD',
-    'Type',
-    'Container-No.',
-    'Stowage',
-    'Class',
-    'UN-No.',
-    'MP/LQ',
-    'FLASH POINT',
-    'PROPER SHIPPING NAME',
-    'Weight, kg',
-  ];
-  headers.forEach((label, i) => {
-    const cell = ws.getCell(tableHeadRow, i + 1);
-    cell.value = label;
-    styleTableHead(cell);
-  });
-  ws.getRow(tableHeadRow).height = 24;
+  let lastDataRow = DATA_START - 1;
+  let rowNo = 0;
+  let lastContainer = '';
 
   dataRows.forEach((row, index) => {
-    const r = dataStart + index;
-    const values: (string | number)[] = [
-      index + 1,
-      row.pol,
-      row.pod,
-      row.type,
-      row.containerNo,
-      row.stowage,
-      row.dgClass,
-      row.unNo,
-      row.mpLq,
-      row.flashPoint,
-      row.properShippingName,
-      row.weightKg ? parseDgWeightKg(row.weightKg) || row.weightKg : '',
-    ];
-    values.forEach((value, colIndex) => {
-      const cell = ws.getCell(r, colIndex + 1);
-      cell.value = value;
-      const align =
-        colIndex === 0 ||
-        colIndex === 3 ||
-        colIndex === 5 ||
-        colIndex === 6 ||
-        colIndex === 7 ||
-        colIndex === 8 ||
-        colIndex === 11
-          ? 'center'
-          : colIndex === 10
-            ? 'left'
-            : 'center';
-      styleTableData(cell, align);
-    });
-    ws.getRow(r).height = 15;
+    const r = DATA_START + index;
+    const showNo = row.containerNo !== lastContainer;
+    if (showNo) {
+      rowNo += 1;
+      lastContainer = row.containerNo;
+    }
+    writeDataRow(ws, r, row, showNo ? rowNo : '');
+    lastDataRow = r;
   });
 
-  for (let r = metaTop; r <= lastRow; r++) {
-    for (let c = 1; c <= DG_MANIFEST_COLS; c++) {
-      const cell = ws.getCell(r, c);
-      if (!cell.border) setBorder(cell, THIN_BORDER);
-    }
-  }
+  if (lastDataRow < DATA_START) lastDataRow = DATA_START;
 
-  const lastCell = `${ws.getColumn(DG_MANIFEST_COLS).letter}${lastRow}`;
-  ws.pageSetup = {
-    paperSize: 9,
-    orientation: 'landscape',
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 0,
-    horizontalCentered: true,
-    margins: {
-      left: 0.35,
-      right: 0.35,
-      top: 0.45,
-      bottom: 0.45,
-      header: 0.2,
-      footer: 0.2,
-    },
-    printArea: `A1:${lastCell}`,
-    printTitlesRow: `${tableHeadRow}:${tableHeadRow}`,
-  };
-  ws.views = [{ showGridLines: false, state: 'frozen', ySplit: tableHeadRow }];
-  ws.headerFooter = { oddFooter: '&CPage &P of &N' };
+  buildClassSideBlock(ws, containers, dataRows, totalKg);
+  buildUnReportBlock(ws, dataRows);
 
-  return lastRow;
+  const printLast = Math.max(lastDataRow + 2, 44);
+  ws.pageSetup.printArea = `A1:U${printLast}`;
+  ws.pageSetup.printTitlesRow = '1:9';
+  ws.pageSetup.orientation = 'landscape';
+  ws.pageSetup.paperSize = 9;
+  ws.pageSetup.fitToPage = false;
+  ws.views = [{ showGridLines: false, state: 'frozen', ySplit: 9 }];
+
+  return lastDataRow;
 }
 
 export async function buildDgManifestExcelBytes(
   ship: ShipInfo,
   crew: readonly CrewMember[],
   library: DgLibrarySettings,
+  ports: readonly Port[] = [],
+  exportContext?: DgManifestExportContext,
 ): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'CREW Documents';
-  const ws = wb.addWorksheet(DG_MANIFEST_SHEET, {
-    pageSetup: { orientation: 'landscape', paperSize: 9 },
-  });
-  buildDgManifestWorksheet(ws, ship, crew, library);
+  const ws = wb.addWorksheet(DG_MANIFEST_SHEET);
+  await buildDgManifestWorksheet(ws, ship, crew, library, ports, exportContext);
   return workbookToBytes(wb);
 }

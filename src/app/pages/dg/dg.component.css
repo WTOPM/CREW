@@ -5,7 +5,7 @@
 .dg-voyage-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 1.5rem;
+  gap: 0.85rem 1rem;
   padding: 0.75rem 1.25rem;
   margin-bottom: 0.85rem;
   background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
@@ -17,6 +17,25 @@
   align-items: baseline;
   gap: 0.35rem 0.5rem;
   font-size: 0.88rem;
+}
+
+.dg-voyage-item--field {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.28rem;
+  min-width: 7.5rem;
+  flex: 1 1 7.5rem;
+  max-width: 12rem;
+}
+
+.dg-voyage-item--readonly {
+  flex: 0 0 auto;
+  padding-top: 0.1rem;
+}
+
+.dg-voyage-item--field .port-select {
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .dg-voyage-label {
@@ -187,29 +206,95 @@
 
 .dg-inventory-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.55rem;
   margin-bottom: 0.85rem;
 }
 
-.dg-inventory-toolbar-actions {
+.dg-toolbar-panel {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.42rem 0.75rem 0.48rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset,
+    0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.dg-toolbar-panel__label {
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.dg-toolbar-panel__body {
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
+}
+
+.dg-toolbar-panel--display {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-color: #93c5fd;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset,
+    0 2px 8px rgba(37, 99, 235, 0.14);
+}
+
+.dg-toolbar-panel--display .dg-toolbar-panel__label {
+  color: #1d4ed8;
+}
+
+.dg-toolbar-panel--generate {
+  flex: 0 1 auto;
+  border-color: #fca5a5;
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset,
+    0 2px 8px rgba(225, 29, 72, 0.12);
+}
+
+.dg-toolbar-panel--generate .dg-toolbar-panel__label {
+  color: #be123c;
+}
+
+.dg-toolbar-panel--add {
+  flex: 0 0 auto;
+  border-color: #86efac;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset,
+    0 2px 8px rgba(22, 163, 74, 0.12);
+}
+
+.dg-toolbar-panel--add .dg-toolbar-panel__label {
+  color: #15803d;
 }
 
 .dg-pdf-btn {
   font-weight: 700;
   color: #b91c1c;
   border-color: #fca5a5;
-  background: #fef2f2;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(185, 28, 28, 0.08);
 }
 
 .dg-pdf-btn:hover:not(:disabled) {
-  background: #fee2e2;
+  background: #fef2f2;
   border-color: #f87171;
 }
 
@@ -221,11 +306,12 @@
   font-weight: 700;
   color: #15803d;
   border-color: #86efac;
-  background: #f0fdf4;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(21, 128, 61, 0.08);
 }
 
 .dg-excel-btn:hover:not(:disabled) {
-  background: #dcfce7;
+  background: #f0fdf4;
   border-color: #4ade80;
 }
 
@@ -233,9 +319,88 @@
   opacity: 0.65;
 }
 
-.dg-show-discharged {
+.dg-add-container-btn {
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(29, 78, 216, 0.28);
+}
+
+.dg-inventory-view-options {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.dg-view-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
   margin: 0;
+  padding: 0.32rem 0.58rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #1e3a8a;
+  background: #fff;
+  border: 1px solid #60a5fa;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.dg-view-option:hover {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.dg-view-option:has(input:checked) {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.38);
+  transform: translateY(-1px);
+}
+
+.dg-view-option:has(input:focus-visible) {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.dg-view-option input[type='checkbox'] {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0;
+  accent-color: #2563eb;
+}
+
+.dg-view-option:has(input:checked) input[type='checkbox'] {
+  accent-color: #fff;
+}
+
+.dg-cell-readonly {
+  display: block;
+  padding: 0.28rem 0.35rem;
   font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dg-cell-readonly--weight {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.dg-cell-readonly--name {
+  min-height: 1.85rem;
 }
 
 .dg-empty-hint {
@@ -300,6 +465,14 @@
   width: 2.85rem;
 }
 
+.dg-master-table col.col-mp-lq {
+  width: 2.85rem;
+}
+
+.dg-master-table col.col-flash {
+  width: 4rem;
+}
+
 .dg-master-table col.col-weight {
   width: 3.85rem;
 }
@@ -317,23 +490,44 @@
 }
 
 .dg-master-table th.col-class,
-.dg-master-table th.col-un {
+.dg-master-table th.col-un,
+.dg-master-table th.col-mp-lq,
+.dg-master-table th.col-flash {
   text-align: center;
   padding-inline: 0.2rem;
   white-space: nowrap;
 }
 
 .dg-master-table td.col-class,
-.dg-master-table td.col-un {
+.dg-master-table td.col-un,
+.dg-master-table td.col-mp-lq,
+.dg-master-table td.col-flash {
   overflow: visible;
   padding-inline: 0.1rem;
 }
 
 .dg-master-table td.col-class .dg-cell-input,
-.dg-master-table td.col-un .dg-cell-input {
+.dg-master-table td.col-un .dg-cell-input,
+.dg-master-table td.col-mp-lq .dg-cell-input,
+.dg-master-table td.col-flash .dg-cell-input {
   text-align: center;
-  padding-inline: 0.1rem;
+  padding-inline: 0.04rem;
   min-width: 0;
+  font-size: 0.72rem;
+  letter-spacing: -0.02em;
+}
+
+.dg-th-stack {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.05;
+  gap: 0.05rem;
+}
+
+.dg-master-table thead th.col-flash {
+  white-space: normal;
+  line-height: 1.05;
+  font-size: 0.66rem;
 }
 
 .dg-master-table td.col-name {
@@ -421,6 +615,8 @@
 
 .dg-master-table thead th.col-class,
 .dg-master-table thead th.col-un,
+.dg-master-table thead th.col-mp-lq,
+.dg-master-table thead th.col-flash,
 .dg-master-table thead th.col-type,
 .dg-master-table thead th.col-stowage,
 .dg-master-table thead th.col-weight {
@@ -455,6 +651,10 @@
   overflow: hidden;
 }
 
+.dg-master-table tbody td.col-flash {
+  overflow: visible;
+}
+
 .dg-master-table tbody td:nth-child(4),
 .dg-master-table tbody td:nth-child(5),
 .dg-master-table tbody td:nth-child(6),
@@ -468,6 +668,7 @@
 .dg-master-table thead th.col-type,
 .dg-master-table thead th.col-class,
 .dg-master-table thead th.col-un,
+.dg-master-table thead th.col-mp-lq,
 .dg-master-table thead th.col-weight,
 .dg-master-table thead th:nth-child(4),
 .dg-master-table thead th:nth-child(5),
@@ -831,6 +1032,12 @@
   color: #b91c1c;
 }
 
+.dg-class-summary-class__hint {
+  display: inline-block;
+  width: auto;
+  cursor: help;
+}
+
 .dg-class-summary th.dg-class-summary-class {
   font-size: 0.95rem;
   text-transform: uppercase;
@@ -904,6 +1111,11 @@
   outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
   border-color: var(--accent);
   background: #fff;
+}
+
+.dg-cell-input::placeholder {
+  color: #94a3b8;
+  opacity: 1;
 }
 
 .dg-inventory--archive {

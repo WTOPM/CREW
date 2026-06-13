@@ -6,6 +6,7 @@ export interface DgPageShipContext {
   portOfCall: string;
   nextPortOfCall: string;
   dateOfDeparture: string;
+  dateOfArrival: string;
 }
 
 /** Saved DG page snapshot (inventory + voyage strip context). */

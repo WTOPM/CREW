@@ -1,4 +1,5 @@
 import type { DgManifestImportResult } from '../services/dg-manifest-import.service';
+import { formatDgWeightKgDisplay } from '../models/dg-manifest.models';
 
 function normText(value: string | undefined | null): string {
   return String(value ?? '')
@@ -12,9 +13,9 @@ function normContainerNo(value: string | undefined | null): string {
 }
 
 function normWeight(value: string | undefined | null): string {
-  const n = parseFloat(String(value ?? '').replace(/\s/g, '').replace(/,/g, ''));
-  if (!Number.isFinite(n)) return normText(value);
-  return String(Math.round(n));
+  const formatted = formatDgWeightKgDisplay(value);
+  if (formatted) return formatted;
+  return normText(value);
 }
 
 /** Stable text snapshot of parsed manifest cargo — not the PDF file name. */
@@ -36,6 +37,8 @@ export function serializeDgManifestImportContent(
         normText(row.stowage),
         normText(row.unNo),
         normText(row.dgClass),
+        normText(row.mpLq),
+        normText(row.flashPoint),
         normWeight(row.weightKg),
         normText(row.properShippingName),
         normText(row.pol),

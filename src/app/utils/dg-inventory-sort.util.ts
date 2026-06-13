@@ -139,15 +139,27 @@ export function sortDgOnboardContainers(
   }));
 }
 
-/** Manifest PDF/Excel rows — always by class ascending. */
+/** Manifest PDF/Excel rows — by class, then container, then cargo fields. */
 export function compareDgManifestExportRowsByClass<
-  T extends { dgClass: string; unNo: string; containerNo: string },
+  T extends {
+    dgClass: string;
+    unNo: string;
+    containerNo: string;
+    properShippingName?: string;
+    mpLq?: string;
+  },
 >(a: T, b: T): number {
   const cmp = dgClassSortKey(a.dgClass) - dgClassSortKey(b.dgClass);
   if (cmp) return cmp;
   const cls = compareText(a.dgClass, b.dgClass);
   if (cls) return cls;
+  const container = compareText(a.containerNo, b.containerNo);
+  if (container) return container;
   const un = dgUnSortKey(a.unNo) - dgUnSortKey(b.unNo);
   if (un) return un;
-  return compareText(a.containerNo, b.containerNo);
+  const unText = compareText(a.unNo, b.unNo);
+  if (unText) return unText;
+  const name = compareText(a.properShippingName ?? '', b.properShippingName ?? '');
+  if (name) return name;
+  return compareText(a.mpLq ?? '', b.mpLq ?? '');
 }

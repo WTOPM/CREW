@@ -118,6 +118,7 @@ export class DgPageArchiveService {
       portOfCall: String(shipObj['portOfCall'] ?? '').trim(),
       nextPortOfCall: String(shipObj['nextPortOfCall'] ?? '').trim(),
       dateOfDeparture: String(shipObj['dateOfDeparture'] ?? '').trim(),
+      dateOfArrival: String(shipObj['dateOfArrival'] ?? '').trim(),
     };
     return {
       id,
@@ -139,6 +140,7 @@ export function shipContextFromShip(ship: ShipInfo): DgPageShipContext {
     portOfCall: ship.portOfCall?.trim() ?? '',
     nextPortOfCall: ship.nextPortOfCall?.trim() ?? '',
     dateOfDeparture: ship.dateOfDeparture?.trim() ?? '',
+    dateOfArrival: ship.dateOfArrival?.trim() ?? '',
   };
 }
 

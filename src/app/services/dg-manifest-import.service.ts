@@ -2,8 +2,9 @@ import { Injectable } from '@angular/core';
 import {
   type DgManifestFormSettings,
   type DgManifestRow,
+  formatDgWeightKgDisplay,
 } from '../models/dg-manifest.models';
-import { resolveKnownPortName, type Port } from '../models/crew.models';
+import { resolveManifestPortName, type Port } from '../models/crew.models';
 import { extractDgPdfTextItems, type DgPdfTextItem } from '../utils/dg-pdf-text.util';
 
 export type DgManifestPdfFormat = 'cma-imdg' | 'unknown';
@@ -24,6 +25,8 @@ const COL = {
   imdgClass: [582, 592] as const,
   unNo: [600, 628] as const,
   stowage: [235, 275] as const,
+  flashPoint: [300, 390] as const,
+  fieldBlock: [290, 520] as const,
   loadPort: [484, 560] as const,
   transhipmentPort: [684, 770] as const,
   dischargePort: [680, 770] as const,
@@ -38,6 +41,7 @@ const ISO_TYPE_RE = /^[0-9]{2}[A-Z0-9]{2,3}$/i;
 /** e.g. 2.1, 2.2, 3, 8, 6.1 */
 const IMDG_CLASS_RE = /^\d+(?:\.\d+)?$/;
 const UN_NO_RE = /^\d{4}$/;
+const FLASH_POINT_VALUE_RE = /^-?\d+(?:\.\d+)?\s*°C$/i;
 
 @Injectable({ providedIn: 'root' })
 export class DgManifestImportService {
@@ -54,7 +58,10 @@ export class DgManifestImportService {
     }
 
     const header = parseCmaHeader(items);
-    const { rows, warnings } = parseCmaCargoRows(items, header, ports);
+    const importPorts = resolveCmaImportPorts(items, ports);
+    if (importPorts.pol) header.portOfDeparture = importPorts.pol;
+    if (importPorts.pod) header.portOfArrival = importPorts.pod;
+    const { rows, warnings } = parseCmaCargoRows(items, importPorts, ports);
 
     return {
       format: 'cma-imdg',
@@ -106,7 +113,10 @@ function pickNearY(
 
 function parseCmaHeader(items: DgPdfTextItem[]): Partial<Omit<DgManifestFormSettings, 'rows'>> {
   const loadPort = findPortValue(items, 'loadPort');
+  const transhipmentPort = findPortValue(items, 'transhipmentPort');
   const dischargePort = findDischargePort(items);
+  const arrivalPort =
+    !isBlankManifestPort(transhipmentPort) ? transhipmentPort : dischargePort;
   const vesselName = pickInBand(items, 117, 122, 'vessel', (s) => s.length > 1 && s !== 'Vessel');
   const voyage = pickInBand(items, 131, 136, 'voyage', (s) => s.length > 3 && s !== 'Voyage');
   const callSign = pickInBand(items, 131, 136, 'callSign', (s) => /^[A-Z0-9]+$/i.test(s));
@@ -123,7 +133,7 @@ function parseCmaHeader(items: DgPdfTextItem[]): Partial<Omit<DgManifestFormSett
     vesselDisplay,
     voyageNumber: voyage,
     portOfDeparture: loadPort.toUpperCase(),
-    portOfArrival: dischargePort.toUpperCase(),
+    portOfArrival: arrivalPort.toUpperCase(),
     departureDate: parseManifestDateToIso(etd),
   };
 }
@@ -154,11 +164,68 @@ function findPortValue(items: DgPdfTextItem[], kind: 'loadPort' | 'transhipmentP
         nearY(it, labelItem.y, 3) &&
         inCol(it.x, col) &&
         it.str !== ':' &&
+        it.str !== '-' &&
         it.str.length > 1,
     );
     if (val) return val.str.trim();
   }
-  return pickInBand(items, 116, 121, kind, (s) => s.length > 2 && s !== ':');
+  return pickInBand(items, 116, 121, kind, (s) => s.length > 2 && s !== ':' && s !== '-');
+}
+
+function isBlankManifestPort(raw: string): boolean {
+  const s = raw.trim();
+  return !s || s === '-' || s === '—' || /^[-–—:\s]+$/.test(s);
+}
+
+/** POD: transhipment if it matches a known port, else discharge if it matches. */
+function resolveCmaPodPort(
+  transhipmentRaw: string,
+  dischargeRaw: string,
+  ports: readonly Port[],
+): string {
+  if (!isBlankManifestPort(transhipmentRaw)) {
+    const matched = resolveManifestPortName(transhipmentRaw, ports);
+    if (matched) return matched;
+  }
+  if (!isBlankManifestPort(dischargeRaw)) {
+    return resolveManifestPortName(dischargeRaw, ports);
+  }
+  return '';
+}
+
+function resolveCmaPodForPage(
+  items: DgPdfTextItem[],
+  page: number,
+  ports: readonly Port[],
+): string {
+  const pageItems = items.filter((it) => it.page === page);
+  if (!pageItems.length) return '';
+  const transRaw = findPortValue(pageItems, 'transhipmentPort');
+  const disRaw = findDischargePort(pageItems);
+  return resolveCmaPodPort(transRaw, disRaw, ports);
+}
+
+function pagesWithContainerNumbers(items: DgPdfTextItem[]): Set<number> {
+  const pages = new Set<number>();
+  for (const it of items) {
+    if (!inCol(it.x, COL.containerNo)) continue;
+    if (!CONTAINER_RE.test(it.str.trim())) continue;
+    pages.add(it.page);
+  }
+  return pages;
+}
+
+function resolveCmaImportPorts(
+  items: DgPdfTextItem[],
+  ports: readonly Port[],
+): { pol: string; pod: string } {
+  const loadRaw = findPortValue(items, 'loadPort');
+  const transRaw = findPortValue(items, 'transhipmentPort');
+  const disRaw = findDischargePort(items);
+  return {
+    pol: resolveManifestPortName(loadRaw, ports),
+    pod: resolveCmaPodPort(transRaw, disRaw, ports),
+  };
 }
 
 function pickInBand(
@@ -179,8 +246,8 @@ function pickInBand(
 
 function parseCmaCargoRows(
   items: DgPdfTextItem[],
-  header: Partial<Omit<DgManifestFormSettings, 'rows'>>,
-  ports: Port[],
+  importPorts: { pol: string; pod: string },
+  ports: readonly Port[],
 ): { rows: Partial<Omit<DgManifestRow, 'id'>>[]; warnings: string[] } {
   const warnings: string[] = [];
   const classItems = items
@@ -198,22 +265,38 @@ function parseCmaCargoRows(
     return { rows: [], warnings };
   }
 
+  const pagePodByPage = new Map<number, string>();
+  for (const page of pagesWithContainerNumbers(items)) {
+    const pod = resolveCmaPodForPage(items, page, ports);
+    if (pod) pagePodByPage.set(page, pod);
+  }
+
   let lastContainer = '';
   let lastType = '';
-  const pol = resolveKnownPortName(header.portOfDeparture ?? '', ports);
-  const pod = resolveKnownPortName(header.portOfArrival ?? '', ports);
+  const pol = importPorts.pol;
+  let lastPod = importPorts.pod;
+  const containerPod = new Map<string, string>();
 
   const rows: Partial<Omit<DgManifestRow, 'id'>>[] = [];
 
   for (const classItem of classItems) {
     const y = classItem.y;
     const page = classItem.page;
-    const container =
-      pickNearY(items, y, 'containerNo', page, (s) => CONTAINER_RE.test(s)) || lastContainer;
+    const explicitContainer = pickNearY(items, y, 'containerNo', page, (s) => CONTAINER_RE.test(s));
+    const container = explicitContainer || lastContainer;
     const isoType =
       pickNearY(items, y, 'isoType', page, (s) => ISO_TYPE_RE.test(s)) || lastType;
     if (container) lastContainer = container;
     if (isoType) lastType = isoType;
+
+    let pod = lastPod;
+    if (explicitContainer && pagePodByPage.has(page)) {
+      pod = pagePodByPage.get(page)!;
+      containerPod.set(explicitContainer, pod);
+      lastPod = pod;
+    } else if (container && containerPod.has(container)) {
+      pod = containerPod.get(container)!;
+    }
 
     const unNo = pickNearY(items, y, 'unNo', page, (s) => UN_NO_RE.test(s));
     const netRaw = pickNearY(items, y, 'netWeight', page, (s) => /[\d,]/.test(s));
@@ -225,6 +308,8 @@ function parseCmaCargoRows(
       (s) => s.length > 2 && !/^\(\d\)$/.test(s),
     );
     const stowage = pickNearY(items, y, 'stowage', page, (s) => s.length > 0);
+    const flashPoint = pickFlashPoint(items, y, page);
+    const mpLq = parseImportedMpLq(items, y, page);
 
     if (!unNo) {
       warnings.push(`Skipped class ${classItem.str} row (no UN-No.).`);
@@ -239,6 +324,8 @@ function parseCmaCargoRows(
       stowage,
       dgClass: formatDgClass(classItem.str),
       unNo,
+      mpLq,
+      flashPoint,
       weightKg: formatImportedWeight(netRaw),
       properShippingName,
     });
@@ -253,12 +340,46 @@ function formatDgClass(raw: string): string {
   return s;
 }
 
+function pickFlashPoint(items: DgPdfTextItem[], classY: number, page: number): string {
+  for (const delta of [22, 20, 24, 18, 26, 16, 28, 30]) {
+    for (const it of items) {
+      if (it.page !== page) continue;
+      if (Math.abs(it.y - (classY + delta)) > 2) continue;
+      if (!inCol(it.x, COL.flashPoint)) continue;
+      const s = it.str.trim();
+      if (FLASH_POINT_VALUE_RE.test(s)) return s;
+    }
+  }
+  return '';
+}
+
+function parseImportedMpLq(items: DgPdfTextItem[], classY: number, page: number): string {
+  let hasMp = false;
+  let hasLq = false;
+
+  for (const it of items) {
+    if (it.page !== page) continue;
+    // Fields (4)/(5) sit below the IMDG class row — ignore page legend (1)–(8) at the top.
+    if (it.y < classY + 10 || it.y > classY + 120) continue;
+    if (!inCol(it.x, COL.fieldBlock)) continue;
+
+    const s = it.str.trim();
+    if (!s || /^\(\d+\)$/.test(s)) continue;
+    if (/^\(\d+\)\s*Limited Quantity or Excepted Quantity$/i.test(s)) continue;
+
+    if (/Marine Pollutant/i.test(s)) hasMp = true;
+    if (/Limited Quantity|Excepted Quantity/i.test(s)) hasLq = true;
+  }
+
+  const parts: string[] = [];
+  if (hasMp) parts.push('MP');
+  if (hasLq) parts.push('LQ');
+  return parts.join(' ');
+}
+
 function formatImportedWeight(raw: string): string {
   if (!raw) return '';
-  const n = parseFloat(raw.replace(/\s/g, '').replace(/,/g, ''));
-  if (!Number.isFinite(n)) return raw.trim();
-  if (Number.isInteger(n)) return String(n);
-  return String(Math.round(n));
+  return formatDgWeightKgDisplay(raw) || raw.trim();
 }
 
 const MONTH: Record<string, string> = {
