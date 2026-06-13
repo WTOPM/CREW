@@ -25,7 +25,7 @@ import { PdfOverlayService } from './pdf-overlay.service';
 
 const CREW_EFFECT_03_TEMPLATE_URL = '/crew-effect-03-empty.pdf';
 
-/** Crew Effect 03 — Germany; 2 pages, stamp on page 2 only. */
+/** Crew Effect 03 — Germany; 2 pages, independent stamp/signature per page. */
 @Injectable({ providedIn: 'root' })
 export class PdfCrewEffect03Service {
   private readonly overlay = inject(PdfOverlayService);

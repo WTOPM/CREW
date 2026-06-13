@@ -1,7 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import type { jsPDF } from 'jspdf';
 import type { PDFDocument, PDFPage } from 'pdf-lib';
-import { DocumentOverlayId, DocumentStampOptions } from '../models/document-overlay.models';
+import {
+  documentPageUsesOverlay,
+  documentUsesSignature,
+  documentUsesStamp,
+  DocumentOverlayId,
+  DocumentStampOptions,
+} from '../models/document-overlay.models';
 import {
   PdfStampBox,
   defaultStampBoxForDocument,
@@ -44,25 +50,26 @@ export class PdfOverlayService {
     return pdf.save();
   }
 
-  /** Stamp/signature on pages after the first (page 1 = form data). */
-  async applyAttachmentPageOverlay(
+  /** Stamp/signature on each page; page 1 = form, page 2+ = attachment (MDH, Germany 2-page forms). */
+  private async applyMultiPageOverlay(
     bytes: Uint8Array,
     options: DocumentStampOptions,
     documentId: DocumentOverlayId,
   ): Promise<Uint8Array> {
-    if (!options.useStamp && !options.useSignature) {
-      return bytes;
-    }
-
     const { PDFDocument } = await import('pdf-lib');
     const pdf = await PDFDocument.load(bytes);
     const pages = pdf.getPages();
-    if (pages.length < 2) return bytes;
+    if (!pages.length) return bytes;
 
-    for (let i = 1; i < pages.length; i++) {
+    const anyPage = pages.some((_, i) => documentPageUsesOverlay(options, i >= 1));
+    if (!anyPage) return bytes;
+
+    for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
-      const rotation = resolveOverlayRotation(options, false);
-      await this.drawOverlayOnPage(pdf, page, options, documentId, true, rotation);
+      const attachment = i >= 1;
+      if (!documentPageUsesOverlay(options, attachment)) continue;
+      const rotation = resolveOverlayRotation(options, attachment);
+      await this.drawOverlayOnPage(pdf, page, options, documentId, attachment, rotation);
     }
     return pdf.save();
   }
@@ -75,40 +82,24 @@ export class PdfOverlayService {
     return this.applyToPdfBytes(bytes, options, 'shipStores02');
   }
 
-  /** Ship Stores 03 (Germany) — stamp/signature on page 2 only. */
+  async applyMdhOverlay(bytes: Uint8Array, options: DocumentStampOptions): Promise<Uint8Array> {
+    return this.applyMultiPageOverlay(bytes, options, 'mdh');
+  }
+
+  /** Ship Stores 03 (Germany) — independent stamp/signature on pages 1 and 2. */
   async applyShipStores03Overlay(
     bytes: Uint8Array,
     options: DocumentStampOptions,
   ): Promise<Uint8Array> {
-    return this.applyAttachmentPageOverlay(bytes, options, 'shipStores03');
+    return this.applyMultiPageOverlay(bytes, options, 'shipStores03');
   }
 
-  /** Crew Effect 03 (Germany) — stamp/signature on page 2 only. */
+  /** Crew Effect 03 (Germany) — independent stamp/signature on pages 1 and 2. */
   async applyCrewEffect03Overlay(
     bytes: Uint8Array,
     options: DocumentStampOptions,
   ): Promise<Uint8Array> {
-    return this.applyAttachmentPageOverlay(bytes, options, 'crewEffect03');
-  }
-
-  async applyMdhOverlay(bytes: Uint8Array, options: DocumentStampOptions): Promise<Uint8Array> {
-    if (!options.useStamp && !options.useSignature) {
-      return bytes;
-    }
-
-    const { PDFDocument } = await import('pdf-lib');
-    const pdf = await PDFDocument.load(bytes);
-    const pages = pdf.getPages();
-    if (!pages.length) return bytes;
-
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i];
-      const { width, height } = page.getSize();
-      const attachment = i >= 1;
-      const rotation = resolveOverlayRotation(options, attachment);
-      await this.drawOverlayOnPage(pdf, page, options, 'mdh', attachment, rotation);
-    }
-    return pdf.save();
+    return this.applyMultiPageOverlay(bytes, options, 'crewEffect03');
   }
 
   async applyToPdfBytes(
@@ -164,13 +155,16 @@ export class PdfOverlayService {
     const sigRef = resolveSignatureBoxRef(options, stampRef, refH, mdhAttachment);
     const sigBox = scaleStampBoxToPage(sigRef, pageW, pageH, refW, refH);
 
-    if (options.useStamp) {
+    const useStamp = documentUsesStamp(options, mdhAttachment);
+    const useSignature = documentUsesSignature(options, mdhAttachment);
+
+    if (useStamp) {
       const stampBytes = await this.assets.loadBytes('stamp');
       if (stampBytes?.length) {
         await this.drawAsset(pdf, page, stampBytes, stampBox, rotationDeg);
       }
     }
-    if (options.useSignature) {
+    if (useSignature) {
       const sigBytes = await this.assets.loadBytes('signature');
       if (sigBytes?.length) {
         await this.drawAsset(pdf, page, sigBytes, sigBox, rotationDeg);

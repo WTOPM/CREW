@@ -2,18 +2,45 @@ import type { PdfStampBox } from '../utils/overlay-stamp-box.util';
 
 /** Per-document PDF overlay toggles (stamp / signature) and placement. */
 export interface DocumentStampOptions {
+  /** Page 1 (form). */
   useStamp: boolean;
   useSignature: boolean;
+  /** Page 2+ (attachment) — MDH and Germany 2-page forms. */
+  useStampAttachment?: boolean;
+  useSignatureAttachment?: boolean;
   /** Stamp/signature rotation: 0, 90, 180, 270 degrees. */
   overlayRotation?: number;
   /** Stamp anchor on page (pdf-lib pt, origin bottom-left). */
   stampBox?: PdfStampBox;
   /** Signature area (optional; otherwise derived from stamp). */
   signatureBox?: PdfStampBox;
-  /** MDH pages 2+ */
+  /** Page 2+ (attachment) — also used by Germany 2-page forms. */
   overlayRotationAttachment?: number;
   stampBoxAttachment?: PdfStampBox;
   signatureBoxAttachment?: PdfStampBox;
+}
+
+/** Whether stamp is enabled for the given page (page 1 vs attachment). */
+export function documentUsesStamp(
+  options: DocumentStampOptions,
+  attachmentPage: boolean,
+): boolean {
+  return attachmentPage ? Boolean(options.useStampAttachment) : options.useStamp;
+}
+
+/** Whether signature is enabled for the given page. */
+export function documentUsesSignature(
+  options: DocumentStampOptions,
+  attachmentPage: boolean,
+): boolean {
+  return attachmentPage ? Boolean(options.useSignatureAttachment) : options.useSignature;
+}
+
+export function documentPageUsesOverlay(
+  options: DocumentStampOptions,
+  attachmentPage: boolean,
+): boolean {
+  return documentUsesStamp(options, attachmentPage) || documentUsesSignature(options, attachmentPage);
 }
 
 /** Active crew list variant (only one at a time). */
@@ -342,7 +369,12 @@ export interface ShipAssetsMeta {
   signatureFileName: string;
 }
 
-const DEFAULT_STAMP_OPTS: DocumentStampOptions = { useStamp: false, useSignature: false };
+const DEFAULT_STAMP_OPTS: DocumentStampOptions = {
+  useStamp: false,
+  useSignature: false,
+  useStampAttachment: false,
+  useSignatureAttachment: false,
+};
 
 export function createDefaultCrewListPrefs(): CrewListDocumentPrefs {
   return normalizeCrewListDocumentPrefs({ listType: 'type1Passport' });

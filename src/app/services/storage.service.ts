@@ -547,6 +547,8 @@ export class StorageService {
     const base: DocumentStampOptions = {
       useStamp: raw?.useStamp ?? defaults.useStamp,
       useSignature: raw?.useSignature ?? defaults.useSignature,
+      useStampAttachment: raw?.useStampAttachment ?? defaults.useStampAttachment ?? false,
+      useSignatureAttachment: raw?.useSignatureAttachment ?? defaults.useSignatureAttachment ?? false,
       ...(typeof raw?.overlayRotation === 'number' ? { overlayRotation: raw.overlayRotation } : {}),
       ...(typeof raw?.overlayRotationAttachment === 'number'
         ? { overlayRotationAttachment: raw.overlayRotationAttachment }
@@ -793,9 +795,14 @@ export class StorageService {
 
   /** Apply stamp/signature toggles to all document types at once. */
   applyStampTogglesToAllDocuments(useStamp: boolean, useSignature: boolean): void {
-    const patch: Pick<DocumentStampOptions, 'useStamp' | 'useSignature'> = {
+    const patch: Pick<
+      DocumentStampOptions,
+      'useStamp' | 'useSignature' | 'useStampAttachment' | 'useSignatureAttachment'
+    > = {
       useStamp,
       useSignature,
+      useStampAttachment: useStamp,
+      useSignatureAttachment: useSignature,
     };
     this.data.update((d) => {
       const crewList = d.documentOverlay.crewList;

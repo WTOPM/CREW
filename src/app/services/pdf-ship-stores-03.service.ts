@@ -37,7 +37,7 @@ import { PdfOverlayService } from './pdf-overlay.service';
 
 const SHIP_STORES_03_TEMPLATE_URL = '/ship-stores-03-empty.pdf';
 
-/** Ship Stores form 03 (Germany) — portrait, 2 pages; stamp on page 2 only. */
+/** Ship Stores form 03 (Germany) — portrait, 2 pages; stamp/signature per page. */
 @Injectable({ providedIn: 'root' })
 export class PdfShipStores03Service {
   private readonly overlay = inject(PdfOverlayService);

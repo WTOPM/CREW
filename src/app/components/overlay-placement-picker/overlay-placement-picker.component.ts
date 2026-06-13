@@ -17,6 +17,8 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 import {
   CREW_LIST_TYPE_LABELS,
   DOCUMENT_OVERLAY_LABELS,
+  documentUsesSignature,
+  documentUsesStamp,
   DocumentOverlayId,
   DocumentStampOptions,
   resolveCrewListStampOptions,
@@ -79,7 +81,7 @@ type ResizeTarget = 'stamp' | 'signature';
           <label class="choice-chip">
             <input
               type="checkbox"
-              [ngModel]="options().useStamp"
+              [ngModel]="useStampChecked()"
               (ngModelChange)="onToggle('useStamp', $event)"
             />
             <span>Stamp</span>
@@ -87,7 +89,7 @@ type ResizeTarget = 'stamp' | 'signature';
           <label class="choice-chip">
             <input
               type="checkbox"
-              [ngModel]="options().useSignature"
+              [ngModel]="useSignatureChecked()"
               (ngModelChange)="onToggle('useSignature', $event)"
             />
             <span>Signature</span>
@@ -112,11 +114,7 @@ type ResizeTarget = 'stamp' | 'signature';
               [class.placement-tab--active]="mdhPage() === 'attachment'"
               (click)="setMdhPage('attachment')"
             >
-              @if (documentId() === 'shipStores03' || documentId() === 'crewEffect03') {
-                Page 2 (stamp)
-              } @else {
-                Pages 2+ (attachment)
-              }
+              Page 2
             </button>
           </div>
         }
@@ -215,7 +213,7 @@ type ResizeTarget = 'stamp' | 'signature';
                     }
                 <div
                   class="placement-marker placement-marker--stamp"
-                  [class.placement-marker--on]="options().useStamp"
+                  [class.placement-marker--on]="useStampChecked()"
                   [class.placement-marker--active]="canMoveStamp()"
                   [class.placement-marker--resizable]="canResizeStamp()"
                   [ngStyle]="stampOverlayStyle()"
@@ -235,7 +233,7 @@ type ResizeTarget = 'stamp' | 'signature';
                 </div>
                 <div
                   class="placement-marker placement-marker--sig"
-                  [class.placement-marker--on]="options().useSignature"
+                  [class.placement-marker--on]="useSignatureChecked()"
                   [class.placement-marker--active]="canMoveSignature()"
                   [class.placement-marker--resizable]="canResizeSignature()"
                   [ngStyle]="signatureOverlayStyle()"
@@ -766,56 +764,46 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     );
   });
 
-  protected readonly stampPlacementOnPage = computed(() => {
-    if (
-      (this.documentId() === 'shipStores03' || this.documentId() === 'crewEffect03') &&
-      this.mdhPage() === 'form'
-    ) {
-      return false;
-    }
-    return true;
+  protected readonly multiPageDoc = computed(() => {
+    const id = this.documentId();
+    return id === 'mdh' || id === 'shipStores03' || id === 'crewEffect03';
   });
+
+  protected useStampChecked = computed(() =>
+    documentUsesStamp(this.options(), this.multiPageDoc() && this.mdhAttachment()),
+  );
+
+  protected useSignatureChecked = computed(() =>
+    documentUsesSignature(this.options(), this.multiPageDoc() && this.mdhAttachment()),
+  );
 
   protected markerRotateTransform = computed(() => `rotate(${this.rotation()}deg)`);
 
   protected placementMode = computed((): PlacementMode => {
-    const o = this.options();
-    if (o.useStamp && o.useSignature) return 'both';
-    if (o.useStamp) return 'stamp';
-    if (o.useSignature) return 'signature';
+    const stamp = this.useStampChecked();
+    const sig = this.useSignatureChecked();
+    if (stamp && sig) return 'both';
+    if (stamp) return 'stamp';
+    if (sig) return 'signature';
     return 'none';
   });
 
   protected canMoveStamp = computed(() => {
     const m = this.placementMode();
-    return (
-      this.stampPlacementOnPage() &&
-      this.options().useStamp &&
-      (m === 'stamp' || m === 'both')
-    );
+    return this.useStampChecked() && (m === 'stamp' || m === 'both');
   });
 
   protected canMoveSignature = computed(() => {
     const m = this.placementMode();
-    return (
-      this.stampPlacementOnPage() &&
-      this.options().useSignature &&
-      (m === 'signature' || m === 'both')
-    );
+    return this.useSignatureChecked() && (m === 'signature' || m === 'both');
   });
 
   protected canResizeStamp = computed(
-    () =>
-      this.stampPlacementOnPage() &&
-      this.options().useStamp &&
-      this.placementMode() !== 'none',
+    () => this.useStampChecked() && this.placementMode() !== 'none',
   );
 
   protected canResizeSignature = computed(
-    () =>
-      this.stampPlacementOnPage() &&
-      this.options().useSignature &&
-      this.placementMode() !== 'none',
+    () => this.useSignatureChecked() && this.placementMode() !== 'none',
   );
 
   protected placementHint = computed(() => {
@@ -935,7 +923,16 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected signatureOverlayStyle = computed(() => this.markerStyle(this.signatureBoxOnPage()));
 
   protected onToggle(field: 'useStamp' | 'useSignature', value: boolean): void {
-    this.storage.updateDocumentOverlay(this.documentId(), { [field]: value }, 'saved');
+    const attachment = this.multiPageDoc() && this.mdhAttachment();
+    const patch: Partial<DocumentStampOptions> =
+      field === 'useStamp'
+        ? attachment
+          ? { useStampAttachment: value }
+          : { useStamp: value }
+        : attachment
+          ? { useSignatureAttachment: value }
+          : { useSignature: value };
+    this.storage.updateDocumentOverlay(this.documentId(), patch, 'saved');
   }
 
   protected async setMdhPage(page: MdhOverlayPreviewPage): Promise<void> {
