@@ -83,10 +83,10 @@
       >
         <input #pdfFile type="file" accept=".pdf,application/pdf" hidden (change)="onPdfInput($event)" />
         @if (importing()) {
-          <p>Importing PDF…</p>
+          <span>Importing PDF…</span>
         } @else {
-          <p><strong>Drop CMA reefer manifest PDF</strong></p>
-          <p class="reefer-drop-hint">or click to browse</p>
+          <span class="reefer-drop-zone__icon" aria-hidden="true">📄</span>
+          <span>Drop PDF or click</span>
         }
       </div>
       @if (importHistory().length === 0) {

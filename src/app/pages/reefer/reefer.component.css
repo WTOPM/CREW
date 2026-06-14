@@ -222,24 +222,31 @@
 }
 
 .reefer-drop-zone {
-  border: 1.5px dashed #7dd3fc;
-  border-radius: 10px;
-  background: #f0f9ff;
-  padding: 0.85rem;
-  text-align: center;
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   margin-bottom: 0.75rem;
+  min-height: 4rem;
+  padding: 0.85rem;
+  border: 2px dashed #7dd3fc;
+  border-radius: 8px;
+  background: #f0f9ff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
 
 .reefer-drop-zone--active {
   border-color: #0284c7;
   background: #e0f2fe;
+  color: #0369a1;
 }
 
-.reefer-drop-hint {
-  margin: 0.25rem 0 0;
-  font-size: 0.78rem;
-  color: var(--text-muted);
+.reefer-drop-zone__icon {
+  font-size: 1rem;
 }
 
 .reefer-import-list {
