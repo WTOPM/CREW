@@ -29,12 +29,15 @@ export function todayPdfDate(): string {
   return pdfFileDate(iso);
 }
 
-/** Append today's date before the .pdf extension: Name.pdf -> Name_04-06-2026.pdf */
+/** Append today's date before the file extension: Name.pdf -> Name_04-06-2026.pdf */
 export function appendTodayDate(fileName: string): string {
   const date = todayPdfDate();
-  const dot = fileName.toLowerCase().lastIndexOf('.pdf');
-  if (dot === -1) return `${fileName}_${date}.pdf`;
-  return `${fileName.slice(0, dot)}_${date}${fileName.slice(dot)}`;
+  const base = fileName.trim();
+  const lastDot = base.lastIndexOf('.');
+  if (lastDot <= 0) return `${base}_${date}`;
+  const stem = base.slice(0, lastDot);
+  const ext = base.slice(lastDot);
+  return `${stem}_${date}${ext}`;
 }
 
 export function crewListPdfFileName(

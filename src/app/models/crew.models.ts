@@ -506,6 +506,8 @@ export interface AppData {
   narcoticListForm: NarcoticListFormSettings;
   /** Dangerous Goods — library of manifests grouped by container. */
   dgLibrary: DgLibrarySettings;
+  /** Reefer containers — monitoring log inventory. */
+  reeferLibrary: import('./reefer.models').ReeferLibrarySettings;
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
   /** Where generated PDFs are written when "save to folder" is enabled. */

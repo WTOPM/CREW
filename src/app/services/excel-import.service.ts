@@ -28,6 +28,7 @@ import {
   mergeUniqueList,
   parseCrewName,
 } from '../models/crew.models';
+import { createDefaultReeferLibrary } from '../models/reefer.models';
 import { excelSerialToIso, parseValidityRange } from '../utils/date.util';
 import { createDefaultPaxArrSettings } from '../models/passenger.models';
 import { APP_DATA_SCHEMA_VERSION } from '../data/empty-app-data';
@@ -110,6 +111,7 @@ export class ExcelImportService {
       crewMoneyListForm: createDefaultCrewMoneyListForm(),
       narcoticListForm: createDefaultNarcoticListForm(),
       dgLibrary: createDefaultDgLibrary(),
+      reeferLibrary: createDefaultReeferLibrary(),
       documentOverlay: createDefaultDocumentOverlayPrefs(),
       shipAssets: createEmptyShipAssetsMeta(),
       outputSettings: createDefaultOutputSettings(),

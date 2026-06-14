@@ -131,6 +131,18 @@ import {
 } from '../models/dg-manifest.models';
 import type { DgManifestImportResult } from './dg-manifest-import.service';
 import {
+  createReeferManifestDocument,
+  createReeferOnboardUnit,
+  createDefaultReeferLibrary,
+  findReeferManifestDuplicate,
+  mergeReeferImportIntoOnboard,
+  normalizeReeferLibrary,
+  reeferUnitsFromImportRows,
+  type ReeferLibrarySettings,
+  type ReeferOnboardUnit,
+} from '../models/reefer.models';
+import type { ReeferImportResult } from './reefer-import.service';
+import {
   crewListVariantPatch,
   CREW_LIST_TYPE_IDS,
   getCrewListVariantSettings,
@@ -167,6 +179,7 @@ export class StorageService {
   readonly crewMoneyListForm = computed(() => this.data().crewMoneyListForm);
   readonly narcoticListForm = computed(() => this.data().narcoticListForm);
   readonly dgLibrary = computed(() => this.data().dgLibrary);
+  readonly reeferLibrary = computed(() => this.data().reeferLibrary);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly outputSettings = computed(() => this.data().outputSettings);
@@ -329,6 +342,7 @@ export class StorageService {
         .dgManifestForm,
       ports,
     );
+    const reeferLibrary = normalizeReeferLibrary(raw.reeferLibrary, ports);
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay, raw);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     const outputSettings = this.normalizeOutputSettings(raw.outputSettings);
@@ -363,6 +377,7 @@ export class StorageService {
       crewMoneyListForm,
       narcoticListForm,
       dgLibrary,
+      reeferLibrary,
       documentOverlay,
       shipAssets,
       outputSettings,
@@ -986,6 +1001,50 @@ export class StorageService {
     void this.persist('silent');
   }
 
+  applyReeferPageSnapshot(
+    reeferLibrary: ReeferLibrarySettings,
+    shipCtx: import('../models/reefer-page-archive.models').ReeferPageShipContext,
+  ): void {
+    this.data.update((d) => ({
+      ...d,
+      reeferLibrary: normalizeReeferLibrary(structuredClone(reeferLibrary), d.ports),
+      ship: {
+        ...d.ship,
+        voyageNumber: shipCtx.voyageNumber,
+        portOfCall: shipCtx.portOfCall,
+        dateOfDeparture: shipCtx.dateOfDeparture,
+      },
+    }));
+    void this.persist('silent');
+  }
+
+  updateReeferViewSettings(
+    partial: Partial<
+      Pick<
+        ReeferLibrarySettings,
+        | 'showDischarged'
+        | 'monitoringAddNextDays'
+        | 'monitoringNextDays'
+        | 'inventorySortColumn'
+        | 'inventorySortDirection'
+      >
+    >,
+  ): void {
+    this.data.update((d) => ({
+      ...d,
+      reeferLibrary: { ...normalizeReeferLibrary(d.reeferLibrary, d.ports), ...partial },
+    }));
+    void this.persist('silent');
+  }
+
+  updateReeferShowDischarged(showDischarged: boolean): void {
+    this.updateReeferViewSettings({ showDischarged });
+  }
+
+  setReeferUnitStatus(unitId: string, status: 'onboard' | 'discharged'): void {
+    this.updateReeferUnit(unitId, { status });
+  }
+
   addDgOnboardContainer(partial?: Partial<Omit<DgOnboardContainer, 'id' | 'lines'>>): void {
     this.data.update((d) => {
       const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
@@ -1175,6 +1234,129 @@ export class StorageService {
           ...libInner,
           manifests: [{ ...doc, containerCount: added.length }, ...libInner.manifests],
           onboard: [...libInner.onboard, ...added],
+        },
+      };
+    });
+    void this.persist('silent');
+    return null;
+  }
+
+  addReeferUnit(partial?: Partial<Omit<ReeferOnboardUnit, 'id' | 'sourceManifestId'>>): void {
+    this.data.update((d) => {
+      const lib = normalizeReeferLibrary(d.reeferLibrary, d.ports);
+      const loadPort = resolveKnownPortName(partial?.loadPort ?? d.ship.portOfCall ?? '', d.ports);
+      const dischargePort = resolveKnownPortName(
+        partial?.dischargePort ?? d.ship.nextPortOfCall ?? '',
+        d.ports,
+      );
+      return {
+        ...d,
+        reeferLibrary: {
+          ...lib,
+          onboard: [
+            ...lib.onboard,
+            createReeferOnboardUnit({
+              ...partial,
+              loadPort,
+              dischargePort,
+              sourceManifestId: '',
+              status: 'onboard',
+            }),
+          ],
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  updateReeferUnit(
+    unitId: string,
+    partial: Partial<Omit<ReeferOnboardUnit, 'id' | 'sourceManifestId'>>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeReeferLibrary(d.reeferLibrary, d.ports);
+      const resolved: typeof partial = { ...partial };
+      if ('loadPort' in partial) {
+        resolved.loadPort = resolveKnownPortName(partial.loadPort ?? '', d.ports);
+      }
+      if ('dischargePort' in partial) {
+        resolved.dischargePort = resolveKnownPortName(partial.dischargePort ?? '', d.ports);
+      }
+      return {
+        ...d,
+        reeferLibrary: {
+          ...lib,
+          onboard: lib.onboard.map((u) => (u.id === unitId ? { ...u, ...resolved } : u)),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  removeReeferUnit(unitId: string): void {
+    this.data.update((d) => {
+      const lib = normalizeReeferLibrary(d.reeferLibrary, d.ports);
+      return {
+        ...d,
+        reeferLibrary: {
+          ...lib,
+          onboard: lib.onboard.filter((u) => u.id !== unitId),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  removeReeferManifest(id: string): void {
+    this.data.update((d) => {
+      const lib = normalizeReeferLibrary(d.reeferLibrary, d.ports);
+      return {
+        ...d,
+        reeferLibrary: {
+          ...lib,
+          manifests: lib.manifests.filter((m) => m.id !== id),
+          onboard: lib.onboard.filter((u) => u.sourceManifestId !== id),
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  applyReeferImport(
+    result: ReeferImportResult,
+    sourceName: string,
+    fingerprints?: { contentFingerprint?: string; pdfBytesFingerprint?: string },
+  ): import('../models/reefer.models').ReeferManifestDocument | null {
+    const lib = normalizeReeferLibrary(this.data().reeferLibrary, this.data().ports);
+    const duplicate = findReeferManifestDuplicate(lib.manifests, fingerprints ?? {});
+    if (duplicate) return duplicate;
+
+    this.data.update((d) => {
+      const libInner = normalizeReeferLibrary(d.reeferLibrary, d.ports);
+      const loadPort = resolveManifestPortName(result.header.portOfDeparture ?? '', d.ports);
+      const dischargePort = resolveManifestPortName(result.header.portOfArrival ?? '', d.ports);
+      const doc = createReeferManifestDocument({
+        sourceName: sourceName.replace(/\.pdf$/i, '').trim() || 'PDF import',
+        voyageNumber: result.header.voyageNumber?.trim() || d.ship.voyageNumber?.trim() || '',
+        documentDate: result.header.documentDate?.trim() ?? '',
+        loadPort,
+        dischargePort,
+        contentFingerprint: fingerprints?.contentFingerprint?.trim() ?? '',
+        pdfBytesFingerprint: fingerprints?.pdfBytesFingerprint?.trim() ?? '',
+      });
+      const imported = reeferUnitsFromImportRows(
+        result.rows,
+        doc.id,
+        loadPort,
+        dischargePort,
+        d.ports,
+      );
+      return {
+        ...d,
+        reeferLibrary: {
+          ...libInner,
+          manifests: [{ ...doc, unitCount: imported.length }, ...libInner.manifests],
+          onboard: mergeReeferImportIntoOnboard(libInner.onboard, imported),
         },
       };
     });

@@ -49,14 +49,14 @@ export class App implements OnInit {
     this.hasElectron ? this.outputSettings().activePath : this.folderAccess.activeId(),
   );
 
-  /** Package bar + save folder — hidden on DG page. */
-  protected readonly showDocToolbar = toSignal(
+  /** Package bar — hidden on DG / Reefer inventory pages. */
+  protected readonly showPkgBar = toSignal(
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      map(() => !this.isDgRoute()),
-      startWith(!this.isDgRoute()),
+      map(() => !this.isStandaloneInventoryRoute()),
+      startWith(!this.isStandaloneInventoryRoute()),
     ),
-    { initialValue: !this.isDgRoute() },
+    { initialValue: !this.isStandaloneInventoryRoute() },
   );
 
   ngOnInit(): void {
@@ -149,8 +149,8 @@ export class App implements OnInit {
     }
   }
 
-  private isDgRoute(): boolean {
+  private isStandaloneInventoryRoute(): boolean {
     const path = this.router.url.split('?')[0].split('#')[0];
-    return path === '/dg';
+    return path === '/dg' || path === '/reefer';
   }
 }

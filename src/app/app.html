@@ -8,10 +8,11 @@
         <span class="brand-version">v0.85</span>
       </span>
     </a>
-    @if (showDocToolbar()) {
+    @if (showPkgBar()) {
       <app-pkg-bar />
+    }
 
-      <div class="output-bar">
+    <div class="output-bar">
       <label class="output-toggle" title="Save to selected folder">
         <input
           type="checkbox"
@@ -53,11 +54,11 @@
       } @else {
         <span class="output-note">Folder saving needs Chrome or Edge</span>
       }
-      </div>
-    }
+    </div>
     <div class="nav-links">
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
       <a routerLink="/dg" routerLinkActive="active" class="nav-dg">DG</a>
+      <a routerLink="/reefer" routerLinkActive="active" class="nav-reefer">REEFER</a>
       <a routerLink="/settings" routerLinkActive="active" class="nav-settings">
         <svg class="gear-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path

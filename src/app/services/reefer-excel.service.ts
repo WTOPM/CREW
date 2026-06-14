@@ -1,21 +1,19 @@
 import { Injectable, inject } from '@angular/core';
-import { buildDgManifestExcelBytes } from '../utils/dg-manifest-excel-layout.util';
+import { buildReeferMonitoringExcelBytes } from '../utils/reefer-excel.util';
 import { pdfFileDate, pdfFileToken } from '../utils/pdf-filename.util';
-import type { DgManifestExportContext } from '../models/dg-manifest-export.models';
 import { ExcelDeliveryService } from './excel-delivery.service';
 import { StorageService } from './storage.service';
 
 @Injectable({ providedIn: 'root' })
-export class DgManifestExcelService {
+export class ReeferExcelService {
   private readonly storage = inject(StorageService);
   private readonly delivery = inject(ExcelDeliveryService);
 
-  async openManifest(exportContext?: DgManifestExportContext): Promise<boolean> {
+  async openMonitoringLog(): Promise<boolean> {
     const ship = this.storage.ship();
-    const library = this.storage.dgLibrary();
-    const crew = this.storage.allCrew();
+    const library = this.storage.reeferLibrary();
     const ports = this.storage.ports();
-    const bytes = await buildDgManifestExcelBytes(ship, crew, library, ports, exportContext);
+    const bytes = await buildReeferMonitoringExcelBytes(ship, library, ports);
     const fileName = this.fileName(ship.name, ship.dateOfDeparture);
     return this.delivery.deliver(bytes, fileName);
   }
@@ -23,6 +21,6 @@ export class DgManifestExcelService {
   private fileName(shipName: string, departureDate: string): string {
     const token = pdfFileToken(shipName, 'vessel');
     const date = pdfFileDate(departureDate);
-    return `DG_Manifest_${token}_${date}.xlsx`;
+    return `Reefer_Log_${token}_${date}.xlsx`;
   }
 }

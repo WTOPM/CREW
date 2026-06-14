@@ -201,6 +201,22 @@
   background: #b91c1c;
 }
 
+.nav-reefer {
+  font-weight: 700;
+  color: #0369a1;
+  letter-spacing: 0.06em;
+}
+
+.nav-reefer:hover {
+  color: #fff;
+  background: #0284c7;
+}
+
+.nav-reefer.active {
+  color: #fff;
+  background: #0369a1;
+}
+
 .nav-settings {
   display: inline-flex;
   align-items: center;
