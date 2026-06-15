@@ -278,9 +278,69 @@
   cursor: pointer;
 }
 
+.reefer-inventory-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.reefer-inventory-tab {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #0e7490;
+  border-color: #0e7490;
+  color: #fff;
+  cursor: default;
+}
+
 .reefer-inventory {
   padding: 1rem 1.1rem;
   min-width: 0;
+}
+
+.reefer-inventory-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.reefer-inventory-head__title {
+  flex-shrink: 0;
+}
+
+.reefer-inventory-search-slot {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  padding: 0 0.75rem;
+}
+
+.reefer-inventory-search-input {
+  width: 11rem;
+  max-width: min(11rem, 40vw);
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.82rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.reefer-inventory-search-input:focus {
+  outline: 2px solid #93c5fd;
+  border-color: #3b82f6;
 }
 
 .reefer-inventory-head h2 {

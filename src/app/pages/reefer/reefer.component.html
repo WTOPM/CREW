@@ -1,8 +1,8 @@
 <div class="page reefer-page">
   <header class="page-header reefer-page-header">
     <div>
-      <a routerLink="/" class="back-link">← Home</a>
-      <h1>Reefer</h1>
+      <a routerLink="/" class="back-link">Home</a>
+      <h1>CMA CGM - REEFER LIST</h1>
     </div>
     <div class="dg-page-actions">
       <button
@@ -55,16 +55,16 @@
         <span class="reefer-voyage-label">Port of call</span>
         <app-port-select
           [ports]="ports()"
-          [value]="ship().portOfCall"
-          (valueChange)="onShipChange('portOfCall', $event)"
+          [value]="library().pageContext.portOfCall"
+          (valueChange)="onPageContextChange('portOfCall', $event)"
         />
       </label>
       <label class="reefer-voyage-item reefer-voyage-item--field">
         <span class="reefer-voyage-label">Departure</span>
         <app-date-picker
           size="sm"
-          [value]="ship().dateOfDeparture"
-          (valueChange)="onShipChange('dateOfDeparture', $event)"
+          [value]="library().pageContext.dateOfDeparture"
+          (valueChange)="onPageContextChange('dateOfDeparture', $event)"
         />
       </label>
     </section>
@@ -121,15 +121,29 @@
           · {{ formatDate(snap.ship.dateOfDeparture) || '—' }}
         </div>
       }
+      <nav class="reefer-inventory-tabs" aria-label="Reefer inventory type">
+        <button type="button" class="reefer-inventory-tab reefer-inventory-tab--active">
+          CMA CGM - REEFER LIST
+        </button>
+      </nav>
       <div class="reefer-inventory-head">
-        <div>
-          <h2>Reefer inventory</h2>
+        <div class="reefer-inventory-head__title">
           <p class="reefer-inventory-meta">
             <span>{{ stats().unitCount }} container(s)</span>
             @if (stats().dischargedCount > 0) {
               <span>{{ stats().dischargedCount }} discharged</span>
             }
           </p>
+        </div>
+        <div class="reefer-inventory-search-slot">
+          <input
+            type="search"
+            class="reefer-inventory-search-input"
+            placeholder="Search"
+            aria-label="Search reefer inventory"
+            [ngModel]="inventorySearch()"
+            (ngModelChange)="inventorySearch.set($event)"
+          />
         </div>
       </div>
 

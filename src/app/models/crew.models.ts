@@ -886,6 +886,12 @@ export function resolveManifestPortName(ref: string, ports: readonly Port[] = []
   const byPrefix = ports.find((p) => p.name.toLowerCase().startsWith(v));
   if (byPrefix) return byPrefix.name;
 
+  const byCityToken = ports.find((p) => {
+    const city = p.name.toLowerCase().split(/[\s,(/-]/)[0]?.trim() ?? '';
+    return city === v || city.startsWith(v) || v.startsWith(city);
+  });
+  if (byCityToken) return byCityToken.name;
+
   const byContains = ports.find((p) => {
     const n = p.name.toLowerCase();
     const c = (p.code ?? '').toLowerCase();

@@ -1,7 +1,6 @@
 import { jsPDF } from 'jspdf';
 import {
   dgContainersExportTotalKg,
-  formatDgExportLineWeightKg,
   resolveDgMasterName,
   type DgLibrarySettings,
 } from '../models/dg-manifest.models';
@@ -78,7 +77,7 @@ const COLS: PdfCol[] = [
     w: 30,
     align: 'center',
     singleLine: true,
-    value: (r) => formatDgExportLineWeightKg(r.weightKg),
+    value: (r) => r.weightKg,
   },
 ];
 
@@ -362,8 +361,9 @@ export function buildDgManifestPdf(
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
   const containers = exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
   const mergeLines = exportContext?.mergeLines ?? true;
-  const allRows = dgContainersToExcelRows(containers, ports, { mergeLines });
-  const exportTotalKg = dgContainersExportTotalKg(containers);
+  const grossTotalKg = exportContext?.grossTotalKg === true;
+  const allRows = dgContainersToExcelRows(containers, ports, { mergeLines, grossTotalKg });
+  const exportTotalKg = dgContainersExportTotalKg(containers, grossTotalKg);
   const widths = resolveColWidths();
   const xs = colXs(widths);
 

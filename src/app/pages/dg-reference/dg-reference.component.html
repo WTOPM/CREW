@@ -1,0 +1,219 @@
+<div class="page dg-ref-page">
+  <header class="page-header dg-ref-header">
+    <div>
+      <a routerLink="/dg" class="back-link">DG</a>
+      <h1>DG reference</h1>
+      <p class="subtitle">
+        MFAG fire and spillage schedule codes, and the full UN number lookup
+        ({{ unNumberCount }} entries from your Excel UN list). Expand a section when you need it.
+      </p>
+    </div>
+  </header>
+
+  <div class="dg-ref-accordions">
+    <section class="dg-ref-accordion" [class.dg-ref-accordion--open]="isSectionOpen('fire')">
+      <button
+        type="button"
+        class="dg-ref-accordion__trigger"
+        [attr.aria-expanded]="isSectionOpen('fire')"
+        (click)="toggleSection('fire')"
+      >
+        <span class="dg-ref-accordion__chevron" aria-hidden="true"></span>
+        <span class="dg-ref-accordion__title">Fire schedule</span>
+        <span class="dg-ref-accordion__meta">{{ fireSchedules.length }} codes · MFAG pages</span>
+      </button>
+      @if (isSectionOpen('fire')) {
+        <div class="dg-ref-accordion__body">
+          <div class="dg-ref-table-wrap">
+            <table class="dg-ref-table">
+              <thead>
+                <tr>
+                  <th scope="col">Fire schedule</th>
+                  <th scope="col">MFAG page</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of fireSchedules; track row.code) {
+                  <tr>
+                    <td class="dg-ref-code">{{ row.code }}</td>
+                    <td class="dg-ref-page-ref">{{ row.pageRef }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </section>
+
+    <section class="dg-ref-accordion" [class.dg-ref-accordion--open]="isSectionOpen('spillage')">
+      <button
+        type="button"
+        class="dg-ref-accordion__trigger"
+        [attr.aria-expanded]="isSectionOpen('spillage')"
+        (click)="toggleSection('spillage')"
+      >
+        <span class="dg-ref-accordion__chevron" aria-hidden="true"></span>
+        <span class="dg-ref-accordion__title">Spillage schedule</span>
+        <span class="dg-ref-accordion__meta">{{ spillageSchedules.length }} codes · MFAG pages</span>
+      </button>
+      @if (isSectionOpen('spillage')) {
+        <div class="dg-ref-accordion__body">
+          <div class="dg-ref-table-wrap">
+            <table class="dg-ref-table">
+              <thead>
+                <tr>
+                  <th scope="col">Spillage schedule</th>
+                  <th scope="col">MFAG page</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of spillageSchedules; track row.code) {
+                  <tr>
+                    <td class="dg-ref-code">{{ row.code }}</td>
+                    <td class="dg-ref-page-ref">{{ row.pageRef }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </section>
+
+    <section class="dg-ref-accordion dg-ref-accordion--un" [class.dg-ref-accordion--open]="isSectionOpen('un')">
+      <button
+        type="button"
+        class="dg-ref-accordion__trigger"
+        [attr.aria-expanded]="isSectionOpen('un')"
+        (click)="toggleSection('un')"
+      >
+        <span class="dg-ref-accordion__chevron" aria-hidden="true"></span>
+        <span class="dg-ref-accordion__title">UN numbers</span>
+        <span class="dg-ref-accordion__meta">{{ unNumberCount }} entries · {{ unClassLabels.length }} IMDG classes</span>
+      </button>
+
+      @if (isSectionOpen('un')) {
+        <div class="dg-ref-accordion__body dg-ref-accordion__body--un">
+          <div class="dg-ref-un-head">
+            <p class="dg-ref-un-meta">
+              Grouped by IMDG class. Search by UN number, proper shipping name, class, PG, sub-risk, or EMS codes.
+            </p>
+            <div class="dg-ref-un-search-wrap">
+              <label class="dg-ref-un-search" [class.dg-ref-un-search--filled]="unSearch().trim().length > 0">
+                <span class="dg-ref-un-search__label">Search</span>
+                <input
+                  type="search"
+                  class="dg-ref-un-search__input"
+                  aria-label="Search UN numbers reference"
+                  [ngModel]="unSearch()"
+                  (ngModelChange)="unSearch.set($event)"
+                />
+              </label>
+              @if (unSearch() || unClassFilter()) {
+                <button type="button" class="dg-ref-un-clear" (click)="clearUnFilters()">
+                  Clear
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="dg-ref-un-toolbar">
+            <div class="dg-ref-un-filters" aria-label="Filter by IMDG class">
+              <button
+                type="button"
+                class="dg-ref-un-chip"
+                [class.dg-ref-un-chip--active]="unClassFilter() === null"
+                (click)="setUnClassFilter(null)"
+              >
+                All classes
+                <span class="dg-ref-un-chip__count">{{ unNumberCount }}</span>
+              </button>
+              @for (dgClass of unClassLabels; track dgClass) {
+                <button
+                  type="button"
+                  class="dg-ref-un-chip"
+                  [class.dg-ref-un-chip--active]="unClassFilter() === dgClass"
+                  (click)="setUnClassFilter(dgClass)"
+                >
+                  <span class="dg-hint-tooltip-host" [appDgClassTooltip]="dgClass">Class {{ dgClass }}</span>
+                  <span class="dg-ref-un-chip__count">{{ unClassCounts.get(dgClass) }}</span>
+                </button>
+              }
+            </div>
+            <div class="dg-ref-un-bulk">
+              <button type="button" class="dg-ref-un-bulk-btn" (click)="expandAllUnClasses()">Expand all classes</button>
+              <button type="button" class="dg-ref-un-bulk-btn" (click)="collapseAllUnClasses()">Collapse all</button>
+            </div>
+          </div>
+
+          <p class="dg-ref-un-results" role="status">
+            {{ unResultCount() }} {{ unResultCount() === 1 ? 'entry' : 'entries' }}
+            @if (unSearch()) {
+              matching “{{ unSearch() }}”
+            }
+            @if (unClassFilter()) {
+              in class {{ unClassFilter() }}
+            }
+          </p>
+
+          @if (unResultCount() === 0) {
+            <p class="dg-ref-un-empty">No UN numbers match your search.</p>
+          } @else {
+            <div class="dg-ref-un-groups">
+              @for (group of unGroups(); track group.dgClass) {
+                <section class="dg-ref-un-group" [class.dg-ref-un-group--open]="isUnClassOpen(group.dgClass)">
+                  <button
+                    type="button"
+                    class="dg-ref-un-group__trigger"
+                    [attr.aria-expanded]="isUnClassOpen(group.dgClass)"
+                    (click)="toggleUnClass(group.dgClass)"
+                  >
+                    <span class="dg-ref-accordion__chevron" aria-hidden="true"></span>
+                    <h3 class="dg-ref-un-group__title">
+                      <span class="dg-hint-tooltip-host" [appDgClassTooltip]="group.dgClass">
+                        Class {{ group.dgClass }}
+                      </span>
+                    </h3>
+                    <span class="dg-ref-un-group__count">{{ group.rows.length }}</span>
+                  </button>
+
+                  @if (isUnClassOpen(group.dgClass)) {
+                    <div class="dg-ref-un-group__body">
+                      <div class="dg-ref-table-wrap dg-ref-table-wrap--un">
+                        <table class="dg-ref-table dg-ref-table--un">
+                          <thead>
+                            <tr>
+                              <th scope="col">UN No</th>
+                              <th scope="col">Proper shipping name</th>
+                              <th scope="col">PG</th>
+                              <th scope="col">Sub-risk</th>
+                              <th scope="col">Fire</th>
+                              <th scope="col">Spillage</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (row of group.rows; track row.unNo) {
+                              <tr>
+                                <td class="dg-ref-un-no">{{ row.unNo }}</td>
+                                <td class="dg-ref-un-name">{{ row.description }}</td>
+                                <td class="dg-ref-un-meta">{{ formatMeta(row.packingGroup) }}</td>
+                                <td class="dg-ref-un-meta">{{ formatMeta(row.subRisk) }}</td>
+                                <td class="dg-ref-code dg-ref-un-ems">{{ formatMeta(row.fire) }}</td>
+                                <td class="dg-ref-code dg-ref-un-ems">{{ formatMeta(row.spillage) }}</td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  }
+                </section>
+              }
+            </div>
+          }
+        </div>
+      }
+    </section>
+  </div>
+</div>

@@ -12,8 +12,10 @@ import {
 } from '../models/dg-manifest.models';
 import type { DgManifestExportContext } from '../models/dg-manifest-export.models';
 import {
+  buildDgContainerDisplayLines,
   dgCargoLineHasCargo,
   mergeDgCargoLines,
+  planDgInventoryWeightDisplays,
 } from './dg-cargo-merge.util';
 import { compareDgManifestExportRowsByClass } from './dg-inventory-sort.util';
 import {
@@ -324,14 +326,21 @@ function buildTableHeaderRow(ws: ExcelJS.Worksheet): void {
   }
 }
 
+function parseExportLineWeightKg(value: string, grossTotalKg: boolean): number | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  return grossTotalKg ? roundDgExportLineWeightKg(raw) : parseDgWeightKg(raw) || null;
+}
+
 function writeDataRow(
   ws: ExcelJS.Worksheet,
   rowIndex: number,
   row: DgManifestExcelRow,
   rowNo: number | '',
+  grossTotalKg: boolean,
 ): void {
   ws.getRow(rowIndex).height = 30;
-  const weight = row.weightKg.trim() ? roundDgExportLineWeightKg(row.weightKg) : null;
+  const weight = parseExportLineWeightKg(row.weightKg, grossTotalKg);
   const values: { col: number; value: ExcelJS.CellValue; size?: number }[] = [
     { col: 1, value: rowNo === '' ? null : rowNo },
     { col: 2, value: row.pol },
@@ -465,12 +474,16 @@ function dgUnmergedExportRowsInContainer(
 }
 
 export function dgContainersToExcelRows(
-  containers: readonly import('../models/dg-manifest.models').DgOnboardContainer[],
+  containers: readonly DgOnboardContainer[],
   ports: readonly Port[] = [],
-  options?: { mergeLines?: boolean },
+  options?: { mergeLines?: boolean; grossTotalKg?: boolean },
 ): DgManifestExcelRow[] {
   const mergeLines = options?.mergeLines !== false;
+  const grossTotalKg = options?.grossTotalKg === true;
+  const viewOptions = { manifestMergeLines: mergeLines, manifestGrossTotalKg: grossTotalKg };
+  const weightPlan = planDgInventoryWeightDisplays(containers, viewOptions);
   const rows: DgManifestExcelRow[] = [];
+
   for (const container of containers) {
     const base = {
       pol: dgManifestPortCode(container.loadPort, ports),
@@ -479,7 +492,8 @@ export function dgContainersToExcelRows(
       containerNo: container.containerNo.trim(),
       stowage: container.stowage.trim(),
     };
-    if (!container.lines.length) {
+    const displayLines = buildDgContainerDisplayLines(container, viewOptions, weightPlan);
+    if (!displayLines.length) {
       rows.push({
         ...base,
         dgClass: '',
@@ -491,11 +505,27 @@ export function dgContainersToExcelRows(
       });
       continue;
     }
-    rows.push(
-      ...(mergeLines
-        ? mergeDgExportRowsInContainer(base, container.lines)
-        : dgUnmergedExportRowsInContainer(base, container.lines)),
-    );
+    for (const line of displayLines) {
+      if (
+        !line.dgClass &&
+        !line.unNo &&
+        !line.properShippingName &&
+        !line.weightKgDisplay &&
+        !line.mpLq &&
+        !line.flashPoint
+      ) {
+        continue;
+      }
+      rows.push({
+        ...base,
+        dgClass: line.dgClass,
+        unNo: line.unNo,
+        mpLq: line.mpLq,
+        flashPoint: line.flashPoint,
+        properShippingName: line.properShippingName,
+        weightKg: line.weightKgDisplay,
+      });
+    }
   }
   return rows;
 }
@@ -549,8 +579,9 @@ export async function buildDgManifestWorksheet(
 ): Promise<number> {
   const containers = exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
   const mergeLines = exportContext?.mergeLines ?? true;
-  const dataRows = dgContainersToExcelRows(containers, ports, { mergeLines });
-  const totalKg = dgContainersExportTotalKg(containers);
+  const grossTotalKg = exportContext?.grossTotalKg === true;
+  const dataRows = dgContainersToExcelRows(containers, ports, { mergeLines, grossTotalKg });
+  const totalKg = dgContainersExportTotalKg(containers, grossTotalKg);
   const hasExportData = dataRows.some(
     (r) => r.dgClass || r.unNo || r.weightKg || r.properShippingName || r.containerNo,
   );
@@ -571,7 +602,7 @@ export async function buildDgManifestWorksheet(
       rowNo += 1;
       lastContainer = row.containerNo;
     }
-    writeDataRow(ws, r, row, showNo ? rowNo : '');
+    writeDataRow(ws, r, row, showNo ? rowNo : '', grossTotalKg);
     lastDataRow = r;
   });
 

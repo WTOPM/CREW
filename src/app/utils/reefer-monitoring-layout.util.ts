@@ -187,8 +187,12 @@ export function buildReeferMonitoringDateBlocks(
   return blocks;
 }
 
-export function reeferExportOnboardUnits(library: ReeferLibrarySettings): ReeferOnboardUnit[] {
-  return reeferVisibleOnboardUnits(library).slice(0, REEFER_LOG_DATA_ROWS);
+export function reeferExportOnboardUnits(
+  library: ReeferLibrarySettings,
+  unitsOverride?: readonly ReeferOnboardUnit[],
+): ReeferOnboardUnit[] {
+  const units = unitsOverride ? [...unitsOverride] : reeferVisibleOnboardUnits(library);
+  return units.slice(0, REEFER_LOG_DATA_ROWS);
 }
 
 export function padReeferExportUnits(

@@ -8,6 +8,7 @@ import { ToastComponent } from './components/toast/toast.component';
 import { StorageService } from './services/storage.service';
 import { FolderAccessService } from './services/folder-access.service';
 import { ToastService } from './services/toast.service';
+import { TitleTooltipService } from './services/title-tooltip.service';
 
 interface FolderOption {
   id: string;
@@ -27,6 +28,7 @@ export class App implements OnInit {
   private readonly folderAccess = inject(FolderAccessService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly titleTooltips = inject(TitleTooltipService);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
   private folderHoldTriggered = false;
 
@@ -60,6 +62,7 @@ export class App implements OnInit {
   );
 
   ngOnInit(): void {
+    this.titleTooltips.install();
     void this.storage.init();
     void this.folderAccess.restore();
   }

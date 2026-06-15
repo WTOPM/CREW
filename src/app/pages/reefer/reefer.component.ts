@@ -9,6 +9,9 @@ import {
   type ReeferOnboardUnit,
 } from '../../models/reefer.models';
 import { reeferVisibleOnboardUnits } from '../../utils/reefer-inventory-sort.util';
+import { filterReeferOnboardUnits } from '../../utils/reefer-inventory-search.util';
+import type { ReeferExportContext } from '../../models/reefer-export.models';
+import type { ReeferPageContext } from '../../utils/page-ship-context.util';
 import type { ReeferPageSnapshot } from '../../models/reefer-page-archive.models';
 import { ReeferExcelService } from '../../services/reefer-excel.service';
 import { ReeferImportService } from '../../services/reefer-import.service';
@@ -56,16 +59,25 @@ export class ReeferComponent {
     [...this.library().manifests].sort((a, b) => b.addedAt.localeCompare(a.addedAt)),
   );
 
-  protected readonly visibleUnits = computed(() => reeferVisibleOnboardUnits(this.library()));
+  protected readonly visibleUnits = computed(() => {
+    const units = reeferVisibleOnboardUnits(this.library());
+    return filterReeferOnboardUnits(units, this.inventorySearch());
+  });
 
-  protected readonly stats = computed(() =>
-    reeferOnboardInventoryStats(this.library().onboard, this.library().showDischarged),
-  );
+  protected readonly stats = computed(() => {
+    const lib = this.library();
+    const baseList = lib.showDischarged
+      ? lib.onboard
+      : lib.onboard.filter((u) => u.status === 'onboard');
+    const filtered = filterReeferOnboardUnits(baseList, this.inventorySearch());
+    return reeferOnboardInventoryStats(filtered, true);
+  });
 
   protected readonly dragOver = signal(false);
   protected readonly importing = signal(false);
   protected readonly exportingPdf = signal(false);
   protected readonly exportingExcel = signal(false);
+  protected readonly inventorySearch = signal('');
   protected readonly showArchiveSaveModal = signal(false);
   protected readonly showArchiveLoadModal = signal(false);
   protected archiveSaveLabel = '';
@@ -108,8 +120,12 @@ export class ReeferComponent {
     }
   }
 
-  protected onShipChange(field: 'portOfCall' | 'dateOfDeparture', value: string): void {
-    this.storage.updateShip({ [field]: value });
+  protected onPageContextChange(field: keyof ReeferPageContext, value: string): void {
+    this.storage.updateReeferPageContext({ [field]: value });
+  }
+
+  private buildExportContext(): ReeferExportContext {
+    return { units: this.visibleUnits() };
   }
 
   protected onUnitChange(unitId: string, field: ReeferUnitField, value: string): void {
@@ -139,8 +155,12 @@ export class ReeferComponent {
 
   protected exportPdf(): void {
     if (this.exportingPdf()) return;
+    if (this.visibleUnits().length === 0) {
+      this.toast.showError('No reefer units to export');
+      return;
+    }
     this.exportingPdf.set(true);
-    void this.reeferPdf.openMonitoringLog().then((ok) => {
+    void this.reeferPdf.openMonitoringLog(this.buildExportContext()).then((ok) => {
       this.toast.show(ok ? 'Reefer log PDF opened' : 'Could not open PDF', ok ? 'success' : 'error');
     }).catch((err) => {
       this.toast.showError(err instanceof Error ? err.message : 'PDF export failed');
@@ -151,8 +171,12 @@ export class ReeferComponent {
 
   protected exportExcel(): void {
     if (this.exportingExcel()) return;
+    if (this.visibleUnits().length === 0) {
+      this.toast.showError('No reefer units to export');
+      return;
+    }
     this.exportingExcel.set(true);
-    void this.reeferExcel.openMonitoringLog().then((ok) => {
+    void this.reeferExcel.openMonitoringLog(this.buildExportContext()).then((ok) => {
       this.toast.show(ok ? 'Reefer log Excel opened' : 'Could not open Excel', ok ? 'success' : 'error');
     }).catch((err) => {
       this.toast.showError(err instanceof Error ? err.message : 'Excel export failed');

@@ -6,6 +6,18 @@ import {
   resolveKnownPortName,
 } from './crew.models';
 import { mergeDgCargoLines } from '../utils/dg-cargo-merge.util';
+import {
+  createEmptyDgPageContext,
+  normalizeDgPageContext,
+  type DgPageContext,
+} from '../utils/page-ship-context.util';
+import {
+  createDefaultUnifeederLibrary,
+  normalizeUnifeederLibrary,
+  type DgUnifeederLibrarySettings,
+} from './dg-unifeeder.models';
+
+export type { DgPageContext };
 
 /** @deprecated Legacy flat row — migrated into onboard inventory. */
 export interface DgManifestRow {
@@ -93,6 +105,10 @@ export interface DgLibrarySettings {
   manifestMergeLines: boolean;
   /** Preview gross totals: sum raw weights, round once (same rule as PDF export). */
   manifestGrossTotalKg: boolean;
+  /** Port/date context for this page and DG document export. */
+  pageContext: DgPageContext;
+  /** UNIFEEDER manifest — separate inventory from CMA CGM. */
+  unifeeder: DgUnifeederLibrarySettings;
   /** @deprecated Renamed to manifestMergeLines — read during normalize only */
   manifestRoundLineKg?: boolean;
   /** @deprecated */
@@ -191,6 +207,8 @@ export function createDefaultDgLibrary(): DgLibrarySettings {
     showDischarged: false,
     manifestMergeLines: false,
     manifestGrossTotalKg: false,
+    pageContext: createEmptyDgPageContext(),
+    unifeeder: createDefaultUnifeederLibrary(),
   };
 }
 
@@ -220,6 +238,7 @@ export function normalizeDgLibrary(
   raw?: Partial<DgLibrarySettings>,
   legacy?: Partial<DgManifestFormSettings>,
   ports: readonly Port[] = [],
+  shipSeed?: Pick<ShipInfo, 'portOfCall' | 'nextPortOfCall' | 'dateOfDeparture' | 'dateOfArrival'>,
 ): DgLibrarySettings {
   const rawManifests = raw?.manifests ?? raw?.documents;
   if (raw && (Array.isArray(rawManifests) || Array.isArray(raw.onboard))) {
@@ -238,17 +257,24 @@ export function normalizeDgLibrary(
       ).map((c) => sanitizeDgOnboardPorts(c, ports));
     }
 
+    const pageContext = normalizeDgPageContext(
+        raw.pageContext,
+        'pageContext' in raw,
+        shipSeed,
+      );
     return {
       manifests,
       onboard,
       showDischarged: raw.showDischarged === true,
       manifestMergeLines: raw.manifestMergeLines === true || raw.manifestRoundLineKg === true,
       manifestGrossTotalKg: raw.manifestGrossTotalKg === true,
+      pageContext,
+      unifeeder: normalizeUnifeederLibrary(raw.unifeeder, ports, pageContext),
     };
   }
 
   if (legacy) {
-    const migrated = migrateLegacyDgForm(legacy, ports);
+    const migrated = migrateLegacyDgForm(legacy, ports, shipSeed);
     if (migrated.manifests.length || migrated.onboard.length) return migrated;
   }
 
@@ -280,6 +306,7 @@ function flattenManifestContainersToOnboard(manifests: DgManifestDocument[]): Dg
 function migrateLegacyDgForm(
   raw: Partial<DgManifestFormSettings>,
   ports: readonly Port[] = [],
+  shipSeed?: Pick<ShipInfo, 'portOfCall' | 'nextPortOfCall' | 'dateOfDeparture' | 'dateOfArrival'>,
 ): DgLibrarySettings {
   const form = normalizeLegacyDgManifestForm(raw);
   const hasRows = form.rows.some(
@@ -309,6 +336,8 @@ function migrateLegacyDgForm(
     showDischarged: false,
     manifestMergeLines: false,
     manifestGrossTotalKg: false,
+    pageContext: normalizeDgPageContext(undefined, false, shipSeed),
+    unifeeder: createDefaultUnifeederLibrary(),
   };
 }
 
@@ -525,13 +554,14 @@ export function dgOnboardExportTotalKg(
 
 export function dgContainersExportTotalKg(
   containers: readonly DgOnboardContainer[],
+  grossTotalKg = true,
 ): number {
   const sum = containers.reduce(
     (total, container) =>
       total + container.lines.reduce((lineSum, line) => lineSum + parseDgWeightKg(line.weightKg), 0),
     0,
   );
-  return Math.round(sum);
+  return grossTotalKg ? Math.round(sum) : roundDgWeightKgSum(sum);
 }
 
 export function dgViewContainerTotalKg(
@@ -707,6 +737,7 @@ function dgClassSummariesFromLines(
         return cmp || a.localeCompare(b, undefined, { sensitivity: 'base' });
       }),
     }))
+    .filter((entry) => entry.totalKg > 0)
     .sort((a, b) => {
       const cmp = dgClassSortKey(a.dgClass) - dgClassSortKey(b.dgClass);
       return cmp || a.dgClass.localeCompare(b.dgClass, undefined, { sensitivity: 'base' });

@@ -131,6 +131,15 @@ import {
 } from '../models/dg-manifest.models';
 import type { DgManifestImportResult } from './dg-manifest-import.service';
 import {
+  createDgUnifeederRow,
+  createDgUnifeederManifestDocument,
+  findUnifeederManifestDuplicate,
+  resolveUnifeederRowPort,
+  type DgUnifeederLibrarySettings,
+  type DgUnifeederRow,
+} from '../models/dg-unifeeder.models';
+import type { UnifeederPdfParseResult } from '../utils/dg-unifeeder-pdf.util';
+import {
   createReeferManifestDocument,
   createReeferOnboardUnit,
   createDefaultReeferLibrary,
@@ -150,6 +159,10 @@ import {
   CrewListOverlayUpdate,
 } from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
+import {
+  resolveDgPageContextFromSnapshot,
+  resolveReeferPageContextFromSnapshot,
+} from '../utils/page-ship-context.util';
 
 const STORAGE_KEY = 'crew-app-data';
 
@@ -341,8 +354,9 @@ export class StorageService {
       (raw as Partial<AppData & { dgManifestForm?: import('../models/dg-manifest.models').DgManifestFormSettings }>)
         .dgManifestForm,
       ports,
+      ship,
     );
-    const reeferLibrary = normalizeReeferLibrary(raw.reeferLibrary, ports);
+    const reeferLibrary = normalizeReeferLibrary(raw.reeferLibrary, ports, ship);
     const documentOverlay = this.normalizeDocumentOverlay(raw.documentOverlay, raw);
     const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
     const outputSettings = this.normalizeOutputSettings(raw.outputSettings);
@@ -977,8 +991,24 @@ export class StorageService {
   ): void {
     this.data.update((d) => ({
       ...d,
-      dgLibrary: { ...normalizeDgLibrary(d.dgLibrary, undefined, d.ports), ...partial },
+      dgLibrary: { ...normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship), ...partial },
     }));
+    void this.persist('silent');
+  }
+
+  updateDgPageContext(
+    partial: Partial<import('../utils/page-ship-context.util').DgPageContext>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          pageContext: { ...lib.pageContext, ...partial },
+        },
+      };
+    });
     void this.persist('silent');
   }
 
@@ -986,18 +1016,14 @@ export class StorageService {
     dgLibrary: DgLibrarySettings,
     shipCtx: import('../models/dg-page-archive.models').DgPageShipContext,
   ): void {
-    this.data.update((d) => ({
-      ...d,
-      dgLibrary: normalizeDgLibrary(structuredClone(dgLibrary), undefined, d.ports),
-      ship: {
-        ...d.ship,
-        voyageNumber: shipCtx.voyageNumber,
-        portOfCall: shipCtx.portOfCall,
-        nextPortOfCall: shipCtx.nextPortOfCall,
-        dateOfDeparture: shipCtx.dateOfDeparture,
-        dateOfArrival: shipCtx.dateOfArrival ?? '',
-      },
-    }));
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(structuredClone(dgLibrary), undefined, d.ports);
+      const pageContext = resolveDgPageContextFromSnapshot(lib.pageContext, shipCtx);
+      return {
+        ...d,
+        dgLibrary: { ...lib, pageContext },
+      };
+    });
     void this.persist('silent');
   }
 
@@ -1005,16 +1031,14 @@ export class StorageService {
     reeferLibrary: ReeferLibrarySettings,
     shipCtx: import('../models/reefer-page-archive.models').ReeferPageShipContext,
   ): void {
-    this.data.update((d) => ({
-      ...d,
-      reeferLibrary: normalizeReeferLibrary(structuredClone(reeferLibrary), d.ports),
-      ship: {
-        ...d.ship,
-        voyageNumber: shipCtx.voyageNumber,
-        portOfCall: shipCtx.portOfCall,
-        dateOfDeparture: shipCtx.dateOfDeparture,
-      },
-    }));
+    this.data.update((d) => {
+      const lib = normalizeReeferLibrary(structuredClone(reeferLibrary), d.ports);
+      const pageContext = resolveReeferPageContextFromSnapshot(lib.pageContext, shipCtx);
+      return {
+        ...d,
+        reeferLibrary: { ...lib, pageContext },
+      };
+    });
     void this.persist('silent');
   }
 
@@ -1032,8 +1056,24 @@ export class StorageService {
   ): void {
     this.data.update((d) => ({
       ...d,
-      reeferLibrary: { ...normalizeReeferLibrary(d.reeferLibrary, d.ports), ...partial },
+      reeferLibrary: { ...normalizeReeferLibrary(d.reeferLibrary, d.ports, d.ship), ...partial },
     }));
+    void this.persist('silent');
+  }
+
+  updateReeferPageContext(
+    partial: Partial<import('../utils/page-ship-context.util').ReeferPageContext>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeReeferLibrary(d.reeferLibrary, d.ports, d.ship);
+      return {
+        ...d,
+        reeferLibrary: {
+          ...lib,
+          pageContext: { ...lib.pageContext, ...partial },
+        },
+      };
+    });
     void this.persist('silent');
   }
 
@@ -1196,6 +1236,192 @@ export class StorageService {
       };
     });
     void this.persist('silent');
+  }
+
+  updateUnifeederViewSettings(
+    partial: Partial<Pick<DgUnifeederLibrarySettings, 'showDischarged' | 'grossTotalKg'>>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: { ...lib.unifeeder, ...partial },
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  addUnifeederRow(
+    partial?: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      const ctx = lib.pageContext;
+      const loadPort = resolveUnifeederRowPort(partial?.loadPort ?? ctx.portOfCall ?? '', d.ports);
+      const dischargePort = resolveUnifeederRowPort(
+        partial?.dischargePort ?? ctx.nextPortOfCall ?? '',
+        d.ports,
+      );
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: {
+            ...lib.unifeeder,
+            onboard: [
+              ...lib.unifeeder.onboard,
+              createDgUnifeederRow({
+                ...partial,
+                loadPort,
+                dischargePort,
+                status: 'onboard',
+              }),
+            ],
+          },
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  updateUnifeederRow(
+    rowId: string,
+    partial: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>>,
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      const resolved: typeof partial = { ...partial };
+      if ('loadPort' in partial) {
+        resolved.loadPort = resolveUnifeederRowPort(partial.loadPort ?? '', d.ports);
+      }
+      if ('dischargePort' in partial) {
+        resolved.dischargePort = resolveUnifeederRowPort(partial.dischargePort ?? '', d.ports);
+      }
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: {
+            ...lib.unifeeder,
+            onboard: lib.unifeeder.onboard.map((row) =>
+              row.id === rowId ? createDgUnifeederRow({ ...row, ...resolved, id: row.id }) : row,
+            ),
+          },
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  setUnifeederRowStatus(rowId: string, status: 'onboard' | 'discharged'): void {
+    this.updateUnifeederRow(rowId, { status });
+  }
+
+  removeUnifeederRow(rowId: string): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: {
+            ...lib.unifeeder,
+            onboard: lib.unifeeder.onboard.filter((row) => row.id !== rowId),
+          },
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  removeUnifeederManifest(id: string): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: {
+            ...lib.unifeeder,
+            manifests: lib.unifeeder.manifests.filter((m) => m.id !== id),
+            onboard: lib.unifeeder.onboard.filter((row) => row.sourceManifestId !== id),
+          },
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  applyUnifeederImport(
+    result: UnifeederPdfParseResult,
+    sourceName: string,
+    fingerprints?: { contentFingerprint?: string; pdfBytesFingerprint?: string },
+  ): import('../models/dg-unifeeder.models').DgUnifeederManifestDocument | null {
+    const lib = normalizeDgLibrary(this.data().dgLibrary, undefined, this.data().ports, this.data().ship);
+    const duplicate = findUnifeederManifestDuplicate(lib.unifeeder.manifests, fingerprints ?? {});
+    if (duplicate) return duplicate;
+
+    this.data.update((d) => {
+      const libInner = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      const loadPort = resolveUnifeederRowPort(result.header.portOfDeparture ?? '', d.ports);
+      const dischargePort = resolveUnifeederRowPort(result.header.portOfArrival ?? '', d.ports);
+      const doc = createDgUnifeederManifestDocument({
+        sourceName: sourceName.replace(/\.(pdf|xlsx)$/i, '').trim() || 'Import',
+        rowCount: result.rows.length,
+        contentFingerprint: fingerprints?.contentFingerprint?.trim() ?? '',
+        pdfBytesFingerprint: fingerprints?.pdfBytesFingerprint?.trim() ?? '',
+      });
+      const imported = result.rows
+        .filter((row) => row.containerNo.trim())
+        .map((row) =>
+          createDgUnifeederRow({
+            ...row,
+            loadPort: resolveUnifeederRowPort(
+              row.loadPort || result.header.portOfDeparture || '',
+              d.ports,
+            ),
+            dischargePort: resolveUnifeederRowPort(
+              row.dischargePort || result.header.portOfArrival || '',
+              d.ports,
+            ),
+            status: 'onboard',
+            sourceManifestId: doc.id,
+          }),
+        );
+      const containerCount = new Set(imported.map((row) => row.containerNo).filter(Boolean)).size;
+      const docWithCount = {
+        ...doc,
+        rowCount: imported.length,
+        containerCount,
+        voyageNumber: (result.header.voyageNumber ?? '').trim(),
+        documentDate: (result.header.departureDate ?? '').trim(),
+        loadPort,
+        dischargePort,
+      };
+      const pageContext = { ...libInner.pageContext };
+      if (loadPort) pageContext.portOfCall = loadPort;
+      if (dischargePort) pageContext.nextPortOfCall = dischargePort;
+      if (result.header.departureDate?.trim()) {
+        pageContext.dateOfDeparture = result.header.departureDate.trim();
+      }
+      return {
+        ...d,
+        dgLibrary: {
+          ...libInner,
+          pageContext,
+          unifeeder: {
+            ...libInner.unifeeder,
+            manifests: [docWithCount, ...libInner.unifeeder.manifests],
+            onboard: [...libInner.unifeeder.onboard, ...imported],
+          },
+        },
+      };
+    });
+    void this.persist('silent');
+    return null;
   }
 
   applyDgManifestImport(

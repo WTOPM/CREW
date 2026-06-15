@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import type { ReeferExportContext } from '../models/reefer-export.models';
 import {
   resolveReeferExportPortCode,
   type ReeferLibrarySettings,
@@ -350,6 +351,7 @@ export async function buildReeferMonitoringExcelBytes(
   ship: ShipInfo,
   library: ReeferLibrarySettings,
   ports: readonly Port[] = [],
+  exportContext?: ReeferExportContext,
 ): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'CREW Documents';
@@ -359,7 +361,7 @@ export async function buildReeferMonitoringExcelBytes(
   const year = reeferLogTitleYear(ship.dateOfDeparture);
   const depPortCode = portCode(ship.portOfCall, [...ports]) || resolveReeferExportPortCode(ship.portOfCall, ports);
   const departureDate = isoToExcelDate(ship.dateOfDeparture);
-  const exportUnits = padReeferExportUnits(reeferExportOnboardUnits(library));
+  const exportUnits = padReeferExportUnits(reeferExportOnboardUnits(library, exportContext?.units));
 
   applyLayout(ws, layout);
   drawTopHeader(ws, ship, year, depPortCode, departureDate, layout);

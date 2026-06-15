@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { buildDgManifestPdfBytes } from '../utils/dg-manifest-pdf.util';
 import { pdfFileDate, pdfFileToken } from '../utils/pdf-filename.util';
 import type { DgManifestExportContext } from '../models/dg-manifest-export.models';
+import { dgShipForExport } from '../utils/page-ship-context.util';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { StorageService } from './storage.service';
 
@@ -13,10 +14,11 @@ export class DgManifestPdfService {
   async openManifest(exportContext?: DgManifestExportContext): Promise<boolean> {
     const ship = this.storage.ship();
     const library = this.storage.dgLibrary();
+    const exportShip = dgShipForExport(ship, library.pageContext);
     const crew = this.storage.allCrew();
     const ports = this.storage.ports();
-    const bytes = buildDgManifestPdfBytes(ship, crew, library, ports, exportContext);
-    const fileName = this.fileName(ship.name, ship.dateOfDeparture);
+    const bytes = buildDgManifestPdfBytes(exportShip, crew, library, ports, exportContext);
+    const fileName = this.fileName(ship.name, exportShip.dateOfDeparture);
     return this.delivery.deliver(bytes, fileName);
   }
 

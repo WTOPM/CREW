@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import type { ReeferExportContext } from '../models/reefer-export.models';
 import {
   resolveReeferExportPortCode,
   type ReeferLibrarySettings,
@@ -304,6 +305,7 @@ export function buildReeferMonitoringPdfBytes(
   ship: ShipInfo,
   library: ReeferLibrarySettings,
   ports: readonly Port[] = [],
+  exportContext?: ReeferExportContext,
 ): Uint8Array {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -318,7 +320,7 @@ export function buildReeferMonitoringPdfBytes(
     layout.dayCount,
     layout.dayOffset,
   );
-  const units = padReeferExportUnits(reeferExportOnboardUnits(library));
+  const units = padReeferExportUnits(reeferExportOnboardUnits(library, exportContext?.units));
 
   drawTopHeader(doc, metrics, ship, year, depPortCode, depDate, layout);
   drawTableHeader(doc, metrics, dateBlocks, layout);

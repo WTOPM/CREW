@@ -7,6 +7,7 @@ import {
 } from '../models/dg-page-archive.models';
 import { normalizeDgLibrary, type DgLibrarySettings } from '../models/dg-manifest.models';
 import type { Port, ShipInfo } from '../models/crew.models';
+import { dgPageShipContextFromLibrary } from '../utils/page-ship-context.util';
 import { StorageService } from './storage.service';
 
 @Injectable({ providedIn: 'root' })
@@ -26,12 +27,14 @@ export class DgPageArchiveService {
 
     this.saving.set(true);
     try {
+      const ship = this.storage.ship();
+      const dgLibrary = this.storage.dgLibrary();
       const entry: DgPageSnapshot = {
         id: crypto.randomUUID(),
         label: trimmed,
         savedAt: new Date().toISOString(),
-        ship: shipContextFromShip(this.storage.ship()),
-        dgLibrary: cloneDgLibrary(this.storage.dgLibrary(), this.storage.ports()),
+        ship: dgPageShipContextFromLibrary(ship, dgLibrary.pageContext),
+        dgLibrary: cloneDgLibrary(dgLibrary, this.storage.ports()),
       };
 
       this.entries.update((list) => [entry, ...list]);
@@ -47,9 +50,11 @@ export class DgPageArchiveService {
     if (!entry) return false;
 
     if (!this.loaded()) {
+      const ship = this.storage.ship();
+      const dgLibrary = this.storage.dgLibrary();
       this.liveBackup = {
-        ship: shipContextFromShip(this.storage.ship()),
-        dgLibrary: cloneDgLibrary(this.storage.dgLibrary(), this.storage.ports()),
+        ship: dgPageShipContextFromLibrary(ship, dgLibrary.pageContext),
+        dgLibrary: cloneDgLibrary(dgLibrary, this.storage.ports()),
       };
     }
 
@@ -77,8 +82,9 @@ export class DgPageArchiveService {
 
   defaultSaveLabel(): string {
     const ship = this.storage.ship();
+    const ctx = this.storage.dgLibrary().pageContext;
     const voy = ship.voyageNumber?.trim() || '—';
-    const dep = ship.dateOfDeparture?.trim();
+    const dep = ctx.dateOfDeparture?.trim();
     const depLabel = dep ? formatIsoDateLabel(dep) : 'no date';
     return `Voy ${voy} · ${depLabel}`;
   }
@@ -134,16 +140,6 @@ export class DgPageArchiveService {
   }
 }
 
-export function shipContextFromShip(ship: ShipInfo): DgPageShipContext {
-  return {
-    voyageNumber: ship.voyageNumber?.trim() ?? '',
-    portOfCall: ship.portOfCall?.trim() ?? '',
-    nextPortOfCall: ship.nextPortOfCall?.trim() ?? '',
-    dateOfDeparture: ship.dateOfDeparture?.trim() ?? '',
-    dateOfArrival: ship.dateOfArrival?.trim() ?? '',
-  };
-}
-
 function cloneDgLibrary(lib: DgLibrarySettings, ports: readonly Port[]): DgLibrarySettings {
   return normalizeDgLibrary(structuredClone(lib), undefined, ports);
 }
@@ -154,4 +150,15 @@ function formatIsoDateLabel(iso: string): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const mon = months[parseInt(m[2], 10) - 1] ?? m[2];
   return `${m[3]} ${mon} ${m[1]}`;
+}
+
+/** @deprecated Use dgPageShipContextFromLibrary */
+export function shipContextFromShip(ship: ShipInfo): DgPageShipContext {
+  return {
+    voyageNumber: ship.voyageNumber?.trim() ?? '',
+    portOfCall: ship.portOfCall?.trim() ?? '',
+    nextPortOfCall: ship.nextPortOfCall?.trim() ?? '',
+    dateOfDeparture: ship.dateOfDeparture?.trim() ?? '',
+    dateOfArrival: ship.dateOfArrival?.trim() ?? '',
+  };
 }

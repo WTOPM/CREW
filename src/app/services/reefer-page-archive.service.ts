@@ -7,6 +7,7 @@ import {
 } from '../models/reefer-page-archive.models';
 import { normalizeReeferLibrary, type ReeferLibrarySettings } from '../models/reefer.models';
 import type { Port, ShipInfo } from '../models/crew.models';
+import { reeferPageShipContextFromLibrary } from '../utils/page-ship-context.util';
 import { StorageService } from './storage.service';
 
 @Injectable({ providedIn: 'root' })
@@ -26,12 +27,14 @@ export class ReeferPageArchiveService {
 
     this.saving.set(true);
     try {
+      const ship = this.storage.ship();
+      const reeferLibrary = this.storage.reeferLibrary();
       const entry: ReeferPageSnapshot = {
         id: crypto.randomUUID(),
         label: trimmed,
         savedAt: new Date().toISOString(),
-        ship: shipContextFromShip(this.storage.ship()),
-        reeferLibrary: cloneReeferLibrary(this.storage.reeferLibrary(), this.storage.ports()),
+        ship: reeferPageShipContextFromLibrary(ship, reeferLibrary.pageContext),
+        reeferLibrary: cloneReeferLibrary(reeferLibrary, this.storage.ports()),
       };
 
       this.entries.update((list) => [entry, ...list]);
@@ -47,9 +50,11 @@ export class ReeferPageArchiveService {
     if (!entry) return false;
 
     if (!this.loaded()) {
+      const ship = this.storage.ship();
+      const reeferLibrary = this.storage.reeferLibrary();
       this.liveBackup = {
-        ship: shipContextFromShip(this.storage.ship()),
-        reeferLibrary: cloneReeferLibrary(this.storage.reeferLibrary(), this.storage.ports()),
+        ship: reeferPageShipContextFromLibrary(ship, reeferLibrary.pageContext),
+        reeferLibrary: cloneReeferLibrary(reeferLibrary, this.storage.ports()),
       };
     }
 
@@ -77,8 +82,9 @@ export class ReeferPageArchiveService {
 
   defaultSaveLabel(): string {
     const ship = this.storage.ship();
+    const ctx = this.storage.reeferLibrary().pageContext;
     const voy = ship.voyageNumber?.trim() || '—';
-    const dep = ship.dateOfDeparture?.trim();
+    const dep = ctx.dateOfDeparture?.trim();
     const depLabel = dep ? formatIsoDateLabel(dep) : 'no date';
     return `Voy ${voy} · ${depLabel}`;
   }
@@ -132,14 +138,6 @@ export class ReeferPageArchiveService {
   }
 }
 
-export function shipContextFromShip(ship: ShipInfo): ReeferPageShipContext {
-  return {
-    voyageNumber: ship.voyageNumber?.trim() ?? '',
-    portOfCall: ship.portOfCall?.trim() ?? '',
-    dateOfDeparture: ship.dateOfDeparture?.trim() ?? '',
-  };
-}
-
 function cloneReeferLibrary(lib: ReeferLibrarySettings, ports: readonly Port[]): ReeferLibrarySettings {
   return normalizeReeferLibrary(structuredClone(lib), ports);
 }
@@ -150,4 +148,13 @@ function formatIsoDateLabel(iso: string): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const mon = months[parseInt(m[2], 10) - 1] ?? m[2];
   return `${m[3]} ${mon} ${m[1]}`;
+}
+
+/** @deprecated Use reeferPageShipContextFromLibrary */
+export function shipContextFromShip(ship: ShipInfo): ReeferPageShipContext {
+  return {
+    voyageNumber: ship.voyageNumber?.trim() ?? '',
+    portOfCall: ship.portOfCall?.trim() ?? '',
+    dateOfDeparture: ship.dateOfDeparture?.trim() ?? '',
+  };
 }

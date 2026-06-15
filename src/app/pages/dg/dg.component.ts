@@ -14,14 +14,15 @@ import {
   type DgOnboardContainer,
   type DgOnboardContainerField,
 } from '../../models/dg-manifest.models';
-import type { DgManifestExportContext } from '../../models/dg-manifest-export.models';
+import type { DgManifestExportContext, DgUnifeederExportContext } from '../../models/dg-manifest-export.models';
 import {
   buildDgContainerDisplayLines,
   planDgInventoryWeightDisplays,
   type DgCargoLineDisplay,
 } from '../../utils/dg-cargo-merge.util';
-import type { ShipInfo } from '../../models/crew.models';
 import { DgManifestExcelService } from '../../services/dg-manifest-excel.service';
+import { DgUnifeederExcelService } from '../../services/dg-unifeeder-excel.service';
+import { DgUnifeederPdfService } from '../../services/dg-unifeeder-pdf.service';
 import { DgManifestPdfService } from '../../services/dg-manifest-pdf.service';
 import { DgManifestImportService } from '../../services/dg-manifest-import.service';
 import {
@@ -44,25 +45,61 @@ import {
   type DgInventorySortColumn,
   type DgInventorySortDirection,
 } from '../../utils/dg-inventory-sort.util';
+import { filterDgOnboardContainers } from '../../utils/dg-inventory-search.util';
+import { filterUnifeederOnboardRows } from '../../utils/dg-unifeeder-inventory-search.util';
+import { planUnifeederInventoryWeightDisplays } from '../../utils/dg-unifeeder-weight.util';
+import {
+  sortUnifeederRows,
+  type DgUnifeederSortColumn,
+  type DgUnifeederSortDirection,
+} from '../../utils/dg-unifeeder-inventory-sort.util';
+import type { DgPageContext } from '../../utils/page-ship-context.util';
+import {
+  unifeederOnboardInventoryStats,
+  type DgUnifeederManifestDocument,
+  type DgUnifeederRow,
+  type DgUnifeederRowField,
+} from '../../models/dg-unifeeder.models';
 
+import { DgUnifeederImportService } from '../../services/dg-unifeeder-import.service';
+import {
+  buildUnifeederContentHash,
+  buildUnifeederPdfBytesHash,
+} from '../../utils/dg-unifeeder-fingerprint.util';
+import {
+  dgOnboardManifestSummary,
+  unifeederManifestSummary,
+} from '../../utils/dg-manifest-summary.util';
 import { DgActIconComponent } from './dg-act-icon.component';
+import { MfagScheduleTooltipDirective } from '../../directives/mfag-schedule-tooltip.directive';
+import { PackingGroupTooltipDirective } from '../../directives/packing-group-tooltip.directive';
+import { UnNumberTooltipDirective } from '../../directives/un-number-tooltip.directive';
+import {
+  mfagFirePageRefFromEmsCode,
+  mfagSpillagePageRefFromEmsCode,
+} from '../../utils/dg-mfag-schedule.util';
 
 type DgLineField = keyof Omit<DgCargoLine, 'id'>;
+export type DgInventoryTab = 'cmaCgm' | 'unifeeder';
 
 @Component({
   selector: 'app-dg',
-  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ClickOutsideDirective, ContainerTypeTooltipDirective, DgClassTooltipDirective],
+  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ClickOutsideDirective, ContainerTypeTooltipDirective, DgClassTooltipDirective, MfagScheduleTooltipDirective, UnNumberTooltipDirective, PackingGroupTooltipDirective],
   templateUrl: './dg.component.html',
   styleUrl: './dg.component.css',
 })
 export class DgComponent {
   private readonly storage = inject(StorageService);
   private readonly importer = inject(DgManifestImportService);
+  private readonly unifeederImporter = inject(DgUnifeederImportService);
   private readonly dgExcel = inject(DgManifestExcelService);
+  private readonly unifeederExcel = inject(DgUnifeederExcelService);
+  private readonly unifeederPdf = inject(DgUnifeederPdfService);
   private readonly dgPdf = inject(DgManifestPdfService);
   private readonly pageArchive = inject(DgPageArchiveService);
   private readonly toast = inject(ToastService);
   private readonly fileRef = viewChild<ElementRef<HTMLInputElement>>('pdfFile');
+  private readonly unifeederFileRef = viewChild<ElementRef<HTMLInputElement>>('unifeederExcelFile');
 
   protected readonly ship = this.storage.ship;
   protected readonly ports = this.storage.ports;
@@ -72,11 +109,15 @@ export class DgComponent {
     sortDgDocuments(this.library().manifests, 'added'),
   );
 
-  protected readonly visibleContainers = computed(() => {
+  protected readonly filteredOnboardContainers = computed(() => {
     const lib = this.library();
-    let list = lib.showDischarged
+    return lib.showDischarged
       ? [...lib.onboard]
       : lib.onboard.filter((c) => c.status === 'onboard');
+  });
+
+  protected readonly visibleContainers = computed(() => {
+    let list = filterDgOnboardContainers(this.filteredOnboardContainers(), this.inventorySearch());
     const column = this.inventorySortColumn();
     if (column) {
       list = sortDgOnboardContainers(list, column, this.inventorySortDirection());
@@ -93,14 +134,18 @@ export class DgComponent {
     planDgInventoryWeightDisplays(this.visibleContainers(), this.viewOptions()),
   );
 
-  protected readonly stats = computed(() =>
-    dgViewOnboardInventoryStats(
-      this.library().onboard,
-      this.library().showDischarged,
+  protected readonly stats = computed(() => {
+    const filtered = filterDgOnboardContainers(
+      this.filteredOnboardContainers(),
+      this.inventorySearch(),
+    );
+    return dgViewOnboardInventoryStats(
+      filtered,
+      true,
       this.viewOptions(),
       (container) => this.containerDisplayLines(container).length,
-    ),
-  );
+    );
+  });
 
   protected readonly classSummaries = computed(() =>
     dgViewOnboardClassSummaries(
@@ -112,12 +157,65 @@ export class DgComponent {
 
   protected readonly dragOver = signal(false);
   protected readonly importing = signal(false);
+  protected readonly unifeederDragOver = signal(false);
+  protected readonly unifeederImporting = signal(false);
   protected readonly exportingExcel = signal(false);
   protected readonly exportingPdf = signal(false);
   protected readonly hoveredContainerId = signal<string | null>(null);
   protected readonly hoveredLineId = signal<string | null>(null);
   protected readonly inventorySortColumn = signal<DgInventorySortColumn | null>(null);
   protected readonly inventorySortDirection = signal<DgInventorySortDirection>('asc');
+  protected readonly inventorySearch = signal('');
+  protected readonly activeInventoryTab = signal<DgInventoryTab>('cmaCgm');
+  protected readonly unifeederInventorySearch = signal('');
+  protected readonly unifeederSortColumn = signal<DgUnifeederSortColumn | null>(null);
+  protected readonly unifeederSortDirection = signal<DgUnifeederSortDirection>('asc');
+
+  protected readonly unifeederLibrary = computed(() => this.library().unifeeder);
+
+  protected readonly filteredUnifeederRows = computed(() => {
+    const lib = this.unifeederLibrary();
+    return lib.showDischarged
+      ? [...lib.onboard]
+      : lib.onboard.filter((r) => r.status === 'onboard');
+  });
+
+  protected readonly visibleUnifeederRows = computed(() => {
+    let list = filterUnifeederOnboardRows(this.filteredUnifeederRows(), this.unifeederInventorySearch());
+    const column = this.unifeederSortColumn();
+    if (column) {
+      list = sortUnifeederRows(list, column, this.unifeederSortDirection());
+    }
+    return list;
+  });
+
+  protected readonly unifeederStats = computed(() => {
+    const lib = this.unifeederLibrary();
+    const filtered = filterUnifeederOnboardRows(
+      this.filteredUnifeederRows(),
+      this.unifeederInventorySearch(),
+    );
+    return unifeederOnboardInventoryStats(filtered, true, lib.grossTotalKg);
+  });
+
+  protected readonly unifeederManifestSummary = computed(() =>
+    unifeederManifestSummary(this.visibleUnifeederRows(), this.unifeederLibrary().grossTotalKg),
+  );
+
+  protected readonly unifeederWeightDisplays = computed(() =>
+    planUnifeederInventoryWeightDisplays(
+      this.visibleUnifeederRows(),
+      this.unifeederLibrary().grossTotalKg,
+    ),
+  );
+
+  protected readonly cmaManifestSummary = computed(() =>
+    dgOnboardManifestSummary(this.visibleContainers()),
+  );
+
+  protected readonly unifeederImportHistory = computed(() =>
+    [...this.unifeederLibrary().manifests].sort((a, b) => b.addedAt.localeCompare(a.addedAt)),
+  );
 
   protected readonly dgArchive = this.pageArchive;
   protected readonly showArchiveSaveModal = signal(false);
@@ -126,6 +224,18 @@ export class DgComponent {
 
   protected toggleShowDischarged(checked: boolean): void {
     this.storage.updateDgManifestView({ showDischarged: checked });
+  }
+
+  protected toggleUnifeederShowDischarged(checked: boolean): void {
+    this.storage.updateUnifeederViewSettings({ showDischarged: checked });
+  }
+
+  protected toggleUnifeederGrossTotalKg(checked: boolean): void {
+    this.storage.updateUnifeederViewSettings({ grossTotalKg: checked });
+  }
+
+  protected setInventoryTab(tab: DgInventoryTab): void {
+    this.activeInventoryTab.set(tab);
   }
 
   protected toggleManifestMergeLines(checked: boolean): void {
@@ -142,6 +252,15 @@ export class DgComponent {
     } else {
       this.inventorySortColumn.set(column);
       this.inventorySortDirection.set('asc');
+    }
+  }
+
+  protected toggleUnifeederInventorySort(column: DgUnifeederSortColumn): void {
+    if (this.unifeederSortColumn() === column) {
+      this.unifeederSortDirection.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      this.unifeederSortColumn.set(column);
+      this.unifeederSortDirection.set('asc');
     }
   }
 
@@ -249,6 +368,37 @@ export class DgComponent {
     return parts.join(' · ');
   }
 
+  protected unifeederManifestMeta(doc: DgUnifeederManifestDocument): string {
+    const rows = this.unifeederLibrary().onboard.filter((row) => row.sourceManifestId === doc.id);
+    const loadPort =
+      doc.loadPort.trim() ||
+      rows.map((row) => row.loadPort.trim()).find(Boolean) ||
+      '';
+    const dischargePort =
+      doc.dischargePort.trim() ||
+      rows.map((row) => row.dischargePort.trim()).find(Boolean) ||
+      '';
+    const rowCount = doc.rowCount || rows.length;
+    const containerCount =
+      doc.containerCount ||
+      new Set(rows.map((row) => row.containerNo.trim()).filter(Boolean)).size;
+
+    const parts: string[] = [];
+    if (loadPort && dischargePort) parts.push(`${loadPort} → ${dischargePort}`);
+    else if (loadPort) parts.push(`Load ${loadPort}`);
+    else if (dischargePort) parts.push(`Disch ${dischargePort}`);
+    if (doc.voyageNumber?.trim()) parts.push(`Voy ${doc.voyageNumber.trim()}`);
+    if (doc.documentDate?.trim()) parts.push(this.formatDate(doc.documentDate));
+    parts.push(`${rowCount} rows`);
+    if (containerCount > 0) parts.push(`${containerCount} ctr`);
+    return parts.join(' · ');
+  }
+
+  protected unifeederManifestFullyDischarged(manifestId: string): boolean {
+    const rows = this.unifeederLibrary().onboard.filter((row) => row.sourceManifestId === manifestId);
+    return rows.length > 0 && rows.every((row) => row.status === 'discharged');
+  }
+
   protected manifestFullyDischarged(manifestId: string): boolean {
     return dgManifestAllContainersDischarged(manifestId, this.library().onboard);
   }
@@ -267,8 +417,188 @@ export class DgComponent {
     this.storage.updateDgOnboardContainer(containerId, { [field]: value });
   }
 
-  protected onShipChange(field: keyof ShipInfo, value: string): void {
-    this.storage.updateShip({ [field]: value });
+  protected onPageContextChange(field: keyof DgPageContext, value: string): void {
+    this.storage.updateDgPageContext({ [field]: value });
+  }
+
+  protected onUnifeederRowChange(rowId: string, field: DgUnifeederRowField, value: string): void {
+    const patch: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>> = { [field]: value };
+    if (field === 'fire') {
+      const pageRef = mfagFirePageRefFromEmsCode(value);
+      if (pageRef) patch.fireSchedule = pageRef;
+    }
+    if (field === 'spillage') {
+      const pageRef = mfagSpillagePageRefFromEmsCode(value);
+      if (pageRef) patch.spillageSchedule = pageRef;
+    }
+    this.storage.updateUnifeederRow(rowId, patch);
+  }
+
+  protected addUnifeederRow(): void {
+    this.storage.addUnifeederRow();
+  }
+
+  protected removeUnifeederRow(rowId: string): void {
+    this.storage.removeUnifeederRow(rowId);
+  }
+
+  protected markUnifeederDischarged(rowId: string): void {
+    this.storage.setUnifeederRowStatus(rowId, 'discharged');
+  }
+
+  protected restoreUnifeederRow(rowId: string): void {
+    this.storage.setUnifeederRowStatus(rowId, 'onboard');
+  }
+
+  protected exportUnifeederPdf(): void {
+    if (this.exportingPdf()) return;
+    const exportRows = this.visibleUnifeederRows();
+    if (exportRows.length === 0) {
+      this.toast.showError('No UNIFEEDER rows to export');
+      return;
+    }
+
+    this.exportingPdf.set(true);
+    void this.unifeederPdf.openDgList(this.buildUnifeederExportContext()).then((ok) => {
+      if (ok) {
+        this.toast.show('DG list PDF opened', 'success');
+      } else {
+        this.toast.showError('Could not open PDF');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'PDF export failed');
+    }).finally(() => {
+      this.exportingPdf.set(false);
+    });
+  }
+
+  protected exportUnifeederExcel(): void {
+    if (this.exportingExcel()) return;
+    const exportRows = this.visibleUnifeederRows();
+    if (exportRows.length === 0) {
+      this.toast.showError('No UNIFEEDER rows to export');
+      return;
+    }
+
+    this.exportingExcel.set(true);
+    void this.unifeederExcel.openDgList(this.buildUnifeederExportContext()).then((ok) => {
+      if (ok) {
+        this.toast.show('DG list Excel opened', 'success');
+      } else {
+        this.toast.showError('Could not open Excel file');
+      }
+    }).catch((err) => {
+      this.toast.showError(err instanceof Error ? err.message : 'Excel export failed');
+    }).finally(() => {
+      this.exportingExcel.set(false);
+    });
+  }
+
+  protected removeUnifeederManifest(id: string, event: Event): void {
+    event.stopPropagation();
+    this.storage.removeUnifeederManifest(id);
+  }
+
+  protected pickUnifeederExcel(): void {
+    this.unifeederFileRef()?.nativeElement.click();
+  }
+
+  protected onUnifeederExcelInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) void this.importUnifeederFile(file);
+    input.value = '';
+  }
+
+  protected onUnifeederDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.unifeederDragOver.set(true);
+  }
+
+  protected onUnifeederDragLeave(): void {
+    this.unifeederDragOver.set(false);
+  }
+
+  protected onUnifeederDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.unifeederDragOver.set(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file) void this.importUnifeederFile(file);
+  }
+
+  private async importUnifeederFile(file: File): Promise<void> {
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    const isExcel =
+      /\.xlsx$/i.test(file.name) ||
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    if (!isPdf && !isExcel) {
+      this.toast.showError('Drop a UNIFEEDER PDF or Excel file');
+      return;
+    }
+    if (isExcel) {
+      this.toast.show('UNIFEEDER Excel import — coming soon', 'info');
+      return;
+    }
+
+    this.unifeederImporting.set(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const result = await this.unifeederImporter.importFromPdfBytes(bytes, this.storage.ports());
+      if (result.format === 'unknown' || !result.rows.length) {
+        this.toast.showError(result.warnings[0] ?? 'Could not extract data from PDF');
+        return;
+      }
+      if (!result.rows.some((row) => row.containerNo.trim())) {
+        this.toast.showError('No containers found in PDF (missing container numbers in cargo rows).');
+        return;
+      }
+
+      const [contentFingerprint, pdfBytesFingerprint] = await Promise.all([
+        buildUnifeederContentHash(result),
+        buildUnifeederPdfBytesHash(bytes),
+      ]);
+      const duplicate = this.storage.applyUnifeederImport(result, file.name, {
+        contentFingerprint,
+        pdfBytesFingerprint,
+      });
+      if (duplicate) {
+        this.toast.showError(
+          `This manifest was already imported (${duplicate.sourceName || 'existing entry'})`,
+        );
+        return;
+      }
+
+      const containers = new Set(result.rows.map((r) => r.containerNo).filter(Boolean)).size;
+      const rows = this.storage.dgLibrary().unifeeder.onboard.filter((r) => r.status === 'onboard').length;
+      const pol = result.header.portOfDeparture || '—';
+      const pod = result.header.portOfArrival || '—';
+      this.toast.show(
+        `Imported ${result.rows.length} row(s), ${containers} container(s) — ${rows} onboard (${pol} → ${pod})`,
+        'success',
+      );
+      if (result.warnings.length) {
+        this.toast.show(result.warnings.slice(0, 2).join(' '), 'info');
+      }
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Failed to read PDF');
+    } finally {
+      this.unifeederImporting.set(false);
+    }
+  }
+
+  protected formatUnifeederWeight(value: number): string {
+    if (!Number.isFinite(value) || value === 0) return '0';
+    if (this.unifeederLibrary().grossTotalKg) {
+      return Math.round(value).toLocaleString('en-US');
+    }
+    return value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
+  }
+
+  protected unifeederWeightDisplay(row: DgUnifeederRow): string {
+    if (!this.unifeederLibrary().grossTotalKg) {
+      return row.weightKg;
+    }
+    return this.unifeederWeightDisplays().get(row.id) ?? row.weightKg;
   }
 
   protected setContainerGroupHover(containerId: string): void {
@@ -376,10 +706,19 @@ export class DgComponent {
   }
 
   private buildExportContext(): DgManifestExportContext {
+    const lib = this.library();
     return {
       containers: this.visibleContainers(),
-      includeDischarged: this.library().showDischarged,
-      mergeLines: this.library().manifestMergeLines,
+      includeDischarged: lib.showDischarged,
+      mergeLines: lib.manifestMergeLines,
+      grossTotalKg: lib.manifestGrossTotalKg,
+    };
+  }
+
+  private buildUnifeederExportContext(): DgUnifeederExportContext {
+    return {
+      rows: this.visibleUnifeederRows(),
+      grossTotalKg: this.unifeederLibrary().grossTotalKg,
     };
   }
 

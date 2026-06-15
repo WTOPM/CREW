@@ -1,4 +1,11 @@
-import { Port, resolveKnownPortName, resolveManifestPortName } from './crew.models';
+import { Port, resolveKnownPortName, resolveManifestPortName, type ShipInfo } from './crew.models';
+import {
+  createEmptyReeferPageContext,
+  normalizeReeferPageContext,
+  type ReeferPageContext,
+} from '../utils/page-ship-context.util';
+
+export type { ReeferPageContext };
 
 export type ReeferUnitStatus = 'onboard' | 'discharged';
 
@@ -36,6 +43,8 @@ export interface ReeferLibrarySettings {
   monitoringNextDays: ReeferMonitoringNextDays;
   inventorySortColumn: ReeferInventorySortColumn | null;
   inventorySortDirection: ReeferInventorySortDirection;
+  /** Port/date context for this page and reefer document export. */
+  pageContext: ReeferPageContext;
 }
 
 export type ReeferInventorySortColumn = 'containerNo' | 'loadPort' | 'dischargePort' | 'position';
@@ -61,6 +70,7 @@ export function createDefaultReeferLibrary(): ReeferLibrarySettings {
     monitoringNextDays: 5,
     inventorySortColumn: null,
     inventorySortDirection: 'asc',
+    pageContext: createEmptyReeferPageContext(),
   };
 }
 
@@ -106,6 +116,7 @@ export function createReeferManifestDocument(
 export function normalizeReeferLibrary(
   raw?: Partial<ReeferLibrarySettings>,
   ports: readonly Port[] = [],
+  shipSeed?: Pick<ShipInfo, 'portOfCall' | 'dateOfDeparture'>,
 ): ReeferLibrarySettings {
   if (raw && (Array.isArray(raw.manifests) || Array.isArray(raw.onboard))) {
     return {
@@ -120,6 +131,11 @@ export function normalizeReeferLibrary(
       monitoringNextDays: normalizeReeferMonitoringNextDays(raw.monitoringNextDays),
       inventorySortColumn: normalizeReeferInventorySortColumn(raw.inventorySortColumn),
       inventorySortDirection: raw.inventorySortDirection === 'desc' ? 'desc' : 'asc',
+      pageContext: normalizeReeferPageContext(
+        raw.pageContext,
+        'pageContext' in raw,
+        shipSeed,
+      ),
     };
   }
   return createDefaultReeferLibrary();
