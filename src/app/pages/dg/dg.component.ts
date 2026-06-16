@@ -29,6 +29,7 @@ import { DgUnifeederPdfService } from '../../services/dg-unifeeder-pdf.service';
 import { DgManifestPdfService } from '../../services/dg-manifest-pdf.service';
 import { DgManifestImportService } from '../../services/dg-manifest-import.service';
 import { DgCmaPrestowImportService } from '../../services/dg-cma-prestow-import.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import {
   buildDgManifestContentHash,
   buildDgPdfBytesHash,
@@ -98,6 +99,7 @@ export class DgComponent {
   private readonly storage = inject(StorageService);
   private readonly importer = inject(DgManifestImportService);
   private readonly prestowImporter = inject(DgCmaPrestowImportService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly unifeederImporter = inject(DgUnifeederImportService);
   private readonly dgExcel = inject(DgManifestExcelService);
   private readonly unifeederExcel = inject(DgUnifeederExcelService);
@@ -290,7 +292,7 @@ export class DgComponent {
       : 'Replace CMA CGM list with DP WORLD data';
   }
 
-  protected transferDgInventoryToOpposite(): void {
+  protected async transferDgInventoryToOpposite(): Promise<void> {
     const fromCma = this.activeInventoryTab() === 'cmaCgm';
     const sourceCount = fromCma
       ? this.library().onboard.length
@@ -304,9 +306,12 @@ export class DgComponent {
 
     const sourceLabel = fromCma ? 'CMA CGM' : 'DP WORLD';
     const targetLabel = fromCma ? 'DP WORLD' : 'CMA CGM';
-    const ok = confirm(
-      `Replace the ${targetLabel} inventory with data from ${sourceLabel}? The ${targetLabel} list and import history will be cleared.`,
-    );
+    const ok = await this.confirmDialog.confirm({
+      title: 'Transfer inventory',
+      message: `Replace the ${targetLabel} inventory with data from ${sourceLabel}? The ${targetLabel} list and import history will be cleared.`,
+      confirmLabel: 'Transfer',
+      variant: 'danger',
+    });
     if (!ok) return;
 
     const count = fromCma
@@ -322,7 +327,7 @@ export class DgComponent {
       : 'Clear all DP WORLD inventory and import history';
   }
 
-  protected clearActiveDgInventory(): void {
+  protected async clearActiveDgInventory(): Promise<void> {
     const fromCma = this.activeInventoryTab() === 'cmaCgm';
     const onboardCount = fromCma
       ? this.library().onboard.length
@@ -338,9 +343,12 @@ export class DgComponent {
     }
 
     const label = fromCma ? 'CMA CGM' : 'DP WORLD';
-    const ok = confirm(
-      `Clear all ${label} containers/rows and import history? This cannot be undone.`,
-    );
+    const ok = await this.confirmDialog.confirm({
+      title: `Clear ${label} inventory`,
+      message: `Clear all ${label} containers/rows and import history? This cannot be undone.`,
+      confirmLabel: 'Clear all',
+      variant: 'danger',
+    });
     if (!ok) return;
 
     if (fromCma) {

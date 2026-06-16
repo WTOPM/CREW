@@ -4,6 +4,7 @@ import { appendTodayDate } from '../utils/pdf-filename.util';
 import { uint8ToBase64 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
 import { ToastService } from './toast.service';
+import { ConfirmDialogService } from './confirm-dialog.service';
 import { FolderAccessService } from './folder-access.service';
 
 /**
@@ -17,6 +18,7 @@ export class PdfDeliveryService {
   private readonly storage = inject(StorageService);
   private readonly toast = inject(ToastService);
   private readonly folderAccess = inject(FolderAccessService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   async deliver(bytes: Uint8Array, fileName: string): Promise<boolean> {
     const settings = this.storage.outputSettings();
@@ -55,7 +57,7 @@ export class PdfDeliveryService {
       }
       try {
         const exists = await electron.pdfExists(dirPath, fileName);
-        if (exists && !this.confirmOverwrite(fileName, dirPath)) {
+        if (exists && !(await this.confirmOverwrite(fileName, dirPath))) {
           this.toast.show('Save cancelled', 'info');
           return;
         }
@@ -78,7 +80,7 @@ export class PdfDeliveryService {
       }
       try {
         const exists = await this.folderAccess.fileExists(fileName);
-        if (exists && !this.confirmOverwrite(fileName, this.folderAccess.activeName())) {
+        if (exists && !(await this.confirmOverwrite(fileName, this.folderAccess.activeName()))) {
           this.toast.show('Save cancelled', 'info');
           return;
         }
@@ -96,10 +98,13 @@ export class PdfDeliveryService {
     this.downloadNamed(bytes, fileName);
   }
 
-  private confirmOverwrite(fileName: string, location: string): boolean {
-    return window.confirm(
-      `A file named "${fileName}" already exists in "${location}".\n\nOverwrite it?`,
-    );
+  private async confirmOverwrite(fileName: string, location: string): Promise<boolean> {
+    return this.confirmDialog.confirm({
+      title: 'Overwrite file',
+      message: `A file named "${fileName}" already exists in "${location}".\n\nOverwrite it?`,
+      confirmLabel: 'Overwrite',
+      variant: 'danger',
+    });
   }
 
   private downloadNamed(bytes: Uint8Array, fileName: string): void {

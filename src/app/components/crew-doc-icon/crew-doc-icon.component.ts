@@ -8,6 +8,7 @@ import {
 } from '../../models/crew.models';
 import { CrewDocumentService } from '../../services/crew-document.service';
 import { ToastService } from '../../services/toast.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 
 @Component({
   selector: 'app-crew-doc-icon',
@@ -107,6 +108,7 @@ export class CrewDocIconComponent {
 
   private readonly docs = inject(CrewDocumentService);
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   protected dragOver = false;
   protected holdActive = false;
@@ -190,7 +192,12 @@ export class CrewDocIconComponent {
     const meta = CREW_DOCUMENT_TYPES.find((t) => t.id === type);
     const label = meta?.label ?? 'document';
     const name = formatCrewListName(member) || 'this crew member';
-    const ok = window.confirm(`Delete ${label} for ${name}?`);
+    const ok = await this.confirmDialog.confirm({
+      title: 'Delete document',
+      message: `Delete ${label} for ${name}?`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
     if (!ok) return;
     try {
       await this.docs.remove(member.id, type);

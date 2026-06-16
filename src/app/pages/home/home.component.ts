@@ -31,6 +31,7 @@ import { PASSENGER_RANK, PassengerMember, PaxListKind } from '../../models/passe
 import { StorageService } from '../../services/storage.service';
 
 import { ToastService } from '../../services/toast.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 
 import { filterCrewArchive, filterPassengerArchive } from '../../utils/archive-search.util';
 import { formatDisplayDate } from '../../utils/date.util';
@@ -68,6 +69,7 @@ export class HomeComponent {
   protected readonly storage = inject(StorageService);
 
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly crewDocs = inject(CrewDocumentService);
 
 
@@ -515,29 +517,35 @@ export class HomeComponent {
     /* storage signal refresh */
   }
 
-  protected remove(id: string): void {
+  protected async remove(id: string): Promise<void> {
+    const ok = await this.confirmDialog.confirm({
+      title: 'Delete crew member',
+      message: 'Delete this crew member permanently? This cannot be undone.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
-    if (confirm('Delete this crew member permanently?')) {
-      void this.crewDocs.deleteAllForCrew(id).then(() => {
-        this.storage.removeCrewMember(id);
-        this.toast.showDeleted();
-      });
-    }
-
+    void this.crewDocs.deleteAllForCrew(id).then(() => {
+      this.storage.removeCrewMember(id);
+      this.toast.showDeleted();
+    });
   }
 
 
 
-  protected removePassenger(id: string): void {
+  protected async removePassenger(id: string): Promise<void> {
+    const ok = await this.confirmDialog.confirm({
+      title: 'Delete passenger',
+      message: 'Delete this passenger permanently? This cannot be undone.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
-    if (confirm('Delete this passenger permanently?')) {
+    this.storage.removePassenger(id);
 
-      this.storage.removePassenger(id);
-
-      this.toast.showDeleted();
-
-    }
-
+    this.toast.showDeleted();
   }
 
 

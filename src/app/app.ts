@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
 import { PkgBarComponent } from './components/pkg-bar/pkg-bar.component';
+import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { ToastComponent } from './components/toast/toast.component';
 import { StorageService } from './services/storage.service';
 import { FolderAccessService } from './services/folder-access.service';
@@ -17,7 +18,7 @@ interface FolderOption {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, PkgBarComponent, ToastComponent, FormsModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, PkgBarComponent, ConfirmDialogComponent, ToastComponent, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

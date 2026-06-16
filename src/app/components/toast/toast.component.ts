@@ -10,10 +10,17 @@ import { ToastService, ToastVariant } from '../../services/toast.service';
           class="toast"
           [class]="'toast toast--' + toast.type"
           role="status"
+          (mouseenter)="pause(toast.id)"
+          (mouseleave)="resume(toast.id)"
           (click)="dismiss(toast.id)"
         >
-          <span class="toast-icon" aria-hidden="true">{{ icon(toast.type) }}</span>
-          <span class="toast-text">{{ toast.text }}</span>
+          <div class="toast__body">
+            <span class="toast-icon" aria-hidden="true">{{ icon(toast.type) }}</span>
+            <span class="toast-text">{{ toast.text }}</span>
+          </div>
+          <div class="toast-progress" aria-hidden="true">
+            <div class="toast-progress__fill" [style.width.%]="progressPercent(toast.id)"></div>
+          </div>
         </div>
       }
     </div>
@@ -28,9 +35,9 @@ import { ToastService, ToastVariant } from '../../services/toast.service';
       flex-direction: column;
       align-items: flex-end;
       justify-content: flex-end;
-      gap: 0.75rem;
+      gap: 0.94rem;
       pointer-events: none;
-      max-width: min(22rem, calc(100vw - 2rem));
+      max-width: min(27.5rem, calc(100vw - 2rem));
       max-height: min(70vh, calc(100vh - 3rem));
       overflow: hidden;
     }
@@ -40,11 +47,10 @@ import { ToastService, ToastVariant } from '../../services/toast.service';
       flex-shrink: 0;
       width: 100%;
       display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      padding: 0.75rem 1rem 0.75rem 0.85rem;
-      border-radius: 12px;
-      font-size: 0.9rem;
+      flex-direction: column;
+      align-items: stretch;
+      border-radius: 15px;
+      font-size: 1.125rem;
       font-weight: 600;
       letter-spacing: 0.02em;
       cursor: pointer;
@@ -55,6 +61,7 @@ import { ToastService, ToastVariant } from '../../services/toast.service';
         0 2px 8px rgb(15 23 42 / 8%);
       animation: toast-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      overflow: hidden;
     }
 
     .toast:hover {
@@ -64,21 +71,41 @@ import { ToastService, ToastVariant } from '../../services/toast.service';
         0 4px 12px rgb(15 23 42 / 10%);
     }
 
+    .toast__body {
+      display: flex;
+      align-items: center;
+      gap: 0.81rem;
+      padding: 0.94rem 1.25rem 0.88rem 1.06rem;
+    }
+
     .toast-icon {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 1.75rem;
-      height: 1.75rem;
-      border-radius: 8px;
-      font-size: 0.95rem;
+      width: 2.19rem;
+      height: 2.19rem;
+      border-radius: 10px;
+      font-size: 1.19rem;
       flex-shrink: 0;
     }
 
     .toast-text {
       flex: 1;
       text-transform: uppercase;
-      font-size: 0.82rem;
+      font-size: 1.025rem;
+      line-height: 1.35;
+    }
+
+    .toast-progress {
+      height: 3px;
+      background: rgb(15 23 42 / 7%);
+    }
+
+    .toast-progress__fill {
+      height: 100%;
+      opacity: 0.38;
+      background: currentColor;
+      transition: width 0.08s linear;
     }
 
     .toast--success {
@@ -157,6 +184,18 @@ export class ToastComponent {
       default:
         return '•';
     }
+  }
+
+  protected progressPercent(id: number): number {
+    return this.toastService.progressRatio(id) * 100;
+  }
+
+  protected pause(id: number): void {
+    this.toastService.pause(id);
+  }
+
+  protected resume(id: number): void {
+    this.toastService.resume(id);
   }
 
   protected dismiss(id: number): void {
