@@ -28,7 +28,9 @@ function unifeederRowHasCargo(row: Pick<DgUnifeederRow, 'dgClass' | 'unNo' | 'we
   );
 }
 
-function unifeederContainerKey(row: DgUnifeederRow): string {
+export function unifeederContainerKey(
+  row: Pick<DgUnifeederRow, 'containerNo' | 'loadPort' | 'dischargePort' | 'status' | 'size' | 'stow'>,
+): string {
   return [
     row.containerNo.trim().toUpperCase(),
     row.loadPort.trim(),
@@ -37,6 +39,44 @@ function unifeederContainerKey(row: DgUnifeederRow): string {
     row.size.trim(),
     row.stow.trim(),
   ].join('|');
+}
+
+export interface DgUnifeederRawContainerGroup {
+  key: string;
+  rows: DgUnifeederRow[];
+}
+
+export function groupUnifeederRawRowsByContainer(
+  rows: readonly DgUnifeederRow[],
+): DgUnifeederRawContainerGroup[] {
+  const order: string[] = [];
+  const byKey = new Map<string, DgUnifeederRow[]>();
+
+  for (const row of rows) {
+    const key = unifeederContainerKey(row);
+    if (!byKey.has(key)) {
+      order.push(key);
+      byKey.set(key, []);
+    }
+    byKey.get(key)!.push(row);
+  }
+
+  return order.map((key) => ({ key, rows: byKey.get(key)! }));
+}
+
+export function planUnifeederMergedWeightDisplays(
+  rows: readonly DgUnifeederRow[],
+  options: { mergeLines: boolean; grossTotalKg: boolean },
+): Map<string, string> {
+  const { rows: displayRows } = mergeUnifeederRowsInContainersWithMeta(rows, options.mergeLines);
+  if (!displayRows.length) return new Map();
+
+  const rawWeights = displayRows.map((row) => parseDgWeightKg(row.weightKg));
+  const displays = options.grossTotalKg
+    ? formatDgDisplayLineWeightsKg(rawWeights, true)
+    : rawWeights.map((weight) => formatDgWeightKgDisplay(weight));
+
+  return new Map(displayRows.map((row, index) => [row.id, displays[index] ?? '']));
 }
 
 function mergeUnifeederContainerRows(
@@ -155,25 +195,63 @@ export interface DgUnifeederRowDisplay extends DgUnifeederRow {
   editable: boolean;
   sourceRowIds: readonly string[];
   weightKgDisplay: string;
+  consolidated: boolean;
+}
+
+export interface DgUnifeederContainerDisplayGroup {
+  key: string;
+  size: string;
+  stow: string;
+  containerNo: string;
+  loadPort: string;
+  dischargePort: string;
+  status: DgUnifeederRow['status'];
+  lines: DgUnifeederRowDisplay[];
 }
 
 export function buildUnifeederInventoryDisplayRows(
   rows: readonly DgUnifeederRow[],
   options: { mergeLines: boolean; grossTotalKg: boolean },
+  weightDisplays?: Map<string, string>,
 ): DgUnifeederRowDisplay[] {
-  const { rows: displayRows, sourceRowIds } = mergeUnifeederRowsInContainersWithMeta(
+  const { rows: displayRows, sourceRowIds: sourceRowIdsByDisplayId } = mergeUnifeederRowsInContainersWithMeta(
     rows,
     options.mergeLines,
   );
-  const rawWeights = displayRows.map((row) => parseDgWeightKg(row.weightKg));
-  const weightTexts = options.grossTotalKg
-    ? formatDgDisplayLineWeightsKg(rawWeights, true)
-    : rawWeights.map((weight) => formatDgWeightKgDisplay(weight));
+  const planned =
+    weightDisplays ??
+    planUnifeederMergedWeightDisplays(rows, options);
 
-  return displayRows.map((row, index) => ({
-    ...row,
-    editable: !options.mergeLines || !row.id.startsWith('merge:'),
-    sourceRowIds: sourceRowIds.get(row.id) ?? [row.id],
-    weightKgDisplay: weightTexts[index] ?? row.weightKg,
-  }));
+  return displayRows.map((row) => {
+    const lineSourceIds = sourceRowIdsByDisplayId.get(row.id) ?? [row.id];
+    return {
+      ...row,
+      editable: !options.mergeLines || !row.id.startsWith('merge:'),
+      sourceRowIds: lineSourceIds,
+      consolidated: lineSourceIds.length > 1,
+      weightKgDisplay: planned.get(row.id) ?? row.weightKg,
+    };
+  });
+}
+
+export function buildUnifeederContainerDisplayGroups(
+  rows: readonly DgUnifeederRow[],
+  options: { mergeLines: boolean; grossTotalKg: boolean },
+): DgUnifeederContainerDisplayGroup[] {
+  const groups = groupUnifeederRawRowsByContainer(rows);
+  const weightPlan = planUnifeederMergedWeightDisplays(rows, options);
+
+  return groups.map((group) => {
+    const first = group.rows[0];
+    return {
+      key: group.key,
+      size: first?.size ?? '',
+      stow: first?.stow ?? '',
+      containerNo: first?.containerNo ?? '',
+      loadPort: first?.loadPort ?? '',
+      dischargePort: first?.dischargePort ?? '',
+      status: first?.status ?? 'onboard',
+      lines: buildUnifeederInventoryDisplayRows(group.rows, options, weightPlan),
+    };
+  });
 }

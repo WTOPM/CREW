@@ -369,8 +369,8 @@
                 <col class="col-actions" />
               </colgroup>
               <thead>
-                <tr>
-                  <th class="col-index">#</th>
+                <tr class="dg-table-head">
+                  <th class="col-index dg-th--group-start">#</th>
                   <th
                     class="col-container dg-sort-th"
                     [class.dg-sort-th--active]="inventorySortColumn() === 'containerNo'"
@@ -390,7 +390,7 @@
                     Type
                   </th>
                   <th
-                    class="col-port dg-sort-th"
+                    class="col-port dg-sort-th dg-th--group-start"
                     [class.dg-sort-th--active]="inventorySortColumn() === 'loadPort'"
                     [class.dg-sort-th--desc]="inventorySortColumn() === 'loadPort' && inventorySortDirection() === 'desc'"
                     title="Sort by load port"
@@ -417,7 +417,7 @@
                     Stow.
                   </th>
                   <th
-                    class="col-class dg-sort-th"
+                    class="col-class dg-sort-th dg-th--group-start"
                     [class.dg-sort-th--active]="inventorySortColumn() === 'dgClass'"
                     [class.dg-sort-th--desc]="inventorySortColumn() === 'dgClass' && inventorySortDirection() === 'desc'"
                     title="Sort by class"
@@ -438,7 +438,7 @@
                     MP/LQ
                   </th>
                   <th class="col-flash" title="Flash point">
-                    <span class="dg-th-stack"><span>FLASH</span><span>POINT</span></span>
+                    <span class="dg-th-stack"><span>Flash</span><span>point</span></span>
                   </th>
                   <th
                     class="col-weight dg-sort-th"
@@ -456,9 +456,9 @@
                     title="Sort by proper shipping name"
                     (click)="toggleInventorySort('properShippingName')"
                   >
-                    Proper shipping name
+                    <span class="dg-th-stack"><span>Proper</span><span>shipping name</span></span>
                   </th>
-                  <th class="col-line-act" aria-label="Remove line"></th>
+                  <th class="col-line-act dg-th--group-start" aria-label="Remove line"></th>
                   <th class="col-actions" aria-label="Container actions"></th>
                 </tr>
               </thead>
@@ -1030,6 +1030,11 @@
                   />
                   <span>Consolidate lines</span>
                 </label>
+                @if (unifeederLibrary().mergeLines) {
+                  <span class="dg-consolidated-legend" title="Rows where 2+ cargo lines were combined">
+                    merged rows
+                  </span>
+                }
                 <label
                   class="uf-toggle"
                   title="Round line weights to whole kg; totals stay as sum of raw weights rounded once (same as CMA DG export)"
@@ -1079,7 +1084,7 @@
                 <div class="uf-inventory-strip">
                   <span><strong>{{ unifeederStats().rowCount }}</strong> rows</span>
                   <span class="uf-inventory-strip__sep">·</span>
-                  <span><strong>{{ unifeederManifestSummary().containerCount }}</strong> ctr</span>
+                  <span><strong>{{ visibleUnifeederContainerGroups().length }}</strong> ctr</span>
                   @if (unifeederStats().dischargedCount > 0) {
                     <span class="uf-inventory-strip__sep">·</span>
                     <span class="uf-inventory-strip__muted">{{ unifeederStats().dischargedCount }} disch.</span>
@@ -1091,7 +1096,7 @@
           </section>
         </header>
 
-        @if (visibleUnifeederRows().length === 0) {
+        @if (visibleUnifeederContainerGroups().length === 0) {
           <p class="dg-empty-hint">
             No DP WORLD rows yet. Import an Excel manifest or add a row manually.
           </p>
@@ -1118,11 +1123,12 @@
                 <col class="uf-col-spill" />
                 <col class="uf-col-fire-sch" />
                 <col class="uf-col-spill-sch" />
+                <col class="uf-col-line-act" />
                 <col class="uf-col-act" />
               </colgroup>
               <thead>
-                <tr class="dg-unifeeder-head">
-                  <th class="uf-no">No</th>
+                <tr class="dg-table-head dg-unifeeder-head">
+                  <th class="uf-no dg-th--group-start">No</th>
                   <th
                     class="uf-size dg-sort-th"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'size'"
@@ -1145,7 +1151,7 @@
                     (click)="toggleUnifeederInventorySort('containerNo')"
                   >Container No</th>
                   <th
-                    class="uf-pol dg-sort-th"
+                    class="uf-pol dg-sort-th dg-th--group-start"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'loadPort'"
                     [class.dg-sort-th--desc]="unifeederSortColumn() === 'loadPort' && unifeederSortDirection() === 'desc'"
                     title="Sort by POL"
@@ -1159,20 +1165,20 @@
                     (click)="toggleUnifeederInventorySort('dischargePort')"
                   >POD</th>
                   <th
-                    class="uf-un dg-sort-th"
+                    class="uf-un dg-sort-th dg-th--group-start"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'unNo'"
                     [class.dg-sort-th--desc]="unifeederSortColumn() === 'unNo' && unifeederSortDirection() === 'desc'"
                     title="Sort by UN No"
                     (click)="toggleUnifeederInventorySort('unNo')"
-                  >UN No</th>
+                  >UN</th>
                   <th
                     class="uf-pg dg-sort-th"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'packingGroup'"
                     [class.dg-sort-th--desc]="unifeederSortColumn() === 'packingGroup' && unifeederSortDirection() === 'desc'"
-                    title="Sort by PG"
+                    title="Sort by packing group"
                     (click)="toggleUnifeederInventorySort('packingGroup')"
                   ><span appPackingGroupTooltip [appPackingGroupTooltipReference]="true">PG</span></th>
-                  <th class="uf-weight">Weight (kg)</th>
+                  <th class="uf-weight" title="Weight in kilograms">kg</th>
                   <th
                     class="uf-lq dg-sort-th"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'lq'"
@@ -1194,9 +1200,11 @@
                     title="Sort by MP"
                     (click)="toggleUnifeederInventorySort('marinePollutant')"
                   >MP</th>
-                  <th class="uf-desc">Goods description</th>
+                  <th class="uf-desc" title="Goods description">
+                    <span class="dg-th-stack"><span>Goods</span><span>description</span></span>
+                  </th>
                   <th
-                    class="uf-class dg-sort-th"
+                    class="uf-class dg-sort-th dg-th--group-start"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'dgClass'"
                     [class.dg-sort-th--desc]="unifeederSortColumn() === 'dgClass' && unifeederSortDirection() === 'desc'"
                     title="Sort by Class"
@@ -1206,223 +1214,294 @@
                     class="uf-sub dg-sort-th"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'subRisk'"
                     [class.dg-sort-th--desc]="unifeederSortColumn() === 'subRisk' && unifeederSortDirection() === 'desc'"
-                    title="Sort by Sub Risk"
+                    title="Sort by sub risk"
                     (click)="toggleUnifeederInventorySort('subRisk')"
-                  >Sub Risk</th>
+                  >
+                    <span class="dg-th-stack"><span>Sub</span><span>risk</span></span>
+                  </th>
                   <th
-                    class="uf-fire dg-sort-th"
+                    class="uf-fire dg-sort-th dg-th--group-start"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'fire'"
                     [class.dg-sort-th--desc]="unifeederSortColumn() === 'fire' && unifeederSortDirection() === 'desc'"
                     title="Sort by FIRE"
                     (click)="toggleUnifeederInventorySort('fire')"
-                  >FIRE</th>
+                  >Fire</th>
                   <th
                     class="uf-spill dg-sort-th"
                     [class.dg-sort-th--active]="unifeederSortColumn() === 'spillage'"
                     [class.dg-sort-th--desc]="unifeederSortColumn() === 'spillage' && unifeederSortDirection() === 'desc'"
-                    title="Sort by SPILLAGE"
+                    title="Sort by spillage"
                     (click)="toggleUnifeederInventorySort('spillage')"
-                  >SPILLAGE</th>
-                  <th class="uf-fire-sch" title="FIRE Schedule">
-                    <span class="uf-th-stack">FIRE<span class="uf-th-stack__sub">Schedule</span></span>
+                  >Spill</th>
+                  <th class="uf-fire-sch" title="Fire schedule">
+                    <span class="dg-th-stack"><span>Fire</span><span>sched.</span></span>
                   </th>
-                  <th class="uf-spill-sch" title="SPILLAGE Schedule">
-                    <span class="uf-th-stack">SPILLAGE<span class="uf-th-stack__sub">Schedule</span></span>
+                  <th class="uf-spill-sch" title="Spillage schedule">
+                    <span class="dg-th-stack"><span>Spill</span><span>sched.</span></span>
                   </th>
+                  <th class="uf-line-act dg-th--group-start" aria-label="Remove line"></th>
                   <th class="uf-act" aria-label="Actions"></th>
                 </tr>
               </thead>
               <tbody>
-                @for (row of visibleUnifeederDisplayRows(); track row.id; let ri = $index) {
-                  <tr
-                    class="dg-unifeeder-row"
-                    [class.dg-unifeeder-row--discharged]="row.status === 'discharged'"
-                  >
-                    <td class="uf-no" [ngClass]="unifeederRowNoGroupClass(ri)">{{ ri + 1 }}</td>
-                    <td>
-                      <span [appContainerTypeTooltip]="row.size">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.size" (ngModelChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'size', $event)" />
-                      </span>
-                    </td>
-                    <td>
-                      <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.stow" (ngModelChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'stow', $event)" />
-                    </td>
-                    <td>
-                      <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.containerNo" (ngModelChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'containerNo', $event)" />
-                    </td>
-                    <td>
-                      <div class="dg-cell-port-select">
-                        <app-port-select [ports]="ports()" [value]="row.loadPort" [compact]="true" (valueChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'loadPort', $event)" />
-                      </div>
-                    </td>
-                    <td>
-                      <div class="dg-cell-port-select">
-                        <app-port-select [ports]="ports()" [value]="row.dischargePort" [compact]="true" (valueChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'dischargePort', $event)" />
-                      </div>
-                    </td>
-                    <td>
-                      <span [appUnNumberTooltip]="row.unNo">
+                @for (container of visibleUnifeederContainerGroups(); track container.key; let ci = $index) {
+                  @for (line of container.lines; track line.id; let first = $first; let last = $last) {
+                    <tr
+                      class="dg-unifeeder-row"
+                      [attr.data-uf-container-key]="container.key"
+                      [class.dg-unifeeder-row--discharged]="container.status === 'discharged'"
+                      [class.dg-unifeeder-row--container-start]="first"
+                      [class.dg-unifeeder-row--container-end]="last"
+                      [class.dg-unifeeder-row--container-gap]="first && ci > 0"
+                      [class.dg-unifeeder-row--single-line]="unifeederContainerLineCount(container) === 1"
+                      [class.dg-unifeeder-row--group-active]="isUnifeederGroupActive(container.key)"
+                      [class.dg-unifeeder-row--container-focus]="isUnifeederGroupFocus(container.key)"
+                      [class.dg-unifeeder-row--line-hovered]="isUnifeederCargoLineHovered(container.key, line.id)"
+                      [class.dg-unifeeder-row--consolidated]="line.consolidated"
+                      [attr.title]="line.consolidated ? 'Consolidated: ' + line.sourceRowIds.length + ' source lines merged' : null"
+                      (mouseenter)="setUnifeederLineHover(container.key, line.id)"
+                      (mouseleave)="onUnifeederContainerGroupLeave($event, container.key)"
+                    >
+                      @if (first) {
+                        <td
+                          class="uf-no uf-group"
+                          [attr.rowspan]="unifeederContainerLineCount(container)"
+                          [attr.data-uf-container-key]="container.key"
+                          (mouseenter)="setUnifeederContainerGroupHover(container.key)"
+                        >{{ ci + 1 }}</td>
+                        <td
+                          class="uf-group"
+                          [attr.rowspan]="unifeederContainerLineCount(container)"
+                          [attr.data-uf-container-key]="container.key"
+                          (mouseenter)="setUnifeederContainerGroupHover(container.key)"
+                        >
+                          <span [appContainerTypeTooltip]="container.size">
+                            <input class="dg-cell-input dg-cell-input--mono" [ngModel]="container.size" (ngModelChange)="onUnifeederContainerChange(container, 'size', $event)" />
+                          </span>
+                        </td>
+                        <td
+                          class="uf-group"
+                          [attr.rowspan]="unifeederContainerLineCount(container)"
+                          [attr.data-uf-container-key]="container.key"
+                          (mouseenter)="setUnifeederContainerGroupHover(container.key)"
+                        >
+                          <input class="dg-cell-input dg-cell-input--mono" [ngModel]="container.stow" (ngModelChange)="onUnifeederContainerChange(container, 'stow', $event)" />
+                        </td>
+                        <td
+                          class="uf-group"
+                          [attr.rowspan]="unifeederContainerLineCount(container)"
+                          [attr.data-uf-container-key]="container.key"
+                          (mouseenter)="setUnifeederContainerGroupHover(container.key)"
+                        >
+                          <input class="dg-cell-input dg-cell-input--mono" [ngModel]="container.containerNo" (ngModelChange)="onUnifeederContainerChange(container, 'containerNo', $event)" />
+                        </td>
+                        <td
+                          class="uf-group"
+                          [attr.rowspan]="unifeederContainerLineCount(container)"
+                          [attr.data-uf-container-key]="container.key"
+                          (mouseenter)="setUnifeederContainerGroupHover(container.key)"
+                        >
+                          <div class="dg-cell-port-select">
+                            <app-port-select [ports]="ports()" [value]="container.loadPort" [compact]="true" (valueChange)="onUnifeederContainerChange(container, 'loadPort', $event)" />
+                          </div>
+                        </td>
+                        <td
+                          class="uf-group"
+                          [attr.rowspan]="unifeederContainerLineCount(container)"
+                          [attr.data-uf-container-key]="container.key"
+                          (mouseenter)="setUnifeederContainerGroupHover(container.key)"
+                        >
+                          <div class="dg-cell-port-select">
+                            <app-port-select [ports]="ports()" [value]="container.dischargePort" [compact]="true" (valueChange)="onUnifeederContainerChange(container, 'dischargePort', $event)" />
+                          </div>
+                        </td>
+                      }
+                      <td class="uf-cargo">
+                        <span [appUnNumberTooltip]="line.unNo">
+                          <input
+                            class="dg-cell-input dg-cell-input--mono"
+                            [class.dg-cell-input--readonly]="!line.editable"
+                            [ngModel]="line.unNo"
+                            [readonly]="!line.editable"
+                            [tabindex]="line.editable ? 0 : -1"
+                            (ngModelChange)="onUnifeederDisplayRowChange(line, 'unNo', $event)"
+                          />
+                        </span>
+                      </td>
+                      <td class="uf-cargo">
+                        <span [appPackingGroupTooltip]="line.packingGroup">
+                          <input
+                            class="dg-cell-input dg-cell-input--mono"
+                            [class.dg-cell-input--readonly]="!line.editable"
+                            [ngModel]="line.packingGroup"
+                            [readonly]="!line.editable"
+                            [tabindex]="line.editable ? 0 : -1"
+                            (ngModelChange)="onUnifeederDisplayRowChange(line, 'packingGroup', $event)"
+                          />
+                        </span>
+                      </td>
+                      <td class="uf-cargo">
+                        <input
+                          class="dg-cell-input dg-cell-input--mono dg-cell-input--weight"
+                          [class.dg-cell-input--readonly]="!line.editable"
+                          [ngModel]="unifeederWeightDisplay(line)"
+                          [readonly]="!line.editable"
+                          [tabindex]="line.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(line, 'weightKg', $event)"
+                          (blur)="onUnifeederWeightBlur(line, $any($event.target).value)"
+                          inputmode="decimal"
+                        />
+                      </td>
+                      <td class="uf-cargo">
                         <input
                           class="dg-cell-input dg-cell-input--mono"
-                          [class.dg-cell-input--readonly]="!row.editable"
-                          [ngModel]="row.unNo"
-                          [readonly]="!row.editable"
-                          [tabindex]="row.editable ? 0 : -1"
-                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'unNo', $event)"
+                          [class.dg-cell-input--readonly]="!line.editable"
+                          [ngModel]="line.lq"
+                          [readonly]="!line.editable"
+                          [tabindex]="line.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(line, 'lq', $event)"
                         />
-                      </span>
-                    </td>
-                    <td>
-                      <span [appPackingGroupTooltip]="row.packingGroup">
+                      </td>
+                      <td class="uf-cargo">
+                        <input
+                          class="dg-cell-input dg-cell-input--mono dg-cell-input--fp"
+                          [class.dg-cell-input--readonly]="!line.editable"
+                          [ngModel]="line.flashPoint"
+                          [readonly]="!line.editable"
+                          [tabindex]="line.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(line, 'flashPoint', $event)"
+                        />
+                      </td>
+                      <td class="uf-cargo">
+                        <input
+                          class="dg-cell-input dg-cell-input--mono dg-cell-input--mp"
+                          [class.dg-cell-input--readonly]="!line.editable"
+                          [ngModel]="line.marinePollutant"
+                          [readonly]="!line.editable"
+                          [tabindex]="line.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(line, 'marinePollutant', $event)"
+                        />
+                      </td>
+                      <td class="uf-cargo uf-desc">
+                        <input
+                          class="dg-cell-input"
+                          [class.dg-cell-input--readonly]="!line.editable"
+                          [ngModel]="line.goodsDescription"
+                          [readonly]="!line.editable"
+                          [tabindex]="line.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(line, 'goodsDescription', $event)"
+                        />
+                      </td>
+                      <td class="uf-cargo">
+                        <span class="dg-hint-tooltip-host" [appDgClassTooltip]="line.dgClass">
+                          <input
+                            class="dg-cell-input dg-cell-input--mono"
+                            [class.dg-cell-input--readonly]="!line.editable"
+                            [ngModel]="line.dgClass"
+                            [readonly]="!line.editable"
+                            [tabindex]="line.editable ? 0 : -1"
+                            (ngModelChange)="onUnifeederDisplayRowChange(line, 'dgClass', $event)"
+                          />
+                        </span>
+                      </td>
+                      <td class="uf-cargo">
                         <input
                           class="dg-cell-input dg-cell-input--mono"
-                          [class.dg-cell-input--readonly]="!row.editable"
-                          [ngModel]="row.packingGroup"
-                          [readonly]="!row.editable"
-                          [tabindex]="row.editable ? 0 : -1"
-                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'packingGroup', $event)"
+                          [class.dg-cell-input--readonly]="!line.editable"
+                          [ngModel]="line.subRisk"
+                          [readonly]="!line.editable"
+                          [tabindex]="line.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(line, 'subRisk', $event)"
                         />
-                      </span>
-                    </td>
-                    <td>
-                      <input
-                        class="dg-cell-input dg-cell-input--mono dg-cell-input--weight"
-                        [class.dg-cell-input--readonly]="!row.editable"
-                        [ngModel]="unifeederWeightDisplay(row)"
-                        [readonly]="!row.editable"
-                        [tabindex]="row.editable ? 0 : -1"
-                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'weightKg', $event)"
-                        (blur)="onUnifeederWeightBlur(row, $any($event.target).value)"
-                        inputmode="decimal"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        class="dg-cell-input dg-cell-input--mono"
-                        [class.dg-cell-input--readonly]="!row.editable"
-                        [ngModel]="row.lq"
-                        [readonly]="!row.editable"
-                        [tabindex]="row.editable ? 0 : -1"
-                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'lq', $event)"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        class="dg-cell-input dg-cell-input--mono dg-cell-input--fp"
-                        [class.dg-cell-input--readonly]="!row.editable"
-                        [ngModel]="row.flashPoint"
-                        [readonly]="!row.editable"
-                        [tabindex]="row.editable ? 0 : -1"
-                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'flashPoint', $event)"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        class="dg-cell-input dg-cell-input--mono dg-cell-input--mp"
-                        [class.dg-cell-input--readonly]="!row.editable"
-                        [ngModel]="row.marinePollutant"
-                        [readonly]="!row.editable"
-                        [tabindex]="row.editable ? 0 : -1"
-                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'marinePollutant', $event)"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        class="dg-cell-input"
-                        [class.dg-cell-input--readonly]="!row.editable"
-                        [ngModel]="row.goodsDescription"
-                        [readonly]="!row.editable"
-                        [tabindex]="row.editable ? 0 : -1"
-                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'goodsDescription', $event)"
-                      />
-                    </td>
-                    <td>
-                      <span class="dg-hint-tooltip-host" [appDgClassTooltip]="row.dgClass">
-                        <input
-                          class="dg-cell-input dg-cell-input--mono"
-                          [class.dg-cell-input--readonly]="!row.editable"
-                          [ngModel]="row.dgClass"
-                          [readonly]="!row.editable"
-                          [tabindex]="row.editable ? 0 : -1"
-                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'dgClass', $event)"
-                        />
-                      </span>
-                    </td>
-                    <td>
-                      <input
-                        class="dg-cell-input dg-cell-input--mono"
-                        [class.dg-cell-input--readonly]="!row.editable"
-                        [ngModel]="row.subRisk"
-                        [readonly]="!row.editable"
-                        [tabindex]="row.editable ? 0 : -1"
-                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'subRisk', $event)"
-                      />
-                    </td>
-                    <td>
-                      <span [appMfagFireTooltip]="row.fire">
-                        <input
-                          class="dg-cell-input dg-cell-input--mono"
-                          [class.dg-cell-input--readonly]="!row.editable"
-                          [ngModel]="row.fire"
-                          [readonly]="!row.editable"
-                          [tabindex]="row.editable ? 0 : -1"
-                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'fire', $event)"
-                        />
-                      </span>
-                    </td>
-                    <td>
-                      <span [appMfagSpillageTooltip]="row.spillage">
-                        <input
-                          class="dg-cell-input dg-cell-input--mono"
-                          [class.dg-cell-input--readonly]="!row.editable"
-                          [ngModel]="row.spillage"
-                          [readonly]="!row.editable"
-                          [tabindex]="row.editable ? 0 : -1"
-                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'spillage', $event)"
-                        />
-                      </span>
-                    </td>
-                    <td>
-                      <span [appMfagFireTooltip]="row.fireSchedule || row.fire">
-                        <input
-                          class="dg-cell-input dg-cell-input--mono"
-                          [class.dg-cell-input--readonly]="!row.editable"
-                          [ngModel]="row.fireSchedule"
-                          [readonly]="!row.editable"
-                          [tabindex]="row.editable ? 0 : -1"
-                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'fireSchedule', $event)"
-                        />
-                      </span>
-                    </td>
-                    <td>
-                      <span [appMfagSpillageTooltip]="row.spillageSchedule || row.spillage">
-                        <input
-                          class="dg-cell-input dg-cell-input--mono"
-                          [class.dg-cell-input--readonly]="!row.editable"
-                          [ngModel]="row.spillageSchedule"
-                          [readonly]="!row.editable"
-                          [tabindex]="row.editable ? 0 : -1"
-                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'spillageSchedule', $event)"
-                        />
-                      </span>
-                    </td>
-                    <td class="uf-act">
-                      <div class="dg-row-actions">
-                        @if (row.status === 'discharged') {
-                          <button type="button" class="dg-act dg-act--restore" title="Restore onboard" (click)="restoreUnifeederDisplayRow(row)">
-                            <dg-act-icon kind="restore" />
-                          </button>
-                        } @else {
-                          <button type="button" class="dg-act dg-act--discharge" title="Mark discharged" (click)="markUnifeederDisplayRowDischarged(row)">
-                            <dg-act-icon kind="discharge" />
+                      </td>
+                      <td class="uf-cargo">
+                        <span [appMfagFireTooltip]="line.fire">
+                          <input
+                            class="dg-cell-input dg-cell-input--mono"
+                            [class.dg-cell-input--readonly]="!line.editable"
+                            [ngModel]="line.fire"
+                            [readonly]="!line.editable"
+                            [tabindex]="line.editable ? 0 : -1"
+                            (ngModelChange)="onUnifeederDisplayRowChange(line, 'fire', $event)"
+                          />
+                        </span>
+                      </td>
+                      <td class="uf-cargo">
+                        <span [appMfagSpillageTooltip]="line.spillage">
+                          <input
+                            class="dg-cell-input dg-cell-input--mono"
+                            [class.dg-cell-input--readonly]="!line.editable"
+                            [ngModel]="line.spillage"
+                            [readonly]="!line.editable"
+                            [tabindex]="line.editable ? 0 : -1"
+                            (ngModelChange)="onUnifeederDisplayRowChange(line, 'spillage', $event)"
+                          />
+                        </span>
+                      </td>
+                      <td class="uf-cargo">
+                        <span [appMfagFireTooltip]="line.fireSchedule || line.fire">
+                          <input
+                            class="dg-cell-input dg-cell-input--mono"
+                            [class.dg-cell-input--readonly]="!line.editable"
+                            [ngModel]="line.fireSchedule"
+                            [readonly]="!line.editable"
+                            [tabindex]="line.editable ? 0 : -1"
+                            (ngModelChange)="onUnifeederDisplayRowChange(line, 'fireSchedule', $event)"
+                          />
+                        </span>
+                      </td>
+                      <td class="uf-cargo">
+                        <span [appMfagSpillageTooltip]="line.spillageSchedule || line.spillage">
+                          <input
+                            class="dg-cell-input dg-cell-input--mono"
+                            [class.dg-cell-input--readonly]="!line.editable"
+                            [ngModel]="line.spillageSchedule"
+                            [readonly]="!line.editable"
+                            [tabindex]="line.editable ? 0 : -1"
+                            (ngModelChange)="onUnifeederDisplayRowChange(line, 'spillageSchedule', $event)"
+                          />
+                        </span>
+                      </td>
+                      <td class="uf-line-act uf-cargo">
+                        @if (line.editable) {
+                          <button type="button" class="dg-act dg-act--line-remove" title="Remove DG line" (click)="removeUnifeederDisplayRow(line)">
+                            <dg-act-icon kind="line-remove" />
                           </button>
                         }
-                        <button type="button" class="dg-act dg-act--remove" title="Remove row" (click)="removeUnifeederDisplayRow(row)">
-                          <dg-act-icon kind="remove" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                      @if (first) {
+                        <td
+                          class="uf-act uf-group"
+                          [attr.rowspan]="unifeederContainerLineCount(container)"
+                          [attr.data-uf-container-key]="container.key"
+                          (mouseenter)="setUnifeederContainerGroupHover(container.key)"
+                        >
+                          <div class="dg-row-actions">
+                            @if (container.status !== 'discharged') {
+                              <span class="dg-container-kg" [title]="'Container total, kg'">
+                                {{ formatUnifeederWeight(unifeederContainerTotalKg(container)) }}
+                              </span>
+                            }
+                            @if (container.status === 'discharged') {
+                              <button type="button" class="dg-act dg-act--restore" title="Restore onboard" (click)="restoreUnifeederContainer(container)">
+                                <dg-act-icon kind="restore" />
+                              </button>
+                            } @else {
+                              <button type="button" class="dg-act dg-act--discharge" title="Mark discharged" (click)="markUnifeederContainerDischarged(container)">
+                                <dg-act-icon kind="discharge" />
+                              </button>
+                            }
+                            <button type="button" class="dg-act dg-act--add" title="Add DG line" (click)="addUnifeederCargoLine(container)">
+                              <dg-act-icon kind="add" />
+                            </button>
+                            <button type="button" class="dg-act dg-act--remove" title="Remove container" (click)="removeUnifeederContainer(container)">
+                              <dg-act-icon kind="remove" />
+                            </button>
+                          </div>
+                        </td>
+                      }
+                    </tr>
+                  }
                 }
               </tbody>
             </table>

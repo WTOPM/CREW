@@ -1,4 +1,3 @@
-import { NgClass } from '@angular/common';
 import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -10,6 +9,7 @@ import {
   formatDgWeightKgDisplay,
   formatDgWeightKgGrossDisplay,
   commitDgWeightKgInput,
+  parseDgWeightKg,
   sortDgDocuments,
   type DgCargoLine,
   type DgManifestDocument,
@@ -54,10 +54,14 @@ import { filterDgOnboardContainers } from '../../utils/dg-inventory-search.util'
 import { filterUnifeederOnboardRows } from '../../utils/dg-unifeeder-inventory-search.util';
 import {
   buildUnifeederInventoryDisplayRows,
+  groupUnifeederRawRowsByContainer,
   mergeUnifeederRowsInContainers,
+  planUnifeederMergedWeightDisplays,
+  type DgUnifeederContainerDisplayGroup,
   type DgUnifeederRowDisplay,
 } from '../../utils/dg-unifeeder-merge.util';
 import {
+  sortUnifeederContainerGroups,
   sortUnifeederRows,
   type DgUnifeederSortColumn,
   type DgUnifeederSortDirection,
@@ -91,7 +95,7 @@ export type DgInventoryTab = 'cmaCgm' | 'unifeeder';
 
 @Component({
   selector: 'app-dg',
-  imports: [NgClass, RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ClickOutsideDirective, ContainerTypeTooltipDirective, DgClassTooltipDirective, MfagScheduleTooltipDirective, UnNumberTooltipDirective, PackingGroupTooltipDirective],
+  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ClickOutsideDirective, ContainerTypeTooltipDirective, DgClassTooltipDirective, MfagScheduleTooltipDirective, UnNumberTooltipDirective, PackingGroupTooltipDirective],
   templateUrl: './dg.component.html',
   styleUrl: './dg.component.css',
 })
@@ -164,6 +168,8 @@ export class DgComponent {
   protected readonly exportingPdf = signal(false);
   protected readonly hoveredContainerId = signal<string | null>(null);
   protected readonly hoveredLineId = signal<string | null>(null);
+  protected readonly hoveredUnifeederContainerKey = signal<string | null>(null);
+  protected readonly hoveredUnifeederLineId = signal<string | null>(null);
   protected readonly inventorySortColumn = signal<DgInventorySortColumn | null>(null);
   protected readonly inventorySortDirection = signal<DgInventorySortDirection>('asc');
   protected readonly inventorySearch = signal('');
@@ -190,44 +196,38 @@ export class DgComponent {
     return list;
   });
 
-  protected readonly visibleUnifeederDisplayRows = computed(() => {
+  protected readonly visibleUnifeederContainerGroups = computed((): DgUnifeederContainerDisplayGroup[] => {
     const lib = this.unifeederLibrary();
-    let list = filterUnifeederOnboardRows(this.filteredUnifeederRows(), this.unifeederInventorySearch());
+    const filtered = filterUnifeederOnboardRows(
+      this.filteredUnifeederRows(),
+      this.unifeederInventorySearch(),
+    );
+    const options = { mergeLines: lib.mergeLines, grossTotalKg: lib.grossTotalKg };
+    let rawGroups = groupUnifeederRawRowsByContainer(filtered);
     const column = this.unifeederSortColumn();
     if (column) {
-      list = sortUnifeederRows(list, column, this.unifeederSortDirection());
+      rawGroups = sortUnifeederContainerGroups(rawGroups, column, this.unifeederSortDirection());
     }
-    return buildUnifeederInventoryDisplayRows(list, {
-      mergeLines: lib.mergeLines,
-      grossTotalKg: lib.grossTotalKg,
+    const weightPlan = planUnifeederMergedWeightDisplays(filtered, options);
+
+    return rawGroups.map((group) => {
+      const first = group.rows[0];
+      return {
+        key: group.key,
+        size: first?.size ?? '',
+        stow: first?.stow ?? '',
+        containerNo: first?.containerNo ?? '',
+        loadPort: first?.loadPort ?? '',
+        dischargePort: first?.dischargePort ?? '',
+        status: first?.status ?? 'onboard',
+        lines: buildUnifeederInventoryDisplayRows(group.rows, options, weightPlan),
+      };
     });
   });
 
-  /** Row indices where No should highlight — consecutive rows share the same container. */
-  protected readonly unifeederMultiCargoRowIndices = computed(() => {
-    const rows = this.visibleUnifeederDisplayRows();
-    const highlighted = new Set<number>();
-    for (let i = 0; i < rows.length; i++) {
-      const container = rows[i]?.containerNo.trim();
-      if (!container) continue;
-      const prevSame = i > 0 && rows[i - 1]?.containerNo.trim() === container;
-      const nextSame = i < rows.length - 1 && rows[i + 1]?.containerNo.trim() === container;
-      if (prevSame || nextSame) highlighted.add(i);
-    }
-    return highlighted;
-  });
-
-  protected unifeederRowNoGroupClass(index: number): string {
-    const rows = this.visibleUnifeederDisplayRows();
-    if (!this.unifeederMultiCargoRowIndices().has(index)) return '';
-    const container = rows[index]?.containerNo.trim() ?? '';
-    if (!container) return '';
-    const prevSame = index > 0 && rows[index - 1]?.containerNo.trim() === container;
-    const nextSame = index < rows.length - 1 && rows[index + 1]?.containerNo.trim() === container;
-    if (!prevSame && nextSame) return 'uf-no--multi-cargo uf-no--multi-cargo-start';
-    if (prevSame && nextSame) return 'uf-no--multi-cargo uf-no--multi-cargo-mid';
-    return 'uf-no--multi-cargo uf-no--multi-cargo-end';
-  }
+  protected readonly visibleUnifeederDisplayRows = computed(() =>
+    this.visibleUnifeederContainerGroups().flatMap((group) => group.lines),
+  );
 
   protected readonly unifeederStats = computed(() => {
     const lib = this.unifeederLibrary();
@@ -572,6 +572,64 @@ export class DgComponent {
     this.storage.addUnifeederRow();
   }
 
+  protected addUnifeederCargoLine(group: DgUnifeederContainerDisplayGroup): void {
+    this.storage.addUnifeederRow({
+      size: group.size,
+      stow: group.stow,
+      containerNo: group.containerNo,
+      loadPort: group.loadPort,
+      dischargePort: group.dischargePort,
+      status: group.status,
+    });
+  }
+
+  protected unifeederContainerLineCount(group: DgUnifeederContainerDisplayGroup): number {
+    return group.lines.length || 1;
+  }
+
+  protected unifeederContainerTotalKg(group: DgUnifeederContainerDisplayGroup): number {
+    return group.lines.reduce(
+      (sum, line) => sum + parseDgWeightKg(line.weightKgDisplay || line.weightKg),
+      0,
+    );
+  }
+
+  protected unifeederContainerSourceRowIds(group: DgUnifeederContainerDisplayGroup): string[] {
+    const ids = new Set<string>();
+    for (const line of group.lines) {
+      for (const id of line.sourceRowIds) ids.add(id);
+    }
+    return [...ids];
+  }
+
+  protected onUnifeederContainerChange(
+    group: DgUnifeederContainerDisplayGroup,
+    field: DgUnifeederRowField,
+    value: string,
+  ): void {
+    for (const rowId of this.unifeederContainerSourceRowIds(group)) {
+      this.onUnifeederRowChange(rowId, field, value);
+    }
+  }
+
+  protected removeUnifeederContainer(group: DgUnifeederContainerDisplayGroup): void {
+    for (const rowId of this.unifeederContainerSourceRowIds(group)) {
+      this.storage.removeUnifeederRow(rowId);
+    }
+  }
+
+  protected markUnifeederContainerDischarged(group: DgUnifeederContainerDisplayGroup): void {
+    for (const rowId of this.unifeederContainerSourceRowIds(group)) {
+      this.storage.setUnifeederRowStatus(rowId, 'discharged');
+    }
+  }
+
+  protected restoreUnifeederContainer(group: DgUnifeederContainerDisplayGroup): void {
+    for (const rowId of this.unifeederContainerSourceRowIds(group)) {
+      this.storage.setUnifeederRowStatus(rowId, 'onboard');
+    }
+  }
+
   protected removeUnifeederRow(rowId: string): void {
     this.storage.removeUnifeederRow(rowId);
   }
@@ -793,6 +851,44 @@ export class DgComponent {
   private isWithinContainerGroup(element: Element, containerId: string): boolean {
     const groupEl = element.closest('[data-container-id]');
     return groupEl?.getAttribute('data-container-id') === containerId;
+  }
+
+  protected setUnifeederContainerGroupHover(containerKey: string): void {
+    this.hoveredUnifeederContainerKey.set(containerKey);
+    this.hoveredUnifeederLineId.set(null);
+  }
+
+  protected setUnifeederLineHover(containerKey: string, lineId: string): void {
+    this.hoveredUnifeederContainerKey.set(containerKey);
+    this.hoveredUnifeederLineId.set(lineId);
+  }
+
+  protected isUnifeederGroupActive(containerKey: string): boolean {
+    return this.hoveredUnifeederContainerKey() === containerKey;
+  }
+
+  protected isUnifeederGroupFocus(containerKey: string): boolean {
+    return this.hoveredUnifeederContainerKey() === containerKey && this.hoveredUnifeederLineId() === null;
+  }
+
+  protected isUnifeederCargoLineHovered(containerKey: string, lineId: string): boolean {
+    return this.hoveredUnifeederContainerKey() === containerKey && this.hoveredUnifeederLineId() === lineId;
+  }
+
+  protected onUnifeederContainerGroupLeave(event: MouseEvent, containerKey: string): void {
+    const related = event.relatedTarget;
+    if (related instanceof Element && this.isWithinUnifeederContainerGroup(related, containerKey)) {
+      return;
+    }
+    if (this.hoveredUnifeederContainerKey() === containerKey) {
+      this.hoveredUnifeederContainerKey.set(null);
+      this.hoveredUnifeederLineId.set(null);
+    }
+  }
+
+  private isWithinUnifeederContainerGroup(element: Element, containerKey: string): boolean {
+    const groupEl = element.closest('[data-uf-container-key]');
+    return groupEl?.getAttribute('data-uf-container-key') === containerKey;
   }
 
   protected onLineChange(
