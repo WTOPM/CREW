@@ -767,18 +767,32 @@ export class DgComponent {
     this.hoveredLineId.set(lineId);
   }
 
+  protected isContainerGroupActive(containerId: string): boolean {
+    return this.hoveredContainerId() === containerId;
+  }
+
+  protected isContainerGroupFocus(containerId: string): boolean {
+    return this.hoveredContainerId() === containerId && this.hoveredLineId() === null;
+  }
+
+  protected isCargoLineHovered(containerId: string, lineId: string): boolean {
+    return this.hoveredContainerId() === containerId && this.hoveredLineId() === lineId;
+  }
+
   protected onContainerGroupLeave(event: MouseEvent, containerId: string): void {
     const related = event.relatedTarget;
-    if (related instanceof Element) {
-      const relatedEl = related.closest('[data-container-id]');
-      if (relatedEl?.getAttribute('data-container-id') === containerId) {
-        return;
-      }
+    if (related instanceof Element && this.isWithinContainerGroup(related, containerId)) {
+      return;
     }
     if (this.hoveredContainerId() === containerId) {
       this.hoveredContainerId.set(null);
       this.hoveredLineId.set(null);
     }
+  }
+
+  private isWithinContainerGroup(element: Element, containerId: string): boolean {
+    const groupEl = element.closest('[data-container-id]');
+    return groupEl?.getAttribute('data-container-id') === containerId;
   }
 
   protected onLineChange(

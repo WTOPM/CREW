@@ -15,6 +15,7 @@ import {
   formatDgVesselDisplay,
   type DgManifestExcelRow,
 } from './dg-manifest-excel-layout.util';
+import { formatDgMpLqPdfDisplay } from './dg-cargo-merge.util';
 
 /** Portrait A4, pt */
 const MARGIN = 11;
@@ -71,7 +72,7 @@ const COLS: PdfCol[] = [
   { label: 'Stowage', w: 26, align: 'center', value: (r) => r.stowage, singleLine: true },
   { label: 'Class', w: 20, align: 'center', value: (r) => r.dgClass, singleLine: true },
   { label: 'UN-No.', w: 24, align: 'center', value: (r) => r.unNo, singleLine: true },
-  { label: 'MP/LQ', w: 22, align: 'center', value: (r) => r.mpLq, singleLine: true },
+  { label: 'MP/LQ', w: 22, align: 'center', value: (r) => formatDgMpLqPdfDisplay(r.mpLq), singleLine: true },
   { label: 'FLASH POINT', headerLines: ['FLASH', 'POINT'], w: 26, align: 'center', value: (r) => r.flashPoint, singleLine: true },
   { label: 'PROPER SHIPPING NAME', w: 0, align: 'left', value: (r) => r.properShippingName },
   {

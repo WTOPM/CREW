@@ -5,6 +5,7 @@ import {
   commitDgWeightKgInput,
 } from '../models/dg-manifest.models';
 import { resolveManifestPortName, type Port } from '../models/crew.models';
+import { isCmaCargoListPdf, parseCmaCargoList } from '../utils/dg-cma-cargo-list-pdf.util';
 import { extractDgPdfTextItems, type DgPdfTextItem } from '../utils/dg-pdf-text.util';
 
 export type DgManifestPdfFormat = 'cma-imdg' | 'unknown';
@@ -48,6 +49,21 @@ export class DgManifestImportService {
   async importFromPdfBytes(bytes: Uint8Array, ports: Port[] = []): Promise<DgManifestImportResult> {
     const items = await extractDgPdfTextItems(bytes);
     const joined = items.map((i) => i.str).join(' ');
+    
+    // Try "Dangerous Cargo List" format first (PFR0767 v5.x)
+    if (isCmaCargoListPdf(items)) {
+      const listResult = parseCmaCargoList(items, ports);
+      if (listResult.rows.length > 0) {
+        return {
+          format: 'cma-imdg',
+          warnings: listResult.warnings,
+          header: listResult.header,
+          rows: listResult.rows,
+        };
+      }
+    }
+    
+    // Try standard "Dangerous Cargo Manifest" format
     if (!/Dangerous Cargo Manifest|PFR0767_IMDG/i.test(joined)) {
       return {
         format: 'unknown',

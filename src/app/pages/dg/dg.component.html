@@ -281,6 +281,11 @@
                   />
                   <span>Consolidate lines</span>
                 </label>
+                @if (library().manifestMergeLines) {
+                  <span class="dg-consolidated-legend" title="Rows where 2+ cargo lines were combined">
+                    merged rows
+                  </span>
+                }
                 <label
                   class="uf-toggle"
                   title="Round line weights to whole kg; totals stay as sum of raw weights rounded once (same as PDF export)"
@@ -465,12 +470,13 @@
                       [class.dg-master-row--container-gap]="ci > 0"
                       [attr.data-container-id]="container.id"
                       [class.dg-master-row--discharged]="container.status === 'discharged'"
-                      [class.dg-master-row--container-hovered]="hoveredContainerId() === container.id"
+                      [class.dg-master-row--group-active]="isContainerGroupActive(container.id)"
+                      [class.dg-master-row--container-focus]="isContainerGroupFocus(container.id)"
                       (mouseenter)="setContainerGroupHover(container.id)"
                       (mouseleave)="onContainerGroupLeave($event, container.id)"
                     >
-                      <td class="col-index">{{ ci + 1 }}</td>
-                      <td>
+                      <td class="col-index col-group">{{ ci + 1 }}</td>
+                      <td class="col-container col-group">
                         <input
                           type="text"
                           class="dg-cell-input dg-cell-input--mono"
@@ -479,7 +485,7 @@
                           placeholder="—"
                         />
                       </td>
-                      <td>
+                      <td class="col-type col-group">
                         <span class="dg-hint-tooltip-host" [appContainerTypeTooltip]="container.type">
                           <input
                             type="text"
@@ -490,7 +496,7 @@
                           />
                         </span>
                       </td>
-                      <td>
+                      <td class="col-port col-group">
                         <div class="dg-cell-port-select">
                           <app-port-select
                             [ports]="ports()"
@@ -500,7 +506,7 @@
                           />
                         </div>
                       </td>
-                      <td>
+                      <td class="col-port col-group">
                         <div class="dg-cell-port-select">
                           <app-port-select
                             [ports]="ports()"
@@ -510,7 +516,7 @@
                           />
                         </div>
                       </td>
-                      <td>
+                      <td class="col-stowage col-group">
                         <input
                           type="text"
                           class="dg-cell-input dg-cell-input--stowage"
@@ -519,7 +525,7 @@
                           placeholder="—"
                         />
                       </td>
-                      <td colspan="6" class="dg-master-empty-cargo">
+                      <td colspan="6" class="dg-master-empty-cargo col-cargo">
                         <button
                           type="button"
                           class="dg-act dg-act--add dg-act--wide"
@@ -530,8 +536,8 @@
                           <span>Line</span>
                         </button>
                       </td>
-                      <td class="col-line-act"></td>
-                      <td class="col-actions">
+                      <td class="col-line-act col-cargo"></td>
+                      <td class="col-actions col-group">
                         <div class="dg-row-actions">
                           @if (container.status === 'discharged') {
                             <button
@@ -580,14 +586,18 @@
                         [class.dg-master-row--container-start]="first"
                         [class.dg-master-row--container-end]="last"
                         [class.dg-master-row--container-gap]="first && ci > 0"
-                        [class.dg-master-row--container-hovered]="hoveredContainerId() === container.id"
-                        [class.dg-master-row--line-hovered]="hoveredLineId() === line.id"
+                        [class.dg-master-row--single-line]="containerDisplayLineCount(container) === 1"
+                        [class.dg-master-row--group-active]="isContainerGroupActive(container.id)"
+                        [class.dg-master-row--container-focus]="isContainerGroupFocus(container.id)"
+                        [class.dg-master-row--line-hovered]="isCargoLineHovered(container.id, line.id)"
+                        [class.dg-master-row--consolidated]="line.consolidated"
+                        [attr.title]="line.consolidated ? 'Consolidated: ' + line.sourceLineIds.length + ' source lines merged' : null"
                         (mouseenter)="setLineHover(container.id, line.id)"
                         (mouseleave)="onContainerGroupLeave($event, container.id)"
                       >
                         @if (first) {
                           <td
-                            class="col-index"
+                            class="col-index col-group"
                             [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
@@ -595,6 +605,7 @@
                             {{ ci + 1 }}
                           </td>
                           <td
+                            class="col-container col-group"
                             [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
@@ -608,6 +619,7 @@
                             />
                           </td>
                           <td
+                            class="col-type col-group"
                             [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
@@ -623,6 +635,7 @@
                             </span>
                           </td>
                           <td
+                            class="col-port col-group"
                             [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
@@ -637,6 +650,7 @@
                             </div>
                           </td>
                           <td
+                            class="col-port col-group"
                             [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
@@ -651,6 +665,7 @@
                             </div>
                           </td>
                           <td
+                            class="col-stowage col-group"
                             [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"
@@ -664,7 +679,7 @@
                             />
                           </td>
                         }
-                        <td class="col-class">
+                        <td class="col-class col-cargo">
                           @if (line.editable) {
                             <span class="dg-hint-tooltip-host" [appDgClassTooltip]="line.dgClass">
                               <input
@@ -687,7 +702,7 @@
                             </span>
                           }
                         </td>
-                        <td class="col-un">
+                        <td class="col-un col-cargo">
                           @if (line.editable) {
                             <span [appUnNumberTooltip]="line.unNo">
                               <input
@@ -710,7 +725,7 @@
                             </span>
                           }
                         </td>
-                        <td class="col-mp-lq">
+                        <td class="col-mp-lq col-cargo">
                           @if (line.editable) {
                             <input
                               type="text"
@@ -729,7 +744,7 @@
                             />
                           }
                         </td>
-                        <td class="col-flash">
+                        <td class="col-flash col-cargo">
                           @if (line.editable) {
                             <input
                               type="text"
@@ -748,7 +763,7 @@
                             />
                           }
                         </td>
-                        <td class="col-weight">
+                        <td class="col-weight col-cargo">
                           @if (line.editable) {
                             <input
                               type="text"
@@ -769,26 +784,48 @@
                             />
                           }
                         </td>
-                        <td class="col-name">
-                          @if (line.editable) {
-                            <textarea
-                              rows="1"
-                              class="dg-cell-input dg-cell-input--name"
-                              [ngModel]="line.properShippingName"
-                              (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'properShippingName', $event)"
-                              placeholder="—"
-                            ></textarea>
+                        <td class="col-name col-cargo">
+                          @if (containerDisplayLineCount(container) === 1) {
+                            @if (line.editable) {
+                              <input
+                                type="text"
+                                class="dg-cell-input dg-cell-input--name dg-cell-input--name-single"
+                                [ngModel]="line.properShippingName"
+                                (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'properShippingName', $event)"
+                                [title]="line.properShippingName"
+                                placeholder="—"
+                              />
+                            } @else {
+                              <input
+                                type="text"
+                                class="dg-cell-input dg-cell-input--name dg-cell-input--name-single dg-cell-input--readonly"
+                                [ngModel]="line.properShippingName || '—'"
+                                [title]="line.properShippingName"
+                                readonly
+                                tabindex="-1"
+                              />
+                            }
                           } @else {
-                            <textarea
-                              rows="1"
-                              class="dg-cell-input dg-cell-input--name dg-cell-input--readonly"
-                              [ngModel]="line.properShippingName || '—'"
-                              readonly
-                              tabindex="-1"
-                            ></textarea>
+                            @if (line.editable) {
+                              <textarea
+                                rows="1"
+                                class="dg-cell-input dg-cell-input--name"
+                                [ngModel]="line.properShippingName"
+                                (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'properShippingName', $event)"
+                                placeholder="—"
+                              ></textarea>
+                            } @else {
+                              <textarea
+                                rows="1"
+                                class="dg-cell-input dg-cell-input--name dg-cell-input--readonly"
+                                [ngModel]="line.properShippingName || '—'"
+                                readonly
+                                tabindex="-1"
+                              ></textarea>
+                            }
                           }
                         </td>
-                        <td class="col-line-act">
+                        <td class="col-line-act col-cargo">
                           @if (line.editable) {
                             <button
                               type="button"
@@ -802,7 +839,7 @@
                         </td>
                         @if (first) {
                           <td
-                            class="col-actions"
+                            class="col-actions col-group"
                             [attr.rowspan]="containerDisplayLineCount(container)"
                             [attr.data-container-id]="container.id"
                             (mouseenter)="setContainerGroupHover(container.id)"

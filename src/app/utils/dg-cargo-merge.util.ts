@@ -14,6 +14,19 @@ function normalizeDgExportMpLq(value: string): string {
   return v.toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
+/** CMA manifest PDF: when both flags present, show "MP/LQ" like the column header. */
+export function formatDgMpLqPdfDisplay(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '-' || trimmed === '—') return '';
+  const upper = trimmed.toUpperCase();
+  const hasMp = /\bMP\b/.test(upper);
+  const hasLq = /\bLQ\b/.test(upper);
+  if (hasMp && hasLq) return 'MP/LQ';
+  if (hasMp) return 'MP';
+  if (hasLq) return 'LQ';
+  return trimmed;
+}
+
 export function dgExportCargoMergeKey(
   dgClass: string,
   unNo: string,
@@ -171,18 +184,20 @@ export interface DgCargoLineDisplay {
   rawWeightKg: number;
   weightKgDisplay: string;
   editable: boolean;
+  /** True when consolidate merged 2+ source cargo lines into this row. */
+  consolidated: boolean;
   sourceLineIds: readonly string[];
 }
 
 function buildDgContainerDisplayLinesRaw(
-  container: { lines: readonly DgCargoLine[] },
+  container: { id: string; lines: readonly DgCargoLine[] },
   manifestMergeLines: boolean,
 ): Omit<DgCargoLineDisplay, 'weightKgDisplay'>[] {
   if (manifestMergeLines) {
     const merged = mergeDgCargoLines(container.lines);
     if (merged.length) {
       return merged.map((row) => ({
-        id: `merge:${row.mergeKey}`,
+        id: `merge:${container.id}\0${row.mergeKey}`,
         dgClass: row.dgClass,
         unNo: row.unNo,
         mpLq: row.mpLq,
@@ -190,6 +205,7 @@ function buildDgContainerDisplayLinesRaw(
         properShippingName: row.properShippingName,
         rawWeightKg: row.weightSum,
         editable: false,
+        consolidated: row.sourceLineIds.length > 1,
         sourceLineIds: row.sourceLineIds,
       }));
     }
@@ -204,6 +220,7 @@ function buildDgContainerDisplayLinesRaw(
     properShippingName: line.properShippingName,
     rawWeightKg: parseDgWeightKg(line.weightKg),
     editable: true,
+    consolidated: false,
     sourceLineIds: [line.id],
   }));
 }

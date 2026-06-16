@@ -1705,6 +1705,18 @@
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.8rem;
+  --dg-hover-group-bg: color-mix(in srgb, var(--accent) 5%, #fff);
+  --dg-hover-group-input: color-mix(in srgb, var(--accent) 6%, #fff);
+  --dg-hover-line-bg: color-mix(in srgb, var(--accent) 10%, #fff);
+  --dg-hover-line-input: color-mix(in srgb, var(--accent) 12%, #fff);
+  --dg-hover-accent-bar: color-mix(in srgb, var(--accent) 50%, transparent);
+  --dg-consolidated-bg: color-mix(in srgb, #7c3aed 8%, #fff);
+  --dg-consolidated-input: color-mix(in srgb, #7c3aed 10%, #fff);
+  --dg-consolidated-bar: color-mix(in srgb, #7c3aed 42%, transparent);
+}
+
+.dg-master-table tbody td {
+  transition: background-color 0.14s ease, box-shadow 0.14s ease;
 }
 
 .dg-master-table col.col-index { width: 2.2%; }
@@ -1899,6 +1911,48 @@
   vertical-align: top;
 }
 
+.dg-master-table tbody tr.dg-master-row--single-line > td {
+  vertical-align: middle;
+  padding-block: 0.38rem;
+}
+
+.dg-master-table tbody tr.dg-master-row--single-line > td.col-class,
+.dg-master-table tbody tr.dg-master-row--single-line > td.col-un,
+.dg-master-table tbody tr.dg-master-row--single-line > td.col-mp-lq,
+.dg-master-table tbody tr.dg-master-row--single-line > td.col-flash,
+.dg-master-table tbody tr.dg-master-row--single-line > td.col-weight,
+.dg-master-table tbody tr.dg-master-row--single-line > td.col-name,
+.dg-master-table tbody tr.dg-master-row--single-line > td.col-line-act {
+  vertical-align: middle;
+}
+
+.dg-master-row--single-line .dg-row-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.dg-master-row--single-line .dg-row-actions .dg-container-kg {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0;
+  margin-right: 0.04rem;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.dg-master-row--single-line .dg-hint-tooltip-host {
+  display: flex;
+  align-items: center;
+  min-height: 1.4rem;
+}
+
 .dg-master-table tbody td.col-flash {
   overflow: visible;
 }
@@ -1971,38 +2025,107 @@
   border-bottom-color: #fca5a5;
 }
 
-.dg-master-row--container-hovered {
-  --dg-row-bg: color-mix(in srgb, var(--accent) 2%, #fff);
-  --dg-input-bg: color-mix(in srgb, var(--accent) 3%, #fff);
-  background: var(--dg-row-bg);
+/* Consolidated cargo rows (2+ source lines merged) */
+.dg-master-row--consolidated > td.col-cargo {
+  background: var(--dg-consolidated-bg);
 }
 
-.dg-master-row--line-hovered {
-  --dg-row-bg: color-mix(in srgb, var(--accent) 6%, #fff);
-  --dg-input-bg: color-mix(in srgb, var(--accent) 8%, #fff);
-  background: var(--dg-row-bg);
+.dg-master-row--consolidated > td.col-class.col-cargo {
+  box-shadow: inset 2px 0 0 var(--dg-consolidated-bar);
 }
 
-.dg-master-row--discharged.dg-master-row--container-hovered {
-  --dg-row-bg: #fef2f2;
-  --dg-input-bg: #fff5f5;
+.dg-master-row--consolidated > td.col-cargo .dg-cell-input {
+  background: var(--dg-consolidated-input);
 }
 
-.dg-master-row--discharged.dg-master-row--line-hovered {
-  --dg-row-bg: #fecaca;
-  --dg-input-bg: #ffe4e6;
+.dg-master-row--consolidated > td.col-cargo .dg-cell-input--readonly,
+.dg-master-row--consolidated > td.col-cargo .dg-cell-input--readonly:hover {
+  background: transparent;
 }
 
-.dg-master-row--container-hovered td.col-line-act,
-.dg-master-row--container-hovered td.col-actions,
-.dg-master-row--line-hovered td.col-line-act,
-.dg-master-row--line-hovered td.col-actions {
-  background: var(--dg-row-bg);
+.dg-master-row--discharged.dg-master-row--consolidated > td.col-cargo {
+  background: color-mix(in srgb, #7c3aed 14%, #fef2f2);
 }
 
-.dg-master-row--container-hovered .dg-cell-input,
-.dg-master-row--line-hovered .dg-cell-input {
-  background: var(--dg-input-bg);
+.dg-master-row--discharged.dg-master-row--consolidated > td.col-class.col-cargo {
+  box-shadow: inset 2px 0 0 color-mix(in srgb, #7c3aed 55%, #fca5a5);
+}
+
+.dg-consolidated-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.dg-consolidated-legend::before {
+  content: '';
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 2px;
+  background: var(--dg-consolidated-bg);
+  box-shadow: inset 2px 0 0 var(--dg-consolidated-bar);
+}
+
+/* Container group hover: block columns (rowspan) stay lit for any row in the group */
+.dg-master-row--group-active.dg-master-row--container-start > td.col-group {
+  background: var(--dg-hover-group-bg);
+}
+
+/* Hovering container block only — softly highlight all cargo rows */
+.dg-master-row--container-focus > td.col-cargo {
+  background: var(--dg-hover-group-bg);
+}
+
+/* Active cargo line — stronger than container block */
+.dg-master-row--line-hovered > td.col-cargo {
+  background: var(--dg-hover-line-bg);
+}
+
+.dg-master-row--line-hovered > td.col-class.col-cargo {
+  box-shadow: inset 2px 0 0 var(--dg-hover-accent-bar);
+}
+
+.dg-master-row--discharged.dg-master-row--group-active.dg-master-row--container-start > td.col-group {
+  background: #fff5f5;
+}
+
+.dg-master-row--discharged.dg-master-row--container-focus > td.col-cargo {
+  background: #fff5f5;
+}
+
+.dg-master-row--discharged.dg-master-row--line-hovered > td.col-cargo {
+  background: #fecaca;
+}
+
+.dg-master-row--group-active.dg-master-row--container-start > td.col-group .dg-cell-input,
+.dg-master-row--container-focus > td.col-cargo .dg-cell-input {
+  background: var(--dg-hover-group-input);
+}
+
+.dg-master-row--line-hovered > td.col-cargo .dg-cell-input {
+  background: var(--dg-hover-line-input);
+}
+
+.dg-master-row--discharged.dg-master-row--group-active.dg-master-row--container-start > td.col-group .dg-cell-input,
+.dg-master-row--discharged.dg-master-row--container-focus > td.col-cargo .dg-cell-input {
+  background: #fff5f5;
+}
+
+.dg-master-row--discharged.dg-master-row--line-hovered > td.col-cargo .dg-cell-input {
+  background: #ffe4e6;
+}
+
+.dg-master-row--group-active.dg-master-row--container-start > td.col-group .dg-cell-input--readonly,
+.dg-master-row--container-focus > td.col-cargo .dg-cell-input--readonly,
+.dg-master-row--line-hovered > td.col-cargo .dg-cell-input--readonly,
+.dg-master-row--group-active.dg-master-row--container-start > td.col-group .dg-cell-input--readonly:hover,
+.dg-master-row--container-focus > td.col-cargo .dg-cell-input--readonly:hover,
+.dg-master-row--line-hovered > td.col-cargo .dg-cell-input--readonly:hover {
+  background: transparent;
 }
 
 .dg-master-table .col-index {
@@ -2361,11 +2484,6 @@
   box-shadow: none;
 }
 
-.dg-master-row--container-hovered .dg-cell-input--readonly,
-.dg-master-row--line-hovered .dg-cell-input--readonly {
-  background: transparent;
-}
-
 .dg-master-table .dg-cell-input:not(.dg-cell-input--name):not(.dg-cell-input--port) {
   text-align: center;
 }
@@ -2373,6 +2491,23 @@
 .dg-cell-input:hover {
   border-color: #cbd5e1;
   background: #fff;
+}
+
+.dg-master-row--group-active.dg-master-row--container-start > td.col-group .dg-cell-input:hover,
+.dg-master-row--container-focus > td.col-cargo .dg-cell-input:hover,
+.dg-master-row--line-hovered > td.col-cargo .dg-cell-input:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, #cbd5e1);
+  background: var(--dg-hover-line-input);
+}
+
+.dg-master-row--group-active.dg-master-row--container-start > td.col-group .dg-cell-input--readonly,
+.dg-master-row--container-focus > td.col-cargo .dg-cell-input--readonly,
+.dg-master-row--line-hovered > td.col-cargo .dg-cell-input--readonly,
+.dg-master-row--group-active.dg-master-row--container-start > td.col-group .dg-cell-input--readonly:hover,
+.dg-master-row--container-focus > td.col-cargo .dg-cell-input--readonly:hover,
+.dg-master-row--line-hovered > td.col-cargo .dg-cell-input--readonly:hover {
+  border-color: transparent;
+  background: transparent;
 }
 
 .dg-cell-input:focus {
@@ -2404,6 +2539,24 @@
 
 .dg-archive-banner strong {
   color: #b45309;
+}
+
+.dg-master-table tbody tr.dg-master-row--single-line > td.col-name .dg-cell-input--name-single {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 1.4rem;
+  height: 1.4rem;
+  line-height: 1.4rem;
+  padding-block: 0;
+  padding-inline: 0.22rem;
+  field-sizing: fixed;
+  text-align: left;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 @media (max-width: 900px) {
