@@ -60,6 +60,7 @@ const COL_WIDTHS: readonly number[] = [
 const TIMES = 'Times New Roman';
 const ARIAL = 'Arial';
 const BLACK = 'FF000000';
+const GRAY = 'FF808080';
 
 const thinEdge = { style: 'thin' as const, color: { argb: BLACK } };
 const thickEdge = { style: 'medium' as const, color: { argb: BLACK } };
@@ -580,6 +581,16 @@ function buildFooterRow(ws: ExcelJS.Worksheet, pageStart: number): void {
   });
 }
 
+function writeNoImdgCargoExcel(ws: ExcelJS.Worksheet, pageStart: number): void {
+  const startRow = pageAbsRow(pageStart, DATA_FIRST_ROW);
+  const endRow = pageAbsRow(pageStart, DATA_FIRST_ROW + DATA_ROW_COUNT - 1);
+  mergeCells(ws, startRow, 1, endRow, 12);
+  setCell(ws, startRow, 1, 'NO IMDG CARGO', {
+    font: { name: ARIAL, size: 72, bold: true, color: { argb: GRAY } },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
+}
+
 function buildPageBlock(
   ws: ExcelJS.Worksheet,
   pageStart: number,
@@ -594,6 +605,9 @@ function buildPageBlock(
   buildHeaderBlock(ws, pageStart, pageNumber, ship, ctx, ports);
   buildTableHeader(ws, pageStart);
   buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights, options.grossTotalKg);
+  if (pageRows.every((row) => !row)) {
+    writeNoImdgCargoExcel(ws, pageStart);
+  }
   if (options.showTotal) {
     buildTotalRow(ws, pageStart, options.totalKg, options.grossTotalKg);
   }

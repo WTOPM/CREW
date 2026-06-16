@@ -466,7 +466,7 @@ export function sortDgDocuments(
   }
 }
 
-/** Normalize weight text for parsing (UI: dot = decimal; CMA import: 480.000 / 1,440.000; European: 19.200,00 / 19.200). */
+/** Normalize weight text for parsing (UI: dot = decimal; CMA import: 22.600 / 980.000 / 1,440.000; European: 19.200,00). */
 function normalizeDgWeightInput(raw: string): string {
   const s = raw.replace(/\s/g, '').trim();
   if (!s) return '';
@@ -501,14 +501,8 @@ function normalizeDgWeightInput(raw: string): string {
     if (dotParts.length === 2) {
       const [intPart, fracPart] = dotParts;
       if (/^\d+$/.test(intPart) && /^\d+$/.test(fracPart)) {
-        if (/^0+$/.test(fracPart) || intPart.length >= 3) {
-          // 480.000, 1,440.000 (no comma) — CMA/US: dot is decimal
-          return s;
-        }
-        if (intPart.length <= 2 && fracPart.length === 3) {
-          // 19.200 — European thousands (short leading group)
-          return intPart + fracPart;
-        }
+        // Single dot — decimal (CMA KGM: 22.600, 980.000; UI: 480.000)
+        return s;
       }
     }
   }

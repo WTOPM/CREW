@@ -137,6 +137,7 @@ function drawTextInRect(
     align?: 'left' | 'center' | 'right';
     bold?: boolean;
     pad?: number;
+    color?: [number, number, number];
   },
 ): void {
   const label = text.trim();
@@ -144,7 +145,8 @@ function drawTextInRect(
   const font = opts.font ?? BODY_FONT;
   doc.setFont(font, opts.bold ? 'bold' : 'normal');
   doc.setFontSize(opts.size);
-  doc.setTextColor(0);
+  const [r, g, b] = opts.color ?? [0, 0, 0];
+  doc.setTextColor(r, g, b);
   const pad = opts.pad ?? 2;
   const align = opts.align ?? 'center';
   const maxW = Math.max(2, rect.w - pad * 2);
@@ -593,7 +595,21 @@ function drawPageBlock(
   if (options.showTotal) {
     drawTotalRow(doc, metrics, options.totalKg, options.grossTotalKg);
   }
+  if (pageRows.every((row) => !row)) {
+    drawNoImdgCargoOverlay(doc, metrics);
+  }
   drawFooterRow(doc, metrics);
+}
+
+function drawNoImdgCargoOverlay(doc: jsPDF, metrics: GridMetrics): void {
+  const rect = cellRect(metrics, DATA_FIRST_ROW, 1, DATA_FIRST_ROW + DATA_ROW_COUNT - 1, 12);
+  drawTextInRect(doc, 'NO IMDG CARGO', rect, {
+    size: fontSize(metrics, 84),
+    align: 'center',
+    bold: true,
+    pad: 4,
+    color: [128, 128, 128],
+  });
 }
 
 export async function buildUnifeederDgListPdfBytes(

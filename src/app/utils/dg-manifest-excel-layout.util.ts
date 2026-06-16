@@ -592,19 +592,29 @@ export async function buildDgManifestWorksheet(
   buildTableHeaderRow(ws);
 
   let lastDataRow = DATA_START - 1;
-  let rowNo = 0;
-  let lastContainer = '';
+  if (!hasExportData) {
+    const endRow = DATA_START + 18;
+    mergeCells(ws, DATA_START, 1, endRow, 12);
+    setCell(ws, DATA_START, 1, 'NO IMDG CARGO', {
+      font: { name: TIMES, size: 84, bold: true, color: { argb: CLR.gray } },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+    });
+    lastDataRow = endRow;
+  } else {
+    let rowNo = 0;
+    let lastContainer = '';
 
-  dataRows.forEach((row, index) => {
-    const r = DATA_START + index;
-    const showNo = row.containerNo !== lastContainer;
-    if (showNo) {
-      rowNo += 1;
-      lastContainer = row.containerNo;
-    }
-    writeDataRow(ws, r, row, showNo ? rowNo : '', grossTotalKg);
-    lastDataRow = r;
-  });
+    dataRows.forEach((row, index) => {
+      const r = DATA_START + index;
+      const showNo = row.containerNo !== lastContainer;
+      if (showNo) {
+        rowNo += 1;
+        lastContainer = row.containerNo;
+      }
+      writeDataRow(ws, r, row, showNo ? rowNo : '', grossTotalKg);
+      lastDataRow = r;
+    });
+  }
 
   if (lastDataRow < DATA_START) lastDataRow = DATA_START;
 

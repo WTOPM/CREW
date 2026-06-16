@@ -169,10 +169,6 @@ export class ReeferComponent {
 
   protected exportPdf(): void {
     if (this.exportingPdf()) return;
-    if (this.visibleUnits().length === 0) {
-      this.toast.showError('No reefer units to export');
-      return;
-    }
     this.exportingPdf.set(true);
     void this.reeferPdf.openMonitoringLog(this.buildExportContext()).then((ok) => {
       this.toast.show(ok ? 'Reefer log PDF opened' : 'Could not open PDF', ok ? 'success' : 'error');
@@ -185,10 +181,6 @@ export class ReeferComponent {
 
   protected exportExcel(): void {
     if (this.exportingExcel()) return;
-    if (this.visibleUnits().length === 0) {
-      this.toast.showError('No reefer units to export');
-      return;
-    }
     this.exportingExcel.set(true);
     void this.reeferExcel.openMonitoringLog(this.buildExportContext()).then((ok) => {
       this.toast.show(ok ? 'Reefer log Excel opened' : 'Could not open Excel', ok ? 'success' : 'error');

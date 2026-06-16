@@ -28,6 +28,7 @@ import { DgUnifeederExcelService } from '../../services/dg-unifeeder-excel.servi
 import { DgUnifeederPdfService } from '../../services/dg-unifeeder-pdf.service';
 import { DgManifestPdfService } from '../../services/dg-manifest-pdf.service';
 import { DgManifestImportService } from '../../services/dg-manifest-import.service';
+import { DgCmaPrestowImportService } from '../../services/dg-cma-prestow-import.service';
 import {
   buildDgManifestContentHash,
   buildDgPdfBytesHash,
@@ -96,6 +97,7 @@ export type DgInventoryTab = 'cmaCgm' | 'unifeeder';
 export class DgComponent {
   private readonly storage = inject(StorageService);
   private readonly importer = inject(DgManifestImportService);
+  private readonly prestowImporter = inject(DgCmaPrestowImportService);
   private readonly unifeederImporter = inject(DgUnifeederImportService);
   private readonly dgExcel = inject(DgManifestExcelService);
   private readonly unifeederExcel = inject(DgUnifeederExcelService);
@@ -594,10 +596,6 @@ export class DgComponent {
 
   protected exportUnifeederPdf(): void {
     if (this.exportingPdf()) return;
-    if (this.visibleUnifeederDisplayRows().length === 0) {
-      this.toast.showError('No DP WORLD rows to export');
-      return;
-    }
 
     this.exportingPdf.set(true);
     void this.unifeederPdf.openDgList(this.buildUnifeederExportContext()).then((ok) => {
@@ -615,10 +613,6 @@ export class DgComponent {
 
   protected exportUnifeederExcel(): void {
     if (this.exportingExcel()) return;
-    if (this.visibleUnifeederDisplayRows().length === 0) {
-      this.toast.showError('No DP WORLD rows to export');
-      return;
-    }
 
     this.exportingExcel.set(true);
     void this.unifeederExcel.openDgList(this.buildUnifeederExportContext()).then((ok) => {
@@ -831,10 +825,6 @@ export class DgComponent {
 
   protected exportExcel(): void {
     if (this.exportingExcel()) return;
-    if (!this.hasExportData()) {
-      this.toast.showError('No onboard DG data to export');
-      return;
-    }
 
     this.exportingExcel.set(true);
     void this.dgExcel.openManifest(this.buildExportContext()).then((ok) => {
@@ -848,15 +838,6 @@ export class DgComponent {
     }).finally(() => {
       this.exportingExcel.set(false);
     });
-  }
-
-  private hasExportData(): boolean {
-    return this.visibleContainers().some(
-      (c) =>
-        c.lines.some(
-          (l) => l.dgClass || l.unNo || l.weightKg || l.properShippingName,
-        ) || c.containerNo,
-    );
   }
 
   private buildExportContext(): DgManifestExportContext {
@@ -917,6 +898,26 @@ export class DgComponent {
     this.importing.set(true);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
+      const prestowResult = await this.prestowImporter.importFromPdfBytes(bytes);
+      if (prestowResult.format === 'cma-prestow') {
+        const applied = this.storage.applyCmaPrestowPositions(prestowResult.positions);
+        const parts: string[] = [];
+        if (applied.dgUpdated > 0) parts.push(`${applied.dgUpdated} DG`);
+        if (applied.reeferUpdated > 0) parts.push(`${applied.reeferUpdated} reefer`);
+        if (!parts.length) {
+          this.toast.showError('No matching onboard containers found for prestow positions');
+        } else {
+          this.toast.show(`Updated positions: ${parts.join(', ')}`, 'success');
+        }
+        if (applied.unmatched.length) {
+          this.toast.show(
+            `${applied.unmatched.length} container(s) in PDF not found onboard`,
+            'info',
+          );
+        }
+        return;
+      }
+
       const result = await this.importer.importFromPdfBytes(bytes, this.storage.ports());
       if (result.format === 'unknown' || !result.rows.length) {
         this.toast.showError(result.warnings[0] ?? 'Could not extract data from PDF');

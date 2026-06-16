@@ -316,6 +316,29 @@ function drawPageFooter(doc: jsPDF, pageNum: number, totalPages: number): void {
   doc.text(label, PAGE_W - MARGIN, PAGE_H - 6, { align: 'right' });
 }
 
+function drawNoImdgCargoOverlay(
+  doc: jsPDF,
+  tableY: number,
+): void {
+  const bodyTop = tableY + TABLE_HEAD_H;
+  const bodyH = ROWS_PER_PAGE * ROW_H;
+  const rect = { x: MARGIN, y: bodyTop, w: CONTENT_W, h: bodyH };
+
+  doc.setFont('helvetica', 'bold');
+  let fs = 96;
+  doc.setFontSize(fs);
+  doc.setTextColor(128, 128, 128);
+  const maxW = rect.w - 12;
+  while (fs > 42 && doc.getTextWidth('NO IMDG CARGO') > maxW) {
+    fs -= 1;
+    doc.setFontSize(fs);
+  }
+  doc.text('NO IMDG CARGO', rect.x + rect.w / 2, rect.y + rect.h / 2, {
+    align: 'center',
+    baseline: 'middle',
+  });
+}
+
 function drawTablePage(
   doc: jsPDF,
   pageIndex: number,
@@ -350,6 +373,9 @@ function drawTablePage(
   }
 
   strokeRect(doc, MARGIN, tableY, CONTENT_W, TABLE_HEAD_H + ROWS_PER_PAGE * ROW_H, 0.6);
+  if (!allRows.length) {
+    drawNoImdgCargoOverlay(doc, tableY);
+  }
   drawPageFooter(doc, pageIndex + 1, totalPages);
 }
 
@@ -368,7 +394,6 @@ export function buildDgManifestPdf(
   const exportTotalKg = dgContainersExportTotalKg(containers, grossTotalKg);
   const widths = resolveColWidths();
   const xs = colXs(widths);
-
   const totalPages = Math.max(1, Math.ceil(allRows.length / ROWS_PER_PAGE) || 1);
 
   for (let page = 0; page < totalPages; page++) {

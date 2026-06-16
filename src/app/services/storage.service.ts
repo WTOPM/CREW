@@ -1576,6 +1576,55 @@ export class StorageService {
     return null;
   }
 
+  applyCmaPrestowPositions(
+    positions: readonly { containerNo: string; position: string }[],
+  ): { dgUpdated: number; reeferUpdated: number; unmatched: string[] } {
+    const byContainer = new Map(
+      positions.map((row) => [row.containerNo.trim().toUpperCase(), row.position.trim()]),
+    );
+    const matched = new Set<string>();
+    let dgUpdated = 0;
+    let reeferUpdated = 0;
+
+    this.data.update((d) => {
+      const dgLib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
+      const reeferLib = normalizeReeferLibrary(d.reeferLibrary, d.ports);
+
+      const onboardDg = dgLib.onboard.map((container) => {
+        const key = container.containerNo.trim().toUpperCase();
+        const position = byContainer.get(key);
+        if (!position || container.status !== 'onboard') return container;
+        matched.add(key);
+        if (container.stowage.trim() === position) return container;
+        dgUpdated += 1;
+        return { ...container, stowage: position };
+      });
+
+      const onboardReefer = reeferLib.onboard.map((unit) => {
+        const key = unit.containerNo.trim().toUpperCase();
+        const position = byContainer.get(key);
+        if (!position || unit.status !== 'onboard') return unit;
+        matched.add(key);
+        if (unit.position.trim() === position) return unit;
+        reeferUpdated += 1;
+        return { ...unit, position };
+      });
+
+      return {
+        ...d,
+        dgLibrary: { ...dgLib, onboard: onboardDg },
+        reeferLibrary: { ...reeferLib, onboard: onboardReefer },
+      };
+    });
+
+    void this.persist('silent');
+    return {
+      dgUpdated,
+      reeferUpdated,
+      unmatched: [...byContainer.keys()].filter((key) => !matched.has(key)).sort(),
+    };
+  }
+
   addReeferUnit(partial?: Partial<Omit<ReeferOnboardUnit, 'id' | 'sourceManifestId'>>): void {
     this.data.update((d) => {
       const lib = normalizeReeferLibrary(d.reeferLibrary, d.ports);
