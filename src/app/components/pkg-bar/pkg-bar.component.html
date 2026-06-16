@@ -1,44 +1,47 @@
 <div
-  class="pkg-bar"
-  [class.pkg-bar--archive]="archive.loaded()"
+  class="pkg-bar-cluster"
+  [class.pkg-bar-cluster--archive]="archive.loaded()"
   title="Open or print the document package configured for the current Port of Call (Settings → Document packages)"
 >
-  <div class="pkg-bar-side">
-    <button
-      type="button"
-      class="pkg-mini-btn"
-      title="Save document package snapshot"
-      [disabled]="!canSave()"
-      (click)="startSave()"
-    >
-      {{ archive.saving() ? '…' : 'Save' }}
-    </button>
-    <button type="button" class="pkg-mini-btn" title="Load saved snapshot" (click)="openLoad()">
-      Load
-    </button>
-    @if (archive.loaded()) {
-      <button type="button" class="pkg-mini-btn pkg-mini-btn--reset" title="Back to live package" (click)="resetArchive()">
-        Reset
+  <div class="pkg-bar pkg-bar--snapshots">
+    <div class="pkg-bar-side">
+      <button
+        type="button"
+        class="pkg-mini-btn"
+        title="Save document package snapshot"
+        [disabled]="!canSave()"
+        (click)="startSave()"
+      >
+        {{ archive.saving() ? '…' : 'Save' }}
       </button>
+      <button type="button" class="pkg-mini-btn" title="Load saved snapshot" (click)="openLoad()">
+        Load
+      </button>
+      @if (archive.loaded()) {
+        <button type="button" class="pkg-mini-btn pkg-mini-btn--reset" title="Back to live package" (click)="resetArchive()">
+          Reset
+        </button>
+      }
+    </div>
+
+    @if (showSavePanel()) {
+      <div class="pkg-panel pkg-panel--save" appClickOutside (appClickOutside)="cancelSave()">
+        <input
+          type="text"
+          class="pkg-panel-input"
+          [(ngModel)]="saveLabel"
+          placeholder="Snapshot name"
+          maxlength="80"
+          (keydown.enter)="confirmSave()"
+          (keydown.escape)="cancelSave()"
+        />
+        <button type="button" class="pkg-mini-btn pkg-mini-btn--ok" (click)="confirmSave()">OK</button>
+        <button type="button" class="pkg-mini-btn" (click)="cancelSave()">×</button>
+      </div>
     }
   </div>
 
-  @if (showSavePanel()) {
-    <div class="pkg-panel pkg-panel--save" appClickOutside (appClickOutside)="cancelSave()">
-      <input
-        type="text"
-        class="pkg-panel-input"
-        [(ngModel)]="saveLabel"
-        placeholder="Snapshot name"
-        maxlength="80"
-        (keydown.enter)="confirmSave()"
-        (keydown.escape)="cancelSave()"
-      />
-      <button type="button" class="pkg-mini-btn pkg-mini-btn--ok" (click)="confirmSave()">OK</button>
-      <button type="button" class="pkg-mini-btn" (click)="cancelSave()">×</button>
-    </div>
-  }
-
+  <div class="pkg-bar pkg-bar--port">
   <div class="pkg-bar-main">
     @if (archive.loaded(); as snap) {
       <span class="pkg-archive-warn" title="Open / Print use frozen PDFs from this snapshot">
@@ -91,6 +94,7 @@
     >
       Print all
     </button>
+  </div>
   </div>
 </div>
 

@@ -1,20 +1,36 @@
+.pkg-bar-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(100%, 46rem);
+}
+
+.pkg-bar-cluster--archive .pkg-bar--port {
+  border-color: #f59e0b;
+  background: linear-gradient(180deg, #fffbeb 0%, #fff 55%);
+  box-shadow: 0 0 0 1px rgb(245 158 11 / 18%);
+}
+
 .pkg-bar {
   position: relative;
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin-right: 0.5rem;
-  padding: 0.25rem 0.45rem 0.25rem 0.35rem;
+  padding: 0.25rem 0.45rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
-  max-width: min(100%, 42rem);
 }
 
-.pkg-bar--archive {
-  border-color: #f59e0b;
-  background: linear-gradient(180deg, #fffbeb 0%, #fff 55%);
-  box-shadow: 0 0 0 1px rgb(245 158 11 / 18%);
+.pkg-bar--snapshots {
+  flex-shrink: 0;
+}
+
+.pkg-bar--port {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .pkg-bar-side {
@@ -94,7 +110,6 @@
 }
 
 .pkg-bar-port--archive {
-  margin-left: 0.15rem;
   padding-left: 0.65rem;
   border-left: 1px solid rgb(217 119 6 / 40%);
   color: #b45309;
