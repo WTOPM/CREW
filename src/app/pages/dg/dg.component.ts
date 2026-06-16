@@ -89,6 +89,12 @@ import {
   mfagFirePageRefFromEmsCode,
   mfagSpillagePageRefFromEmsCode,
 } from '../../utils/dg-mfag-schedule.util';
+import {
+  cmaCargoAutofillFromUnNumber,
+  unifeederAutofillFromUnNumber,
+  unNumberHasDigits,
+} from '../../utils/dg-un-number-autofill.util';
+import { normalizeUnNumber } from '../../utils/dg-un-number.util';
 
 type DgLineField = keyof Omit<DgCargoLine, 'id'>;
 export type DgInventoryTab = 'cmaCgm' | 'unifeeder';
@@ -898,6 +904,42 @@ export class DgComponent {
     value: string,
   ): void {
     this.storage.updateDgOnboardCargoLine(containerId, lineId, { [field]: value });
+  }
+
+  protected onUnNoEnter(event: KeyboardEvent): void {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    (event.target as HTMLInputElement | null)?.blur();
+  }
+
+  protected onCmaUnNoCommit(
+    containerId: string,
+    lineId: string,
+    event: FocusEvent,
+  ): void {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+
+    const raw = input.value;
+    if (!unNumberHasDigits(raw)) return;
+
+    const autofill = cmaCargoAutofillFromUnNumber(raw);
+    const patch = autofill ?? { unNo: normalizeUnNumber(raw) };
+    this.storage.updateDgOnboardCargoLine(containerId, lineId, patch);
+  }
+
+  protected onUnifeederUnNoCommit(row: DgUnifeederRowDisplay, event: FocusEvent): void {
+    if (!row.editable) return;
+
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+
+    const raw = input.value;
+    if (!unNumberHasDigits(raw)) return;
+
+    const autofill = unifeederAutofillFromUnNumber(raw);
+    const patch = autofill ?? { unNo: normalizeUnNumber(raw) };
+    this.storage.updateUnifeederRow(this.unifeederPrimaryRowId(row), patch);
   }
 
   protected addContainer(): void {

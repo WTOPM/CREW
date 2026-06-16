@@ -711,6 +711,8 @@
                                 class="dg-cell-input dg-cell-input--mono"
                                 [ngModel]="line.unNo"
                                 (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'unNo', $event)"
+                                (blur)="onCmaUnNoCommit(container.id, line.sourceLineIds[0], $event)"
+                                (keydown)="onUnNoEnter($event)"
                                 placeholder="—"
                               />
                             </span>
@@ -1327,6 +1329,8 @@
                             [readonly]="!line.editable"
                             [tabindex]="line.editable ? 0 : -1"
                             (ngModelChange)="onUnifeederDisplayRowChange(line, 'unNo', $event)"
+                            (blur)="onUnifeederUnNoCommit(line, $event)"
+                            (keydown)="onUnNoEnter($event)"
                           />
                         </span>
                       </td>
