@@ -8,7 +8,7 @@ export type DgUnifeederRowField = keyof Omit<
   'id' | 'status' | 'sourceManifestId'
 >;
 
-/** One flat DG line in the UNIFEEDER manifest table. */
+/** One flat DG line in the DP WORLD manifest table. */
 export interface DgUnifeederRow {
   id: string;
   size: string;
@@ -51,6 +51,8 @@ export interface DgUnifeederLibrarySettings {
   manifests: DgUnifeederManifestDocument[];
   onboard: DgUnifeederRow[];
   showDischarged: boolean;
+  /** Preview consolidated rows (same rule as CMA DG export). */
+  mergeLines: boolean;
   /** Round line weights to whole kg; total = sum of raw weights rounded once (same as CMA DG export). */
   grossTotalKg: boolean;
 }
@@ -60,6 +62,7 @@ export function createDefaultUnifeederLibrary(): DgUnifeederLibrarySettings {
     manifests: [],
     onboard: [],
     showDischarged: false,
+    mergeLines: false,
     grossTotalKg: false,
   };
 }
@@ -160,6 +163,7 @@ export function normalizeUnifeederLibrary(
         return sanitized;
       }),
     showDischarged: raw.showDischarged === true,
+    mergeLines: raw.mergeLines === true,
     grossTotalKg: raw.grossTotalKg === true,
   };
 }

@@ -17,6 +17,7 @@ export class DgUnifeederPdfService {
     const exportShip = dgShipForExport(ship, library.pageContext);
     const ctx = exportContext ?? {
       rows: library.unifeeder.onboard.filter((row) => row.status === 'onboard'),
+      mergeLines: library.unifeeder.mergeLines,
       grossTotalKg: library.unifeeder.grossTotalKg,
     };
     const bytes = await buildUnifeederDgListPdfBytes(

@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { parseDgWeightKg } from '../models/dg-manifest.models';
+import { formatDgWeightKgDisplay, formatDgWeightKgGrossDisplay, parseDgWeightKg } from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { portCode, resolveManifestPortName, type Port, type ShipInfo } from '../models/crew.models';
 import type { DgPageContext } from './page-ship-context.util';
@@ -160,15 +160,17 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
 
 function formatAmountKgValue(
   data: DgUnifeederRow | undefined,
-  exportKg?: number,
+  exportKg: number | undefined,
+  grossTotalKg: boolean,
 ): { value: ExcelJS.CellValue; numFmt?: string } {
   if (!data) return { value: '' };
   const amount = exportKg !== undefined ? exportKg : parseDgWeightKg(data.weightKg);
   if (amount > 0) {
-    const wholeKg = Math.abs(amount - Math.round(amount)) <= 1e-9;
+    const display = grossTotalKg
+      ? formatDgWeightKgGrossDisplay(amount)
+      : formatDgWeightKgDisplay(amount);
     return {
-      value: wholeKg ? Math.round(amount) : amount,
-      numFmt: wholeKg ? '#,##0" kg"' : '#,##0.##" kg"',
+      value: display,
     };
   }
   const raw = data.weightKg.trim();
@@ -478,11 +480,16 @@ function writeDataRow(
   data: DgUnifeederRow | undefined,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
+  grossTotalKg: boolean,
 ): void {
   const thinAll = { top: thinEdge, left: thinEdge, bottom: thinEdge, right: thinEdge };
   const bodyFont = { name: ARIAL, size: 10, bold: true };
   const center = { horizontal: 'center' as const, vertical: 'middle' as const };
-  const amountCell = formatAmountKgValue(data, data ? exportWeights.get(data.id) : undefined);
+  const amountCell = formatAmountKgValue(
+    data,
+    data ? exportWeights.get(data.id) : undefined,
+    grossTotalKg,
+  );
 
   const values: {
     col: number;
@@ -535,9 +542,17 @@ function buildPageDataRows(
   pageRows: readonly (DgUnifeederRow | undefined)[],
   ports: readonly Port[],
   exportWeights: Map<string, number>,
+  grossTotalKg: boolean,
 ): void {
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
-    writeDataRow(ws, pageAbsRow(pageStart, DATA_FIRST_ROW + i), pageRows[i], ports, exportWeights);
+    writeDataRow(
+      ws,
+      pageAbsRow(pageStart, DATA_FIRST_ROW + i),
+      pageRows[i],
+      ports,
+      exportWeights,
+      grossTotalKg,
+    );
   }
 }
 
@@ -550,10 +565,9 @@ function buildTotalRow(ws: ExcelJS.Worksheet, pageStart: number, totalKg: number
     border: { top: thinEdge },
   });
   patchBorder(ws.getCell(totalRow, 3), { top: thinEdge });
-  setCell(ws, totalRow, 4, totalKg, {
+  setCell(ws, totalRow, 4, `${(grossTotalKg ? formatDgWeightKgGrossDisplay(totalKg) : formatDgWeightKgDisplay(totalKg)) || '0'} kg`, {
     font: { name: ARIAL, size: 10, bold: true },
     alignment: { horizontal: 'center', vertical: 'middle' },
-    numFmt: grossTotalKg ? '#,##0" kg"' : '#,##0.0" kg"',
   });
 }
 
@@ -579,7 +593,7 @@ function buildPageBlock(
 ): void {
   buildHeaderBlock(ws, pageStart, pageNumber, ship, ctx, ports);
   buildTableHeader(ws, pageStart);
-  buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights);
+  buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights, options.grossTotalKg);
   if (options.showTotal) {
     buildTotalRow(ws, pageStart, options.totalKg, options.grossTotalKg);
   }

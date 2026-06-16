@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf';
 import {
   dgContainersExportTotalKg,
+  formatDgWeightKgDisplay,
+  formatDgWeightKgGrossDisplay,
   resolveDgMasterName,
   type DgLibrarySettings,
 } from '../models/dg-manifest.models';
@@ -99,7 +101,7 @@ function colXs(widths: number[]): number[] {
 }
 
 function formatTotalKg(value: number): string {
-  return value ? String(value) : '0';
+  return formatDgWeightKgDisplay(value) || '0';
 }
 
 function strokeRect(doc: jsPDF, x: number, y: number, w: number, h: number, lineWidth = 0.4): void {

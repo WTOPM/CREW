@@ -13,7 +13,7 @@ export class DgUnifeederImportService {
   async importFromPdfBytes(bytes: Uint8Array, ports: Port[] = []): Promise<UnifeederPdfParseResult> {
     const items = await extractDgPdfTextItems(bytes);
     const parsed = parseUnifeederDangerousCargoManifest(items);
-    if (parsed.format !== 'unifeeder-dg') return parsed;
+    if (parsed.format !== 'unifeeder-dg' && parsed.format !== 'dp-world-dg') return parsed;
 
     const loadPort = resolveManifestPortName(parsed.header.portOfDeparture ?? '', ports);
     const dischargePort = resolveManifestPortName(parsed.header.portOfArrival ?? '', ports);

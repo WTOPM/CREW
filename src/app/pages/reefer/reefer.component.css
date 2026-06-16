@@ -541,6 +541,75 @@
   line-height: 1.45;
 }
 
+.reefer-signoff-panel {
+  margin: 0.75rem 0 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.reefer-signoff-panel__title {
+  margin: 0 0 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.reefer-signoff-panel__hint {
+  margin: 0 0 0.55rem;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.reefer-signoff-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.reefer-signoff-row {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.reefer-signoff-row__time {
+  padding-top: 0.42rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0369a1;
+  text-align: right;
+}
+
+.reefer-signoff-hint__sample {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.reefer-signoff-slots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.reefer-signoff-name {
+  min-width: 0;
+  padding: 0.32rem 0.45rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.reefer-signoff-name:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-color: var(--accent);
+}
+
 @media (max-width: 960px) {
   .reefer-layout {
     grid-template-columns: 1fr;

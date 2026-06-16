@@ -8,6 +8,7 @@ import {
   type ReeferInventorySortColumn,
   type ReeferOnboardUnit,
 } from '../../models/reefer.models';
+import { REEFER_MONITORING_SIGNER_SLOTS } from '../../utils/reefer-check-signoff.util';
 import { reeferVisibleOnboardUnits } from '../../utils/reefer-inventory-sort.util';
 import { filterReeferOnboardUnits } from '../../utils/reefer-inventory-search.util';
 import type { ReeferExportContext } from '../../models/reefer-export.models';
@@ -91,6 +92,19 @@ export class ReeferComponent {
   }
 
   protected readonly nextDayOptions = REEFER_MONITORING_NEXT_DAY_OPTIONS;
+  protected readonly signerSlots = Array.from(
+    { length: REEFER_MONITORING_SIGNER_SLOTS },
+    (_, i) => i,
+  );
+
+  protected onMonitoringSignerChange(
+    which: 'morning' | 'evening',
+    index: number,
+    field: 'rank' | 'name',
+    value: string,
+  ): void {
+    this.storage.updateReeferMonitoringSigner(which, index, field, value);
+  }
 
   protected toggleShowDischarged(checked: boolean): void {
     this.storage.updateReeferViewSettings({ showDischarged: checked });

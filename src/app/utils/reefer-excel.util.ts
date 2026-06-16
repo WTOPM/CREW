@@ -22,6 +22,10 @@ import {
   reeferLogTitleYear,
   type ReeferLogLayout,
 } from './reefer-monitoring-layout.util';
+import {
+  reeferCheckSignoffExcelRichText,
+  reeferCheckSignoffSegments,
+} from './reefer-check-signoff.util';
 
 const SHEET = 'REEFER LOG';
 const CALIBRI = 'Calibri';
@@ -275,10 +279,9 @@ function drawDataRows(
   }
 }
 
-function drawFooter(ws: ExcelJS.Worksheet, lastCol: number): void {
+function drawFooter(ws: ExcelJS.Worksheet, lastCol: number, library: ReeferLibrarySettings): void {
   merge(ws, 38, 1, 38, 6);
-  setCell(ws, 38, 1, 'All reefers checked at 08:30. Signed by OS ______ / OS ______', {
-    font: { name: ARIAL, size: 9 },
+  setCell(ws, 38, 1, reeferCheckSignoffExcelRichText(reeferCheckSignoffSegments('08:30', library.monitoringMorningSigners)), {
     alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
   });
   for (let col = 8; col <= lastCol; col++) {
@@ -289,8 +292,7 @@ function drawFooter(ws: ExcelJS.Worksheet, lastCol: number): void {
   }
 
   merge(ws, 39, 1, 39, 6);
-  setCell(ws, 39, 1, 'All reefers checked at 16:55. Signed by OS ______ / OS ______', {
-    font: { name: ARIAL, size: 9 },
+  setCell(ws, 39, 1, reeferCheckSignoffExcelRichText(reeferCheckSignoffSegments('16:55', library.monitoringEveningSigners)), {
     alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
   });
   for (let col = 8; col <= lastCol; col++) {
@@ -367,7 +369,7 @@ export async function buildReeferMonitoringExcelBytes(
   drawTopHeader(ws, ship, year, depPortCode, departureDate, layout);
   drawTableHeader(ws, layout);
   drawDataRows(ws, exportUnits, ports, layout.lastCol);
-  drawFooter(ws, layout.lastCol);
+  drawFooter(ws, layout.lastCol, library);
   configurePrint(ws, layout.lastCol);
 
   return workbookToBytes(wb);

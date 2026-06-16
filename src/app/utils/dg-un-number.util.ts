@@ -159,4 +159,11 @@ export function lookupUnNumber(raw: string | undefined | null): UnNumberTooltipE
   };
 }
 
+/** Full DG reference row for a UN number (fire/spillage EMS codes, etc.). */
+export function lookupUnNumberReference(raw: string | undefined | null): UnNumberReferenceEntry | null {
+  const unNo = normalizeUnNumber(raw);
+  if (!/^\d{4}$/.test(unNo) || unNo === '0000') return null;
+  return UN_NUMBER_MAP.get(unNo) ?? null;
+}
+
 export const UN_NUMBER_REFERENCE_COUNT = UN_NUMBER_MAP.size;

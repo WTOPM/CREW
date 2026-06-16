@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import {
   type DgManifestFormSettings,
   type DgManifestRow,
-  formatDgWeightKgDisplay,
+  commitDgWeightKgInput,
 } from '../models/dg-manifest.models';
 import { resolveManifestPortName, type Port } from '../models/crew.models';
 import { extractDgPdfTextItems, type DgPdfTextItem } from '../utils/dg-pdf-text.util';
@@ -299,7 +299,7 @@ function parseCmaCargoRows(
     }
 
     const unNo = pickNearY(items, y, 'unNo', page, (s) => UN_NO_RE.test(s));
-    const netRaw = pickNearY(items, y, 'netWeight', page, (s) => /[\d,]/.test(s));
+    const netRaw = pickNearY(items, y, 'netWeight', page, (s) => /[\d.,]/.test(s));
     const properShippingName = pickNearY(
       items,
       y,
@@ -379,7 +379,7 @@ function parseImportedMpLq(items: DgPdfTextItem[], classY: number, page: number)
 
 function formatImportedWeight(raw: string): string {
   if (!raw) return '';
-  return formatDgWeightKgDisplay(raw) || raw.trim();
+  return commitDgWeightKgInput(raw);
 }
 
 const MONTH: Record<string, string> = {

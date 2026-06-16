@@ -107,7 +107,7 @@ export interface DgLibrarySettings {
   manifestGrossTotalKg: boolean;
   /** Port/date context for this page and DG document export. */
   pageContext: DgPageContext;
-  /** UNIFEEDER manifest — separate inventory from CMA CGM. */
+  /** DP WORLD manifest — separate inventory from CMA CGM. */
   unifeeder: DgUnifeederLibrarySettings;
   /** @deprecated Renamed to manifestMergeLines — read during normalize only */
   manifestRoundLineKg?: boolean;
@@ -126,11 +126,12 @@ export function createDgCargoLine(
   partial?: Partial<Omit<DgCargoLine, 'id'> & { id?: string }>,
 ): DgCargoLine {
   const existingId = (partial?.id ?? '').trim();
+  const weightRaw = (partial?.weightKg ?? '').trim();
   return {
     id: existingId || crypto.randomUUID(),
     dgClass: (partial?.dgClass ?? '').trim(),
     unNo: (partial?.unNo ?? '').trim(),
-    weightKg: (partial?.weightKg ?? '').trim(),
+    weightKg: weightRaw ? commitDgWeightKgInput(weightRaw) : '',
     properShippingName: (partial?.properShippingName ?? '').trim(),
     mpLq: (partial?.mpLq ?? '').trim(),
     flashPoint: (partial?.flashPoint ?? '').trim(),
@@ -465,7 +466,7 @@ export function sortDgDocuments(
   }
 }
 
-/** Normalize manifest weight text (comma = thousands, dot = decimal). */
+/** Normalize weight text for parsing (UI: dot = decimal; CMA import: 480.000 / 1,440.000; European: 19.200,00 / 19.200). */
 function normalizeDgWeightInput(raw: string): string {
   const s = raw.replace(/\s/g, '').trim();
   if (!s) return '';
@@ -480,17 +481,36 @@ function normalizeDgWeightInput(raw: string): string {
       // 15,300.000 — comma thousands, dot decimal
       return s.replace(/,/g, '');
     }
-    // 15.300,000 — dot thousands, comma decimal
+    // 19.200,00 — dot thousands, comma decimal
     return s.replace(/\./g, '').replace(',', '.');
   }
 
   if (hasComma) {
-    // 15,300 — thousands only
     if (/^\d{1,3}(,\d{3})+$/.test(s)) {
       return s.replace(/,/g, '');
     }
-    // 22,600 — decimal comma
     return s.replace(',', '.');
+  }
+
+  if (hasDot) {
+    const dotParts = s.split('.');
+    if (dotParts.length > 2 && /^\d{1,3}(\.\d{3})+$/.test(s)) {
+      // 1.234.567 — European thousands
+      return s.replace(/\./g, '');
+    }
+    if (dotParts.length === 2) {
+      const [intPart, fracPart] = dotParts;
+      if (/^\d+$/.test(intPart) && /^\d+$/.test(fracPart)) {
+        if (/^0+$/.test(fracPart) || intPart.length >= 3) {
+          // 480.000, 1,440.000 (no comma) — CMA/US: dot is decimal
+          return s;
+        }
+        if (intPart.length <= 2 && fracPart.length === 3) {
+          // 19.200 — European thousands (short leading group)
+          return intPart + fracPart;
+        }
+      }
+    }
   }
 
   return s;
@@ -504,7 +524,7 @@ export function parseDgWeightKg(value: string | undefined | null): number {
   return Math.round(n * 1000) / 1000;
 }
 
-/** Display/import weight: trim trailing zeros, keep up to 3 decimal places (22.600 → 22.6, 980.000 → 980). */
+/** Display weight: integer or decimal with dot only (19200, 19200.5 — no thousands, no ,00). */
 export function formatDgWeightKgDisplay(value: string | number | undefined | null): string {
   if (value === undefined || value === null || value === '') return '';
   if (typeof value === 'string' && !value.trim()) return '';
@@ -522,6 +542,23 @@ export function formatDgWeightKgDisplay(value: string | number | undefined | nul
   return rounded.toFixed(3).replace(/\.?0+$/, '');
 }
 
+/** Gross-total display: whole kg only, no decimal point. */
+export function formatDgWeightKgGrossDisplay(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'string' && !value.trim()) return '';
+  const n = typeof value === 'number' ? value : parseDgWeightKg(value);
+  if (!n) return '';
+  return String(Math.round(n));
+}
+
+/** Normalize weight on commit (blur / import): comma → dot; trim .00 tails. */
+export function commitDgWeightKgInput(raw: string, gross = false): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  if (gross) return formatDgWeightKgGrossDisplay(trimmed);
+  return formatDgWeightKgDisplay(trimmed) || trimmed;
+}
+
 export function roundDgWeightKgSum(total: number): number {
   if (!Number.isFinite(total)) return 0;
   return Math.round(total * 1000) / 1000;
@@ -535,10 +572,7 @@ export function roundDgExportLineWeightKg(value: string | number | undefined | n
 }
 
 export function formatDgExportLineWeightKg(value: string | number | undefined | null): string {
-  if (value === undefined || value === null || value === '') return '';
-  if (typeof value === 'string' && !value.trim()) return '';
-  const n = roundDgExportLineWeightKg(value);
-  return n ? String(n) : '';
+  return formatDgWeightKgGrossDisplay(value);
 }
 
 /** Manifest export total: sum raw line weights, then round — not sum of rounded lines. */

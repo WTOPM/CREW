@@ -9,8 +9,9 @@ export interface DgManifestExportContext {
   grossTotalKg: boolean;
 }
 
-/** Rows and options as shown in the UNIFEEDER inventory when exporting. */
+/** Rows and options as shown in the DP WORLD inventory when exporting. */
 export interface DgUnifeederExportContext {
   rows: readonly DgUnifeederRow[];
+  mergeLines: boolean;
   grossTotalKg: boolean;
 }

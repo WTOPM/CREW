@@ -4,8 +4,14 @@ import {
   normalizeReeferPageContext,
   type ReeferPageContext,
 } from '../utils/page-ship-context.util';
+import {
+  emptyReeferMonitoringSigners,
+  normalizeReeferMonitoringSigners,
+  type ReeferMonitoringSigner,
+} from '../utils/reefer-check-signoff.util';
 
 export type { ReeferPageContext };
+export type { ReeferMonitoringSigner };
 
 export type ReeferUnitStatus = 'onboard' | 'discharged';
 
@@ -43,6 +49,10 @@ export interface ReeferLibrarySettings {
   monitoringNextDays: ReeferMonitoringNextDays;
   inventorySortColumn: ReeferInventorySortColumn | null;
   inventorySortDirection: ReeferInventorySortDirection;
+  /** Two crew names for the 08:30 check line in monitoring log export. */
+  monitoringMorningSigners: ReeferMonitoringSigner[];
+  /** Two crew names for the 16:55 check line in monitoring log export. */
+  monitoringEveningSigners: ReeferMonitoringSigner[];
   /** Port/date context for this page and reefer document export. */
   pageContext: ReeferPageContext;
 }
@@ -70,6 +80,8 @@ export function createDefaultReeferLibrary(): ReeferLibrarySettings {
     monitoringNextDays: 5,
     inventorySortColumn: null,
     inventorySortDirection: 'asc',
+    monitoringMorningSigners: emptyReeferMonitoringSigners(),
+    monitoringEveningSigners: emptyReeferMonitoringSigners(),
     pageContext: createEmptyReeferPageContext(),
   };
 }
@@ -131,6 +143,8 @@ export function normalizeReeferLibrary(
       monitoringNextDays: normalizeReeferMonitoringNextDays(raw.monitoringNextDays),
       inventorySortColumn: normalizeReeferInventorySortColumn(raw.inventorySortColumn),
       inventorySortDirection: raw.inventorySortDirection === 'desc' ? 'desc' : 'asc',
+      monitoringMorningSigners: normalizeReeferMonitoringSigners(raw.monitoringMorningSigners),
+      monitoringEveningSigners: normalizeReeferMonitoringSigners(raw.monitoringEveningSigners),
       pageContext: normalizeReeferPageContext(
         raw.pageContext,
         'pageContext' in raw,

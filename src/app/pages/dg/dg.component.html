@@ -1,4 +1,4 @@
-<div class="page dg-page" [class.dg-page--wide]="activeInventoryTab() === 'unifeeder'">
+<div class="page dg-page dg-page--wide" [class.dg-page--cma]="activeInventoryTab() === 'cmaCgm'">
   <header class="page-header dg-page-header">
     <a routerLink="/" class="back-link">Home</a>
     <div class="dg-page-actions">
@@ -93,68 +93,13 @@
     </section>
   }
 
-  <div class="dg-layout" [class.dg-layout--unifeeder]="activeInventoryTab() === 'unifeeder'">
-    @if (activeInventoryTab() === 'cmaCgm') {
-    <aside class="card dg-import-panel">
-      <h2 class="dg-panel-title">Import history</h2>
-
-      <div
-        class="dg-drop-compact"
-        [class.dg-drop-compact--active]="dragOver()"
-        [class.dg-drop-compact--busy]="importing()"
-        (click)="pickPdf()"
-        (dragover)="onDragOver($event)"
-        (dragleave)="onDragLeave()"
-        (drop)="onDrop($event)"
-      >
-        <input #pdfFile type="file" accept="application/pdf,.pdf" hidden (change)="onPdfInput($event)" />
-        @if (importing()) {
-          <span>Reading PDF…</span>
-        } @else {
-          <span class="dg-drop-compact-icon" aria-hidden="true">📄</span>
-          <span>Drop PDF or click</span>
-        }
-      </div>
-
-      @if (importHistory().length === 0) {
-        <p class="dg-empty-hint">No manifests imported yet.</p>
-      } @else {
-        <ul class="dg-import-list">
-          @for (doc of importHistory(); track doc.id) {
-            <li
-              class="dg-import-item"
-              [class.dg-import-item--all-discharged]="manifestFullyDischarged(doc.id)"
-              [attr.title]="manifestDischargedTooltip(doc.id) || null"
-            >
-              <div class="dg-import-body">
-                <span class="dg-import-name">{{ doc.sourceName }}</span>
-                @if (manifestLabel(doc)) {
-                  <span class="dg-import-meta">{{ manifestLabel(doc) }}</span>
-                }
-                @if (manifestFullyDischarged(doc.id)) {
-                  <span class="dg-import-discharged-note">All containers discharged</span>
-                }
-              </div>
-              <button
-                type="button"
-                class="dg-import-remove btn btn-ghost btn-sm"
-                title="Remove manifest and all its containers"
-                (click)="removeManifest(doc.id, $event)"
-              >
-                ✕
-              </button>
-            </li>
-          }
-        </ul>
-      }
-    </aside>
-    }
-
+  <div class="dg-layout dg-layout--wide">
     <main class="dg-main">
       <section
         class="card dg-inventory"
         [class.dg-inventory--archive]="dgArchive.loaded()"
-        [class.dg-inventory--unifeeder]="activeInventoryTab() === 'unifeeder'"
+        [class.dg-inventory--wide]="true"
+        [class.dg-inventory--cma]="activeInventoryTab() === 'cmaCgm'"
       >
         @if (dgArchive.loaded(); as snap) {
           <div class="dg-archive-banner" role="status">
@@ -180,112 +125,227 @@
             [class.dg-inventory-tab--active]="activeInventoryTab() === 'unifeeder'"
             (click)="setInventoryTab('unifeeder')"
           >
-            UNIFEEDER - DG
+            DP WORLD - DG
           </button>
+          <div class="dg-inventory-tab-actions">
+            <button
+              type="button"
+              class="dg-inventory-transfer-btn"
+              [title]="dgTransferButtonTitle()"
+              [attr.aria-label]="dgTransferButtonTitle()"
+              (click)="transferDgInventoryToOpposite()"
+            >
+              <svg class="dg-inventory-transfer-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 9.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="dg-inventory-clear-btn"
+              [title]="dgClearButtonTitle()"
+              [attr.aria-label]="dgClearButtonTitle()"
+              (click)="clearActiveDgInventory()"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
         </nav>
 
         @if (activeInventoryTab() === 'cmaCgm') {
-        <div class="dg-inventory-head">
-          <div class="dg-inventory-head__title">
-            <p class="dg-inventory-meta">
-              <span>{{ stats().containerCount }} container(s)</span>
-              <span>{{ stats().lineCount }} DG line(s)</span>
-              @if (stats().dischargedCount > 0) {
-                <span>{{ stats().dischargedCount }} discharged</span>
+        <div class="cma-page-center">
+        <header class="cma-header">
+          <section class="cma-header__import-row" aria-label="CMA CGM import">
+            <div class="cma-import-panel">
+              <div
+                class="dg-drop-compact cma-drop--import"
+                [class.dg-drop-compact--active]="dragOver()"
+                [class.dg-drop-compact--busy]="importing()"
+                (click)="pickPdf()"
+                (dragover)="onDragOver($event)"
+                (dragleave)="onDragLeave()"
+                (drop)="onDrop($event)"
+              >
+                <input #pdfFile type="file" accept="application/pdf,.pdf" hidden (change)="onPdfInput($event)" />
+                @if (importing()) {
+                  <span class="cma-drop__label">…</span>
+                } @else {
+                  <span class="dg-drop-compact-icon" aria-hidden="true">📄</span>
+                  <span class="cma-drop__label">Drop</span>
+                }
+              </div>
+
+              @if (importHistory().length > 0) {
+                <ul class="cma-manifest-list" aria-label="Imported manifests">
+                  @for (doc of importHistory(); track doc.id) {
+                    <li
+                      class="cma-manifest-chip"
+                      [class.cma-manifest-chip--all-discharged]="manifestFullyDischarged(doc.id)"
+                      [attr.title]="manifestDischargedTooltip(doc.id) || manifestLabel(doc) || null"
+                    >
+                      <span class="cma-manifest-chip__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                          <path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2.5L18.5 10H13V4.5zM8 13h8v1.5H8V13zm0 3h5v1.5H8V16z" />
+                        </svg>
+                      </span>
+                      <div class="cma-manifest-chip__body">
+                        <span class="cma-manifest-chip__name">{{ doc.sourceName }}</span>
+                        @if (manifestLabel(doc)) {
+                          <span class="cma-manifest-chip__meta">{{ manifestLabel(doc) }}</span>
+                        }
+                        @if (manifestFullyDischarged(doc.id)) {
+                          <span class="cma-manifest-chip__discharged">All discharged</span>
+                        }
+                      </div>
+                      <button
+                        type="button"
+                        class="cma-manifest-chip__remove"
+                        title="Remove manifest and all its containers"
+                        (click)="removeManifest(doc.id, $event)"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="cma-import-hint">Drop PDF manifest — up to 6 per row</p>
               }
-            </p>
-          </div>
-          <div class="dg-inventory-search-slot">
-            <input
-              type="search"
-              class="dg-inventory-search-input"
-              placeholder="Search"
-              aria-label="Search DG inventory"
-              [ngModel]="inventorySearch()"
-              (ngModelChange)="inventorySearch.set($event)"
-            />
-          </div>
-          <div class="dg-inventory-total">
-            <span class="dg-total-label">Total net, kg</span>
-            <strong class="dg-total-value">{{ formatSummaryKg(stats().totalKg) }}</strong>
-          </div>
-        </div>
-
-        <div class="dg-inventory-toolbar">
-          <div class="dg-toolbar-panel dg-toolbar-panel--display" role="group" aria-label="Inventory display options">
-            <span class="dg-toolbar-panel__label">Display</span>
-            <div class="dg-toolbar-panel__body dg-inventory-view-options">
-              <label class="choice-label dg-view-option">
-                <input
-                  type="checkbox"
-                  [ngModel]="library().showDischarged"
-                  (ngModelChange)="toggleShowDischarged($event)"
-                />
-                Show discharged
-              </label>
-              <label
-                class="choice-label dg-view-option"
-                title="Combine lines in the same container when class, UN, name and MP/LQ match (same as PDF export)"
-              >
-                <input
-                  type="checkbox"
-                  [ngModel]="library().manifestMergeLines"
-                  (ngModelChange)="toggleManifestMergeLines($event)"
-                />
-                Consolidate duplicate lines
-              </label>
-              <label
-                class="choice-label dg-view-option"
-                title="Round line weights to whole kg; totals stay as sum of raw weights rounded once (same as PDF export)"
-              >
-                <input
-                  type="checkbox"
-                  [ngModel]="library().manifestGrossTotalKg"
-                  (ngModelChange)="toggleManifestGrossTotalKg($event)"
-                />
-                Gross total weight
-              </label>
             </div>
-          </div>
+          </section>
 
-          <div class="dg-toolbar-panel dg-toolbar-panel--generate" role="group" aria-label="Manifest generation">
-            <span class="dg-toolbar-panel__label">Generate</span>
-            <div class="dg-toolbar-panel__body">
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm dg-pdf-btn"
-                [disabled]="exportingPdf()"
-                (click)="exportPdf()"
-              >
-                PDF
-              </button>
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm dg-excel-btn"
-                [disabled]="exportingExcel()"
-                (click)="exportExcel()"
-              >
-                Excel
-              </button>
-            </div>
-          </div>
+          @if (visibleContainers().length > 0 && classSummaries().length > 0) {
+            <section class="cma-header__totals-row" aria-label="Manifest totals">
+              <div class="cma-class-summary-panel">
+                <div class="dg-master-total">
+                  <div class="dg-master-total-inner">
+                    <span class="dg-master-total-main">
+                      Onboard total:
+                      <strong class="dg-master-total-kg">{{ formatSummaryKg(stats().totalKg) }}</strong>
+                    </span>
+                    <span class="dg-master-total-counts">
+                      {{ stats().containerCount }} containers
+                      {{ stats().lineCount }} lines
+                    </span>
+                  </div>
+                </div>
+                <div class="dg-class-summary-wrap">
+                  <table class="dg-class-summary">
+                    <thead>
+                      <tr>
+                        <th class="dg-class-summary-class">Class</th>
+                        <th class="dg-class-summary-total">{{ formatSummaryKg(stats().totalKg) }}</th>
+                        <th class="dg-class-summary-un-head">UN numbers for operation report</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (row of classSummaries(); track row.dgClass) {
+                        <tr>
+                          <td class="dg-class-summary-class">
+                            <span class="dg-hint-tooltip-host dg-class-summary-class__hint" [appDgClassTooltip]="row.dgClass">
+                              {{ row.dgClass }}
+                            </span>
+                          </td>
+                          <td class="dg-class-summary-kg">{{ formatSummaryKg(row.totalKg) }}</td>
+                          <td class="dg-class-summary-un">{{ row.unNumbers.join(' ') }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          }
 
-          <div class="dg-toolbar-panel dg-toolbar-panel--add" role="group" aria-label="Add inventory">
-            <span class="dg-toolbar-panel__label">Add</span>
-            <div class="dg-toolbar-panel__body">
-              <button type="button" class="btn btn-primary btn-sm dg-add-container-btn" (click)="addContainer()">
-                + Container
-              </button>
+          <section class="cma-header__controls-row" aria-label="Inventory controls">
+            <div class="cma-controls-panel">
+              <div class="cma-controls-panel__actions">
+                <label class="uf-toggle" title="Show discharged containers">
+                  <input
+                    type="checkbox"
+                    [ngModel]="library().showDischarged"
+                    (ngModelChange)="toggleShowDischarged($event)"
+                  />
+                  <span>Discharged</span>
+                </label>
+                <label
+                  class="uf-toggle"
+                  title="Combine lines in the same container when class, UN, name and MP/LQ match (same as PDF export)"
+                >
+                  <input
+                    type="checkbox"
+                    [ngModel]="library().manifestMergeLines"
+                    (ngModelChange)="toggleManifestMergeLines($event)"
+                  />
+                  <span>Consolidate lines</span>
+                </label>
+                <label
+                  class="uf-toggle"
+                  title="Round line weights to whole kg; totals stay as sum of raw weights rounded once (same as PDF export)"
+                >
+                  <input
+                    type="checkbox"
+                    [ngModel]="library().manifestGrossTotalKg"
+                    (ngModelChange)="toggleManifestGrossTotalKg($event)"
+                  />
+                  <span>Total weight</span>
+                </label>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm dg-pdf-btn"
+                  [disabled]="exportingPdf()"
+                  (click)="exportPdf()"
+                >
+                  PDF
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm dg-excel-btn"
+                  [disabled]="exportingExcel()"
+                  (click)="exportExcel()"
+                >
+                  Excel
+                </button>
+                <button type="button" class="btn btn-primary btn-sm dg-add-container-btn" (click)="addContainer()">
+                  + Container
+                </button>
+              </div>
+
+              <div class="cma-controls-panel__stats">
+                <label class="uf-search-box" [class.uf-search-box--filled]="inventorySearch().trim().length > 0">
+                  <span class="uf-search-box__label">Search</span>
+                  <input
+                    type="search"
+                    class="uf-search-box__input"
+                    aria-label="Search DG inventory"
+                    [ngModel]="inventorySearch()"
+                    (ngModelChange)="inventorySearch.set($event)"
+                  />
+                </label>
+
+                <div class="uf-inventory-strip">
+                  <span><strong>{{ stats().containerCount }}</strong> ctr</span>
+                  <span class="uf-inventory-strip__sep">·</span>
+                  <span><strong>{{ stats().lineCount }}</strong> lines</span>
+                  @if (stats().dischargedCount > 0) {
+                    <span class="uf-inventory-strip__sep">·</span>
+                    <span class="uf-inventory-strip__muted">{{ stats().dischargedCount }} disch.</span>
+                  }
+                  <span class="uf-inventory-strip__weight">{{ formatSummaryKg(stats().totalKg) }} kg</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </section>
+        </header>
 
         @if (visibleContainers().length === 0) {
           <p class="dg-empty-hint">
             No containers onboard. Import a port manifest or add a container manually.
           </p>
         } @else {
-          <div class="table-wrap dg-master-wrap">
+          <div class="table-wrap dg-master-wrap dg-master-card">
             <table class="dg-master-table">
               <colgroup>
                 <col class="col-index" />
@@ -616,8 +676,14 @@
                               />
                             </span>
                           } @else {
-                            <span class="dg-cell-readonly dg-hint-tooltip-host" [appDgClassTooltip]="line.dgClass">
-                              {{ line.dgClass || '—' }}
+                            <span class="dg-hint-tooltip-host" [appDgClassTooltip]="line.dgClass">
+                              <input
+                                type="text"
+                                class="dg-cell-input dg-cell-input--readonly"
+                                [ngModel]="line.dgClass || '—'"
+                                readonly
+                                tabindex="-1"
+                              />
                             </span>
                           }
                         </td>
@@ -633,8 +699,14 @@
                               />
                             </span>
                           } @else {
-                            <span class="dg-cell-readonly dg-hint-tooltip-host" [appUnNumberTooltip]="line.unNo">
-                              {{ line.unNo || '—' }}
+                            <span class="dg-hint-tooltip-host" [appUnNumberTooltip]="line.unNo">
+                              <input
+                                type="text"
+                                class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
+                                [ngModel]="line.unNo || '—'"
+                                readonly
+                                tabindex="-1"
+                              />
                             </span>
                           }
                         </td>
@@ -648,7 +720,13 @@
                               placeholder="—"
                             />
                           } @else {
-                            <span class="dg-cell-readonly">{{ line.mpLq || '—' }}</span>
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
+                              [ngModel]="line.mpLq || '—'"
+                              readonly
+                              tabindex="-1"
+                            />
                           }
                         </td>
                         <td class="col-flash">
@@ -661,7 +739,13 @@
                               placeholder="—"
                             />
                           } @else {
-                            <span class="dg-cell-readonly">{{ line.flashPoint || '—' }}</span>
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
+                              [ngModel]="line.flashPoint || '—'"
+                              readonly
+                              tabindex="-1"
+                            />
                           }
                         </td>
                         <td class="col-weight">
@@ -671,11 +755,18 @@
                               class="dg-cell-input dg-cell-input--weight"
                               [ngModel]="line.weightKgDisplay"
                               (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'weightKg', $event)"
+                              (blur)="onCmaLineWeightBlur(container.id, line.sourceLineIds[0], $any($event.target).value)"
                               inputmode="decimal"
                               placeholder="—"
                             />
                           } @else {
-                            <span class="dg-cell-readonly dg-cell-readonly--weight">{{ line.weightKgDisplay || '—' }}</span>
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--weight dg-cell-input--readonly"
+                              [ngModel]="line.weightKgDisplay || '—'"
+                              readonly
+                              tabindex="-1"
+                            />
                           }
                         </td>
                         <td class="col-name">
@@ -688,7 +779,13 @@
                               placeholder="—"
                             ></textarea>
                           } @else {
-                            <span class="dg-cell-readonly dg-cell-readonly--name">{{ line.properShippingName || '—' }}</span>
+                            <textarea
+                              rows="1"
+                              class="dg-cell-input dg-cell-input--name dg-cell-input--readonly"
+                              [ngModel]="line.properShippingName || '—'"
+                              readonly
+                              tabindex="-1"
+                            ></textarea>
                           }
                         </td>
                         <td class="col-line-act">
@@ -759,78 +856,13 @@
                   }
                 }
               </tbody>
-              <tfoot>
-                <tr class="dg-master-total">
-                  <td colspan="12">
-                    <div class="dg-master-total-inner">
-                      <span class="dg-master-total-main">
-                        Onboard total:
-                        <strong class="dg-master-total-kg">{{ formatSummaryKg(stats().totalKg) }}</strong>
-                      </span>
-                      <span class="dg-master-total-counts">
-                        {{ stats().containerCount }} containers
-                        {{ stats().lineCount }} lines
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
-
-          @if (classSummaries().length > 0 || cmaManifestSummary().lengthBuckets.length > 0) {
-            <div class="dg-manifest-totals">
-              @if (cmaManifestSummary().lengthBuckets.length > 0) {
-                <div class="dg-manifest-totals__block">
-                  <h3 class="dg-manifest-totals__heading">Container lengths</h3>
-                  <table class="dg-manifest-totals__table">
-                    <tbody>
-                      @for (bucket of cmaManifestSummary().lengthBuckets; track bucket.label) {
-                        <tr>
-                          <th scope="row">{{ bucket.label }}</th>
-                          <td>{{ bucket.containerCount }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              }
-
-              @if (classSummaries().length > 0) {
-                <div class="dg-manifest-totals__block dg-manifest-totals__block--wide">
-                  <h3 class="dg-manifest-totals__heading">DG class summary</h3>
-                  <div class="dg-class-summary-wrap">
-                    <table class="dg-class-summary">
-                      <thead>
-                        <tr>
-                          <th class="dg-class-summary-class">Class</th>
-                          <th class="dg-class-summary-total">{{ formatSummaryKg(stats().totalKg) }}</th>
-                          <th class="dg-class-summary-un-head">UN numbers for operation report</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (row of classSummaries(); track row.dgClass) {
-                          <tr>
-                            <td class="dg-class-summary-class">
-                              <span class="dg-hint-tooltip-host dg-class-summary-class__hint" [appDgClassTooltip]="row.dgClass">
-                                {{ row.dgClass }}
-                              </span>
-                            </td>
-                            <td class="dg-class-summary-kg">{{ formatSummaryKg(row.totalKg) }}</td>
-                            <td class="dg-class-summary-un">{{ row.unNumbers.join(' ') }}</td>
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              }
-            </div>
-          }
         }
+        </div>
         } @else {
         <header class="uf-header">
-          <section class="uf-header__import-row" aria-label="UNIFEEDER import">
+          <section class="uf-header__import-row" aria-label="DP WORLD import">
             <div class="uf-import-panel">
               <div
                 class="uf-drop uf-drop--import"
@@ -952,6 +984,17 @@
                 </label>
                 <label
                   class="uf-toggle"
+                  title="Combine lines in the same container when class, UN, name and MP/LQ match (same as PDF export)"
+                >
+                  <input
+                    type="checkbox"
+                    [ngModel]="unifeederLibrary().mergeLines"
+                    (ngModelChange)="toggleUnifeederMergeLines($event)"
+                  />
+                  <span>Consolidate lines</span>
+                </label>
+                <label
+                  class="uf-toggle"
                   title="Round line weights to whole kg; totals stay as sum of raw weights rounded once (same as CMA DG export)"
                 >
                   <input
@@ -959,7 +1002,7 @@
                     [ngModel]="unifeederLibrary().grossTotalKg"
                     (ngModelChange)="toggleUnifeederGrossTotalKg($event)"
                   />
-                  <span>Gross total weight</span>
+                  <span>Total weight</span>
                 </label>
                 <button
                   type="button"
@@ -990,7 +1033,7 @@
                   <input
                     type="search"
                     class="uf-search-box__input"
-                    aria-label="Search UNIFEEDER inventory"
+                    aria-label="Search DP WORLD inventory"
                     [ngModel]="unifeederInventorySearch()"
                     (ngModelChange)="unifeederInventorySearch.set($event)"
                   />
@@ -1013,7 +1056,7 @@
 
         @if (visibleUnifeederRows().length === 0) {
           <p class="dg-empty-hint">
-            No UNIFEEDER rows yet. Import an Excel manifest or add a row manually.
+            No DP WORLD rows yet. Import an Excel manifest or add a row manually.
           </p>
         } @else {
           <div class="table-wrap dg-unifeeder-wrap dg-unifeeder-card">
@@ -1153,103 +1196,191 @@
                 </tr>
               </thead>
               <tbody>
-                @for (row of visibleUnifeederRows(); track row.id; let ri = $index) {
+                @for (row of visibleUnifeederDisplayRows(); track row.id; let ri = $index) {
                   <tr
                     class="dg-unifeeder-row"
                     [class.dg-unifeeder-row--discharged]="row.status === 'discharged'"
                   >
-                    <td class="uf-no">{{ ri + 1 }}</td>
+                    <td class="uf-no" [ngClass]="unifeederRowNoGroupClass(ri)">{{ ri + 1 }}</td>
                     <td>
                       <span [appContainerTypeTooltip]="row.size">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.size" (ngModelChange)="onUnifeederRowChange(row.id, 'size', $event)" />
+                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.size" (ngModelChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'size', $event)" />
                       </span>
                     </td>
                     <td>
-                      <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.stow" (ngModelChange)="onUnifeederRowChange(row.id, 'stow', $event)" />
+                      <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.stow" (ngModelChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'stow', $event)" />
                     </td>
                     <td>
-                      <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.containerNo" (ngModelChange)="onUnifeederRowChange(row.id, 'containerNo', $event)" />
+                      <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.containerNo" (ngModelChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'containerNo', $event)" />
                     </td>
                     <td>
                       <div class="dg-cell-port-select">
-                        <app-port-select [ports]="ports()" [value]="row.loadPort" [compact]="true" (valueChange)="onUnifeederRowChange(row.id, 'loadPort', $event)" />
+                        <app-port-select [ports]="ports()" [value]="row.loadPort" [compact]="true" (valueChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'loadPort', $event)" />
                       </div>
                     </td>
                     <td>
                       <div class="dg-cell-port-select">
-                        <app-port-select [ports]="ports()" [value]="row.dischargePort" [compact]="true" (valueChange)="onUnifeederRowChange(row.id, 'dischargePort', $event)" />
+                        <app-port-select [ports]="ports()" [value]="row.dischargePort" [compact]="true" (valueChange)="onUnifeederRowChange(unifeederPrimaryRowId(row), 'dischargePort', $event)" />
                       </div>
                     </td>
                     <td>
                       <span [appUnNumberTooltip]="row.unNo">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.unNo" (ngModelChange)="onUnifeederRowChange(row.id, 'unNo', $event)" />
+                        <input
+                          class="dg-cell-input dg-cell-input--mono"
+                          [class.dg-cell-input--readonly]="!row.editable"
+                          [ngModel]="row.unNo"
+                          [readonly]="!row.editable"
+                          [tabindex]="row.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'unNo', $event)"
+                        />
                       </span>
                     </td>
                     <td>
                       <span [appPackingGroupTooltip]="row.packingGroup">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.packingGroup" (ngModelChange)="onUnifeederRowChange(row.id, 'packingGroup', $event)" />
+                        <input
+                          class="dg-cell-input dg-cell-input--mono"
+                          [class.dg-cell-input--readonly]="!row.editable"
+                          [ngModel]="row.packingGroup"
+                          [readonly]="!row.editable"
+                          [tabindex]="row.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'packingGroup', $event)"
+                        />
                       </span>
                     </td>
                     <td>
                       <input
                         class="dg-cell-input dg-cell-input--mono dg-cell-input--weight"
+                        [class.dg-cell-input--readonly]="!row.editable"
                         [ngModel]="unifeederWeightDisplay(row)"
-                        (ngModelChange)="onUnifeederRowChange(row.id, 'weightKg', $event)"
+                        [readonly]="!row.editable"
+                        [tabindex]="row.editable ? 0 : -1"
+                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'weightKg', $event)"
+                        (blur)="onUnifeederWeightBlur(row, $any($event.target).value)"
                         inputmode="decimal"
                       />
                     </td>
                     <td>
-                      <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.lq" (ngModelChange)="onUnifeederRowChange(row.id, 'lq', $event)" />
+                      <input
+                        class="dg-cell-input dg-cell-input--mono"
+                        [class.dg-cell-input--readonly]="!row.editable"
+                        [ngModel]="row.lq"
+                        [readonly]="!row.editable"
+                        [tabindex]="row.editable ? 0 : -1"
+                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'lq', $event)"
+                      />
                     </td>
                     <td>
-                      <input class="dg-cell-input dg-cell-input--mono dg-cell-input--fp" [ngModel]="row.flashPoint" (ngModelChange)="onUnifeederRowChange(row.id, 'flashPoint', $event)" />
+                      <input
+                        class="dg-cell-input dg-cell-input--mono dg-cell-input--fp"
+                        [class.dg-cell-input--readonly]="!row.editable"
+                        [ngModel]="row.flashPoint"
+                        [readonly]="!row.editable"
+                        [tabindex]="row.editable ? 0 : -1"
+                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'flashPoint', $event)"
+                      />
                     </td>
                     <td>
-                      <input class="dg-cell-input dg-cell-input--mono dg-cell-input--mp" [ngModel]="row.marinePollutant" (ngModelChange)="onUnifeederRowChange(row.id, 'marinePollutant', $event)" />
+                      <input
+                        class="dg-cell-input dg-cell-input--mono dg-cell-input--mp"
+                        [class.dg-cell-input--readonly]="!row.editable"
+                        [ngModel]="row.marinePollutant"
+                        [readonly]="!row.editable"
+                        [tabindex]="row.editable ? 0 : -1"
+                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'marinePollutant', $event)"
+                      />
                     </td>
                     <td>
-                      <input class="dg-cell-input" [ngModel]="row.goodsDescription" (ngModelChange)="onUnifeederRowChange(row.id, 'goodsDescription', $event)" />
+                      <input
+                        class="dg-cell-input"
+                        [class.dg-cell-input--readonly]="!row.editable"
+                        [ngModel]="row.goodsDescription"
+                        [readonly]="!row.editable"
+                        [tabindex]="row.editable ? 0 : -1"
+                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'goodsDescription', $event)"
+                      />
                     </td>
                     <td>
                       <span class="dg-hint-tooltip-host" [appDgClassTooltip]="row.dgClass">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.dgClass" (ngModelChange)="onUnifeederRowChange(row.id, 'dgClass', $event)" />
+                        <input
+                          class="dg-cell-input dg-cell-input--mono"
+                          [class.dg-cell-input--readonly]="!row.editable"
+                          [ngModel]="row.dgClass"
+                          [readonly]="!row.editable"
+                          [tabindex]="row.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'dgClass', $event)"
+                        />
                       </span>
                     </td>
                     <td>
-                      <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.subRisk" (ngModelChange)="onUnifeederRowChange(row.id, 'subRisk', $event)" />
+                      <input
+                        class="dg-cell-input dg-cell-input--mono"
+                        [class.dg-cell-input--readonly]="!row.editable"
+                        [ngModel]="row.subRisk"
+                        [readonly]="!row.editable"
+                        [tabindex]="row.editable ? 0 : -1"
+                        (ngModelChange)="onUnifeederDisplayRowChange(row, 'subRisk', $event)"
+                      />
                     </td>
                     <td>
                       <span [appMfagFireTooltip]="row.fire">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.fire" (ngModelChange)="onUnifeederRowChange(row.id, 'fire', $event)" />
+                        <input
+                          class="dg-cell-input dg-cell-input--mono"
+                          [class.dg-cell-input--readonly]="!row.editable"
+                          [ngModel]="row.fire"
+                          [readonly]="!row.editable"
+                          [tabindex]="row.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'fire', $event)"
+                        />
                       </span>
                     </td>
                     <td>
                       <span [appMfagSpillageTooltip]="row.spillage">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.spillage" (ngModelChange)="onUnifeederRowChange(row.id, 'spillage', $event)" />
+                        <input
+                          class="dg-cell-input dg-cell-input--mono"
+                          [class.dg-cell-input--readonly]="!row.editable"
+                          [ngModel]="row.spillage"
+                          [readonly]="!row.editable"
+                          [tabindex]="row.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'spillage', $event)"
+                        />
                       </span>
                     </td>
                     <td>
                       <span [appMfagFireTooltip]="row.fireSchedule || row.fire">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.fireSchedule" (ngModelChange)="onUnifeederRowChange(row.id, 'fireSchedule', $event)" />
+                        <input
+                          class="dg-cell-input dg-cell-input--mono"
+                          [class.dg-cell-input--readonly]="!row.editable"
+                          [ngModel]="row.fireSchedule"
+                          [readonly]="!row.editable"
+                          [tabindex]="row.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'fireSchedule', $event)"
+                        />
                       </span>
                     </td>
                     <td>
                       <span [appMfagSpillageTooltip]="row.spillageSchedule || row.spillage">
-                        <input class="dg-cell-input dg-cell-input--mono" [ngModel]="row.spillageSchedule" (ngModelChange)="onUnifeederRowChange(row.id, 'spillageSchedule', $event)" />
+                        <input
+                          class="dg-cell-input dg-cell-input--mono"
+                          [class.dg-cell-input--readonly]="!row.editable"
+                          [ngModel]="row.spillageSchedule"
+                          [readonly]="!row.editable"
+                          [tabindex]="row.editable ? 0 : -1"
+                          (ngModelChange)="onUnifeederDisplayRowChange(row, 'spillageSchedule', $event)"
+                        />
                       </span>
                     </td>
                     <td class="uf-act">
                       <div class="dg-row-actions">
                         @if (row.status === 'discharged') {
-                          <button type="button" class="dg-act dg-act--restore" title="Restore onboard" (click)="restoreUnifeederRow(row.id)">
+                          <button type="button" class="dg-act dg-act--restore" title="Restore onboard" (click)="restoreUnifeederDisplayRow(row)">
                             <dg-act-icon kind="restore" />
                           </button>
                         } @else {
-                          <button type="button" class="dg-act dg-act--discharge" title="Mark discharged" (click)="markUnifeederDischarged(row.id)">
+                          <button type="button" class="dg-act dg-act--discharge" title="Mark discharged" (click)="markUnifeederDisplayRowDischarged(row)">
                             <dg-act-icon kind="discharge" />
                           </button>
                         }
-                        <button type="button" class="dg-act dg-act--remove" title="Remove row" (click)="removeUnifeederRow(row.id)">
+                        <button type="button" class="dg-act dg-act--remove" title="Remove row" (click)="removeUnifeederDisplayRow(row)">
                           <dg-act-icon kind="remove" />
                         </button>
                       </div>

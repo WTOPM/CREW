@@ -1,5 +1,10 @@
 import { jsPDF } from 'jspdf';
-import { parseDgWeightKg } from '../models/dg-manifest.models';
+import {
+  commitDgWeightKgInput,
+  formatDgWeightKgDisplay,
+  formatDgWeightKgGrossDisplay,
+  parseDgWeightKg,
+} from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { portCode, resolveManifestPortName, type Port, type ShipInfo } from '../models/crew.models';
 import type { DgPageContext } from './page-ship-context.util';
@@ -11,7 +16,7 @@ export interface UnifeederDgPdfExportOptions {
 }
 
 const COL_WIDTHS: readonly number[] = [
-  15.43, 13.71, 10.86, 15.43, 17.29, 17.29, 15.43, 10.86, 11.86, 10.86, 10.86, 10.86,
+  15.43, 13.71, 12.5, 15.43, 16.79, 16.79, 15.43, 12.5, 11.86, 10.86, 10.36, 10.36,
 ];
 
 const PAGE_ROWS = 39;
@@ -143,8 +148,11 @@ function drawTextInRect(
   const pad = opts.pad ?? 2;
   const align = opts.align ?? 'center';
   const maxW = Math.max(2, rect.w - pad * 2);
-  const lines =
-    doc.getTextWidth(label) > maxW ? (doc.splitTextToSize(label, maxW) as string[]) : [label];
+  const lines = label.includes('\n')
+    ? label.split('\n').map((line) => line.trim()).filter(Boolean)
+    : doc.getTextWidth(label) > maxW
+      ? (doc.splitTextToSize(label, maxW) as string[])
+      : [label];
 
   if (lines.length === 1) {
     const x =
@@ -160,9 +168,9 @@ function drawTextInRect(
     return;
   }
 
-  const lineH = opts.size * 1.12;
+  const lineH = opts.size * 1.15;
   const blockH = lines.length * lineH;
-  let y = rect.y + (rect.h - blockH) / 2 + opts.size * 0.35;
+  let y = rect.y + (rect.h - blockH) / 2 + opts.size * 0.78;
   for (const line of lines) {
     const x =
       align === 'left'
@@ -210,13 +218,18 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
   return trimmed;
 }
 
-function formatAmountKgText(data: DgUnifeederRow | undefined, exportKg?: number): string {
+function formatAmountKgText(
+  data: DgUnifeederRow | undefined,
+  exportKg: number | undefined,
+  grossTotalKg: boolean,
+): string {
   if (!data) return '';
   const amount = exportKg !== undefined ? exportKg : parseDgWeightKg(data.weightKg);
   if (amount > 0) {
-    const wholeKg = Math.abs(amount - Math.round(amount)) <= 1e-9;
-    const value = wholeKg ? Math.round(amount) : amount;
-    return `${value.toLocaleString('en-US', { maximumFractionDigits: wholeKg ? 0 : 2 })} kg`;
+    const text = grossTotalKg
+      ? formatDgWeightKgGrossDisplay(amount)
+      : formatDgWeightKgDisplay(amount);
+    return text ? `${text} kg` : '';
   }
   const raw = data.weightKg.trim();
   if (!raw) return '';
@@ -330,10 +343,10 @@ function exportTotalKg(rows: readonly DgUnifeederRow[], grossTotalKg: boolean): 
 }
 
 function formatTotalKg(totalKg: number, grossTotalKg: boolean): string {
-  if (grossTotalKg) {
-    return `${Math.round(totalKg).toLocaleString('en-US')} kg`;
-  }
-  return `${totalKg.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`;
+  const text = grossTotalKg
+    ? formatDgWeightKgGrossDisplay(totalKg) || '0'
+    : formatDgWeightKgDisplay(totalKg) || '0';
+  return `${text} kg`;
 }
 
 async function loadRambowFlagDataUrl(): Promise<string | null> {
@@ -460,9 +473,9 @@ function drawTableHeader(doc: jsPDF, metrics: GridMetrics): void {
   const headers: { col: number; text: string; col2?: number }[] = [
     { col: 1, text: 'IMO Class' },
     { col: 2, text: 'UN No.' },
-    { col: 3, text: 'Packing Group' },
+    { col: 3, text: 'Packing\nGroup' },
     { col: 4, text: 'Amount' },
-    { col: 5, text: 'Bay / Position' },
+    { col: 5, text: 'Bay /\nPosition' },
     { col: 6, text: 'Cont. ID' },
     { col: 7, text: 'Loaded in' },
     { col: 8, text: 'Destination' },
@@ -485,6 +498,7 @@ function drawDataRow(
   data: DgUnifeederRow | undefined,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
+  grossTotalKg: boolean,
 ): void {
   const bodySize = fontSize(metrics, 10);
   const emsSize = fontSize(metrics, 9);
@@ -496,7 +510,7 @@ function drawDataRow(
     { col: 3, text: data?.packingGroup ?? '' },
     {
       col: 4,
-      text: formatAmountKgText(data, data ? exportWeights.get(data.id) : undefined),
+      text: formatAmountKgText(data, data ? exportWeights.get(data.id) : undefined, grossTotalKg),
     },
     { col: 5, text: data?.stow ?? '' },
     { col: 6, text: data?.containerNo ?? '', align: 'left' },
@@ -574,7 +588,7 @@ function drawPageBlock(
   drawHeaderBlock(doc, metrics, pageNumber, ship, ctx, ports, logoDataUrl);
   drawTableHeader(doc, metrics);
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
-    drawDataRow(doc, metrics, DATA_FIRST_ROW + i, pageRows[i], ports, exportWeights);
+    drawDataRow(doc, metrics, DATA_FIRST_ROW + i, pageRows[i], ports, exportWeights, options.grossTotalKg);
   }
   if (options.showTotal) {
     drawTotalRow(doc, metrics, options.totalKg, options.grossTotalKg);

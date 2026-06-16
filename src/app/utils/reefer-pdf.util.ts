@@ -24,6 +24,11 @@ import {
   type ReeferLogLayout,
   type ReeferMonitoringDateBlock,
 } from './reefer-monitoring-layout.util';
+import {
+  drawReeferCheckSignoffInPdf,
+  drawReeferSigFieldInPdf,
+  reeferCheckSignoffSegments,
+} from './reefer-check-signoff.util';
 
 const FONT = 'helvetica';
 
@@ -258,7 +263,7 @@ function shiftRectY(
   return { ...rect, y: rect.y + dy };
 }
 
-function drawFooter(doc: jsPDF, metrics: ReeferLogGridMetrics, lastCol: number): void {
+function drawFooter(doc: jsPDF, metrics: ReeferLogGridMetrics, lastCol: number, library: ReeferLibrarySettings): void {
   const footSize = reeferLogFontSize(metrics, 9);
   const lastDataRow = reeferLogCellRect(metrics, REEFER_LOG_DATA_END, 1, REEFER_LOG_DATA_END, lastCol);
   const footerStart = reeferLogCellRect(metrics, 38, 1).y;
@@ -267,24 +272,26 @@ function drawFooter(doc: jsPDF, metrics: ReeferLogGridMetrics, lastCol: number):
   const footerRect = (row: number, col1: number, col2 = col1) =>
     shiftRectY(reeferLogCellRect(metrics, row, col1, row, col2), footerShift);
 
-  drawWrappedTextInRect(
+  drawReeferCheckSignoffInPdf(
     doc,
-    'All reefers checked at 08:30. Signed by OS ______ / OS ______',
     footerRect(38, 1, 7),
-    { size: footSize, pad: 3 },
+    reeferCheckSignoffSegments('08:30', library.monitoringMorningSigners),
+    footSize,
+    3,
   );
   for (let col = 8; col <= lastCol; col++) {
-    drawTextInRect(doc, 'Sig.:________', footerRect(38, col), { size: footSize });
+    drawReeferSigFieldInPdf(doc, footerRect(38, col), footSize);
   }
 
-  drawWrappedTextInRect(
+  drawReeferCheckSignoffInPdf(
     doc,
-    'All reefers checked at 16:55. Signed by OS ______ / OS ______',
     footerRect(39, 1, 7),
-    { size: footSize, pad: 3 },
+    reeferCheckSignoffSegments('16:55', library.monitoringEveningSigners),
+    footSize,
+    3,
   );
   for (let col = 8; col <= lastCol; col++) {
-    drawTextInRect(doc, 'Sig.:________', footerRect(39, col), { size: footSize });
+    drawReeferSigFieldInPdf(doc, footerRect(39, col), footSize);
   }
 
   drawWrappedTextInRect(
@@ -325,7 +332,7 @@ export function buildReeferMonitoringPdfBytes(
   drawTopHeader(doc, metrics, ship, year, depPortCode, depDate, layout);
   drawTableHeader(doc, metrics, dateBlocks, layout);
   drawDataRows(doc, metrics, units, ports, layout.lastCol);
-  drawFooter(doc, metrics, layout.lastCol);
+  drawFooter(doc, metrics, layout.lastCol, library);
 
   return new Uint8Array(doc.output('arraybuffer') as ArrayBuffer);
 }

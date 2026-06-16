@@ -290,7 +290,7 @@ function buildManifestHeader(
     font: { name: ARIAL, size: 16, color: { argb: CLR.black } },
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
-  setCell(ws, 7, 11, totalKg || null, {
+  setCell(ws, 7, 11, totalKg ? formatDgWeightKgDisplay(totalKg) : null, {
     font: { name: ARIAL, size: 20, bold: true, color: { argb: CLR.cyan } },
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
@@ -353,7 +353,7 @@ function writeDataRow(
     { col: 9, value: row.mpLq },
     { col: 10, value: formatFlashPointExcel(row.flashPoint) },
     { col: 11, value: row.properShippingName, size: 8 },
-    { col: 12, value: weight },
+    { col: 12, value: weight != null ? formatDgWeightKgDisplay(weight) : null },
   ];
   for (const v of values) {
     setCell(ws, rowIndex, v.col, v.value, {
@@ -378,7 +378,7 @@ function buildClassSideBlock(
     alignment: { horizontal: 'center', vertical: 'middle' },
     border: MEDIUM,
   });
-  setCell(ws, 7, COL_P, totalKg || null, {
+  setCell(ws, 7, COL_P, totalKg ? formatDgWeightKgDisplay(totalKg) : null, {
     font: { name: ARIAL, size: 20, bold: true, color: { argb: CLR.cyan } },
     alignment: { horizontal: 'center', vertical: 'middle' },
     border: MEDIUM,
@@ -393,7 +393,7 @@ function buildClassSideBlock(
       alignment: { horizontal: 'center', vertical: 'middle' },
       border: THIN,
     });
-    setCell(ws, row, COL_P, classKg || null, {
+    setCell(ws, row, COL_P, classKg ? formatDgWeightKgDisplay(classKg) : null, {
       font: { name: ARIAL, size: 20, bold: true, color: { argb: CLR.navy } },
       alignment: { horizontal: 'center', vertical: 'middle' },
       border: THIN,

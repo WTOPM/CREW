@@ -120,6 +120,7 @@ import {
   createDgManifestDocument,
   createDgOnboardContainer,
   createDefaultDgLibrary,
+  commitDgWeightKgInput,
   dgDefaultVoyageFromShip,
   normalizeDgLibrary,
   onboardContainersFromImportRows,
@@ -138,6 +139,10 @@ import {
   type DgUnifeederLibrarySettings,
   type DgUnifeederRow,
 } from '../models/dg-unifeeder.models';
+import {
+  cmaContainersToUnifeederRows,
+  unifeederRowsToCmaContainers,
+} from '../utils/dg-inventory-transfer.util';
 import type { UnifeederPdfParseResult } from '../utils/dg-unifeeder-pdf.util';
 import {
   createReeferManifestDocument,
@@ -1077,6 +1082,27 @@ export class StorageService {
     void this.persist('silent');
   }
 
+  updateReeferMonitoringSigner(
+    which: 'morning' | 'evening',
+    index: number,
+    field: 'rank' | 'name',
+    value: string,
+  ): void {
+    if (index < 0 || index >= 2) return;
+    this.data.update((d) => {
+      const lib = normalizeReeferLibrary(d.reeferLibrary, d.ports, d.ship);
+      const key = which === 'morning' ? 'monitoringMorningSigners' : 'monitoringEveningSigners';
+      const signers = lib[key].map((s, i) =>
+        i === index ? { ...s, [field]: value } : s,
+      );
+      return {
+        ...d,
+        reeferLibrary: { ...lib, [key]: signers },
+      };
+    });
+    void this.persist('silent');
+  }
+
   updateReeferShowDischarged(showDischarged: boolean): void {
     this.updateReeferViewSettings({ showDischarged });
   }
@@ -1239,7 +1265,7 @@ export class StorageService {
   }
 
   updateUnifeederViewSettings(
-    partial: Partial<Pick<DgUnifeederLibrarySettings, 'showDischarged' | 'grossTotalKg'>>,
+    partial: Partial<Pick<DgUnifeederLibrarySettings, 'showDischarged' | 'mergeLines' | 'grossTotalKg'>>,
   ): void {
     this.data.update((d) => {
       const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
@@ -1248,6 +1274,84 @@ export class StorageService {
         dgLibrary: {
           ...lib,
           unifeeder: { ...lib.unifeeder, ...partial },
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  /** Replace UNIFEEDER inventory with a copy of the CMA CGM onboard list. */
+  transferCmaDgInventoryToUnifeeder(): number {
+    let count = 0;
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      const rows = cmaContainersToUnifeederRows(lib.onboard);
+      count = rows.length;
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: {
+            ...lib.unifeeder,
+            manifests: [],
+            onboard: rows,
+          },
+        },
+      };
+    });
+    void this.persist('silent');
+    return count;
+  }
+
+  /** Replace CMA CGM inventory with a copy of the UNIFEEDER onboard list. */
+  transferUnifeederDgInventoryToCma(): number {
+    let count = 0;
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      const containers = unifeederRowsToCmaContainers(lib.unifeeder.onboard);
+      count = containers.length;
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          manifests: [],
+          onboard: containers,
+        },
+      };
+    });
+    void this.persist('silent');
+    return count;
+  }
+
+  /** Clear CMA CGM onboard list and import history. */
+  clearCmaDgInventory(): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          manifests: [],
+          onboard: [],
+        },
+      };
+    });
+    void this.persist('silent');
+  }
+
+  /** Clear UNIFEEDER onboard list and import history. */
+  clearUnifeederDgInventory(): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: {
+            ...lib.unifeeder,
+            manifests: [],
+            onboard: [],
+          },
         },
       };
     });
@@ -1379,6 +1483,7 @@ export class StorageService {
         .map((row) =>
           createDgUnifeederRow({
             ...row,
+            weightKg: commitDgWeightKgInput(row.weightKg),
             loadPort: resolveUnifeederRowPort(
               row.loadPort || result.header.portOfDeparture || '',
               d.ports,
@@ -1447,8 +1552,12 @@ export class StorageService {
         contentFingerprint: fingerprints?.contentFingerprint?.trim() ?? '',
         pdfBytesFingerprint: fingerprints?.pdfBytesFingerprint?.trim() ?? '',
       });
+      const normalizedRows = result.rows.map((row) => ({
+        ...row,
+        weightKg: row.weightKg?.trim() ? commitDgWeightKgInput(row.weightKg) : '',
+      }));
       const added = onboardContainersFromImportRows(
-        result.rows,
+        normalizedRows,
         doc.id,
         loadPort,
         dischargePort,

@@ -1,3 +1,4 @@
+import { NgClass } from '@angular/common';
 import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,6 +8,8 @@ import {
   dgViewOnboardClassSummaries,
   dgViewOnboardInventoryStats,
   formatDgWeightKgDisplay,
+  formatDgWeightKgGrossDisplay,
+  commitDgWeightKgInput,
   sortDgDocuments,
   type DgCargoLine,
   type DgManifestDocument,
@@ -47,7 +50,11 @@ import {
 } from '../../utils/dg-inventory-sort.util';
 import { filterDgOnboardContainers } from '../../utils/dg-inventory-search.util';
 import { filterUnifeederOnboardRows } from '../../utils/dg-unifeeder-inventory-search.util';
-import { planUnifeederInventoryWeightDisplays } from '../../utils/dg-unifeeder-weight.util';
+import {
+  buildUnifeederInventoryDisplayRows,
+  mergeUnifeederRowsInContainers,
+  type DgUnifeederRowDisplay,
+} from '../../utils/dg-unifeeder-merge.util';
 import {
   sortUnifeederRows,
   type DgUnifeederSortColumn,
@@ -62,14 +69,12 @@ import {
 } from '../../models/dg-unifeeder.models';
 
 import { DgUnifeederImportService } from '../../services/dg-unifeeder-import.service';
+import { formatUnifeederImportValidationError } from '../../utils/dg-unifeeder-pdf-summary.util';
 import {
   buildUnifeederContentHash,
   buildUnifeederPdfBytesHash,
 } from '../../utils/dg-unifeeder-fingerprint.util';
-import {
-  dgOnboardManifestSummary,
-  unifeederManifestSummary,
-} from '../../utils/dg-manifest-summary.util';
+import { unifeederManifestSummary } from '../../utils/dg-manifest-summary.util';
 import { DgActIconComponent } from './dg-act-icon.component';
 import { MfagScheduleTooltipDirective } from '../../directives/mfag-schedule-tooltip.directive';
 import { PackingGroupTooltipDirective } from '../../directives/packing-group-tooltip.directive';
@@ -84,7 +89,7 @@ export type DgInventoryTab = 'cmaCgm' | 'unifeeder';
 
 @Component({
   selector: 'app-dg',
-  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ClickOutsideDirective, ContainerTypeTooltipDirective, DgClassTooltipDirective, MfagScheduleTooltipDirective, UnNumberTooltipDirective, PackingGroupTooltipDirective],
+  imports: [NgClass, RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ClickOutsideDirective, ContainerTypeTooltipDirective, DgClassTooltipDirective, MfagScheduleTooltipDirective, UnNumberTooltipDirective, PackingGroupTooltipDirective],
   templateUrl: './dg.component.html',
   styleUrl: './dg.component.css',
 })
@@ -147,14 +152,6 @@ export class DgComponent {
     );
   });
 
-  protected readonly classSummaries = computed(() =>
-    dgViewOnboardClassSummaries(
-      this.library().onboard,
-      this.library().showDischarged,
-      this.viewOptions(),
-    ),
-  );
-
   protected readonly dragOver = signal(false);
   protected readonly importing = signal(false);
   protected readonly unifeederDragOver = signal(false);
@@ -189,28 +186,71 @@ export class DgComponent {
     return list;
   });
 
+  protected readonly visibleUnifeederDisplayRows = computed(() => {
+    const lib = this.unifeederLibrary();
+    let list = filterUnifeederOnboardRows(this.filteredUnifeederRows(), this.unifeederInventorySearch());
+    const column = this.unifeederSortColumn();
+    if (column) {
+      list = sortUnifeederRows(list, column, this.unifeederSortDirection());
+    }
+    return buildUnifeederInventoryDisplayRows(list, {
+      mergeLines: lib.mergeLines,
+      grossTotalKg: lib.grossTotalKg,
+    });
+  });
+
+  /** Row indices where No should highlight — consecutive rows share the same container. */
+  protected readonly unifeederMultiCargoRowIndices = computed(() => {
+    const rows = this.visibleUnifeederDisplayRows();
+    const highlighted = new Set<number>();
+    for (let i = 0; i < rows.length; i++) {
+      const container = rows[i]?.containerNo.trim();
+      if (!container) continue;
+      const prevSame = i > 0 && rows[i - 1]?.containerNo.trim() === container;
+      const nextSame = i < rows.length - 1 && rows[i + 1]?.containerNo.trim() === container;
+      if (prevSame || nextSame) highlighted.add(i);
+    }
+    return highlighted;
+  });
+
+  protected unifeederRowNoGroupClass(index: number): string {
+    const rows = this.visibleUnifeederDisplayRows();
+    if (!this.unifeederMultiCargoRowIndices().has(index)) return '';
+    const container = rows[index]?.containerNo.trim() ?? '';
+    if (!container) return '';
+    const prevSame = index > 0 && rows[index - 1]?.containerNo.trim() === container;
+    const nextSame = index < rows.length - 1 && rows[index + 1]?.containerNo.trim() === container;
+    if (!prevSame && nextSame) return 'uf-no--multi-cargo uf-no--multi-cargo-start';
+    if (prevSame && nextSame) return 'uf-no--multi-cargo uf-no--multi-cargo-mid';
+    return 'uf-no--multi-cargo uf-no--multi-cargo-end';
+  }
+
   protected readonly unifeederStats = computed(() => {
     const lib = this.unifeederLibrary();
     const filtered = filterUnifeederOnboardRows(
       this.filteredUnifeederRows(),
       this.unifeederInventorySearch(),
     );
-    return unifeederOnboardInventoryStats(filtered, true, lib.grossTotalKg);
+    const base = unifeederOnboardInventoryStats(filtered, true, lib.grossTotalKg);
+    return {
+      ...base,
+      rowCount: this.visibleUnifeederDisplayRows().length,
+    };
   });
 
   protected readonly unifeederManifestSummary = computed(() =>
-    unifeederManifestSummary(this.visibleUnifeederRows(), this.unifeederLibrary().grossTotalKg),
-  );
-
-  protected readonly unifeederWeightDisplays = computed(() =>
-    planUnifeederInventoryWeightDisplays(
-      this.visibleUnifeederRows(),
+    unifeederManifestSummary(
+      mergeUnifeederRowsInContainers(this.visibleUnifeederRows(), this.unifeederLibrary().mergeLines),
       this.unifeederLibrary().grossTotalKg,
     ),
   );
 
-  protected readonly cmaManifestSummary = computed(() =>
-    dgOnboardManifestSummary(this.visibleContainers()),
+  protected readonly classSummaries = computed(() =>
+    dgViewOnboardClassSummaries(
+      this.library().onboard,
+      this.library().showDischarged,
+      this.viewOptions(),
+    ),
   );
 
   protected readonly unifeederImportHistory = computed(() =>
@@ -234,8 +274,79 @@ export class DgComponent {
     this.storage.updateUnifeederViewSettings({ grossTotalKg: checked });
   }
 
+  protected toggleUnifeederMergeLines(checked: boolean): void {
+    this.storage.updateUnifeederViewSettings({ mergeLines: checked });
+  }
+
   protected setInventoryTab(tab: DgInventoryTab): void {
     this.activeInventoryTab.set(tab);
+  }
+
+  protected dgTransferButtonTitle(): string {
+    return this.activeInventoryTab() === 'cmaCgm'
+      ? 'Replace DP WORLD list with CMA CGM data'
+      : 'Replace CMA CGM list with DP WORLD data';
+  }
+
+  protected transferDgInventoryToOpposite(): void {
+    const fromCma = this.activeInventoryTab() === 'cmaCgm';
+    const sourceCount = fromCma
+      ? this.library().onboard.length
+      : this.unifeederLibrary().onboard.length;
+    if (sourceCount === 0) {
+      this.toast.showError(
+        fromCma ? 'No CMA CGM containers to transfer' : 'No DP WORLD rows to transfer',
+      );
+      return;
+    }
+
+    const sourceLabel = fromCma ? 'CMA CGM' : 'DP WORLD';
+    const targetLabel = fromCma ? 'DP WORLD' : 'CMA CGM';
+    const ok = confirm(
+      `Replace the ${targetLabel} inventory with data from ${sourceLabel}? The ${targetLabel} list and import history will be cleared.`,
+    );
+    if (!ok) return;
+
+    const count = fromCma
+      ? this.storage.transferCmaDgInventoryToUnifeeder()
+      : this.storage.transferUnifeederDgInventoryToCma();
+    this.setInventoryTab(fromCma ? 'unifeeder' : 'cmaCgm');
+    this.toast.show(`Transferred ${count} item(s) to ${targetLabel}`, 'success');
+  }
+
+  protected dgClearButtonTitle(): string {
+    return this.activeInventoryTab() === 'cmaCgm'
+      ? 'Clear all CMA CGM inventory and import history'
+      : 'Clear all DP WORLD inventory and import history';
+  }
+
+  protected clearActiveDgInventory(): void {
+    const fromCma = this.activeInventoryTab() === 'cmaCgm';
+    const onboardCount = fromCma
+      ? this.library().onboard.length
+      : this.unifeederLibrary().onboard.length;
+    const manifestCount = fromCma
+      ? this.importHistory().length
+      : this.unifeederImportHistory().length;
+    if (onboardCount === 0 && manifestCount === 0) {
+      this.toast.showError(
+        fromCma ? 'CMA CGM inventory is already empty' : 'DP WORLD inventory is already empty',
+      );
+      return;
+    }
+
+    const label = fromCma ? 'CMA CGM' : 'DP WORLD';
+    const ok = confirm(
+      `Clear all ${label} containers/rows and import history? This cannot be undone.`,
+    );
+    if (!ok) return;
+
+    if (fromCma) {
+      this.storage.clearCmaDgInventory();
+    } else {
+      this.storage.clearUnifeederDgInventory();
+    }
+    this.toast.show(`${label} inventory cleared`, 'success');
   }
 
   protected toggleManifestMergeLines(checked: boolean): void {
@@ -285,7 +396,7 @@ export class DgComponent {
   protected formatSummaryKg(value: number): string {
     const lib = this.library();
     if (lib.manifestGrossTotalKg) {
-      return formatDgWeightKgDisplay(Math.round(value)) || '0';
+      return formatDgWeightKgGrossDisplay(value) || '0';
     }
     return formatDgWeightKgDisplay(value) || '0';
   }
@@ -434,6 +545,19 @@ export class DgComponent {
     this.storage.updateUnifeederRow(rowId, patch);
   }
 
+  protected unifeederPrimaryRowId(row: DgUnifeederRowDisplay): string {
+    return row.sourceRowIds[0];
+  }
+
+  protected onUnifeederDisplayRowChange(
+    row: DgUnifeederRowDisplay,
+    field: DgUnifeederRowField,
+    value: string,
+  ): void {
+    if (!row.editable) return;
+    this.onUnifeederRowChange(this.unifeederPrimaryRowId(row), field, value);
+  }
+
   protected addUnifeederRow(): void {
     this.storage.addUnifeederRow();
   }
@@ -442,19 +566,36 @@ export class DgComponent {
     this.storage.removeUnifeederRow(rowId);
   }
 
+  protected removeUnifeederDisplayRow(row: DgUnifeederRowDisplay): void {
+    for (const id of row.sourceRowIds) {
+      this.storage.removeUnifeederRow(id);
+    }
+  }
+
   protected markUnifeederDischarged(rowId: string): void {
     this.storage.setUnifeederRowStatus(rowId, 'discharged');
+  }
+
+  protected markUnifeederDisplayRowDischarged(row: DgUnifeederRowDisplay): void {
+    for (const id of row.sourceRowIds) {
+      this.storage.setUnifeederRowStatus(id, 'discharged');
+    }
   }
 
   protected restoreUnifeederRow(rowId: string): void {
     this.storage.setUnifeederRowStatus(rowId, 'onboard');
   }
 
+  protected restoreUnifeederDisplayRow(row: DgUnifeederRowDisplay): void {
+    for (const id of row.sourceRowIds) {
+      this.storage.setUnifeederRowStatus(id, 'onboard');
+    }
+  }
+
   protected exportUnifeederPdf(): void {
     if (this.exportingPdf()) return;
-    const exportRows = this.visibleUnifeederRows();
-    if (exportRows.length === 0) {
-      this.toast.showError('No UNIFEEDER rows to export');
+    if (this.visibleUnifeederDisplayRows().length === 0) {
+      this.toast.showError('No DP WORLD rows to export');
       return;
     }
 
@@ -474,9 +615,8 @@ export class DgComponent {
 
   protected exportUnifeederExcel(): void {
     if (this.exportingExcel()) return;
-    const exportRows = this.visibleUnifeederRows();
-    if (exportRows.length === 0) {
-      this.toast.showError('No UNIFEEDER rows to export');
+    if (this.visibleUnifeederDisplayRows().length === 0) {
+      this.toast.showError('No DP WORLD rows to export');
       return;
     }
 
@@ -532,11 +672,11 @@ export class DgComponent {
       /\.xlsx$/i.test(file.name) ||
       file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     if (!isPdf && !isExcel) {
-      this.toast.showError('Drop a UNIFEEDER PDF or Excel file');
+      this.toast.showError('Drop a DP WORLD PDF or Excel file');
       return;
     }
     if (isExcel) {
-      this.toast.show('UNIFEEDER Excel import — coming soon', 'info');
+      this.toast.show('DP WORLD Excel import — coming soon', 'info');
       return;
     }
 
@@ -576,6 +716,12 @@ export class DgComponent {
         `Imported ${result.rows.length} row(s), ${containers} container(s) — ${rows} onboard (${pol} → ${pod})`,
         'success',
       );
+      const validationError = result.validation
+        ? formatUnifeederImportValidationError(result.validation)
+        : '';
+      if (validationError) {
+        this.toast.showError(validationError);
+      }
       if (result.warnings.length) {
         this.toast.show(result.warnings.slice(0, 2).join(' '), 'info');
       }
@@ -589,16 +735,24 @@ export class DgComponent {
   protected formatUnifeederWeight(value: number): string {
     if (!Number.isFinite(value) || value === 0) return '0';
     if (this.unifeederLibrary().grossTotalKg) {
-      return Math.round(value).toLocaleString('en-US');
+      return formatDgWeightKgGrossDisplay(value) || '0';
     }
-    return value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
+    return formatDgWeightKgDisplay(value) || '0';
   }
 
-  protected unifeederWeightDisplay(row: DgUnifeederRow): string {
-    if (!this.unifeederLibrary().grossTotalKg) {
-      return row.weightKg;
-    }
-    return this.unifeederWeightDisplays().get(row.id) ?? row.weightKg;
+  protected onCmaLineWeightBlur(containerId: string, lineId: string, raw: string): void {
+    const normalized = commitDgWeightKgInput(raw, this.library().manifestGrossTotalKg);
+    this.storage.updateDgOnboardCargoLine(containerId, lineId, { weightKg: normalized });
+  }
+
+  protected onUnifeederWeightBlur(row: DgUnifeederRowDisplay, raw: string): void {
+    if (!row.editable) return;
+    const normalized = commitDgWeightKgInput(raw, this.unifeederLibrary().grossTotalKg);
+    this.storage.updateUnifeederRow(this.unifeederPrimaryRowId(row), { weightKg: normalized });
+  }
+
+  protected unifeederWeightDisplay(row: DgUnifeederRowDisplay): string {
+    return row.weightKgDisplay || row.weightKg;
   }
 
   protected setContainerGroupHover(containerId: string): void {
@@ -716,9 +870,13 @@ export class DgComponent {
   }
 
   private buildUnifeederExportContext(): DgUnifeederExportContext {
+    const lib = this.unifeederLibrary();
     return {
-      rows: this.visibleUnifeederRows(),
-      grossTotalKg: this.unifeederLibrary().grossTotalKg,
+      rows: this.visibleUnifeederDisplayRows().map(
+        ({ editable, sourceRowIds, weightKgDisplay, ...row }) => row,
+      ),
+      mergeLines: lib.mergeLines,
+      grossTotalKg: lib.grossTotalKg,
     };
   }
 

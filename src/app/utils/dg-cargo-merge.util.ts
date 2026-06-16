@@ -247,9 +247,7 @@ export function buildDgContainerDisplayLines(
     const planned = weightDisplays?.get(`${container.id}:${row.id}`);
     const weightKgDisplay = options.manifestGrossTotalKg
       ? planned ?? (row.rawWeightKg ? String(Math.round(row.rawWeightKg)) : '')
-      : row.editable
-        ? container.lines.find((line) => line.id === row.id)?.weightKg ?? formatDgWeightKgDisplay(row.rawWeightKg)
-        : formatDgWeightKgDisplay(row.rawWeightKg);
+      : planned ?? formatDgWeightKgDisplay(row.rawWeightKg);
     return { ...row, weightKgDisplay };
   });
 }

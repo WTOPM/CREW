@@ -194,6 +194,45 @@
         </div>
       </div>
 
+      <section class="reefer-signoff-panel" aria-label="Monitoring log daily check signatures">
+        <h3 class="reefer-signoff-panel__title">Daily check signatures</h3>
+        <p class="reefer-signoff-panel__hint">
+          Two names per line — <strong>bold and underlined</strong> in PDF / Excel (<span class="reefer-signoff-hint__sample">OS Surname N.</span>).
+        </p>
+        <div class="reefer-signoff-rows">
+          <label class="reefer-signoff-row">
+            <span class="reefer-signoff-row__time">08:30</span>
+            <div class="reefer-signoff-slots">
+              @for (slot of signerSlots; track slot) {
+                <input
+                  type="text"
+                  class="reefer-signoff-name"
+                  [ngModel]="library().monitoringMorningSigners[slot].name"
+                  (ngModelChange)="onMonitoringSignerChange('morning', slot, 'name', $event)"
+                  [placeholder]="'OS name ' + (slot + 1)"
+                  [attr.aria-label]="'Morning check name ' + (slot + 1)"
+                />
+              }
+            </div>
+          </label>
+          <label class="reefer-signoff-row">
+            <span class="reefer-signoff-row__time">16:55</span>
+            <div class="reefer-signoff-slots">
+              @for (slot of signerSlots; track slot) {
+                <input
+                  type="text"
+                  class="reefer-signoff-name"
+                  [ngModel]="library().monitoringEveningSigners[slot].name"
+                  (ngModelChange)="onMonitoringSignerChange('evening', slot, 'name', $event)"
+                  [placeholder]="'OS name ' + (slot + 1)"
+                  [attr.aria-label]="'Evening check name ' + (slot + 1)"
+                />
+              }
+            </div>
+          </label>
+        </div>
+      </section>
+
       @if (visibleUnits().length === 0) {
         <p class="reefer-empty-hint">No containers onboard. Import a CMA reefer manifest or add a container manually.</p>
       } @else {
