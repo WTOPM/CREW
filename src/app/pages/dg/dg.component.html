@@ -1,4 +1,4 @@
-<div class="page dg-page dg-page--wide" [class.dg-page--cma]="activeInventoryTab() === 'cmaCgm'">
+<div class="page dg-page dg-page--wide" [class.dg-page--cma]="activeInventoryTab() === 'cmaCgm'" [class.dg-page--uf]="activeInventoryTab() === 'unifeeder'">
   <header class="page-header dg-page-header">
     <a routerLink="/" class="back-link">Home</a>
     <div class="dg-page-actions">
@@ -100,6 +100,7 @@
         [class.dg-inventory--archive]="dgArchive.loaded()"
         [class.dg-inventory--wide]="true"
         [class.dg-inventory--cma]="activeInventoryTab() === 'cmaCgm'"
+        [class.dg-inventory--unifeeder]="activeInventoryTab() === 'unifeeder'"
       >
         @if (dgArchive.loaded(); as snap) {
           <div class="dg-archive-banner" role="status">
@@ -898,6 +899,7 @@
         }
         </div>
         } @else {
+        <div class="uf-page-center">
         <header class="uf-header">
           <section class="uf-header__import-row" aria-label="DP WORLD import">
             <div class="uf-import-panel">
@@ -1507,6 +1509,7 @@
             </table>
           </div>
         }
+        </div>
         }
       </section>
     </main>

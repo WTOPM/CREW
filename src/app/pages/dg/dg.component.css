@@ -283,15 +283,41 @@
   margin-bottom: 0.55rem;
 }
 
-.dg-inventory--cma .dg-inventory-tabs{justify-content:center}
+.dg-inventory--cma .dg-inventory-tabs,
+.dg-inventory--unifeeder .dg-inventory-tabs {
+  justify-content: center;
+}
 
-.dg-page--cma>.dg-page-header,
-.dg-page--cma>.dg-voyage-strip,
-.dg-page--cma>.dg-layout--wide{width:75%;max-width:75%;margin-inline:auto}
+.dg-page--cma > .dg-page-header,
+.dg-page--cma > .dg-voyage-strip,
+.dg-page--cma > .dg-layout--wide,
+.dg-page--uf > .dg-page-header,
+.dg-page--uf > .dg-voyage-strip,
+.dg-page--uf > .dg-layout--wide {
+  width: 75%;
+  max-width: 75%;
+  margin-inline: auto;
+}
 
-.cma-page-center{width:100%;max-width:100%;margin-inline:auto}
-.cma-page-center .dg-master-wrap{width:100%;max-width:100%;margin:0}
-.cma-header__totals-row{display:flex;justify-content:center}
+.cma-page-center,
+.uf-page-center {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.cma-page-center .dg-master-wrap,
+.uf-page-center .dg-unifeeder-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
+.cma-header__totals-row,
+.uf-header__totals-row {
+  display: flex;
+  justify-content: center;
+}
 
 .cma-header,
 .uf-header {
@@ -1117,34 +1143,77 @@
   transition: background-color 0.14s ease, box-shadow 0.14s ease;
 }
 
-.dg-unifeeder-table .uf-col-no { width: 2.2%; }
-.dg-unifeeder-table .uf-col-size { width: 3.2%; }
-.dg-unifeeder-table .uf-col-stow { width: 4.5%; }
-.dg-unifeeder-table .uf-col-container { width: 7.5%; }
-.dg-unifeeder-table .uf-col-pol { width: 6.5%; }
-.dg-unifeeder-table .uf-col-pod { width: 6.5%; }
-.dg-unifeeder-table .uf-col-un { width: 3.8%; }
-.dg-unifeeder-table .uf-col-pg { width: 2.8%; }
-.dg-unifeeder-table .uf-col-weight { width: 5.5%; }
-.dg-unifeeder-table .uf-col-lq { width: 2.5%; }
-.dg-unifeeder-table .uf-col-fp { width: 3.5%; }
-.dg-unifeeder-table .uf-col-mp { width: 2.8%; }
-.dg-unifeeder-table .uf-col-desc { width: 14%; }
-.dg-unifeeder-table .uf-col-class { width: 3.2%; }
-.dg-unifeeder-table .uf-col-sub { width: 3.5%; }
-.dg-unifeeder-table .uf-col-fire { width: 3.5%; }
-.dg-unifeeder-table .uf-col-spill { width: 4%; }
-.dg-unifeeder-table .uf-col-fire-sch { width: 5.2%; }
-.dg-unifeeder-table .uf-col-spill-sch { width: 5.8%; }
-.dg-unifeeder-table .uf-col-line-act { width: 2.2%; }
-.dg-unifeeder-table .uf-col-act { width: 4.5%; }
+.dg-unifeeder-table .uf-col-no { width: 1.8%; }
+.dg-unifeeder-table .uf-col-size { width: 2.6%; }
+.dg-unifeeder-table .uf-col-stow { width: 3.2%; }
+.dg-unifeeder-table .uf-col-container { width: 6.2%; }
+.dg-unifeeder-table .uf-col-pol { width: 5.4%; }
+.dg-unifeeder-table .uf-col-pod { width: 5.4%; }
+.dg-unifeeder-table .uf-col-un { width: 3%; }
+.dg-unifeeder-table .uf-col-pg { width: 2%; }
+.dg-unifeeder-table .uf-col-weight { width: 4.2%; }
+.dg-unifeeder-table .uf-col-lq { width: 1.8%; }
+.dg-unifeeder-table .uf-col-fp { width: 2.6%; }
+.dg-unifeeder-table .uf-col-mp { width: 2%; }
+.dg-unifeeder-table .uf-col-desc { width: 12%; }
+.dg-unifeeder-table .uf-col-class { width: 2.6%; }
+.dg-unifeeder-table .uf-col-sub { width: 2.8%; }
+.dg-unifeeder-table .uf-col-fire { width: 2.6%; }
+.dg-unifeeder-table .uf-col-spill { width: 2.8%; }
+.dg-unifeeder-table .uf-col-fire-sch { width: 4.2%; }
+.dg-unifeeder-table .uf-col-spill-sch { width: 4.4%; }
+.dg-unifeeder-table .uf-col-line-act { width: 1.6%; }
+.dg-unifeeder-table .uf-col-act { width: 4.2%; }
 
 .dg-unifeeder-table th,
 .dg-unifeeder-table td {
   border-right: 1px solid #e2e8f0;
   border-bottom: 1px solid #e2e8f0;
-  padding: 0.22rem 0.28rem;
+  padding: 0.16rem 0.14rem;
   vertical-align: middle;
+}
+
+.dg-inventory--unifeeder .dg-unifeeder-table {
+  font-size: 0.74rem;
+}
+
+.dg-inventory--unifeeder .dg-unifeeder-table th,
+.dg-inventory--unifeeder .dg-unifeeder-table td {
+  padding: 0.12rem 0.08rem;
+}
+
+.dg-inventory--unifeeder .dg-table-head th {
+  padding: 0.3rem 0.14rem;
+  font-size: 0.6rem;
+}
+
+.dg-inventory--unifeeder .dg-th-stack {
+  font-size: 0.58rem;
+  gap: 0.04rem;
+}
+
+.dg-inventory--unifeeder .dg-th-stack > span:last-child {
+  font-size: 0.52rem;
+}
+
+.dg-inventory--unifeeder .dg-unifeeder-table .dg-cell-input {
+  min-height: 1.62rem;
+  padding: 0.1rem 0.12rem;
+  font-size: 0.7rem;
+}
+
+.dg-inventory--unifeeder .dg-unifeeder-table .dg-cell-input--mono {
+  font-size: 0.69rem;
+}
+
+.dg-inventory--unifeeder .dg-unifeeder-table .dg-cell-port-select .port-select {
+  min-height: 1.62rem;
+  font-size: 0.68rem;
+}
+
+.dg-inventory--unifeeder .uf-totals-panel {
+  max-width: 42rem;
+  margin-inline: auto;
 }
 
 .dg-unifeeder-table th:last-child,
