@@ -18,7 +18,7 @@ export function unNoInDgReference(unNo: string): boolean {
   return !!lookupUnNumberReference(unNo);
 }
 
-/** Use DG Reference when UN is known; otherwise keep carefully parsed manifest cargo fields. */
+/** Use DG Reference for class when UN is known; proper shipping name always from manifest. */
 export function applyCmaCargoReferenceOrManifest(
   unNo: string,
   manifest: CmaManifestParsedCargo,
@@ -28,7 +28,7 @@ export function applyCmaCargoReferenceOrManifest(
     return {
       cargo: {
         dgClass: autofill.dgClass ?? manifest.dgClass,
-        properShippingName: autofill.properShippingName ?? manifest.properShippingName,
+        properShippingName: manifest.properShippingName,
         mpLq: manifest.mpLq,
         flashPoint: manifest.flashPoint,
       },

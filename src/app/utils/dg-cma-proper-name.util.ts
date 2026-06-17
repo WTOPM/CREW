@@ -4,10 +4,6 @@ function inCol(x: number, range: readonly [number, number]): boolean {
   return x >= range[0] && x <= range[1];
 }
 
-function nearY(item: DgPdfTextItem, y: number, tol = 2): boolean {
-  return Math.abs(item.y - y) <= tol;
-}
-
 function isFieldMarker(str: string): boolean {
   return /^\(\d+\)$/.test(str.trim());
 }
@@ -25,25 +21,60 @@ function isExcludedNameFragment(str: string): boolean {
   return false;
 }
 
-function pickNameFragmentAtY(
+function markerCol(nameCol: readonly [number, number]): readonly [number, number] {
+  return [nameCol[0] - 22, nameCol[0] + 8] as const;
+}
+
+function findFieldMarkerY(
   items: readonly DgPdfTextItem[],
-  y: number,
   page: number,
+  yMin: number,
+  yMax: number,
+  fieldNo: number,
   nameCol: readonly [number, number],
-): string {
+): number | null {
+  const col = markerCol(nameCol);
+  const label = `(${fieldNo})`;
   for (const it of items) {
     if (it.page !== page) continue;
-    if (!nearY(it, y, 2) || !inCol(it.x, nameCol)) continue;
+    if (it.y < yMin || it.y > yMax) continue;
+    if (!inCol(it.x, col)) continue;
+    if (it.str.trim() !== label) continue;
+    return it.y;
+  }
+  return null;
+}
+
+function pickNameLinesBetween(
+  items: readonly DgPdfTextItem[],
+  page: number,
+  nameCol: readonly [number, number],
+  startY: number,
+  endY: number,
+): string[] {
+  const byY = new Map<number, string[]>();
+
+  for (const it of items) {
+    if (it.page !== page) continue;
+    if (it.y < startY || it.y >= endY) continue;
+    if (!inCol(it.x, nameCol)) continue;
     const s = it.str.trim();
     if (isExcludedNameFragment(s)) continue;
-    return s;
+    const parts = byY.get(it.y) ?? [];
+    parts.push(s);
+    byY.set(it.y, parts);
   }
-  return '';
+
+  return [...byY.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, parts]) => parts.join(' ').trim())
+    .filter(Boolean);
 }
 
 /**
- * CMA IMDG manifest / cargo list — proper shipping name spans field (1) line,
- * optional "N.O.S." continuation, and field (2) technical name.
+ * CMA IMDG manifest / cargo list — field (1) only: all name lines up to (2), excluding
+ * the technical name in field (2). Example:
+ * ENVIRONMENTALLY HAZARDOUS SUBSTANCE, LIQUID, N.O.S.
  */
 export function pickCmaManifestProperShippingName(
   items: readonly DgPdfTextItem[],
@@ -51,42 +82,30 @@ export function pickCmaManifestProperShippingName(
   page: number,
   nameCol: readonly [number, number],
 ): string {
-  const blockItems = items.filter(
-    (it) => it.page === page && it.y >= anchorY - 4 && it.y <= anchorY + 40,
-  );
+  const yMin = anchorY - 8;
+  const yMax = anchorY + 45;
 
-  const line1 =
-    pickNameFragmentAtY(blockItems, anchorY - 1, page, nameCol) ||
-    pickNameFragmentAtY(blockItems, anchorY, page, nameCol) ||
-    pickNameFragmentAtY(blockItems, anchorY + 1, page, nameCol);
+  const field1Y = findFieldMarkerY(items, page, yMin, yMax, 1, nameCol);
+  const field2Y = findFieldMarkerY(items, page, anchorY - 2, yMax, 2, nameCol);
 
-  const nosLine = blockItems.find(
-    (it) =>
-      inCol(it.x, nameCol) &&
-      it.y > anchorY &&
-      it.y <= anchorY + 15 &&
-      /^N\.O\.S\.?\.?$/i.test(it.str.trim()),
-  );
+  const startY = field1Y ?? anchorY - 1;
+  const endY = field2Y ?? startY + 28;
 
-  const field2Marker = blockItems.find(
-    (it) => isFieldMarker(it.str) && it.str === '(2)' && it.y >= anchorY + 8 && it.y <= anchorY + 28,
-  );
-  const technicalName = field2Marker
-    ? pickNameFragmentAtY(blockItems, field2Marker.y, page, nameCol)
-    : '';
-
-  let psn = line1.trim();
-  if (nosLine) {
-    psn = psn.replace(/,\s*$/, '');
-    psn = psn ? `${psn}, N.O.S.` : 'N.O.S.';
+  const lines = pickNameLinesBetween(items, page, nameCol, startY, endY);
+  if (lines.length) {
+    return lines.join(' ').replace(/\s+/g, ' ').trim();
   }
 
-  const tech = technicalName.trim();
-  if (tech && !/^N\.O\.S\.?\.?$/i.test(tech)) {
-    if (!psn.toLowerCase().includes(tech.toLowerCase())) {
-      psn = psn ? `${psn} (${tech})` : tech;
+  // Fallback when field markers are missing.
+  for (const delta of [-1, 0, 1, 2, 9]) {
+    for (const it of items) {
+      if (it.page !== page) continue;
+      if (Math.abs(it.y - (anchorY + delta)) > 2) continue;
+      if (!inCol(it.x, nameCol)) continue;
+      const s = it.str.trim();
+      if (!isExcludedNameFragment(s)) return s;
     }
   }
 
-  return psn.replace(/\s+/g, ' ').trim();
+  return '';
 }

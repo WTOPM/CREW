@@ -1022,7 +1022,10 @@ export class StorageService {
 
   updateDgManifestView(
     partial: Partial<
-      Pick<DgLibrarySettings, 'showDischarged' | 'manifestMergeLines' | 'manifestGrossTotalKg'>
+      Pick<
+        DgLibrarySettings,
+        'showDischarged' | 'manifestMergeLines' | 'manifestGrossTotalKg' | 'checkUnNumbers'
+      >
     >,
   ): void {
     this.data.update((d) => ({

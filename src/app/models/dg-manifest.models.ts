@@ -105,6 +105,8 @@ export interface DgLibrarySettings {
   manifestMergeLines: boolean;
   /** Preview gross totals: sum raw weights, round once (same rule as PDF export). */
   manifestGrossTotalKg: boolean;
+  /** Highlight UN inputs: green if in DG Reference, red if unknown. */
+  checkUnNumbers: boolean;
   /** Port/date context for this page and DG document export. */
   pageContext: DgPageContext;
   /** DP WORLD manifest — separate inventory from CMA CGM. */
@@ -208,6 +210,7 @@ export function createDefaultDgLibrary(): DgLibrarySettings {
     showDischarged: false,
     manifestMergeLines: false,
     manifestGrossTotalKg: false,
+    checkUnNumbers: true,
     pageContext: createEmptyDgPageContext(),
     unifeeder: createDefaultUnifeederLibrary(),
   };
@@ -269,6 +272,7 @@ export function normalizeDgLibrary(
       showDischarged: raw.showDischarged === true,
       manifestMergeLines: raw.manifestMergeLines === true || raw.manifestRoundLineKg === true,
       manifestGrossTotalKg: raw.manifestGrossTotalKg === true,
+      checkUnNumbers: raw.checkUnNumbers !== false,
       pageContext,
       unifeeder: normalizeUnifeederLibrary(raw.unifeeder, ports, pageContext),
     };
@@ -337,6 +341,7 @@ function migrateLegacyDgForm(
     showDischarged: false,
     manifestMergeLines: false,
     manifestGrossTotalKg: false,
+    checkUnNumbers: true,
     pageContext: normalizeDgPageContext(undefined, false, shipSeed),
     unifeeder: createDefaultUnifeederLibrary(),
   };

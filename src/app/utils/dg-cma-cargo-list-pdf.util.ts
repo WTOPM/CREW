@@ -307,9 +307,7 @@ function buildListCargoRow(
   const useManifestCargo = !unNoInDgReference(unNo);
   const manifestCargo = {
     dgClass: formatDgClass(dgClassRaw),
-    properShippingName: useManifestCargo
-      ? pickCmaManifestProperShippingName(items, dataY, page, LIST_COL.properName)
-      : '',
+    properShippingName: pickCmaManifestProperShippingName(items, dataY, page, LIST_COL.properName),
     mpLq: parseListMpLqForCargo(items, dataY, page),
     flashPoint: pickListFlashPointForCargo(items, dataY, page),
   };

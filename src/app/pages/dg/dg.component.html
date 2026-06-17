@@ -306,6 +306,17 @@
                   />
                   <span>Total weight</span>
                 </label>
+                <label
+                  class="uf-toggle"
+                  title="Highlight UN field: green if in DG Reference, red if not found"
+                >
+                  <input
+                    type="checkbox"
+                    [ngModel]="library().checkUnNumbers"
+                    (ngModelChange)="toggleCheckUnNumbers($event)"
+                  />
+                  <span>UN check</span>
+                </label>
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm dg-pdf-btn"
@@ -717,6 +728,8 @@
                               <input
                                 type="text"
                                 class="dg-cell-input dg-cell-input--mono"
+                                [class.dg-cell-input--un-known]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'known'"
+                                [class.dg-cell-input--un-unknown]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'unknown'"
                                 [ngModel]="line.unNo"
                                 (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'unNo', $event)"
                                 (blur)="onCmaUnNoCommit(container.id, line.sourceLineIds[0], $event)"
@@ -729,6 +742,8 @@
                               <input
                                 type="text"
                                 class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
+                                [class.dg-cell-input--un-known]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'known'"
+                                [class.dg-cell-input--un-unknown]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'unknown'"
                                 [ngModel]="line.unNo || '—'"
                                 readonly
                                 tabindex="-1"
@@ -796,44 +811,24 @@
                           }
                         </td>
                         <td class="col-name col-cargo">
-                          @if (containerDisplayLineCount(container) === 1) {
-                            @if (line.editable) {
-                              <input
-                                type="text"
-                                class="dg-cell-input dg-cell-input--name dg-cell-input--name-single"
-                                [ngModel]="line.properShippingName"
-                                (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'properShippingName', $event)"
-                                [title]="line.properShippingName"
-                                placeholder="—"
-                              />
-                            } @else {
-                              <input
-                                type="text"
-                                class="dg-cell-input dg-cell-input--name dg-cell-input--name-single dg-cell-input--readonly"
-                                [ngModel]="line.properShippingName || '—'"
-                                [title]="line.properShippingName"
-                                readonly
-                                tabindex="-1"
-                              />
-                            }
+                          @if (line.editable) {
+                            <textarea
+                              rows="1"
+                              class="dg-cell-input dg-cell-input--name"
+                              [ngModel]="line.properShippingName"
+                              (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'properShippingName', $event)"
+                              [title]="line.properShippingName"
+                              placeholder="—"
+                            ></textarea>
                           } @else {
-                            @if (line.editable) {
-                              <textarea
-                                rows="1"
-                                class="dg-cell-input dg-cell-input--name"
-                                [ngModel]="line.properShippingName"
-                                (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'properShippingName', $event)"
-                                placeholder="—"
-                              ></textarea>
-                            } @else {
-                              <textarea
-                                rows="1"
-                                class="dg-cell-input dg-cell-input--name dg-cell-input--readonly"
-                                [ngModel]="line.properShippingName || '—'"
-                                readonly
-                                tabindex="-1"
-                              ></textarea>
-                            }
+                            <textarea
+                              rows="1"
+                              class="dg-cell-input dg-cell-input--name dg-cell-input--readonly"
+                              [ngModel]="line.properShippingName || '—'"
+                              [title]="line.properShippingName"
+                              readonly
+                              tabindex="-1"
+                            ></textarea>
                           }
                         </td>
                         <td class="col-line-act col-cargo">
@@ -1057,6 +1052,17 @@
                     (ngModelChange)="toggleUnifeederGrossTotalKg($event)"
                   />
                   <span>Total weight</span>
+                </label>
+                <label
+                  class="uf-toggle"
+                  title="Highlight UN field: green if in DG Reference, red if not found"
+                >
+                  <input
+                    type="checkbox"
+                    [ngModel]="library().checkUnNumbers"
+                    (ngModelChange)="toggleCheckUnNumbers($event)"
+                  />
+                  <span>UN check</span>
                 </label>
                 <button
                   type="button"
@@ -1333,6 +1339,8 @@
                           <input
                             class="dg-cell-input dg-cell-input--mono"
                             [class.dg-cell-input--readonly]="!line.editable"
+                            [class.dg-cell-input--un-known]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'known'"
+                            [class.dg-cell-input--un-unknown]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'unknown'"
                             [ngModel]="line.unNo"
                             [readonly]="!line.editable"
                             [tabindex]="line.editable ? 0 : -1"
@@ -1397,14 +1405,15 @@
                         />
                       </td>
                       <td class="uf-cargo uf-desc">
-                        <input
-                          class="dg-cell-input"
+                        <textarea
+                          rows="1"
+                          class="dg-cell-input dg-cell-input--name"
                           [class.dg-cell-input--readonly]="!line.editable"
                           [ngModel]="line.goodsDescription"
                           [readonly]="!line.editable"
                           [tabindex]="line.editable ? 0 : -1"
                           (ngModelChange)="onUnifeederDisplayRowChange(line, 'goodsDescription', $event)"
-                        />
+                        ></textarea>
                       </td>
                       <td class="uf-cargo">
                         <span class="dg-hint-tooltip-host" [appDgClassTooltip]="line.dgClass">

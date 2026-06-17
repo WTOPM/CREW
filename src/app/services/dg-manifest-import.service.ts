@@ -11,7 +11,6 @@ import { pickCmaManifestProperShippingName } from '../utils/dg-cma-proper-name.u
 import {
   appendManifestFilledUnWarning,
   applyCmaCargoReferenceOrManifest,
-  unNoInDgReference,
 } from '../utils/dg-import-un-reference.util';
 
 export type DgManifestPdfFormat = 'cma-imdg' | 'unknown';
@@ -332,12 +331,9 @@ function parseCmaCargoRows(
       continue;
     }
 
-    const useManifestCargo = !unNoInDgReference(unNo);
     const manifestCargo = {
       dgClass: formatDgClass(classItem.str),
-      properShippingName: useManifestCargo
-        ? pickCmaManifestProperShippingName(items, y, page, COL.properName)
-        : '',
+      properShippingName: pickCmaManifestProperShippingName(items, y, page, COL.properName),
       mpLq,
       flashPoint,
     };
