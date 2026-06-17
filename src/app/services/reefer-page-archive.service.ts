@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
+  REEFER_PAGE_ARCHIVE_SESSION_KEY,
   REEFER_PAGE_ARCHIVE_STORAGE_KEY,
+  type ReeferPageArchiveSession,
   type ReeferPageLiveBackup,
   type ReeferPageShipContext,
   type ReeferPageSnapshot,
@@ -60,6 +62,7 @@ export class ReeferPageArchiveService {
 
     this.storage.applyReeferPageSnapshot(entry.reeferLibrary, entry.ship);
     this.loaded.set(structuredClone(entry));
+    this.persistSession();
     return true;
   }
 
@@ -69,6 +72,33 @@ export class ReeferPageArchiveService {
       this.liveBackup = null;
     }
     this.loaded.set(null);
+    this.clearSession();
+  }
+
+  /** Keep current page data (incl. edits) as live; discard the pre-load backup. */
+  commitLoadedAsLive(): boolean {
+    if (!this.loaded()) return false;
+    this.liveBackup = null;
+    this.loaded.set(null);
+    this.clearSession();
+    return true;
+  }
+
+  restoreSession(): void {
+    const session = this.readSession();
+    if (!session) return;
+
+    const entry = this.entries().find((e) => e.id === session.loadedId);
+    if (!entry) {
+      if (session.liveBackup) {
+        this.storage.applyReeferPageSnapshot(session.liveBackup.reeferLibrary, session.liveBackup.ship);
+      }
+      this.clearSession();
+      return;
+    }
+
+    this.liveBackup = cloneLiveBackup(session.liveBackup, this.storage.ports());
+    this.loaded.set(structuredClone(entry));
   }
 
   remove(id: string): void {
@@ -87,6 +117,54 @@ export class ReeferPageArchiveService {
     const dep = ctx.dateOfDeparture?.trim();
     const depLabel = dep ? formatIsoDateLabel(dep) : 'no date';
     return `Voy ${voy} · ${depLabel}`;
+  }
+
+  private persistSession(): void {
+    const loaded = this.loaded();
+    if (!loaded || !this.liveBackup) {
+      this.clearSession();
+      return;
+    }
+    const session: ReeferPageArchiveSession = {
+      loadedId: loaded.id,
+      liveBackup: cloneLiveBackup(this.liveBackup, this.storage.ports()),
+    };
+    localStorage.setItem(REEFER_PAGE_ARCHIVE_SESSION_KEY, JSON.stringify(session));
+  }
+
+  private clearSession(): void {
+    localStorage.removeItem(REEFER_PAGE_ARCHIVE_SESSION_KEY);
+  }
+
+  private readSession(): ReeferPageArchiveSession | null {
+    try {
+      const raw = localStorage.getItem(REEFER_PAGE_ARCHIVE_SESSION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== 'object') return null;
+      const o = parsed as Record<string, unknown>;
+      const loadedId = String(o['loadedId'] ?? '').trim();
+      const liveBackupRaw = o['liveBackup'];
+      if (!loadedId || !liveBackupRaw || typeof liveBackupRaw !== 'object') return null;
+      const backup = liveBackupRaw as Record<string, unknown>;
+      const shipRaw = backup['ship'];
+      const libRaw = backup['reeferLibrary'];
+      if (!shipRaw || typeof shipRaw !== 'object' || !libRaw) return null;
+      const shipObj = shipRaw as Record<string, unknown>;
+      return {
+        loadedId,
+        liveBackup: {
+          ship: {
+            voyageNumber: String(shipObj['voyageNumber'] ?? '').trim(),
+            portOfCall: String(shipObj['portOfCall'] ?? '').trim(),
+            dateOfDeparture: String(shipObj['dateOfDeparture'] ?? '').trim(),
+          },
+          reeferLibrary: normalizeReeferLibrary(libRaw as ReeferLibrarySettings),
+        },
+      };
+    } catch {
+      return null;
+    }
   }
 
   private readEntries(): ReeferPageSnapshot[] {
@@ -140,6 +218,13 @@ export class ReeferPageArchiveService {
 
 function cloneReeferLibrary(lib: ReeferLibrarySettings, ports: readonly Port[]): ReeferLibrarySettings {
   return normalizeReeferLibrary(structuredClone(lib), ports);
+}
+
+function cloneLiveBackup(backup: ReeferPageLiveBackup, ports: readonly Port[]): ReeferPageLiveBackup {
+  return {
+    ship: { ...backup.ship },
+    reeferLibrary: cloneReeferLibrary(backup.reeferLibrary, ports),
+  };
 }
 
 function formatIsoDateLabel(iso: string): string {

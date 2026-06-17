@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
+  DG_PAGE_ARCHIVE_SESSION_KEY,
   DG_PAGE_ARCHIVE_STORAGE_KEY,
+  type DgPageArchiveSession,
   type DgPageLiveBackup,
   type DgPageShipContext,
   type DgPageSnapshot,
@@ -60,6 +62,7 @@ export class DgPageArchiveService {
 
     this.storage.applyDgPageSnapshot(entry.dgLibrary, entry.ship);
     this.loaded.set(structuredClone(entry));
+    this.persistSession();
     return true;
   }
 
@@ -69,6 +72,33 @@ export class DgPageArchiveService {
       this.liveBackup = null;
     }
     this.loaded.set(null);
+    this.clearSession();
+  }
+
+  /** Keep current page data (incl. edits) as live; discard the pre-load backup. */
+  commitLoadedAsLive(): boolean {
+    if (!this.loaded()) return false;
+    this.liveBackup = null;
+    this.loaded.set(null);
+    this.clearSession();
+    return true;
+  }
+
+  restoreSession(): void {
+    const session = this.readSession();
+    if (!session) return;
+
+    const entry = this.entries().find((e) => e.id === session.loadedId);
+    if (!entry) {
+      if (session.liveBackup) {
+        this.storage.applyDgPageSnapshot(session.liveBackup.dgLibrary, session.liveBackup.ship);
+      }
+      this.clearSession();
+      return;
+    }
+
+    this.liveBackup = cloneLiveBackup(session.liveBackup, this.storage.ports());
+    this.loaded.set(structuredClone(entry));
   }
 
   remove(id: string): void {
@@ -87,6 +117,56 @@ export class DgPageArchiveService {
     const dep = ctx.dateOfDeparture?.trim();
     const depLabel = dep ? formatIsoDateLabel(dep) : 'no date';
     return `Voy ${voy} · ${depLabel}`;
+  }
+
+  private persistSession(): void {
+    const loaded = this.loaded();
+    if (!loaded || !this.liveBackup) {
+      this.clearSession();
+      return;
+    }
+    const session: DgPageArchiveSession = {
+      loadedId: loaded.id,
+      liveBackup: cloneLiveBackup(this.liveBackup, this.storage.ports()),
+    };
+    localStorage.setItem(DG_PAGE_ARCHIVE_SESSION_KEY, JSON.stringify(session));
+  }
+
+  private clearSession(): void {
+    localStorage.removeItem(DG_PAGE_ARCHIVE_SESSION_KEY);
+  }
+
+  private readSession(): DgPageArchiveSession | null {
+    try {
+      const raw = localStorage.getItem(DG_PAGE_ARCHIVE_SESSION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== 'object') return null;
+      const o = parsed as Record<string, unknown>;
+      const loadedId = String(o['loadedId'] ?? '').trim();
+      const liveBackupRaw = o['liveBackup'];
+      if (!loadedId || !liveBackupRaw || typeof liveBackupRaw !== 'object') return null;
+      const backup = liveBackupRaw as Record<string, unknown>;
+      const shipRaw = backup['ship'];
+      const libRaw = backup['dgLibrary'];
+      if (!shipRaw || typeof shipRaw !== 'object' || !libRaw) return null;
+      const shipObj = shipRaw as Record<string, unknown>;
+      return {
+        loadedId,
+        liveBackup: {
+          ship: {
+            voyageNumber: String(shipObj['voyageNumber'] ?? '').trim(),
+            portOfCall: String(shipObj['portOfCall'] ?? '').trim(),
+            nextPortOfCall: String(shipObj['nextPortOfCall'] ?? '').trim(),
+            dateOfDeparture: String(shipObj['dateOfDeparture'] ?? '').trim(),
+            dateOfArrival: String(shipObj['dateOfArrival'] ?? '').trim(),
+          },
+          dgLibrary: normalizeDgLibrary(libRaw as DgLibrarySettings),
+        },
+      };
+    } catch {
+      return null;
+    }
   }
 
   private readEntries(): DgPageSnapshot[] {
@@ -142,6 +222,13 @@ export class DgPageArchiveService {
 
 function cloneDgLibrary(lib: DgLibrarySettings, ports: readonly Port[]): DgLibrarySettings {
   return normalizeDgLibrary(structuredClone(lib), undefined, ports);
+}
+
+function cloneLiveBackup(backup: DgPageLiveBackup, ports: readonly Port[]): DgPageLiveBackup {
+  return {
+    ship: { ...backup.ship },
+    dgLibrary: cloneDgLibrary(backup.dgLibrary, ports),
+  };
 }
 
 function formatIsoDateLabel(iso: string): string {

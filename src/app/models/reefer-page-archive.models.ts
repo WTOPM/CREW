@@ -20,3 +20,9 @@ export interface ReeferPageLiveBackup {
 }
 
 export const REEFER_PAGE_ARCHIVE_STORAGE_KEY = 'crew-reefer-page-archives';
+export const REEFER_PAGE_ARCHIVE_SESSION_KEY = 'crew-reefer-page-archive-session';
+
+export interface ReeferPageArchiveSession {
+  loadedId: string;
+  liveBackup: ReeferPageLiveBackup;
+}

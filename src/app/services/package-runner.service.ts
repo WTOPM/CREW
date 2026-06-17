@@ -2,10 +2,9 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { PortPackageItem } from '../models/crew.models';
 import { StorageService } from './storage.service';
 import { DocumentCatalogService } from './document-catalog.service';
-import { PackageArchiveService } from './package-archive.service';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { ToastService } from './toast.service';
-import { base64ToUint8, uint8ToBase64 } from '../utils/base64.util';
+import { uint8ToBase64 } from '../utils/base64.util';
 
 /**
  * Runs the document package for the current Port of Call:
@@ -16,24 +15,16 @@ import { base64ToUint8, uint8ToBase64 } from '../utils/base64.util';
 export class PackageRunnerService {
   private readonly storage = inject(StorageService);
   private readonly catalog = inject(DocumentCatalogService);
-  private readonly archive = inject(PackageArchiveService);
   private readonly delivery = inject(PdfDeliveryService);
   private readonly toast = inject(ToastService);
 
   private readonly hasElectron = !!window.electronAPI;
   readonly busy = signal(false);
 
-  /** Port label for the bar (live or archived snapshot). */
-  readonly currentPort = computed(() => {
-    const snap = this.archive.loaded();
-    if (snap) return snap.portName;
-    return this.storage.ship().portOfCall;
-  });
-  readonly currentPackage = computed(() => {
-    const snap = this.archive.loaded();
-    if (snap) return snap.package;
-    return this.storage.printPackages().find((p) => p.port === this.storage.ship().portOfCall);
-  });
+  readonly currentPort = computed(() => this.storage.ship().portOfCall);
+  readonly currentPackage = computed(() =>
+    this.storage.printPackages().find((p) => p.port === this.storage.ship().portOfCall),
+  );
   /** All documents across every authority of the current port. */
   readonly currentItems = computed<PortPackageItem[]>(() =>
     (this.currentPackage()?.authorities ?? []).flatMap((a) => a.items),
@@ -41,9 +32,6 @@ export class PackageRunnerService {
   readonly currentItemCount = computed(
     () => this.currentItems().filter((it) => it.documentId.trim()).length,
   );
-
-  /** Documents assigned to the live port (not archive) — for Save eligibility. */
-  readonly liveSavableCount = computed(() => this.archive.liveDocumentCount());
 
   /** Hover summary for the current port: per-authority lines + summed totals. */
   readonly currentBreakdown = computed(() => {
@@ -71,71 +59,12 @@ export class PackageRunnerService {
 
   /** Open all documents of the current port (every authority). */
   openAll(): Promise<void> {
-    const snap = this.archive.loaded();
-    if (this.archive.hasFrozenPdfs(snap)) {
-      return this.openArchived(snap!.documents);
-    }
     return this.openItems(this.currentItems());
   }
 
   /** Print all documents of the current port (every authority). */
   printAll(): Promise<void> {
-    const snap = this.archive.loaded();
-    if (this.archive.hasFrozenPdfs(snap)) {
-      return this.printArchived(snap!.documents);
-    }
     return this.printItems(this.currentItems());
-  }
-
-  /**
-   * Open each UNIQUE document once (copies are ignored — they only matter for print)
-   * and, if enabled, save one copy. Duplicates across authorities are de-duplicated.
-   */
-  private async openArchived(docs: { documentId: string; fileName: string; dataBase64: string }[]): Promise<void> {
-    if (this.busy()) return;
-    this.busy.set(true);
-    let ok = 0;
-    let saved = 0;
-    for (const doc of docs) {
-      try {
-        const bytes = base64ToUint8(doc.dataBase64);
-        this.delivery.openBytes(bytes);
-        if (await this.delivery.saveBytesIfEnabled(bytes, doc.fileName)) saved++;
-        ok++;
-      } catch (err) {
-        this.fail(doc.documentId, err);
-      }
-    }
-    this.busy.set(false);
-    this.toast.show(`Opened ${ok} archived document(s)${saved ? `, saved ${saved}` : ''}`, 'success');
-  }
-
-  private async printArchived(
-    docs: { documentId: string; fileName: string; dataBase64: string; copies: number }[],
-  ): Promise<void> {
-    if (this.busy()) return;
-    this.busy.set(true);
-    const printer = this.storage.outputSettings().printerName;
-    let printed = 0;
-    let saved = 0;
-    for (const doc of docs) {
-      try {
-        const bytes = base64ToUint8(doc.dataBase64);
-        const copies = Math.max(1, doc.copies);
-        if (this.hasElectron && window.electronAPI) {
-          const res = await window.electronAPI.printPdf(uint8ToBase64(bytes), copies, printer);
-          if (!res.ok) throw new Error(res.error || 'print failed');
-        } else {
-          this.printInBrowser(bytes);
-        }
-        if (await this.delivery.saveBytesIfEnabled(bytes, doc.fileName)) saved++;
-        printed++;
-      } catch (err) {
-        this.fail(doc.documentId, err);
-      }
-    }
-    this.busy.set(false);
-    this.toast.show(`Printed ${printed} archived document(s)${saved ? `, saved ${saved}` : ''}`, 'success');
   }
 
   async openItems(items: PortPackageItem[]): Promise<void> {
@@ -165,7 +94,6 @@ export class PackageRunnerService {
   async printItems(items: PortPackageItem[]): Promise<void> {
     if (this.busy()) return;
     const enabled = this.enabledIds();
-    // Total copies per unique document (preserve first-seen order).
     const copiesById = new Map<string, number>();
     for (const item of items) {
       if (!item.documentId.trim()) continue;

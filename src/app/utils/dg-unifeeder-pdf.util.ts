@@ -12,6 +12,7 @@ import {
   parseDpWorldDangerousCargoPages,
   parseDpWorldHeaderFromPage,
 } from './dg-dpworld-pdf.util';
+import { finalizeUnifeederImportRows } from './dg-import-un-reference.util';
 
 export type UnifeederPdfFormat = 'dp-world-dg' | 'unifeeder-dg' | 'unknown';
 
@@ -913,15 +914,16 @@ function parseDpWorldManifest(items: readonly DgPdfTextItem[]): UnifeederPdfPars
 
   const summary = parseUnifeederGrandTotalSummary(items, 'dp-world');
   const extractableContainers = countExtractableUnifeederContainers(items);
-  const validation = validateUnifeederImportAgainstSummary(rows, summary, {
+  const finalized = finalizeUnifeederImportRows(rows, warnings);
+  const validation = validateUnifeederImportAgainstSummary(finalized.rows, summary, {
     extractableContainers,
   });
 
   return {
     format: 'dp-world-dg',
-    warnings,
+    warnings: finalized.warnings,
     header,
-    rows,
+    rows: finalized.rows,
     summary,
     validation,
   };
@@ -967,15 +969,16 @@ function parseLegacyUnifeederManifest(items: readonly DgPdfTextItem[]): Unifeede
 
   const summary = parseUnifeederGrandTotalSummary(items, 'legacy');
   const extractableContainers = countExtractableUnifeederContainers(items);
-  const validation = validateUnifeederImportAgainstSummary(rows, summary, {
+  const finalized = finalizeUnifeederImportRows(rows, warnings);
+  const validation = validateUnifeederImportAgainstSummary(finalized.rows, summary, {
     extractableContainers,
   });
 
   return {
     format: 'unifeeder-dg',
-    warnings,
+    warnings: finalized.warnings,
     header,
-    rows,
+    rows: finalized.rows,
     summary,
     validation,
   };

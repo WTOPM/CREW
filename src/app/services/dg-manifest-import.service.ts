@@ -7,6 +7,12 @@ import {
 import { resolveManifestPortName, type Port } from '../models/crew.models';
 import { isCmaCargoListPdf, parseCmaCargoList } from '../utils/dg-cma-cargo-list-pdf.util';
 import { extractDgPdfTextItems, type DgPdfTextItem } from '../utils/dg-pdf-text.util';
+import { pickCmaManifestProperShippingName } from '../utils/dg-cma-proper-name.util';
+import {
+  appendManifestFilledUnWarning,
+  applyCmaCargoReferenceOrManifest,
+  unNoInDgReference,
+} from '../utils/dg-import-un-reference.util';
 
 export type DgManifestPdfFormat = 'cma-imdg' | 'unknown';
 
@@ -294,6 +300,7 @@ function parseCmaCargoRows(
   const containerPod = new Map<string, string>();
 
   const rows: Partial<Omit<DgManifestRow, 'id'>>[] = [];
+  let manifestFilledCount = 0;
 
   for (const classItem of classItems) {
     const y = classItem.y;
@@ -316,21 +323,26 @@ function parseCmaCargoRows(
 
     const unNo = pickNearY(items, y, 'unNo', page, (s) => UN_NO_RE.test(s));
     const netRaw = pickNearY(items, y, 'netWeight', page, (s) => /[\d.,]/.test(s));
-    const properShippingName = pickNearY(
-      items,
-      y,
-      'properName',
-      page,
-      (s) => s.length > 2 && !/^\(\d\)$/.test(s),
-    );
     const stowage = pickNearY(items, y, 'stowage', page, (s) => s.length > 0);
-    const flashPoint = pickFlashPoint(items, y, page);
     const mpLq = parseImportedMpLq(items, y, page);
+    const flashPoint = pickFlashPoint(items, y, page);
 
     if (!unNo) {
       warnings.push(`Skipped class ${classItem.str} row (no UN-No.).`);
       continue;
     }
+
+    const useManifestCargo = !unNoInDgReference(unNo);
+    const manifestCargo = {
+      dgClass: formatDgClass(classItem.str),
+      properShippingName: useManifestCargo
+        ? pickCmaManifestProperShippingName(items, y, page, COL.properName)
+        : '',
+      mpLq,
+      flashPoint,
+    };
+    const { cargo, filledFromManifest } = applyCmaCargoReferenceOrManifest(unNo, manifestCargo);
+    if (filledFromManifest) manifestFilledCount++;
 
     rows.push({
       pol,
@@ -338,14 +350,16 @@ function parseCmaCargoRows(
       type: isoType.toUpperCase(),
       containerNo: container,
       stowage,
-      dgClass: formatDgClass(classItem.str),
+      dgClass: cargo.dgClass,
       unNo,
-      mpLq,
-      flashPoint,
+      mpLq: cargo.mpLq,
+      flashPoint: cargo.flashPoint,
       weightKg: formatImportedWeight(netRaw),
-      properShippingName,
+      properShippingName: cargo.properShippingName,
     });
   }
+
+  appendManifestFilledUnWarning(warnings, manifestFilledCount);
 
   return { rows, warnings };
 }

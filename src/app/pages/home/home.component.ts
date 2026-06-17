@@ -32,6 +32,7 @@ import { StorageService } from '../../services/storage.service';
 
 import { ToastService } from '../../services/toast.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { AppSnapshotArchiveService } from '../../services/app-snapshot-archive.service';
 
 import { filterCrewArchive, filterPassengerArchive } from '../../utils/archive-search.util';
 import { formatDisplayDate } from '../../utils/date.util';
@@ -71,6 +72,7 @@ export class HomeComponent {
   private readonly toast = inject(ToastService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly crewDocs = inject(CrewDocumentService);
+  protected readonly appSnapshot = inject(AppSnapshotArchiveService);
 
 
 

@@ -750,6 +750,17 @@ th {
   border-color: #f59e0b;
 }
 
+.dg-page-action-btn--apply {
+  color: #15803d;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.dg-page-action-btn--apply:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: #22c55e;
+}
+
 .dg-archive-backdrop {
   padding: clamp(0.75rem, 3vw, 1.5rem);
 }

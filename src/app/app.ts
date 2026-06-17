@@ -10,6 +10,9 @@ import { StorageService } from './services/storage.service';
 import { FolderAccessService } from './services/folder-access.service';
 import { ToastService } from './services/toast.service';
 import { TitleTooltipService } from './services/title-tooltip.service';
+import { DgPageArchiveService } from './services/dg-page-archive.service';
+import { ReeferPageArchiveService } from './services/reefer-page-archive.service';
+import { AppSnapshotArchiveService } from './services/app-snapshot-archive.service';
 
 interface FolderOption {
   id: string;
@@ -30,6 +33,9 @@ export class App implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly titleTooltips = inject(TitleTooltipService);
+  private readonly dgPageArchive = inject(DgPageArchiveService);
+  private readonly reeferPageArchive = inject(ReeferPageArchiveService);
+  private readonly appSnapshotArchive = inject(AppSnapshotArchiveService);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
   private folderHoldTriggered = false;
 
@@ -64,7 +70,11 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     this.titleTooltips.install();
-    void this.storage.init();
+    void this.storage.init().then(() => {
+      this.dgPageArchive.restoreSession();
+      this.reeferPageArchive.restoreSession();
+      this.appSnapshotArchive.restoreSession();
+    });
     void this.folderAccess.restore();
   }
 

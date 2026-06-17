@@ -1,27 +1,42 @@
 <div
   class="pkg-bar-cluster"
   [class.pkg-bar-cluster--archive]="archive.loaded()"
-  title="Open or print the document package configured for the current Port of Call (Settings → Document packages)"
 >
   <div class="pkg-bar pkg-bar--snapshots">
     <div class="pkg-bar-side">
       <button
         type="button"
         class="pkg-mini-btn"
-        title="Save document package snapshot"
+        title="Save app snapshot (crew, voyage, forms — not DG / Reefer). Reference lists and archives are preserved on load."
         [disabled]="!canSave()"
         (click)="startSave()"
       >
         {{ archive.saving() ? '…' : 'Save' }}
       </button>
-      <button type="button" class="pkg-mini-btn" title="Load saved snapshot" (click)="openLoad()">
+      <button type="button" class="pkg-mini-btn" title="Load saved app snapshot" (click)="openLoad()">
         Load
       </button>
       @if (archive.loaded()) {
-        <button type="button" class="pkg-mini-btn pkg-mini-btn--reset" title="Back to live package" (click)="resetArchive()">
+        <button
+          type="button"
+          class="pkg-mini-btn pkg-mini-btn--apply"
+          title="Keep current data as live and discard the pre-load backup"
+          (click)="commitArchiveAsLive()"
+        >
+          Apply as live
+        </button>
+        <button type="button" class="pkg-mini-btn pkg-mini-btn--reset" title="Back to live data" (click)="resetArchive()">
           Reset
         </button>
       }
+      <button
+        type="button"
+        class="pkg-help-btn"
+        title="Save / load full app state (crew, voyage, forms). DG and Reefer are excluded. On load, ports, ranks, nationalities, document packages and archives are never reduced."
+        aria-label="About Save and Load"
+      >
+        ?
+      </button>
     </div>
 
     @if (showSavePanel()) {
@@ -44,8 +59,8 @@
   <div class="pkg-bar pkg-bar--port">
   <div class="pkg-bar-main">
     @if (archive.loaded(); as snap) {
-      <span class="pkg-archive-warn" title="Open / Print use frozen PDFs from this snapshot">
-        Archive: {{ snap.label }} · {{ snap.portName }} · arr. {{ formatDate(snap.arrivalDate) }}
+      <span class="pkg-archive-warn" title="Working from a loaded snapshot — Reset or Apply as live when done">
+        Snapshot: {{ snap.label }} · {{ snap.portName || '—' }} · arr. {{ formatDate(snap.arrivalDate) }}
       </span>
     }
 
@@ -111,7 +126,8 @@
         <div class="pkg-load-head__text">
           <h3>Load snapshot</h3>
           <p class="pkg-load-modal-hint">
-            Pick a saved package. Open all and Print all will use the frozen PDFs from that snapshot.
+            Pick a saved app snapshot. Crew, voyage and forms are restored. Ports, ranks, nationalities,
+            document packages and crew/passenger archives are kept as complete as possible — nothing is removed.
           </p>
         </div>
       </header>
@@ -121,7 +137,7 @@
           <div class="pkg-load-modal-empty">
             <span class="pkg-load-modal-empty__title">No snapshots yet</span>
             <span class="pkg-load-modal-empty__text">
-              Prepare documents for the port, then use <strong>Save</strong> on the package bar.
+              Use <strong>Save</strong> on the bar to store the current app state.
             </span>
           </div>
         } @else {
@@ -141,11 +157,9 @@
                     }
                   </span>
                   <span class="pkg-load-card__chips">
-                    <span class="pkg-load-chip">{{ entry.portName }}</span>
+                    <span class="pkg-load-chip">{{ entry.portName || '—' }}</span>
+                    <span class="pkg-load-chip">Voy {{ entry.voyageNumber || '—' }}</span>
                     <span class="pkg-load-chip">Arr. {{ formatDate(entry.arrivalDate) }}</span>
-                    <span class="pkg-load-chip pkg-load-chip--pdf">
-                      {{ entry.documents.length }} PDF{{ entry.documents.length === 1 ? '' : 's' }}
-                    </span>
                   </span>
                   <span class="pkg-load-card__when">Saved {{ formatSavedAt(entry.savedAt) }}</span>
                 </button>

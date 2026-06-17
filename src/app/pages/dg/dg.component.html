@@ -35,6 +35,14 @@
       @if (dgArchive.loaded()) {
         <button
           type="button"
+          class="btn btn-secondary dg-page-action-btn dg-page-action-btn--apply"
+          title="Keep current page as live DG data (including edits)"
+          (click)="commitArchiveAsLive()"
+        >
+          Apply as live
+        </button>
+        <button
+          type="button"
           class="btn btn-secondary dg-page-action-btn dg-page-action-btn--reset"
           title="Return to live DG data"
           (click)="resetArchiveView()"

@@ -144,16 +144,25 @@ function exportClassTotalKg(rows: readonly DgManifestExcelRow[], dgClass: string
   return Math.round(sum);
 }
 
-function uniqueUnNumbers(rows: readonly DgManifestExcelRow[]): string {
+function uniqueUnNumbersForClass(
+  rows: readonly DgManifestExcelRow[],
+  dgClass: string,
+): string {
+  const key = dgClass.trim();
   const set = new Set<string>();
   for (const row of rows) {
+    if (row.dgClass.trim() !== key) continue;
     const un = row.unNo.trim();
     if (un) set.add(un);
   }
-  return [...set].sort((a, b) => {
+  return sortUnNumbers([...set]).join(' ');
+}
+
+function sortUnNumbers(values: string[]): string[] {
+  return values.sort((a, b) => {
     const cmp = parseInt(a, 10) - parseInt(b, 10);
     return cmp || a.localeCompare(b, undefined, { numeric: true });
-  }).join(' ');
+  });
 }
 
 function applyColumnWidths(ws: ExcelJS.Worksheet): void {
@@ -373,11 +382,14 @@ function buildClassSideBlock(
 ): void {
   const classes = dgOnboardClassSummaries(containers, true);
 
+  mergeCells(ws, 7, COL_N, 8, COL_N);
   setCell(ws, 7, COL_N, 'CLASS', {
     font: { name: TIMES, size: 18, bold: true, color: { argb: CLR.red } },
     alignment: { horizontal: 'center', vertical: 'middle' },
     border: MEDIUM,
   });
+
+  mergeCells(ws, 7, COL_P, 8, COL_P);
   setCell(ws, 7, COL_P, totalKg ? formatDgWeightKgDisplay(totalKg) : null, {
     font: { name: ARIAL, size: 20, bold: true, color: { argb: CLR.cyan } },
     alignment: { horizontal: 'center', vertical: 'middle' },
@@ -403,7 +415,11 @@ function buildClassSideBlock(
   }
 }
 
-function buildUnReportBlock(ws: ExcelJS.Worksheet, dataRows: readonly DgManifestExcelRow[]): void {
+function buildUnReportBlock(
+  ws: ExcelJS.Worksheet,
+  dataRows: readonly DgManifestExcelRow[],
+  classes: readonly { dgClass: string }[],
+): void {
   mergeCells(ws, 8, COL_R, 8, COL_U);
   setCell(ws, 8, COL_R, 'UN numbers for operation report', {
     font: { name: ARIAL, size: 12, color: { argb: CLR.muted } },
@@ -411,13 +427,17 @@ function buildUnReportBlock(ws: ExcelJS.Worksheet, dataRows: readonly DgManifest
     border: MEDIUM,
   });
 
-  const unText = uniqueUnNumbers(dataRows);
-  mergeCells(ws, DATA_START, COL_R, DATA_START, COL_U);
-  setCell(ws, DATA_START, COL_R, unText, {
-    font: { name: ARIAL, size: 11, color: { argb: CLR.muted } },
-    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-    border: THIN,
-  });
+  let row = DATA_START;
+  for (const entry of classes) {
+    const unText = uniqueUnNumbersForClass(dataRows, entry.dgClass);
+    mergeCells(ws, row, COL_R, row, COL_U);
+    setCell(ws, row, COL_R, unText || null, {
+      font: { name: ARIAL, size: 11, color: { argb: CLR.navy } },
+      alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+      border: THIN,
+    });
+    row += 1;
+  }
 }
 
 export function formatDgVesselDisplay(ship: ShipInfo): string {
@@ -618,8 +638,9 @@ export async function buildDgManifestWorksheet(
 
   if (lastDataRow < DATA_START) lastDataRow = DATA_START;
 
+  const classes = dgOnboardClassSummaries(containers, true);
   buildClassSideBlock(ws, containers, dataRows, totalKg);
-  buildUnReportBlock(ws, dataRows);
+  buildUnReportBlock(ws, dataRows, classes);
 
   const printLast = Math.max(lastDataRow + 2, 44);
   ws.pageSetup.printArea = `A1:U${printLast}`;

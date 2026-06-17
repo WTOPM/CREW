@@ -106,13 +106,19 @@ function resolveCmaPodPort(
   return '';
 }
 
+function firstPageItems(items: DgPdfTextItem[]): DgPdfTextItem[] {
+  const page1 = items.filter((it) => it.page === 1);
+  return page1.length ? page1 : items;
+}
+
 function resolveCmaReeferImportPorts(
   items: DgPdfTextItem[],
   ports: readonly Port[],
 ): { pol: string; pod: string } {
-  const loadRaw = findPortAtY(items, COL.loadPort, 175);
-  const transRaw = findPortAtY(items, COL.transhipmentPort, 227);
-  const disRaw = findPortAtY(items, COL.dischargePort, 227);
+  const headerItems = firstPageItems(items);
+  const loadRaw = findPortAtY(headerItems, COL.loadPort, 175);
+  const transRaw = findPortAtY(headerItems, COL.transhipmentPort, 227);
+  const disRaw = findPortAtY(headerItems, COL.dischargePort, 227);
   return {
     pol: resolveManifestPortName(loadRaw, ports),
     pod: resolveCmaPodPort(transRaw, disRaw, ports),
@@ -120,9 +126,13 @@ function resolveCmaReeferImportPorts(
 }
 
 function parseCmaReeferHeader(items: DgPdfTextItem[]): Partial<ReeferImportHeader> {
-  const voyage = items.find((it) => nearY(it, 103, 1) && inCol(it.x, COL.voyage))?.str.trim() ?? '';
-  const vessel = items.find((it) => nearY(it, 116, 1) && inCol(it.x, COL.vessel))?.str.trim() ?? '';
-  const etd = items.find((it) => nearY(it, 175, 1) && inCol(it.x, COL.etd))?.str.trim() ?? '';
+  const headerItems = firstPageItems(items);
+  const voyage =
+    headerItems.find((it) => nearY(it, 103, 1) && inCol(it.x, COL.voyage))?.str.trim() ?? '';
+  const vessel =
+    headerItems.find((it) => nearY(it, 116, 1) && inCol(it.x, COL.vessel))?.str.trim() ?? '';
+  const etd =
+    headerItems.find((it) => nearY(it, 175, 1) && inCol(it.x, COL.etd))?.str.trim() ?? '';
   return {
     voyageNumber: voyage,
     vesselName: vessel,
@@ -151,17 +161,21 @@ function parseCmaReeferRows(
   importPorts: { pol: string; pod: string },
 ): { rows: ReeferImportRow[]; warnings: string[] } {
   const warnings: string[] = [];
-  const containerYs = items
+  const anchors = items
     .filter((it) => inCol(it.x, COL.containerNo) && CONTAINER_RE.test(it.str.trim()))
-    .map((it) => it.y);
-  const uniqueYs = [...new Set(containerYs)].sort((a, b) => a - b);
+    .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
+
+  /** Same Y repeats on every page — key must include page. */
+  const seenRows = new Set<string>();
   const rows: ReeferImportRow[] = [];
 
-  for (const y of uniqueYs) {
-    const band = items.filter((it) => nearY(it, y, 2));
-    const containerNo =
-      band.find((it) => inCol(it.x, COL.containerNo) && CONTAINER_RE.test(it.str.trim()))?.str.trim() ??
-      '';
+  for (const anchor of anchors) {
+    const rowKey = `${anchor.page}:${anchor.y}`;
+    if (seenRows.has(rowKey)) continue;
+    seenRows.add(rowKey);
+
+    const band = items.filter((it) => it.page === anchor.page && nearY(it, anchor.y, 2));
+    const containerNo = anchor.str.trim();
     if (!containerNo) continue;
 
     const carriageRaw =

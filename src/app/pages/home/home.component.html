@@ -1,7 +1,17 @@
-<div class="page">
+<div class="page" [class.page--archive]="appSnapshot.loaded()">
   <header class="page-header page-header-docs">
     <app-documents-nav />
   </header>
+
+  @if (appSnapshot.loaded(); as snap) {
+    <div class="home-archive-banner" role="status">
+      App state loaded from snapshot:
+      <strong>{{ snap.label }}</strong>
+      · Voy {{ snap.voyageNumber || '—' }}
+      · {{ snap.portName || '—' }}
+      · arr. {{ formatDate(snap.arrivalDate) || '—' }}
+    </div>
+  }
 
   <section class="card voyage-card">
     <h2>CURRENT VOYAGE DATA</h2>

@@ -464,6 +464,24 @@ export class DgComponent {
     this.toast.show('Back to live DG page', 'success');
   }
 
+  protected async commitArchiveAsLive(): Promise<void> {
+    const snap = this.pageArchive.loaded();
+    if (!snap) return;
+
+    const ok = await this.confirmDialog.confirm({
+      title: 'Apply snapshot as live data',
+      message:
+        `Make the current DG page (from "${snap.label}", including any edits) your live data? ` +
+        'The previous live inventory will be lost. This cannot be undone.',
+      confirmLabel: 'Apply as live',
+      variant: 'danger',
+    });
+    if (!ok) return;
+
+    this.pageArchive.commitLoadedAsLive();
+    this.toast.show('Snapshot is now live DG data', 'success');
+  }
+
   protected deleteArchiveSnapshot(entry: DgPageSnapshot, event: MouseEvent): void {
     event.stopPropagation();
     const wasLoaded = this.pageArchive.loaded()?.id === entry.id;

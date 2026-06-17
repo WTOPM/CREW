@@ -76,6 +76,8 @@ export class TitleTooltipService {
 
   private resolveHost(target: EventTarget | null): HTMLElement | null {
     let el = target as HTMLElement | null;
+    const portZone = el?.closest('.pkg-bar-port');
+
     while (el && el !== document.body) {
       if (el.classList.contains('dg-hint-tooltip-host') || el.classList.contains('dg-hint-tooltip')) {
         return null;
@@ -83,6 +85,9 @@ export class TitleTooltipService {
       if (el.matches('input, textarea, select')) {
         el = el.parentElement;
         continue;
+      }
+      if (portZone && !portZone.contains(el)) {
+        break;
       }
       const tip = el.getAttribute('title')?.trim() || el.dataset['appTip']?.trim();
       if (tip) return el;

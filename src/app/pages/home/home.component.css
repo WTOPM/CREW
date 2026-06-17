@@ -6,6 +6,25 @@
   margin-bottom: 1rem;
 }
 
+.home-archive-banner {
+  margin: 0 0 1rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.home-archive-banner strong {
+  color: #78350f;
+}
+
+.page--archive .voyage-card {
+  box-shadow: 0 0 0 1px rgb(245 158 11 / 22%);
+}
+
 .section-head-actions {
   display: flex;
   flex-wrap: wrap;

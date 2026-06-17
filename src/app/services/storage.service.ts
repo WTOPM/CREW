@@ -73,6 +73,7 @@ import {
   activePassengerListIds,
 } from '../models/passenger.models';
 import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-data';
+import { extractMainAppSnapshot, mergeMainAppSnapshotIntoLive } from '../utils/app-snapshot.util';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
 import {
   normalizeCrewEffectForm,
@@ -1045,6 +1046,37 @@ export class StorageService {
       };
     });
     void this.persist('silent');
+  }
+
+  captureMainAppSnapshot(): import('../models/app-snapshot.models').AppMainSnapshot {
+    return extractMainAppSnapshot(this.data());
+  }
+
+  applyMainAppSnapshot(snapshot: import('../models/app-snapshot.models').AppMainSnapshot): void {
+    this.data.update((d) => {
+      const merged = mergeMainAppSnapshotIntoLive(d, snapshot);
+      return this.normalize({
+        ...merged,
+        dgLibrary: d.dgLibrary,
+        reeferLibrary: d.reeferLibrary,
+      });
+    });
+    void this.persist('silent');
+  }
+
+  coerceStoredMainSnapshot(raw: unknown): import('../models/app-snapshot.models').AppMainSnapshot | null {
+    if (!raw || typeof raw !== 'object') return null;
+    try {
+      const empty = createEmptyAppData();
+      const merged: Partial<AppData> = {
+        ...(raw as Partial<AppData>),
+        dgLibrary: empty.dgLibrary,
+        reeferLibrary: empty.reeferLibrary,
+      };
+      return extractMainAppSnapshot(this.normalize(merged));
+    } catch {
+      return null;
+    }
   }
 
   updateReeferViewSettings(

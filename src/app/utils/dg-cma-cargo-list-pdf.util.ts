@@ -5,6 +5,12 @@ import {
 } from '../models/dg-manifest.models';
 import { resolveManifestPortName, type Port } from '../models/crew.models';
 import type { DgPdfTextItem } from './dg-pdf-text.util';
+import { pickCmaManifestProperShippingName } from './dg-cma-proper-name.util';
+import {
+  appendManifestFilledUnWarning,
+  applyCmaCargoReferenceOrManifest,
+  unNoInDgReference,
+} from './dg-import-un-reference.util';
 
 /** CMA CGM PFR0767 v5.x "Dangerous Cargo List" — measured column X ranges (pt). */
 const LIST_COL = {
@@ -286,7 +292,7 @@ function buildListCargoRow(
   pol: string,
   pod: string,
   fallbackIsoType = '',
-): Partial<Omit<DgManifestRow, 'id'>> | null {
+): { row: Partial<Omit<DgManifestRow, 'id'>> | null; filledFromManifest: boolean } {
   const containerNo = container.str.trim();
   const isoType =
     pickListAtY(items, container.y, 'isoType', container.page, (s) => ISO_TYPE_RE.test(s)) ||
@@ -294,29 +300,40 @@ function buildListCargoRow(
   const unNo = pickListAtY(items, dataY, 'unNo', page, (s) => UN_NO_RE.test(s));
   const dgClassRaw = pickListAtY(items, dataY, 'imdgClass', page, (s) => IMDG_CLASS_RE.test(s));
   const netRaw = pickListAtY(items, dataY, 'netWeight', page, (s) => /^[\d.]+$/.test(s));
-  const properShippingName = pickListAtY(
-    items,
-    dataY - 1,
-    'properName',
-    page,
-    (s) => s.length > 2 && !/^\(\d+\)$/.test(s),
-  );
   const stowage = pickListAtY(items, container.y, 'stowage', page, (s) => /^\d{4,6}$/.test(s));
 
-  if (!unNo || !dgClassRaw) return null;
+  if (!unNo) return { row: null, filledFromManifest: false };
 
-  return {
-    pol,
-    pod,
-    type: isoType.toUpperCase(),
-    containerNo,
-    stowage,
+  const useManifestCargo = !unNoInDgReference(unNo);
+  const manifestCargo = {
     dgClass: formatDgClass(dgClassRaw),
-    unNo,
+    properShippingName: useManifestCargo
+      ? pickCmaManifestProperShippingName(items, dataY, page, LIST_COL.properName)
+      : '',
     mpLq: parseListMpLqForCargo(items, dataY, page),
     flashPoint: pickListFlashPointForCargo(items, dataY, page),
-    weightKg: netRaw ? commitDgWeightKgInput(netRaw) : '',
-    properShippingName,
+  };
+  if (!manifestCargo.dgClass && useManifestCargo) {
+    return { row: null, filledFromManifest: false };
+  }
+
+  const { cargo, filledFromManifest } = applyCmaCargoReferenceOrManifest(unNo, manifestCargo);
+
+  return {
+    filledFromManifest,
+    row: {
+      pol,
+      pod,
+      type: isoType.toUpperCase(),
+      containerNo,
+      stowage,
+      dgClass: cargo.dgClass,
+      unNo,
+      mpLq: cargo.mpLq,
+      flashPoint: cargo.flashPoint,
+      weightKg: netRaw ? commitDgWeightKgInput(netRaw) : '',
+      properShippingName: cargo.properShippingName,
+    },
   };
 }
 
@@ -353,6 +370,7 @@ export function parseCmaCargoList(
   let lastContainer: DgPdfTextItem | null = null;
   let lastIsoType = '';
   const rows: Partial<Omit<DgManifestRow, 'id'>>[] = [];
+  let manifestFilledCount = 0;
 
   for (let page = 1; page <= maxPage; page++) {
     const containers = pageContainers.get(page) ?? [];
@@ -371,7 +389,7 @@ export function parseCmaCargoList(
       );
       if (isoOnPage) lastIsoType = isoOnPage;
 
-      const row = buildListCargoRow(
+      const built = buildListCargoRow(
         items,
         page,
         cargo.dataY,
@@ -380,13 +398,16 @@ export function parseCmaCargoList(
         pod,
         lastIsoType,
       );
-      if (!row) {
+      if (!built.row) {
         warnings.push(`Skipped cargo on page ${page} (incomplete row).`);
         continue;
       }
-      rows.push(row);
+      if (built.filledFromManifest) manifestFilledCount++;
+      rows.push(built.row);
     }
   }
+
+  appendManifestFilledUnWarning(warnings, manifestFilledCount);
 
   return { header, rows, warnings };
 }

@@ -24,3 +24,9 @@ export interface DgPageLiveBackup {
 }
 
 export const DG_PAGE_ARCHIVE_STORAGE_KEY = 'crew-dg-page-archives';
+export const DG_PAGE_ARCHIVE_SESSION_KEY = 'crew-dg-page-archive-session';
+
+export interface DgPageArchiveSession {
+  loadedId: string;
+  liveBackup: DgPageLiveBackup;
+}

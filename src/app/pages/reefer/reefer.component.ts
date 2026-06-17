@@ -20,6 +20,7 @@ import { ReeferPageArchiveService } from '../../services/reefer-page-archive.ser
 import { ReeferPdfService } from '../../services/reefer-pdf.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { formatDisplayDate } from '../../utils/date.util';
 import { buildReeferContentHash, buildReeferPdfBytesHash } from '../../utils/reefer-fingerprint.util';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
@@ -49,6 +50,7 @@ export class ReeferComponent {
   private readonly reeferExcel = inject(ReeferExcelService);
   private readonly pageArchive = inject(ReeferPageArchiveService);
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly fileRef = viewChild<ElementRef<HTMLInputElement>>('pdfFile');
 
   protected readonly ship = this.storage.ship;
@@ -232,6 +234,24 @@ export class ReeferComponent {
   protected resetArchiveView(): void {
     this.pageArchive.reset();
     this.toast.show('Back to live reefer page', 'success');
+  }
+
+  protected async commitArchiveAsLive(): Promise<void> {
+    const snap = this.pageArchive.loaded();
+    if (!snap) return;
+
+    const ok = await this.confirmDialog.confirm({
+      title: 'Apply snapshot as live data',
+      message:
+        `Make the current reefer page (from "${snap.label}", including any edits) your live data? ` +
+        'The previous live inventory will be lost. This cannot be undone.',
+      confirmLabel: 'Apply as live',
+      variant: 'danger',
+    });
+    if (!ok) return;
+
+    this.pageArchive.commitLoadedAsLive();
+    this.toast.show('Snapshot is now live reefer data', 'success');
   }
 
   protected deleteArchiveSnapshot(id: string, event: Event): void {
