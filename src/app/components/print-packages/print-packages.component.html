@@ -3,8 +3,8 @@
     <header class="pkg-head">
       <h3>Document packages</h3>
       <p class="pkg-sub">
-        Plan documents per port, grouped by authority (Immigration, Customs…). Open / Print for
-        the current Port of Call is in the top bar.
+        Plan documents per port, grouped by authority (Immigration, Customs…). Use Open / Print
+        per authority here, or Open all / Print all for the current Port of Call in the top bar.
       </p>
     </header>
 
@@ -62,15 +62,25 @@
             }
 
             @for (auth of pkg.authorities; track $index; let authIdx = $index) {
-              <div class="pkg-auth">
+              <div class="pkg-auth" [class.pkg-auth--print-off]="auth.includeInPrint === false">
                 <div class="pkg-auth-head">
+                  <label
+                    class="pkg-auth-print"
+                    [title]="auth.includeInPrint === false ? 'Excluded from Print all (top bar)' : 'Include in Print all (top bar)'"
+                  >
+                    <input
+                      type="checkbox"
+                      [ngModel]="auth.includeInPrint !== false"
+                      (ngModelChange)="setAuthorityIncludeInPrint(pkg.port, authIdx, $event)"
+                    />
+                  </label>
                   <input
                     class="pkg-auth-name"
                     placeholder="Authority (e.g. Immigration)"
                     [ngModel]="auth.name"
-                    (ngModelChange)="renameAuthority(pkg.port, $index, $event)"
+                    (ngModelChange)="renameAuthority(pkg.port, authIdx, $event)"
                   />
-                  @if (pkg.port === currentPort()) {
+                  <div class="pkg-auth-actions">
                     <button
                       type="button"
                       class="pkg-mini"
@@ -87,12 +97,12 @@
                     >
                       Print
                     </button>
-                  }
+                  </div>
                   <button
                     type="button"
                     class="pkg-remove"
                     title="Remove authority"
-                    (click)="removeAuthority(pkg.port, $index)"
+                    (click)="removeAuthority(pkg.port, authIdx)"
                   >
                     ×
                   </button>
@@ -131,7 +141,7 @@
                   </div>
                 }
 
-                <button type="button" class="pkg-add-doc" (click)="addItem(pkg, $index)">
+                <button type="button" class="pkg-add-doc" (click)="addItem(pkg, authIdx)">
                   + Add document
                 </button>
               </div>

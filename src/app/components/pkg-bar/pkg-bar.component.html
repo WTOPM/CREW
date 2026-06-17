@@ -104,7 +104,7 @@
     <button
       type="button"
       class="pkg-bar-btn pkg-bar-btn--primary"
-      [disabled]="packageRunner.busy() || packageRunner.currentItemCount() === 0"
+      [disabled]="packageRunner.busy() || packageRunner.currentPrintItemCount() === 0"
       (click)="packageRunner.printAll()"
     >
       Print all

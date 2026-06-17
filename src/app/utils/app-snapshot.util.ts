@@ -103,12 +103,14 @@ function mergePortAuthorities(a: PortAuthority[], b: PortAuthority[]): PortAutho
       byName.set(key, {
         name: auth.name?.trim() || label,
         items: auth.items.map((it) => ({ ...it })),
+        includeInPrint: auth.includeInPrint !== false,
       });
       continue;
     }
     byName.set(key, {
       name: prev.name || auth.name?.trim() || label,
       items: mergePortPackageItems(prev.items, auth.items),
+      includeInPrint: prev.includeInPrint !== false && auth.includeInPrint !== false,
     });
   }
 

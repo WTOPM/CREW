@@ -1,10 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
-import { PORT_SEC_LVL_OPTIONS, ShipInfo } from '../../models/crew.models';
+import { PORT_SEC_LVL_OPTIONS, PortTerminal, ShipInfo } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
 import { PrintPackagesComponent } from '../../components/print-packages/print-packages.component';
@@ -39,6 +39,10 @@ export class SettingsComponent {
   protected readonly nationalities = this.storage.nationalities;
   protected readonly printPackages = this.storage.printPackages;
 
+  protected readonly totalPortTerminals = computed(() =>
+    this.ports().reduce((sum, p) => sum + (p.terminals?.length ?? 0), 0),
+  );
+
   protected showPackagesModal = signal(false);
   protected showPortsModal = signal(false);
   protected showRanksModal = signal(false);
@@ -48,6 +52,9 @@ export class SettingsComponent {
   protected newPortCountry = signal('');
   protected newRank = signal('');
   protected newNationality = signal('');
+  protected expandedPort = signal('');
+  protected newTerminalAbbrev = signal('');
+  protected newTerminalName = signal('');
 
   constructor() {
     void this.storage.getDataPath().then((p) => this.dataPath.set(p));
@@ -69,6 +76,9 @@ export class SettingsComponent {
     this.newPortName.set('');
     this.newPortCode.set('');
     this.newPortCountry.set('');
+    this.expandedPort.set('');
+    this.newTerminalAbbrev.set('');
+    this.newTerminalName.set('');
     this.showPortsModal.set(true);
   }
 
@@ -115,6 +125,27 @@ export class SettingsComponent {
 
   protected removePortItem(name: string): void {
     this.storage.removePort(name);
+    if (this.expandedPort() === name) this.expandedPort.set('');
+  }
+
+  protected togglePortTerminals(portName: string): void {
+    this.expandedPort.update((cur) => (cur === portName ? '' : portName));
+    this.newTerminalAbbrev.set('');
+    this.newTerminalName.set('');
+  }
+
+  protected portTerminalCount(port: { terminals?: PortTerminal[] }): number {
+    return port.terminals?.length ?? 0;
+  }
+
+  protected addPortTerminalItem(portName: string): void {
+    this.storage.addPortTerminal(portName, this.newTerminalAbbrev(), this.newTerminalName());
+    this.newTerminalAbbrev.set('');
+    this.newTerminalName.set('');
+  }
+
+  protected removePortTerminalItem(portName: string, index: number): void {
+    this.storage.removePortTerminal(portName, index);
   }
 
   protected addRankItem(): void {

@@ -45,11 +45,20 @@ export {
   DOCUMENT_OVERLAY_LABELS,
 } from './document-overlay.models';
 
+export interface PortTerminal {
+  /** Short code, e.g. EGH */
+  abbrev: string;
+  /** Full name, e.g. Eurogate Terminal Hamburg */
+  name: string;
+}
+
 export interface Port {
   name: string;
   code: string;
   /** Country name for Port of Call form (e.g. ITALY). */
   country?: string;
+  /** Optional terminals at this port (user-managed; not used elsewhere yet). */
+  terminals?: PortTerminal[];
 }
 
 export const DEFAULT_RANKS = [
@@ -553,6 +562,8 @@ export interface PortPackageItem {
 export interface PortAuthority {
   name: string;
   items: PortPackageItem[];
+  /** When false, excluded from Print all in the top bar (per-authority Print still works). */
+  includeInPrint?: boolean;
 }
 
 /** All authorities and their documents to open/print for a given port. */
@@ -963,6 +974,22 @@ export function formatPortCallPortName(name: string): string {
   return name.trim().toUpperCase();
 }
 
+export function normalizePortTerminals(raw: unknown): PortTerminal[] {
+  if (!Array.isArray(raw)) return [];
+  const out: PortTerminal[] = [];
+  const seen = new Set<string>();
+  for (const t of raw) {
+    const abbrev = String((t as PortTerminal)?.abbrev ?? '').trim();
+    const name = String((t as PortTerminal)?.name ?? '').trim();
+    if (!abbrev && !name) continue;
+    const key = abbrev.toLowerCase() || name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ abbrev, name });
+  }
+  return out;
+}
+
 export function mergePorts(existing: Port[], ...refs: (string | Port | undefined)[]): Port[] {
   const map = new Map<string, Port>();
 
@@ -981,6 +1008,7 @@ export function mergePorts(existing: Port[], ...refs: (string | Port | undefined
         name: resolved.name,
         code: resolved.code || prev?.code || '',
         country: resolved.country || prev?.country || '',
+        terminals: normalizePortTerminals(prev?.terminals ?? []),
       });
     } else if (ref.name) {
       const key = ref.name.toLowerCase();
@@ -989,6 +1017,7 @@ export function mergePorts(existing: Port[], ...refs: (string | Port | undefined
         name: ref.name,
         code: ref.code || prev?.code || '',
         country: ref.country || prev?.country || '',
+        terminals: normalizePortTerminals(ref.terminals ?? prev?.terminals ?? []),
       });
     }
   }

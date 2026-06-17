@@ -51,6 +51,7 @@ import {
   areCrewListsInSync,
   crewListDiffCounts,
   normalizePortSecLvl,
+  normalizePortTerminals,
   type CrewEffectDocId,
   type ShipStoresDocId,
   crewEffectFormField,
@@ -473,6 +474,7 @@ export class StorageService {
             name: port.name,
             code: port.code || '',
             country: port.country || '',
+            terminals: normalizePortTerminals(port.terminals),
           });
         }
       }
@@ -525,10 +527,11 @@ export class StorageService {
         authorities = (pkg as PortPackage).authorities.map((a) => ({
           name: String((a as PortAuthority)?.name ?? '').trim(),
           items: normItems((a as PortAuthority)?.items),
+          includeInPrint: (a as PortAuthority)?.includeInPrint !== false,
         }));
       } else if (Array.isArray((pkg as { items?: unknown }).items)) {
         // Legacy: flat items -> single "General" authority.
-        authorities = [{ name: 'General', items: normItems((pkg as { items?: unknown }).items) }];
+        authorities = [{ name: 'General', items: normItems((pkg as { items?: unknown }).items), includeInPrint: true }];
       } else {
         authorities = [];
       }
@@ -741,6 +744,33 @@ export class StorageService {
     this.data.update((d) => ({ ...d, ports: d.ports.filter((p) => p.name !== name) }));
     void this.persist('silent');
     this.toast.showPortDeleted();
+  }
+
+  addPortTerminal(portName: string, abbrev: string, name: string): void {
+    const a = abbrev.trim();
+    const n = name.trim();
+    if (!a && !n) return;
+    this.data.update((d) => ({
+      ...d,
+      ports: d.ports.map((p) => {
+        if (p.name !== portName) return p;
+        const terminals = normalizePortTerminals([...(p.terminals ?? []), { abbrev: a, name: n }]);
+        return { ...p, terminals };
+      }),
+    }));
+    void this.persist('silent');
+  }
+
+  removePortTerminal(portName: string, terminalIndex: number): void {
+    this.data.update((d) => ({
+      ...d,
+      ports: d.ports.map((p) => {
+        if (p.name !== portName) return p;
+        const terminals = (p.terminals ?? []).filter((_, i) => i !== terminalIndex);
+        return { ...p, terminals };
+      }),
+    }));
+    void this.persist('silent');
   }
 
   addRank(name: string): void {
@@ -1875,7 +1905,7 @@ export class StorageService {
   addAuthority(port: string, name = 'New authority'): void {
     this.mutatePackage(port, (pkg) => ({
       ...pkg,
-      authorities: [...pkg.authorities, { name, items: [] }],
+      authorities: [...pkg.authorities, { name, items: [], includeInPrint: true }],
     }));
   }
 
@@ -1888,6 +1918,10 @@ export class StorageService {
 
   renameAuthority(port: string, authIndex: number, name: string): void {
     this.mutateAuthority(port, authIndex, (a) => ({ ...a, name }));
+  }
+
+  setAuthorityIncludeInPrint(port: string, authIndex: number, includeInPrint: boolean): void {
+    this.mutateAuthority(port, authIndex, (a) => ({ ...a, includeInPrint }));
   }
 
   setAuthorityItems(port: string, authIndex: number, items: PortPackageItem[]): void {

@@ -29,22 +29,34 @@ export class PackageRunnerService {
   readonly currentItems = computed<PortPackageItem[]>(() =>
     (this.currentPackage()?.authorities ?? []).flatMap((a) => a.items),
   );
+  /** Documents in authorities marked for Print all. */
+  readonly currentPrintItems = computed<PortPackageItem[]>(() =>
+    (this.currentPackage()?.authorities ?? [])
+      .filter((a) => a.includeInPrint !== false)
+      .flatMap((a) => a.items),
+  );
   readonly currentItemCount = computed(
     () => this.currentItems().filter((it) => it.documentId.trim()).length,
+  );
+  readonly currentPrintItemCount = computed(
+    () => this.currentPrintItems().filter((it) => it.documentId.trim()).length,
   );
 
   /** Hover summary for the current port: per-authority lines + summed totals. */
   readonly currentBreakdown = computed(() => {
     const pkg = this.currentPackage();
     if (!pkg || pkg.authorities.length === 0) return null;
-    const authorities = pkg.authorities.map((a) => ({
-      name: a.name?.trim() || '(unnamed)',
-      items: a.items
-        .filter((it) => it.documentId.trim())
-        .map((it) => ({ label: this.catalog.label(it.documentId), copies: it.copies })),
-    }));
+    const authorities = pkg.authorities
+      .filter((a) => a.includeInPrint !== false)
+      .map((a) => ({
+        name: a.name?.trim() || '(unnamed)',
+        items: a.items
+          .filter((it) => it.documentId.trim())
+          .map((it) => ({ label: this.catalog.label(it.documentId), copies: it.copies })),
+      }));
     const totals = new Map<string, number>();
     for (const a of pkg.authorities) {
+      if (a.includeInPrint === false) continue;
       for (const it of a.items) {
         if (!it.documentId.trim()) continue;
         totals.set(it.documentId, (totals.get(it.documentId) ?? 0) + it.copies);
@@ -62,9 +74,9 @@ export class PackageRunnerService {
     return this.openItems(this.currentItems());
   }
 
-  /** Print all documents of the current port (every authority). */
+  /** Print all documents of the current port (every enabled authority). */
   printAll(): Promise<void> {
-    return this.printItems(this.currentItems());
+    return this.printItems(this.currentPrintItems());
   }
 
   async openItems(items: PortPackageItem[]): Promise<void> {

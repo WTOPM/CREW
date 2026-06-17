@@ -99,6 +99,10 @@ export class PrintPackagesComponent implements OnInit {
     this.storage.renameAuthority(port, authIndex, name);
   }
 
+  protected setAuthorityIncludeInPrint(port: string, authIndex: number, include: boolean): void {
+    this.storage.setAuthorityIncludeInPrint(port, authIndex, include);
+  }
+
   // --- documents within an authority ---
   protected addItem(pkg: PortPackage, authIndex: number): void {
     const items = [...pkg.authorities[authIndex].items, { documentId: '', copies: 1 }];
