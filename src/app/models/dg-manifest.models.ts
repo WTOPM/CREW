@@ -97,6 +97,8 @@ export interface DgManifestDocument {
 /** @deprecated Use DgOnboardContainer */
 export type DgContainerEntry = Omit<DgOnboardContainer, 'loadPort' | 'dischargePort' | 'status' | 'sourceManifestId'>;
 
+export type DgActiveInventoryTab = 'cmaCgm' | 'unifeeder';
+
 export interface DgLibrarySettings {
   manifests: DgManifestDocument[];
   onboard: DgOnboardContainer[];
@@ -107,6 +109,8 @@ export interface DgLibrarySettings {
   manifestGrossTotalKg: boolean;
   /** Highlight UN inputs: green if in DG Reference, red if unknown. */
   checkUnNumbers: boolean;
+  /** Last opened inventory table on the DG page. */
+  activeInventoryTab: DgActiveInventoryTab;
   /** Port/date context for this page and DG document export. */
   pageContext: DgPageContext;
   /** DP WORLD manifest — separate inventory from CMA CGM. */
@@ -211,6 +215,7 @@ export function createDefaultDgLibrary(): DgLibrarySettings {
     manifestMergeLines: false,
     manifestGrossTotalKg: false,
     checkUnNumbers: true,
+    activeInventoryTab: 'cmaCgm',
     pageContext: createEmptyDgPageContext(),
     unifeeder: createDefaultUnifeederLibrary(),
   };
@@ -273,8 +278,14 @@ export function normalizeDgLibrary(
       manifestMergeLines: raw.manifestMergeLines === true || raw.manifestRoundLineKg === true,
       manifestGrossTotalKg: raw.manifestGrossTotalKg === true,
       checkUnNumbers: raw.checkUnNumbers !== false,
+      activeInventoryTab: raw.activeInventoryTab === 'unifeeder' ? 'unifeeder' : 'cmaCgm',
       pageContext,
-      unifeeder: normalizeUnifeederLibrary(raw.unifeeder, ports, pageContext),
+      unifeeder: normalizeUnifeederLibrary(
+        raw.unifeeder,
+        ports,
+        pageContext,
+        raw.checkUnNumbers,
+      ),
     };
   }
 
@@ -342,6 +353,7 @@ function migrateLegacyDgForm(
     manifestMergeLines: false,
     manifestGrossTotalKg: false,
     checkUnNumbers: true,
+    activeInventoryTab: 'cmaCgm',
     pageContext: normalizeDgPageContext(undefined, false, shipSeed),
     unifeeder: createDefaultUnifeederLibrary(),
   };

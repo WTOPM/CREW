@@ -1059,8 +1059,8 @@
                 >
                   <input
                     type="checkbox"
-                    [ngModel]="library().checkUnNumbers"
-                    (ngModelChange)="toggleCheckUnNumbers($event)"
+                    [ngModel]="unifeederLibrary().checkUnNumbers"
+                    (ngModelChange)="toggleUnifeederCheckUnNumbers($event)"
                   />
                   <span>UN check</span>
                 </label>
@@ -1339,8 +1339,8 @@
                           <input
                             class="dg-cell-input dg-cell-input--mono"
                             [class.dg-cell-input--readonly]="!line.editable"
-                            [class.dg-cell-input--un-known]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'known'"
-                            [class.dg-cell-input--un-unknown]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'unknown'"
+                            [class.dg-cell-input--un-known]="unifeederLibrary().checkUnNumbers && unNoReferenceTone(line.unNo) === 'known'"
+                            [class.dg-cell-input--un-unknown]="unifeederLibrary().checkUnNumbers && unNoReferenceTone(line.unNo) === 'unknown'"
                             [ngModel]="line.unNo"
                             [readonly]="!line.editable"
                             [tabindex]="line.editable ? 0 : -1"

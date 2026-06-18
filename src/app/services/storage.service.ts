@@ -1024,7 +1024,7 @@ export class StorageService {
     partial: Partial<
       Pick<
         DgLibrarySettings,
-        'showDischarged' | 'manifestMergeLines' | 'manifestGrossTotalKg' | 'checkUnNumbers'
+        'showDischarged' | 'manifestMergeLines' | 'manifestGrossTotalKg' | 'checkUnNumbers' | 'activeInventoryTab'
       >
     >,
   ): void {
@@ -1330,7 +1330,9 @@ export class StorageService {
   }
 
   updateUnifeederViewSettings(
-    partial: Partial<Pick<DgUnifeederLibrarySettings, 'showDischarged' | 'mergeLines' | 'grossTotalKg'>>,
+    partial: Partial<
+      Pick<DgUnifeederLibrarySettings, 'showDischarged' | 'mergeLines' | 'grossTotalKg' | 'checkUnNumbers'>
+    >,
   ): void {
     this.data.update((d) => {
       const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);

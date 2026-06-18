@@ -55,6 +55,8 @@ export interface DgUnifeederLibrarySettings {
   mergeLines: boolean;
   /** Round line weights to whole kg; total = sum of raw weights rounded once (same as CMA DG export). */
   grossTotalKg: boolean;
+  /** Highlight UN inputs: green if in DG Reference, red if unknown. */
+  checkUnNumbers: boolean;
 }
 
 export function createDefaultUnifeederLibrary(): DgUnifeederLibrarySettings {
@@ -64,6 +66,7 @@ export function createDefaultUnifeederLibrary(): DgUnifeederLibrarySettings {
     showDischarged: false,
     mergeLines: false,
     grossTotalKg: false,
+    checkUnNumbers: true,
   };
 }
 
@@ -139,6 +142,7 @@ export function normalizeUnifeederLibrary(
   raw?: Partial<DgUnifeederLibrarySettings>,
   ports: readonly Port[] = [],
   pageContext?: { portOfCall?: string; nextPortOfCall?: string },
+  legacyCheckUnNumbers?: boolean,
 ): DgUnifeederLibrarySettings {
   if (!raw) return createDefaultUnifeederLibrary();
   return {
@@ -165,6 +169,10 @@ export function normalizeUnifeederLibrary(
     showDischarged: raw.showDischarged === true,
     mergeLines: raw.mergeLines === true,
     grossTotalKg: raw.grossTotalKg === true,
+    checkUnNumbers:
+      'checkUnNumbers' in raw
+        ? raw.checkUnNumbers !== false
+        : legacyCheckUnNumbers !== false,
   };
 }
 

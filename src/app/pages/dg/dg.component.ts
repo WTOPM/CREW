@@ -14,6 +14,7 @@ import {
   type DgCargoLine,
   type DgManifestDocument,
   type DgManifestViewOptions,
+  type DgActiveInventoryTab,
   type DgOnboardContainer,
   type DgOnboardContainerField,
 } from '../../models/dg-manifest.models';
@@ -97,7 +98,7 @@ import {
 import { normalizeUnNumber, unNumberReferenceTone } from '../../utils/dg-un-number.util';
 
 type DgLineField = keyof Omit<DgCargoLine, 'id'>;
-export type DgInventoryTab = 'cmaCgm' | 'unifeeder';
+export type DgInventoryTab = DgActiveInventoryTab;
 
 @Component({
   selector: 'app-dg',
@@ -179,7 +180,9 @@ export class DgComponent {
   protected readonly inventorySortColumn = signal<DgInventorySortColumn | null>(null);
   protected readonly inventorySortDirection = signal<DgInventorySortDirection>('asc');
   protected readonly inventorySearch = signal('');
-  protected readonly activeInventoryTab = signal<DgInventoryTab>('cmaCgm');
+  protected readonly activeInventoryTab = computed((): DgInventoryTab =>
+    this.library().activeInventoryTab === 'unifeeder' ? 'unifeeder' : 'cmaCgm',
+  );
   protected readonly unifeederInventorySearch = signal('');
   protected readonly unifeederSortColumn = signal<DgUnifeederSortColumn | null>(null);
   protected readonly unifeederSortDirection = signal<DgUnifeederSortDirection>('asc');
@@ -289,7 +292,7 @@ export class DgComponent {
   }
 
   protected setInventoryTab(tab: DgInventoryTab): void {
-    this.activeInventoryTab.set(tab);
+    this.storage.updateDgManifestView({ activeInventoryTab: tab });
   }
 
   protected dgTransferButtonTitle(): string {
@@ -375,6 +378,10 @@ export class DgComponent {
 
   protected toggleCheckUnNumbers(checked: boolean): void {
     this.storage.updateDgManifestView({ checkUnNumbers: checked });
+  }
+
+  protected toggleUnifeederCheckUnNumbers(checked: boolean): void {
+    this.storage.updateUnifeederViewSettings({ checkUnNumbers: checked });
   }
 
   protected toggleInventorySort(column: DgInventorySortColumn): void {
