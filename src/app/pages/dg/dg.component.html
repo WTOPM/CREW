@@ -306,17 +306,6 @@
                   />
                   <span>Total weight</span>
                 </label>
-                <label
-                  class="uf-toggle"
-                  title="Highlight UN field: green if in DG Reference, red if not found"
-                >
-                  <input
-                    type="checkbox"
-                    [ngModel]="library().checkUnNumbers"
-                    (ngModelChange)="toggleCheckUnNumbers($event)"
-                  />
-                  <span>UN check</span>
-                </label>
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm dg-pdf-btn"
@@ -728,8 +717,6 @@
                               <input
                                 type="text"
                                 class="dg-cell-input dg-cell-input--mono"
-                                [class.dg-cell-input--un-known]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'known'"
-                                [class.dg-cell-input--un-unknown]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'unknown'"
                                 [ngModel]="line.unNo"
                                 (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'unNo', $event)"
                                 (blur)="onCmaUnNoCommit(container.id, line.sourceLineIds[0], $event)"
@@ -742,8 +729,6 @@
                               <input
                                 type="text"
                                 class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
-                                [class.dg-cell-input--un-known]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'known'"
-                                [class.dg-cell-input--un-unknown]="library().checkUnNumbers && unNoReferenceTone(line.unNo) === 'unknown'"
                                 [ngModel]="line.unNo || '—'"
                                 readonly
                                 tabindex="-1"
@@ -1053,17 +1038,6 @@
                   />
                   <span>Total weight</span>
                 </label>
-                <label
-                  class="uf-toggle"
-                  title="Highlight UN field: green if in DG Reference, red if not found"
-                >
-                  <input
-                    type="checkbox"
-                    [ngModel]="unifeederLibrary().checkUnNumbers"
-                    (ngModelChange)="toggleUnifeederCheckUnNumbers($event)"
-                  />
-                  <span>UN check</span>
-                </label>
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm dg-pdf-btn"
@@ -1339,8 +1313,6 @@
                           <input
                             class="dg-cell-input dg-cell-input--mono"
                             [class.dg-cell-input--readonly]="!line.editable"
-                            [class.dg-cell-input--un-known]="unifeederLibrary().checkUnNumbers && unNoReferenceTone(line.unNo) === 'known'"
-                            [class.dg-cell-input--un-unknown]="unifeederLibrary().checkUnNumbers && unNoReferenceTone(line.unNo) === 'unknown'"
                             [ngModel]="line.unNo"
                             [readonly]="!line.editable"
                             [tabindex]="line.editable ? 0 : -1"

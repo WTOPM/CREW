@@ -2,6 +2,7 @@ import {
   Component,
   ElementRef,
   HostListener,
+  OnDestroy,
   computed,
   effect,
   inject,
@@ -21,6 +22,7 @@ import {
   todayIsoLocal,
 } from '../../utils/date-calendar.util';
 import { isoFromPartialDayInput, preparePartialDateOnFocus } from '../../utils/partial-date.util';
+import { ToastService } from '../../services/toast.service';
 
 export type DatePickerSize = 'sm' | 'md' | 'lg';
 
@@ -74,6 +76,7 @@ function isoFromMask(text: string): string | null {
         <input
           #field
           class="date-picker-input"
+          [class.date-picker-input--copied]="copied()"
           type="text"
           inputmode="numeric"
           autocomplete="off"
@@ -86,6 +89,11 @@ function isoFromMask(text: string): string | null {
           (mouseup)="onInputSelect()"
           (keydown)="onKeydown($event)"
           (keydown.escape)="close()"
+          (pointerdown)="onCopyPressStart($event)"
+          (pointermove)="onCopyPressMove($event)"
+          (pointerup)="onCopyPressEnd()"
+          (pointerleave)="onCopyPressEnd()"
+          (pointercancel)="onCopyPressEnd()"
         />
         <button
           type="button"
@@ -163,6 +171,11 @@ function isoFromMask(text: string): string | null {
     .date-picker-input:focus {
       outline: 2px solid var(--accent-soft);
       border-color: var(--accent);
+    }
+
+    .date-picker-input--copied {
+      background: #ecfdf5;
+      border-color: #34d399;
     }
 
     .date-picker-btn {
@@ -360,13 +373,15 @@ function isoFromMask(text: string): string | null {
     }
   `,
 })
-export class DatePickerComponent {
+export class DatePickerComponent implements OnDestroy {
   readonly value = input('');
   readonly size = input<DatePickerSize>('md');
   readonly valueChange = output<string>();
 
   protected readonly weekdays = EN_WEEKDAYS;
+  protected readonly copied = signal(false);
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly toast = inject(ToastService);
   private readonly fieldRef = viewChild<ElementRef<HTMLInputElement>>('field');
 
   protected readonly open = signal(false);
@@ -376,6 +391,11 @@ export class DatePickerComponent {
   private readonly focused = signal(false);
   private readonly viewYear = signal(new Date().getFullYear());
   private readonly viewMonth = signal(new Date().getMonth());
+  private copyPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private copiedFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+  private copyPressOrigin: { x: number; y: number } | null = null;
+  private static readonly COPY_HOLD_MS = 500;
+  private static readonly COPY_MOVE_TOLERANCE_PX = 6;
 
   protected readonly monthTitle = computed(
     () => `${EN_MONTHS[this.viewMonth()]} ${this.viewYear()}`,
@@ -398,6 +418,11 @@ export class DatePickerComponent {
         this.viewMonth.set(parts.monthIndex);
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.clearCopyPressTimer();
+    if (this.copiedFeedbackTimer != null) clearTimeout(this.copiedFeedbackTimer);
   }
 
   @HostListener('document:click', ['$event'])
@@ -466,6 +491,7 @@ export class DatePickerComponent {
   }
 
   protected onBlur(): void {
+    this.onCopyPressEnd();
     this.focused.set(false);
     const el = this.fieldRef()?.nativeElement;
     const current = this.ensureMaskText(el?.value ?? this.text());
@@ -710,6 +736,79 @@ export class DatePickerComponent {
     this.valueChange.emit('');
     this.text.set('');
     this.close();
+  }
+
+  protected onCopyPressStart(event: PointerEvent): void {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    this.clearCopyPressTimer();
+    this.copyPressOrigin = { x: event.clientX, y: event.clientY };
+    this.copyPressTimer = setTimeout(() => {
+      this.copyPressTimer = null;
+      this.copyPressOrigin = null;
+      void this.copyDisplayedDate();
+    }, DatePickerComponent.COPY_HOLD_MS);
+  }
+
+  protected onCopyPressMove(event: PointerEvent): void {
+    if (!this.copyPressTimer || !this.copyPressOrigin) return;
+    const dx = event.clientX - this.copyPressOrigin.x;
+    const dy = event.clientY - this.copyPressOrigin.y;
+    if (Math.hypot(dx, dy) > DatePickerComponent.COPY_MOVE_TOLERANCE_PX) {
+      this.onCopyPressEnd();
+    }
+  }
+
+  protected onCopyPressEnd(): void {
+    this.clearCopyPressTimer();
+    this.copyPressOrigin = null;
+  }
+
+  private clearCopyPressTimer(): void {
+    if (this.copyPressTimer == null) return;
+    clearTimeout(this.copyPressTimer);
+    this.copyPressTimer = null;
+  }
+
+  private displayTextForCopy(): string {
+    const fromValue = formatDisplayDate(this.value());
+    if (fromValue && isoFromMask(fromValue)) return fromValue;
+
+    const el = this.fieldRef()?.nativeElement;
+    const fromInput = this.ensureMaskText(el?.value ?? this.text());
+    if (isoFromMask(fromInput)) return fromInput;
+
+    return '';
+  }
+
+  private async copyDisplayedDate(): Promise<void> {
+    const display = this.displayTextForCopy();
+    if (!display) return;
+
+    try {
+      await navigator.clipboard.writeText(display);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = display;
+      el.style.position = 'fixed';
+      el.style.left = '-9999px';
+      document.body.appendChild(el);
+      el.focus();
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+
+    this.flashCopiedFeedback();
+    this.toast.show(`Copied: ${display}`, 'success', 1800);
+  }
+
+  private flashCopiedFeedback(): void {
+    this.copied.set(true);
+    if (this.copiedFeedbackTimer != null) clearTimeout(this.copiedFeedbackTimer);
+    this.copiedFeedbackTimer = setTimeout(() => {
+      this.copied.set(false);
+      this.copiedFeedbackTimer = null;
+    }, 550);
   }
 
   private positionPopup(): void {

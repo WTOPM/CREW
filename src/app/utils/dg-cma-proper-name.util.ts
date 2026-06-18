@@ -71,6 +71,36 @@ function pickNameLinesBetween(
     .filter(Boolean);
 }
 
+/** CMA manifests often place the first (2) text line 1–3 pt above the (2) marker. */
+function resolveField2ExclusiveEndY(
+  items: readonly DgPdfTextItem[],
+  page: number,
+  nameCol: readonly [number, number],
+  startY: number,
+  field2Y: number,
+): number {
+  const nameLineYs: number[] = [];
+
+  for (const it of items) {
+    if (it.page !== page) continue;
+    if (it.y <= startY || it.y >= field2Y) continue;
+    if (!inCol(it.x, nameCol)) continue;
+    if (isExcludedNameFragment(it.str)) continue;
+    if (!nameLineYs.includes(it.y)) nameLineYs.push(it.y);
+  }
+
+  nameLineYs.sort((a, b) => a - b);
+  if (!nameLineYs.length) return field2Y;
+
+  const lastY = nameLineYs[nameLineYs.length - 1]!;
+  if (field2Y - lastY > 3) return field2Y;
+
+  const prevY = nameLineYs.length >= 2 ? nameLineYs[nameLineYs.length - 2]! : startY;
+  if (lastY - prevY >= 8) return lastY;
+
+  return field2Y;
+}
+
 /**
  * CMA IMDG manifest / cargo list — field (1) only: all name lines up to (2), excluding
  * the technical name in field (2). Example:
@@ -89,7 +119,10 @@ export function pickCmaManifestProperShippingName(
   const field2Y = findFieldMarkerY(items, page, anchorY - 2, yMax, 2, nameCol);
 
   const startY = field1Y ?? anchorY - 1;
-  const endY = field2Y ?? startY + 28;
+  const endY =
+    field2Y != null
+      ? resolveField2ExclusiveEndY(items, page, nameCol, startY, field2Y)
+      : startY + 28;
 
   const lines = pickNameLinesBetween(items, page, nameCol, startY, endY);
   if (lines.length) {

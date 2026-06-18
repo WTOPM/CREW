@@ -159,19 +159,6 @@ export function lookupUnNumber(raw: string | undefined | null): UnNumberTooltipE
   };
 }
 
-export type UnNumberReferenceTone = 'empty' | 'known' | 'unknown';
-
-/** Background tone for UN inputs: empty cell, known in DG reference, or unknown. */
-export function unNumberReferenceTone(raw: string | undefined | null): UnNumberReferenceTone {
-  const trimmed = String(raw ?? '').trim();
-  if (!trimmed || trimmed === '—' || trimmed === '-') return 'empty';
-
-  const digits = trimmed.replace(/\D/g, '');
-  if (digits.length < 4 || digits.slice(0, 4) === '0000') return 'empty';
-
-  return UN_NUMBER_MAP.has(digits.slice(0, 4)) ? 'known' : 'unknown';
-}
-
 /** Full DG reference row for a UN number (fire/spillage EMS codes, etc.). */
 export function lookupUnNumberReference(raw: string | undefined | null): UnNumberReferenceEntry | null {
   const unNo = normalizeUnNumber(raw);

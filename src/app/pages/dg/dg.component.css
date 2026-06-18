@@ -1426,30 +1426,6 @@
   background: transparent;
 }
 
-.dg-unifeeder-row--consolidated > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-known,
-.dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-group .dg-cell-input--readonly.dg-cell-input--un-known,
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-known,
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-known,
-.dg-unifeeder-row--consolidated > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-known:hover,
-.dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-group .dg-cell-input--readonly.dg-cell-input--un-known:hover,
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-known:hover,
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-known:hover {
-  background: #dcfce7;
-  border-color: #86efac;
-}
-
-.dg-unifeeder-row--consolidated > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-unknown,
-.dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-group .dg-cell-input--readonly.dg-cell-input--un-unknown,
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-unknown,
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-unknown,
-.dg-unifeeder-row--consolidated > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-unknown:hover,
-.dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-group .dg-cell-input--readonly.dg-cell-input--un-unknown:hover,
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-unknown:hover,
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--readonly.dg-cell-input--un-unknown:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-}
-
 .dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-no {
   background: color-mix(in srgb, var(--accent) 18%, #cbd5e1);
 }
@@ -1474,40 +1450,6 @@
 .dg-unifeeder-table .dg-cell-input--mono {
   font-size: 0.87rem;
   font-weight: 700;
-}
-
-.dg-unifeeder-table .dg-cell-input.dg-cell-input--un-known {
-  background: #dcfce7;
-  border-color: #86efac;
-}
-
-.dg-unifeeder-table .dg-cell-input.dg-cell-input--un-unknown {
-  background: #fee2e2;
-  border-color: #fca5a5;
-}
-
-.dg-unifeeder-table .dg-cell-input.dg-cell-input--un-known:hover,
-.dg-unifeeder-table .dg-cell-input.dg-cell-input--un-known:focus {
-  background: #bbf7d0;
-  border-color: #4ade80;
-}
-
-.dg-unifeeder-table .dg-cell-input.dg-cell-input--un-unknown:hover,
-.dg-unifeeder-table .dg-cell-input.dg-cell-input--un-unknown:focus {
-  background: #fecaca;
-  border-color: #f87171;
-}
-
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input.dg-cell-input--un-known,
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input.dg-cell-input--un-known {
-  background: #bbf7d0;
-  border-color: #4ade80;
-}
-
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input.dg-cell-input--un-unknown,
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input.dg-cell-input--un-unknown {
-  background: #fecaca;
-  border-color: #f87171;
 }
 
 .dg-unifeeder-table .dg-cell-input--weight { color: #0369a1; font-weight: 800; }
@@ -2696,104 +2638,6 @@
   font-size: 0.88rem;
   letter-spacing: -0.03em;
   padding-inline: 0.08rem;
-}
-
-.dg-cell-input--un-known {
-  background: #dcfce7;
-  border-color: #86efac;
-}
-
-.dg-cell-input--un-unknown {
-  background: #fee2e2;
-  border-color: #fca5a5;
-}
-
-.dg-cell-input--un-known:hover,
-.dg-cell-input--un-known:focus {
-  background: #bbf7d0;
-  border-color: #4ade80;
-}
-
-.dg-cell-input--un-unknown:hover,
-.dg-cell-input--un-unknown:focus {
-  background: #fecaca;
-  border-color: #f87171;
-}
-
-.dg-cell-input--readonly.dg-cell-input--un-known,
-.dg-cell-input--readonly.dg-cell-input--un-known:hover,
-.dg-cell-input--readonly.dg-cell-input--un-known:focus {
-  background: #dcfce7;
-  border-color: #86efac;
-}
-
-.dg-cell-input--readonly.dg-cell-input--un-unknown,
-.dg-cell-input--readonly.dg-cell-input--un-unknown:hover,
-.dg-cell-input--readonly.dg-cell-input--un-unknown:focus {
-  background: #fee2e2;
-  border-color: #fca5a5;
-}
-
-.dg-master-row--container-focus > td.col-cargo .dg-cell-input--un-known,
-.dg-master-row--line-hovered > td.col-cargo .dg-cell-input--un-known,
-.dg-master-row--container-focus > td.col-cargo .dg-cell-input--un-known:hover,
-.dg-master-row--line-hovered > td.col-cargo .dg-cell-input--un-known:hover {
-  background: #bbf7d0;
-  border-color: #4ade80;
-}
-
-.dg-master-row--container-focus > td.col-cargo .dg-cell-input--un-unknown,
-.dg-master-row--line-hovered > td.col-cargo .dg-cell-input--un-unknown,
-.dg-master-row--container-focus > td.col-cargo .dg-cell-input--un-unknown:hover,
-.dg-master-row--line-hovered > td.col-cargo .dg-cell-input--un-unknown:hover {
-  background: #fecaca;
-  border-color: #f87171;
-}
-
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--un-known,
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--un-known,
-.dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-group .dg-cell-input--un-known,
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--un-known:hover,
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--un-known:hover,
-.dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-group .dg-cell-input--un-known:hover {
-  background: #bbf7d0;
-  border-color: #4ade80;
-}
-
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--un-unknown,
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--un-unknown,
-.dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-group .dg-cell-input--un-unknown,
-.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--un-unknown:hover,
-.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--un-unknown:hover,
-.dg-unifeeder-row--group-active.dg-unifeeder-row--container-start > td.uf-group .dg-cell-input--un-unknown:hover {
-  background: #fecaca;
-  border-color: #f87171;
-}
-
-.dg-master-row--discharged .dg-cell-input--un-known,
-.dg-master-row--discharged .dg-cell-input--un-known:hover {
-  background: #dcfce7;
-  border-color: #86efac;
-  color: inherit;
-}
-
-.dg-master-row--discharged .dg-cell-input--un-unknown,
-.dg-master-row--discharged .dg-cell-input--un-unknown:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: inherit;
-}
-
-.dg-unifeeder-row--discharged .dg-cell-input--un-known,
-.dg-unifeeder-row--discharged .dg-cell-input--un-known:hover {
-  background: #dcfce7;
-  border-color: #86efac;
-}
-
-.dg-unifeeder-row--discharged .dg-cell-input--un-unknown,
-.dg-unifeeder-row--discharged .dg-cell-input--un-unknown:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
 }
 
 .dg-cell-input--weight {

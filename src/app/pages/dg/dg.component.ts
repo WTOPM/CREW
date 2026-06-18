@@ -95,7 +95,7 @@ import {
   unifeederAutofillFromUnNumber,
   unNumberHasDigits,
 } from '../../utils/dg-un-number-autofill.util';
-import { normalizeUnNumber, unNumberReferenceTone } from '../../utils/dg-un-number.util';
+import { normalizeUnNumber } from '../../utils/dg-un-number.util';
 
 type DgLineField = keyof Omit<DgCargoLine, 'id'>;
 export type DgInventoryTab = DgActiveInventoryTab;
@@ -374,14 +374,6 @@ export class DgComponent {
 
   protected toggleManifestGrossTotalKg(checked: boolean): void {
     this.storage.updateDgManifestView({ manifestGrossTotalKg: checked });
-  }
-
-  protected toggleCheckUnNumbers(checked: boolean): void {
-    this.storage.updateDgManifestView({ checkUnNumbers: checked });
-  }
-
-  protected toggleUnifeederCheckUnNumbers(checked: boolean): void {
-    this.storage.updateUnifeederViewSettings({ checkUnNumbers: checked });
   }
 
   protected toggleInventorySort(column: DgInventorySortColumn): void {
@@ -933,10 +925,6 @@ export class DgComponent {
     value: string,
   ): void {
     this.storage.updateDgOnboardCargoLine(containerId, lineId, { [field]: value });
-  }
-
-  protected unNoReferenceTone(raw: string | undefined | null): ReturnType<typeof unNumberReferenceTone> {
-    return unNumberReferenceTone(raw);
   }
 
   protected onUnNoEnter(event: KeyboardEvent): void {

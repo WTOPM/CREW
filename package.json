@@ -15,7 +15,8 @@
     "electron:build": "npm run build:electron && electron-builder --win portable",
     "electron:pack": "npm run build:electron && electron-builder --dir",
     "import:document": "node scripts/import-document-xlsx.mjs DOCUMENT.xlsx",
-    "build:un-reference": "node scripts/build-un-numbers-reference.mjs"
+    "build:un-reference": "node scripts/build-un-numbers-reference.mjs",
+    "sync:un-reference": "node scripts/sync-un-numbers-from-adr-tool.mjs"
   },
   "private": true,
   "packageManager": "npm@11.16.0",

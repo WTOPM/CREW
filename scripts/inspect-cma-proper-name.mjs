@@ -30,5 +30,5 @@ for (const raw of c.items) {
   });
 }
 
-const nameCol = [305, 488] as const;
+const nameCol = [305, 488];
 console.log(pickCmaManifestProperShippingName(items, anchorY, pageNum, nameCol));
