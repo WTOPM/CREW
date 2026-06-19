@@ -1,8 +1,10 @@
 import {
   formatDgWeightKgDisplay,
-  parseDgWeightKg,
   type DgCargoLine,
+  type DgManifestViewOptions,
 } from '../models/dg-manifest.models';
+import { planDgLineWeightDisplays } from './dg-weight-view.util';
+import { dgLineActiveWeightKg } from './dg-weight-tonnage.util';
 
 function normalizeDgExportMergeName(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -83,7 +85,10 @@ export interface DgMergedCargoLine {
 }
 
 /** Combine cargo lines when class, UN, name and MP/LQ match (same rule as manifest export). */
-export function mergeDgCargoLines(lines: readonly DgCargoLine[]): DgMergedCargoLine[] {
+export function mergeDgCargoLines(
+  lines: readonly DgCargoLine[],
+  useGross = true,
+): DgMergedCargoLine[] {
   const merged = new Map<string, DgMergedCargoLine & { flashPoints: string[] }>();
   const order: string[] = [];
 
@@ -95,7 +100,7 @@ export function mergeDgCargoLines(lines: readonly DgCargoLine[]): DgMergedCargoL
     const properShippingName = line.properShippingName.trim();
     const mpLq = line.mpLq.trim();
     const key = dgExportCargoMergeKey(dgClass, unNo, properShippingName, mpLq);
-    const weight = parseDgWeightKg(line.weightKg);
+    const weight = dgLineActiveWeightKg(line, useGross);
 
     if (!merged.has(key)) {
       merged.set(key, {
@@ -192,9 +197,10 @@ export interface DgCargoLineDisplay {
 function buildDgContainerDisplayLinesRaw(
   container: { id: string; lines: readonly DgCargoLine[] },
   manifestMergeLines: boolean,
+  useGross: boolean,
 ): Omit<DgCargoLineDisplay, 'weightKgDisplay'>[] {
   if (manifestMergeLines) {
-    const merged = mergeDgCargoLines(container.lines);
+    const merged = mergeDgCargoLines(container.lines, useGross);
     if (merged.length) {
       return merged.map((row) => ({
         id: `merge:${container.id}\0${row.mergeKey}`,
@@ -218,24 +224,27 @@ function buildDgContainerDisplayLinesRaw(
     mpLq: line.mpLq,
     flashPoint: line.flashPoint,
     properShippingName: line.properShippingName,
-    rawWeightKg: parseDgWeightKg(line.weightKg),
+    rawWeightKg: dgLineActiveWeightKg(line, useGross),
     editable: true,
     consolidated: false,
     sourceLineIds: [line.id],
   }));
 }
 
-/** Whole-inventory weight display so rounded lines sum to the gross total. */
 export function planDgInventoryWeightDisplays(
   containers: readonly { id: string; lines: readonly DgCargoLine[] }[],
-  options: { manifestMergeLines: boolean; manifestGrossTotalKg: boolean },
+  options: DgManifestViewOptions,
 ): Map<string, string> {
   const rowsByContainer = new Map<string, Omit<DgCargoLineDisplay, 'weightKgDisplay'>[]>();
   const allRaw: number[] = [];
   const keys: { containerId: string; lineId: string }[] = [];
 
   for (const container of containers) {
-    const rows = buildDgContainerDisplayLinesRaw(container, options.manifestMergeLines);
+    const rows = buildDgContainerDisplayLinesRaw(
+      container,
+      options.manifestMergeLines,
+      options.manifestUseGrossWeight,
+    );
     rowsByContainer.set(container.id, rows);
     for (const row of rows) {
       allRaw.push(row.rawWeightKg);
@@ -243,9 +252,7 @@ export function planDgInventoryWeightDisplays(
     }
   }
 
-  const displays = options.manifestGrossTotalKg
-    ? formatDgDisplayLineWeightsKg(allRaw, true)
-    : allRaw.map((weight) => formatDgWeightKgDisplay(weight));
+  const displays = planDgLineWeightDisplays(allRaw, options.manifestRoundWeights);
 
   const out = new Map<string, string>();
   keys.forEach((key, index) => {
@@ -256,15 +263,20 @@ export function planDgInventoryWeightDisplays(
 
 export function buildDgContainerDisplayLines(
   container: { id: string; lines: readonly DgCargoLine[] },
-  options: { manifestMergeLines: boolean; manifestGrossTotalKg: boolean },
+  options: DgManifestViewOptions,
   weightDisplays?: Map<string, string>,
 ): DgCargoLineDisplay[] {
-  const rows = buildDgContainerDisplayLinesRaw(container, options.manifestMergeLines);
+  const rows = buildDgContainerDisplayLinesRaw(
+    container,
+    options.manifestMergeLines,
+    options.manifestUseGrossWeight,
+  );
   return rows.map((row) => {
     const planned = weightDisplays?.get(`${container.id}:${row.id}`);
-    const weightKgDisplay = options.manifestGrossTotalKg
-      ? planned ?? (row.rawWeightKg ? String(Math.round(row.rawWeightKg)) : '')
-      : planned ?? formatDgWeightKgDisplay(row.rawWeightKg);
+    const weightKgDisplay =
+      planned ??
+      planDgLineWeightDisplays([row.rawWeightKg], options.manifestRoundWeights)[0] ??
+      '';
     return { ...row, weightKgDisplay };
   });
 }

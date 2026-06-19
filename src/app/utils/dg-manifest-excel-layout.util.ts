@@ -335,10 +335,10 @@ function buildTableHeaderRow(ws: ExcelJS.Worksheet): void {
   }
 }
 
-function parseExportLineWeightKg(value: string, grossTotalKg: boolean): number | null {
+function parseExportLineWeightKg(value: string, roundWeights: boolean): number | null {
   const raw = value.trim();
   if (!raw) return null;
-  return grossTotalKg ? roundDgExportLineWeightKg(raw) : parseDgWeightKg(raw) || null;
+  return roundWeights ? roundDgExportLineWeightKg(raw) : parseDgWeightKg(raw) || null;
 }
 
 function writeDataRow(
@@ -346,10 +346,10 @@ function writeDataRow(
   rowIndex: number,
   row: DgManifestExcelRow,
   rowNo: number | '',
-  grossTotalKg: boolean,
+  roundWeights: boolean,
 ): void {
   ws.getRow(rowIndex).height = 30;
-  const weight = parseExportLineWeightKg(row.weightKg, grossTotalKg);
+  const weight = parseExportLineWeightKg(row.weightKg, roundWeights);
   const values: { col: number; value: ExcelJS.CellValue; size?: number }[] = [
     { col: 1, value: rowNo === '' ? null : rowNo },
     { col: 2, value: row.pol },
@@ -379,8 +379,10 @@ function buildClassSideBlock(
   containers: readonly DgOnboardContainer[],
   dataRows: readonly DgManifestExcelRow[],
   totalKg: number,
+  useGrossWeight: boolean,
+  roundWeights: boolean,
 ): void {
-  const classes = dgOnboardClassSummaries(containers, true);
+  const classes = dgOnboardClassSummaries(containers, true, useGrossWeight, roundWeights);
 
   mergeCells(ws, 7, COL_N, 8, COL_N);
   setCell(ws, 7, COL_N, 'CLASS', {
@@ -496,11 +498,22 @@ function dgUnmergedExportRowsInContainer(
 export function dgContainersToExcelRows(
   containers: readonly DgOnboardContainer[],
   ports: readonly Port[] = [],
-  options?: { mergeLines?: boolean; grossTotalKg?: boolean },
+  options?: {
+    mergeLines?: boolean;
+    useGrossWeight?: boolean;
+    roundWeights?: boolean;
+    /** @deprecated Use roundWeights */
+    grossTotalKg?: boolean;
+  },
 ): DgManifestExcelRow[] {
   const mergeLines = options?.mergeLines !== false;
-  const grossTotalKg = options?.grossTotalKg === true;
-  const viewOptions = { manifestMergeLines: mergeLines, manifestGrossTotalKg: grossTotalKg };
+  const useGrossWeight = options?.useGrossWeight !== false;
+  const roundWeights = options?.roundWeights === true || options?.grossTotalKg === true;
+  const viewOptions = {
+    manifestMergeLines: mergeLines,
+    manifestUseGrossWeight: useGrossWeight,
+    manifestRoundWeights: roundWeights,
+  };
   const weightPlan = planDgInventoryWeightDisplays(containers, viewOptions);
   const rows: DgManifestExcelRow[] = [];
 
@@ -599,9 +612,10 @@ export async function buildDgManifestWorksheet(
 ): Promise<number> {
   const containers = exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
   const mergeLines = exportContext?.mergeLines ?? true;
-  const grossTotalKg = exportContext?.grossTotalKg === true;
-  const dataRows = dgContainersToExcelRows(containers, ports, { mergeLines, grossTotalKg });
-  const totalKg = dgContainersExportTotalKg(containers, grossTotalKg);
+  const useGrossWeight = exportContext?.useGrossWeight !== false;
+  const roundWeights = exportContext?.grossTotalKg === true;
+  const dataRows = dgContainersToExcelRows(containers, ports, { mergeLines, useGrossWeight, roundWeights });
+  const totalKg = dgContainersExportTotalKg(containers, useGrossWeight, roundWeights);
   const hasExportData = dataRows.some(
     (r) => r.dgClass || r.unNo || r.weightKg || r.properShippingName || r.containerNo,
   );
@@ -631,15 +645,15 @@ export async function buildDgManifestWorksheet(
         rowNo += 1;
         lastContainer = row.containerNo;
       }
-      writeDataRow(ws, r, row, showNo ? rowNo : '', grossTotalKg);
+      writeDataRow(ws, r, row, showNo ? rowNo : '', roundWeights);
       lastDataRow = r;
     });
   }
 
   if (lastDataRow < DATA_START) lastDataRow = DATA_START;
 
-  const classes = dgOnboardClassSummaries(containers, true);
-  buildClassSideBlock(ws, containers, dataRows, totalKg);
+  const classes = dgOnboardClassSummaries(containers, true, useGrossWeight, roundWeights);
+  buildClassSideBlock(ws, containers, dataRows, totalKg, useGrossWeight, roundWeights);
   buildUnReportBlock(ws, dataRows, classes);
 
   const printLast = Math.max(lastDataRow + 2, 44);

@@ -9,10 +9,23 @@ import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { portCode, resolveManifestPortName, type Port, type ShipInfo } from '../models/crew.models';
 import type { DgPageContext } from './page-ship-context.util';
 import { normalizeMfagEmsCode } from './dg-mfag-schedule.util';
-import { unifeederExportWeightKg } from './dg-unifeeder-weight.util';
+import { unifeederExportTotalKg, unifeederExportWeightKg } from './dg-unifeeder-weight.util';
+import { type DgWeightViewOptions } from './dg-weight-view.util';
 
 export interface UnifeederDgPdfExportOptions {
+  useGrossWeight?: boolean;
+  roundWeights?: boolean;
+  /** @deprecated Use roundWeights */
   grossTotalKg?: boolean;
+}
+
+function resolveUnifeederExportOptions(
+  options: UnifeederDgPdfExportOptions = {},
+): DgWeightViewOptions {
+  return {
+    useGrossWeight: options.useGrossWeight !== false,
+    roundWeights: options.roundWeights === true || options.grossTotalKg === true,
+  };
 }
 
 const COL_WIDTHS: readonly number[] = [
@@ -220,15 +233,22 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
   return trimmed;
 }
 
+function formatTotalKg(totalKg: number, roundWeights: boolean): string {
+  const text = roundWeights
+    ? formatDgWeightKgGrossDisplay(totalKg) || '0'
+    : formatDgWeightKgDisplay(totalKg) || '0';
+  return `${text} kg`;
+}
+
 function formatAmountKgText(
   data: DgUnifeederRow | undefined,
   exportKg: number | undefined,
-  grossTotalKg: boolean,
+  roundWeights: boolean,
 ): string {
   if (!data) return '';
   const amount = exportKg !== undefined ? exportKg : parseDgWeightKg(data.weightKg);
   if (amount > 0) {
-    const text = grossTotalKg
+    const text = roundWeights
       ? formatDgWeightKgGrossDisplay(amount)
       : formatDgWeightKgDisplay(amount);
     return text ? `${text} kg` : '';
@@ -334,21 +354,6 @@ function slicePageRows(rows: readonly DgUnifeederRow[], pageIndex: number): (DgU
     page.push(slice[i]);
   }
   return page;
-}
-
-function exportTotalKg(rows: readonly DgUnifeederRow[], grossTotalKg: boolean): number {
-  let total = 0;
-  for (const row of rows) {
-    total += parseDgWeightKg(row.weightKg);
-  }
-  return grossTotalKg ? Math.round(total) : total;
-}
-
-function formatTotalKg(totalKg: number, grossTotalKg: boolean): string {
-  const text = grossTotalKg
-    ? formatDgWeightKgGrossDisplay(totalKg) || '0'
-    : formatDgWeightKgDisplay(totalKg) || '0';
-  return `${text} kg`;
 }
 
 async function loadRambowFlagDataUrl(): Promise<string | null> {
@@ -500,7 +505,7 @@ function drawDataRow(
   data: DgUnifeederRow | undefined,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  grossTotalKg: boolean,
+  roundWeights: boolean,
 ): void {
   const bodySize = fontSize(metrics, 10);
   const emsSize = fontSize(metrics, 9);
@@ -512,7 +517,7 @@ function drawDataRow(
     { col: 3, text: data?.packingGroup ?? '' },
     {
       col: 4,
-      text: formatAmountKgText(data, data ? exportWeights.get(data.id) : undefined, grossTotalKg),
+      text: formatAmountKgText(data, data ? exportWeights.get(data.id) : undefined, roundWeights),
     },
     { col: 5, text: data?.stow ?? '' },
     { col: 6, text: data?.containerNo ?? '', align: 'left' },
@@ -556,14 +561,14 @@ function drawDataRow(
   drawTextInRect(doc, remarks.lText, lRect, { size: bodySize, align: remarks.lAlign, bold: true, pad: 3 });
 }
 
-function drawTotalRow(doc: jsPDF, metrics: GridMetrics, totalKg: number, grossTotalKg: boolean): void {
+function drawTotalRow(doc: jsPDF, metrics: GridMetrics, totalKg: number, roundWeights: boolean): void {
   const bodySize = fontSize(metrics, 10);
   const labelRect = cellRect(metrics, TOTAL_ROW, 2, TOTAL_ROW, 3);
   const amountRect = cellRect(metrics, TOTAL_ROW, 4);
   strokeRect(doc, labelRect);
   strokeRect(doc, amountRect);
   drawTextInRect(doc, 'TOTAL WEIGHT:', labelRect, { size: bodySize, bold: true });
-  drawTextInRect(doc, formatTotalKg(totalKg, grossTotalKg), amountRect, { size: bodySize, bold: true });
+  drawTextInRect(doc, formatTotalKg(totalKg, roundWeights), amountRect, { size: bodySize, bold: true });
 }
 
 function drawFooterRow(doc: jsPDF, metrics: GridMetrics): void {
@@ -584,16 +589,16 @@ function drawPageBlock(
   ctx: DgPageContext,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  options: { showTotal: boolean; totalKg: number; grossTotalKg: boolean },
+  options: { showTotal: boolean; totalKg: number; roundWeights: boolean },
   logoDataUrl: string | null,
 ): void {
   drawHeaderBlock(doc, metrics, pageNumber, ship, ctx, ports, logoDataUrl);
   drawTableHeader(doc, metrics);
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
-    drawDataRow(doc, metrics, DATA_FIRST_ROW + i, pageRows[i], ports, exportWeights, options.grossTotalKg);
+    drawDataRow(doc, metrics, DATA_FIRST_ROW + i, pageRows[i], ports, exportWeights, options.roundWeights);
   }
   if (options.showTotal) {
-    drawTotalRow(doc, metrics, options.totalKg, options.grossTotalKg);
+    drawTotalRow(doc, metrics, options.totalKg, options.roundWeights);
   }
   if (pageRows.every((row) => !row)) {
     drawNoImdgCargoOverlay(doc, metrics);
@@ -619,11 +624,11 @@ export async function buildUnifeederDgListPdfBytes(
   ports: readonly Port[] = [],
   options: UnifeederDgPdfExportOptions = {},
 ): Promise<Uint8Array> {
-  const grossTotalKg = options.grossTotalKg === true;
+  const weightOptions = resolveUnifeederExportOptions(options);
   const exportRows = prepareExportRows(rows);
-  const exportWeights = unifeederExportWeightKg(exportRows, grossTotalKg);
+  const exportWeights = unifeederExportWeightKg(exportRows, weightOptions);
   const pageCount = exportPageCount(exportRows.length);
-  const totalKg = exportTotalKg(exportRows, grossTotalKg);
+  const totalKg = unifeederExportTotalKg(exportRows, weightOptions);
   const logoDataUrl = await loadRambowFlagDataUrl();
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -645,7 +650,7 @@ export async function buildUnifeederDgListPdfBytes(
       {
         showTotal: pageIndex === pageCount - 1,
         totalKg,
-        grossTotalKg,
+        roundWeights: weightOptions.roundWeights,
       },
       logoDataUrl,
     );

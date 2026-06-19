@@ -164,7 +164,11 @@
         </nav>
 
         @if (activeInventoryTab() === 'cmaCgm') {
-        <div class="cma-page-center">
+        <div
+          class="cma-page-center"
+          [class.dg-tonnage-gross]="library().manifestUseGrossWeight"
+          [class.dg-tonnage-net]="!library().manifestUseGrossWeight"
+        >
         <header class="cma-header">
           <section class="cma-header__import-row" aria-label="CMA CGM import">
             <div class="cma-import-panel">
@@ -295,16 +299,43 @@
                     merged rows
                   </span>
                 }
+                <div
+                  class="choice-segmented choice-segmented--row dg-weight-mode"
+                  [class.dg-weight-mode--gross]="library().manifestUseGrossWeight"
+                  [class.dg-weight-mode--net]="!library().manifestUseGrossWeight"
+                  role="radiogroup"
+                  aria-label="Weight tonnage"
+                  title="Gross or net weight for display and totals"
+                >
+                  <label class="choice-segmented__item dg-weight-mode__gross">
+                    <input
+                      type="radio"
+                      name="cmaWeightTonnage"
+                      [checked]="library().manifestUseGrossWeight"
+                      (change)="setManifestWeightTonnage(true)"
+                    />
+                    <span class="choice-segmented__text">Gross</span>
+                  </label>
+                  <label class="choice-segmented__item dg-weight-mode__net">
+                    <input
+                      type="radio"
+                      name="cmaWeightTonnage"
+                      [checked]="!library().manifestUseGrossWeight"
+                      (change)="setManifestWeightTonnage(false)"
+                    />
+                    <span class="choice-segmented__text">Net</span>
+                  </label>
+                </div>
                 <label
                   class="uf-toggle"
-                  title="Round line weights to whole kg; totals stay as sum of raw weights rounded once (same as PDF export)"
+                  title="Round displayed weights and totals to whole kg"
                 >
                   <input
                     type="checkbox"
-                    [ngModel]="library().manifestGrossTotalKg"
-                    (ngModelChange)="toggleManifestGrossTotalKg($event)"
+                    [ngModel]="library().manifestRoundWeights"
+                    (ngModelChange)="toggleManifestRoundWeights($event)"
                   />
-                  <span>Total weight</span>
+                  <span>Round weight</span>
                 </label>
                 <button
                   type="button"
@@ -760,6 +791,8 @@
                             <input
                               type="text"
                               class="dg-cell-input dg-cell-input--mono"
+                              [class.dg-flash--negative]="flashPointTone(line.flashPoint) === 'negative'"
+                              [class.dg-flash--positive]="flashPointTone(line.flashPoint) === 'positive'"
                               [ngModel]="line.flashPoint"
                               (ngModelChange)="onLineChange(container.id, line.sourceLineIds[0], 'flashPoint', $event)"
                               placeholder="—"
@@ -768,6 +801,8 @@
                             <input
                               type="text"
                               class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
+                              [class.dg-flash--negative]="flashPointTone(line.flashPoint) === 'negative'"
+                              [class.dg-flash--positive]="flashPointTone(line.flashPoint) === 'positive'"
                               [ngModel]="line.flashPoint || '—'"
                               readonly
                               tabindex="-1"
@@ -889,7 +924,11 @@
         }
         </div>
         } @else {
-        <div class="uf-page-center">
+        <div
+          class="uf-page-center"
+          [class.dg-tonnage-gross]="unifeederLibrary().useGrossWeight"
+          [class.dg-tonnage-net]="!unifeederLibrary().useGrossWeight"
+        >
         <header class="uf-header">
           <section class="uf-header__import-row" aria-label="DP WORLD import">
             <div class="uf-import-panel">
@@ -1027,16 +1066,43 @@
                     merged rows
                   </span>
                 }
+                <div
+                  class="choice-segmented choice-segmented--row dg-weight-mode"
+                  [class.dg-weight-mode--gross]="unifeederLibrary().useGrossWeight"
+                  [class.dg-weight-mode--net]="!unifeederLibrary().useGrossWeight"
+                  role="radiogroup"
+                  aria-label="Weight tonnage"
+                  title="Gross or net weight for display and totals"
+                >
+                  <label class="choice-segmented__item dg-weight-mode__gross">
+                    <input
+                      type="radio"
+                      name="ufWeightTonnage"
+                      [checked]="unifeederLibrary().useGrossWeight"
+                      (change)="setUnifeederWeightTonnage(true)"
+                    />
+                    <span class="choice-segmented__text">Gross</span>
+                  </label>
+                  <label class="choice-segmented__item dg-weight-mode__net">
+                    <input
+                      type="radio"
+                      name="ufWeightTonnage"
+                      [checked]="!unifeederLibrary().useGrossWeight"
+                      (change)="setUnifeederWeightTonnage(false)"
+                    />
+                    <span class="choice-segmented__text">Net</span>
+                  </label>
+                </div>
                 <label
                   class="uf-toggle"
-                  title="Round line weights to whole kg; totals stay as sum of raw weights rounded once (same as CMA DG export)"
+                  title="Round displayed weights and totals to whole kg"
                 >
                   <input
                     type="checkbox"
-                    [ngModel]="unifeederLibrary().grossTotalKg"
-                    (ngModelChange)="toggleUnifeederGrossTotalKg($event)"
+                    [ngModel]="unifeederLibrary().roundWeights"
+                    (ngModelChange)="toggleUnifeederRoundWeights($event)"
                   />
-                  <span>Total weight</span>
+                  <span>Round weight</span>
                 </label>
                 <button
                   type="button"
@@ -1360,6 +1426,8 @@
                         <input
                           class="dg-cell-input dg-cell-input--mono dg-cell-input--fp"
                           [class.dg-cell-input--readonly]="!line.editable"
+                          [class.dg-flash--negative]="flashPointTone(line.flashPoint) === 'negative'"
+                          [class.dg-flash--positive]="flashPointTone(line.flashPoint) === 'positive'"
                           [ngModel]="line.flashPoint"
                           [readonly]="!line.editable"
                           [tabindex]="line.editable ? 0 : -1"

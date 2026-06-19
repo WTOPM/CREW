@@ -222,10 +222,19 @@ export class DocumentStampUploadComponent implements OnInit, OnDestroy {
 
   protected applyBulkToggles(): void {
     this.storage.applyStampTogglesToAllDocuments(this.bulkUseStamp, this.bulkUseSignature);
-    const parts: string[] = [];
-    parts.push(this.bulkUseStamp ? 'Stamp on' : 'Stamp off');
-    parts.push(this.bulkUseSignature ? 'Signature on' : 'Signature off');
-    this.toast.show(`All documents: ${parts.join('; ')}`, 'success');
+    this.showBulkToggleToast('Stamp', this.bulkUseStamp);
+    this.showBulkToggleToast('Signature', this.bulkUseSignature);
+  }
+
+  private showBulkToggleToast(label: 'Stamp' | 'Signature', enabled: boolean): void {
+    const text = enabled
+      ? `All documents: ${label.toLowerCase()} on`
+      : `All documents: ${label.toLowerCase()} off`;
+    if (enabled) {
+      this.toast.show(text, 'success');
+    } else {
+      this.toast.showError(text);
+    }
   }
 
   private syncBulkFromDocuments(): void {

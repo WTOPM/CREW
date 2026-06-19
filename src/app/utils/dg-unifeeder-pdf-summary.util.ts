@@ -1,8 +1,9 @@
-import { parseDgWeightKg } from '../models/dg-manifest.models';
+import { formatDgWeightKgDisplay, parseDgWeightKg, roundDgWeightKgSum } from '../models/dg-manifest.models';
 import type { DgPdfTextItem } from './dg-pdf-text.util';
+import { dgLineActiveWeightKg, type DgDualWeightLine } from './dg-weight-tonnage.util';
 import { manifestLengthLabelFromSizeCode } from './dg-manifest-summary.util';
 
-interface UnifeederImportRowForValidation {
+interface UnifeederImportRowForValidation extends DgDualWeightLine {
   containerNo: string;
   size: string;
   weightKg: string;
@@ -74,6 +75,23 @@ function pickGrandWeight(
   return 0;
 }
 
+function pickGrandWeightNearLabel(
+  pageItems: readonly DgPdfTextItem[],
+  labelPattern: RegExp,
+  xMin: number,
+  xMax: number,
+): number {
+  const label = pageItems.find((it) => labelPattern.test(it.str.trim()));
+  if (!label) return 0;
+  for (const it of pageItems) {
+    if (Math.abs(it.y - label.y) > 4) continue;
+    if (it.x < xMin || it.x > xMax) continue;
+    if (!EU_WEIGHT_RE.test(it.str.trim())) continue;
+    return parseDgWeightKg(it.str);
+  }
+  return 0;
+}
+
 /** Parse "Grand Total Summary" from the last summary page of a DP WORLD DG PDF. */
 export function parseUnifeederGrandTotalSummary(
   items: readonly DgPdfTextItem[],
@@ -126,11 +144,13 @@ export function parseUnifeederGrandTotalSummary(
   );
   const totalImoNetWeightKg =
     layout === 'dp-world'
-      ? pickGrandWeight(pageItems, 190, 215)
+      ? pickGrandWeightNearLabel(pageItems, /Total\s+IMO\s+Netweight/i, 190, 215) ||
+        pickGrandWeight(pageItems, 190, 215)
       : pickGrandWeight(pageItems, 123, 132);
   const totalImoGrossWeightKg =
     layout === 'dp-world'
-      ? pickGrandWeight(pageItems, 190, 215)
+      ? pickGrandWeightNearLabel(pageItems, /Total\s+IMO\s+Grossweight/i, 190, 215) ||
+        pickGrandWeight(pageItems, 190, 215)
       : pickGrandWeight(pageItems, 136, 145);
 
   if (totalContainers <= 0 && totalImoNetWeightKg <= 0) return null;
@@ -182,31 +202,64 @@ function importedContainerCountsByLength(
   return counts;
 }
 
-function importedTotalWeightKg(rows: readonly UnifeederImportRowForValidation[]): number {
+function validationUseGross(
+  options: { useGrossWeight?: boolean; grossTotalKg?: boolean } = {},
+): boolean {
+  if ('useGrossWeight' in options) return options.useGrossWeight !== false;
+  return options.grossTotalKg !== false;
+}
+
+function importedTotalWeightKg(
+  rows: readonly UnifeederImportRowForValidation[],
+  useGrossWeight = false,
+): number {
   let total = 0;
   for (const row of rows) {
-    total += parseDgWeightKg(row.weightKg);
+    total += dgLineActiveWeightKg(row, useGrossWeight);
   }
-  return Math.round(total);
+  return useGrossWeight ? Math.round(total) : Math.round(total * 1000) / 1000;
+}
+
+/** Per-line gross rounding can drift a few kg vs one PDF grand-total figure. */
+function manifestWeightToleranceKg(
+  rowCount: number,
+  useGrossWeight: boolean,
+): number {
+  const base = useGrossWeight ? 5 : 2;
+  const perRow = useGrossWeight ? 0.5 : 0.2;
+  return Math.max(base, Math.ceil(rowCount * perRow));
+}
+
+function weightTotalsMatch(
+  pdfKg: number,
+  importedKg: number,
+  rowCount: number,
+  useGrossWeight: boolean,
+): boolean {
+  if (pdfKg <= 0) return true;
+  if (importedKg === pdfKg) return true;
+  return Math.abs(importedKg - pdfKg) <= manifestWeightToleranceKg(rowCount, useGrossWeight);
 }
 
 /** Compare parsed cargo rows against PDF grand-total summary. */
 export function validateUnifeederImportAgainstSummary(
   rows: readonly UnifeederImportRowForValidation[],
   summary: UnifeederPdfGrandTotalSummary | null,
-  options: { grossTotalKg?: boolean; extractableContainers?: number } = {},
+  options: { useGrossWeight?: boolean; grossTotalKg?: boolean; extractableContainers?: number } = {},
 ): UnifeederImportValidation {
   if (!summary) return { ok: true, mismatches: [] };
 
+  const useGrossWeight = validationUseGross(options);
   const mismatches: string[] = [];
   const importedContainers = new Set(rows.map((r) => r.containerNo.trim()).filter(Boolean)).size;
   const importedByLength = importedContainerCountsByLength(rows);
 
-  const importedKg = importedTotalWeightKg(rows);
+  const importedKg = importedTotalWeightKg(rows, useGrossWeight);
   const pdfKg = Math.round(
-    options.grossTotalKg ? summary.totalImoGrossWeightKg : summary.totalImoNetWeightKg,
+    useGrossWeight ? summary.totalImoGrossWeightKg : summary.totalImoNetWeightKg,
   );
-  const weightOk = pdfKg > 0 && importedKg === pdfKg;
+  const weightOk =
+    pdfKg > 0 && weightTotalsMatch(pdfKg, importedKg, rows.length, useGrossWeight);
   const containerDelta =
     summary.totalContainers > 0 ? Math.abs(summary.totalContainers - importedContainers) : 0;
   const extractable = options.extractableContainers ?? 0;
@@ -237,8 +290,8 @@ export function validateUnifeederImportAgainstSummary(
     }
   }
 
-  if (pdfKg > 0 && importedKg !== pdfKg) {
-    const kind = options.grossTotalKg ? 'gross weight' : 'net weight';
+  if (pdfKg > 0 && !weightTotalsMatch(pdfKg, importedKg, rows.length, useGrossWeight)) {
+    const kind = useGrossWeight ? 'gross weight' : 'net weight';
     mismatches.push(`${kind}: PDF ${pdfKg} kg, imported ${importedKg} kg`);
   }
 
@@ -248,4 +301,59 @@ export function validateUnifeederImportAgainstSummary(
 export function formatUnifeederImportValidationError(validation: UnifeederImportValidation): string {
   if (validation.ok || !validation.mismatches.length) return '';
   return `Manifest check failed: ${validation.mismatches.join('; ')}`;
+}
+
+export function formatUnifeederImportValidationOk(
+  validation: UnifeederImportValidation,
+  useGrossWeight: boolean,
+  pdfKg: number,
+  importedKg: number,
+): string {
+  if (!validation.ok) return '';
+  const kind = useGrossWeight ? 'Gross' : 'Net';
+  const inventoryLabel = useGrossWeight
+    ? String(Math.round(importedKg))
+    : formatDgWeightKgDisplay(importedKg) || String(importedKg);
+  const pdfLabel = useGrossWeight ? String(Math.round(pdfKg)) : formatDgWeightKgDisplay(pdfKg) || String(pdfKg);
+  return `Manifest check OK: ${kind} PDF ${pdfLabel} kg, inventory ${inventoryLabel} kg`;
+}
+
+/** Sum PDF grand-total figures saved on imported manifest documents. */
+export function aggregateUnifeederPdfSummaries(
+  manifests: readonly { pdfImoNetWeightKg?: number; pdfImoGrossWeightKg?: number }[],
+): UnifeederPdfGrandTotalSummary | null {
+  let totalImoNetWeightKg = 0;
+  let totalImoGrossWeightKg = 0;
+  let hasAny = false;
+
+  for (const doc of manifests) {
+    const net = Number(doc.pdfImoNetWeightKg) || 0;
+    const gross = Number(doc.pdfImoGrossWeightKg) || 0;
+    if (net > 0 || gross > 0) hasAny = true;
+    totalImoNetWeightKg += net;
+    totalImoGrossWeightKg += gross;
+  }
+
+  if (!hasAny) return null;
+
+  return {
+    containerCountsByLength: { '20': 0, '30': 0, '40': 0, '45': 0 },
+    totalContainers: 0,
+    totalImoNetWeightKg,
+    totalImoGrossWeightKg,
+  };
+}
+
+export function validateUnifeederOnboardAgainstPdfSummaries(
+  rows: readonly UnifeederImportRowForValidation[],
+  manifests: readonly { pdfImoNetWeightKg?: number; pdfImoGrossWeightKg?: number }[],
+  useGrossWeight: boolean,
+): UnifeederImportValidation & { pdfKg: number; importedKg: number } {
+  const summary = aggregateUnifeederPdfSummaries(manifests);
+  const importedKg = importedTotalWeightKg(rows, useGrossWeight);
+  const pdfKg = summary
+    ? Math.round(useGrossWeight ? summary.totalImoGrossWeightKg : summary.totalImoNetWeightKg)
+    : 0;
+  const validation = validateUnifeederImportAgainstSummary(rows, summary, { useGrossWeight });
+  return { ...validation, pdfKg, importedKg };
 }

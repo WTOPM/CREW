@@ -11,6 +11,8 @@ import {
   applyCmaCargoReferenceOrManifest,
   unNoInDgReference,
 } from './dg-import-un-reference.util';
+import { resolveDgWeightTonnageOptions, type DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
+import { dualWeightFromImport } from './dg-weight-tonnage.util';
 
 /** CMA CGM PFR0767 v5.x "Dangerous Cargo List" — measured column X ranges (pt). */
 const LIST_COL = {
@@ -19,9 +21,12 @@ const LIST_COL = {
   stowage: [195, 245] as const,
   properName: [255, 450] as const,
   grossWeight: [478, 525] as const,
-  netWeight: [538, 575] as const,
-  imdgClass: [562, 588] as const,
-  unNo: [585, 615] as const,
+  /** SALL-style lists place net ~560; standard lists may be slightly right. */
+  netWeight: [530, 575] as const,
+  /** SALL lists use class ~577; keep overlap with standard ~582. */
+  imdgClass: [562, 598] as const,
+  /** SALL lists use UN ~593; standard lists use ~600+. */
+  unNo: [585, 625] as const,
   fieldBlock: [245, 450] as const,
   packing: [724, 820] as const,
 };
@@ -195,7 +200,8 @@ function listCargoDataRows(
 
     const dgClass = pickListAtY(items, dataY, 'imdgClass', page, (s) => IMDG_CLASS_RE.test(s));
     const netRaw = pickListAtY(items, dataY, 'netWeight', page, (s) => /^[\d.]+$/.test(s));
-    if (!dgClass || !netRaw) continue;
+    const grossRaw = pickListAtY(items, dataY, 'grossWeight', page, (s) => /^[\d.]+$/.test(s));
+    if (!dgClass || (!netRaw && !grossRaw)) continue;
 
     keys.add(key);
     rows.push({ page, dataY });
@@ -284,6 +290,17 @@ function parseListMpLqForCargo(
   return parts.join(' ');
 }
 
+function pickListRowWeights(
+  items: readonly DgPdfTextItem[],
+  dataY: number,
+  page: number,
+  useGrossWeight: boolean,
+): Pick<DgManifestRow, 'weightKg' | 'grossWeightKg' | 'netWeightKg'> {
+  const grossRaw = pickListAtY(items, dataY, 'grossWeight', page, (s) => /^[\d.]+$/.test(s));
+  const netRaw = pickListAtY(items, dataY, 'netWeight', page, (s) => /^[\d.]+$/.test(s));
+  return dualWeightFromImport(grossRaw, netRaw, useGrossWeight);
+}
+
 function buildListCargoRow(
   items: readonly DgPdfTextItem[],
   page: number,
@@ -292,6 +309,7 @@ function buildListCargoRow(
   pol: string,
   pod: string,
   fallbackIsoType = '',
+  useGrossWeight = true,
 ): { row: Partial<Omit<DgManifestRow, 'id'>> | null; filledFromManifest: boolean } {
   const containerNo = container.str.trim();
   const isoType =
@@ -299,7 +317,6 @@ function buildListCargoRow(
     fallbackIsoType;
   const unNo = pickListAtY(items, dataY, 'unNo', page, (s) => UN_NO_RE.test(s));
   const dgClassRaw = pickListAtY(items, dataY, 'imdgClass', page, (s) => IMDG_CLASS_RE.test(s));
-  const netRaw = pickListAtY(items, dataY, 'netWeight', page, (s) => /^[\d.]+$/.test(s));
   const stowage = pickListAtY(items, container.y, 'stowage', page, (s) => /^\d{4,6}$/.test(s));
 
   if (!unNo) return { row: null, filledFromManifest: false };
@@ -329,7 +346,7 @@ function buildListCargoRow(
       unNo,
       mpLq: cargo.mpLq,
       flashPoint: cargo.flashPoint,
-      weightKg: netRaw ? commitDgWeightKgInput(netRaw) : '',
+      ...pickListRowWeights(items, dataY, page, useGrossWeight),
       properShippingName: cargo.properShippingName,
     },
   };
@@ -343,11 +360,13 @@ export function isCmaCargoListPdf(items: readonly DgPdfTextItem[]): boolean {
 export function parseCmaCargoList(
   items: readonly DgPdfTextItem[],
   ports: readonly Port[] = [],
+  options: DgWeightTonnageOptions = {},
 ): {
   header: Partial<Omit<DgManifestFormSettings, 'rows'>>;
   rows: Partial<Omit<DgManifestRow, 'id'>>[];
   warnings: string[];
 } {
+  const useGrossWeight = resolveDgWeightTonnageOptions(options).useGrossWeight;
   const warnings: string[] = [];
   const header = parseListHeader(items, ports);
 
@@ -395,6 +414,7 @@ export function parseCmaCargoList(
         pol,
         pod,
         lastIsoType,
+        useGrossWeight,
       );
       if (!built.row) {
         warnings.push(`Skipped cargo on page ${page} (incomplete row).`);

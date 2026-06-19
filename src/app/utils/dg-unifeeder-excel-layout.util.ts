@@ -4,11 +4,27 @@ import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { portCode, resolveManifestPortName, type Port, type ShipInfo } from '../models/crew.models';
 import type { DgPageContext } from './page-ship-context.util';
 import { normalizeMfagEmsCode } from './dg-mfag-schedule.util';
-import { unifeederExportWeightKg } from './dg-unifeeder-weight.util';
+import {
+  unifeederExportTotalKg,
+  unifeederExportWeightKg,
+} from './dg-unifeeder-weight.util';
+import { type DgWeightViewOptions } from './dg-weight-view.util';
 import { workbookToBytes } from './crew-list-excel-layout.util';
 
 export interface UnifeederDgExcelExportOptions {
+  useGrossWeight?: boolean;
+  roundWeights?: boolean;
+  /** @deprecated Use roundWeights */
   grossTotalKg?: boolean;
+}
+
+function resolveUnifeederExportOptions(
+  options: UnifeederDgExcelExportOptions = {},
+): DgWeightViewOptions {
+  return {
+    useGrossWeight: options.useGrossWeight !== false,
+    roundWeights: options.roundWeights === true || options.grossTotalKg === true,
+  };
 }
 
 export const UNIFEEDER_DG_EXCEL_SHEET = 'DG list';
@@ -36,21 +52,6 @@ function slicePageRows(rows: readonly DgUnifeederRow[], pageIndex: number): (DgU
     page.push(slice[i]);
   }
   return page;
-}
-
-function exportTotalKg(rows: readonly DgUnifeederRow[], grossTotalKg: boolean): number {
-  let total = 0;
-  for (const row of rows) {
-    total += parseDgWeightKg(row.weightKg);
-  }
-  return grossTotalKg ? Math.round(total) : total;
-}
-
-function buildExportWeightMap(
-  rows: readonly DgUnifeederRow[],
-  grossTotalKg: boolean,
-): Map<string, number> {
-  return unifeederExportWeightKg(rows, grossTotalKg);
 }
 
 const COL_WIDTHS: readonly number[] = [
@@ -162,12 +163,12 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
 function formatAmountKgValue(
   data: DgUnifeederRow | undefined,
   exportKg: number | undefined,
-  grossTotalKg: boolean,
+  roundWeights: boolean,
 ): { value: ExcelJS.CellValue; numFmt?: string } {
   if (!data) return { value: '' };
   const amount = exportKg !== undefined ? exportKg : parseDgWeightKg(data.weightKg);
   if (amount > 0) {
-    const display = grossTotalKg
+    const display = roundWeights
       ? formatDgWeightKgGrossDisplay(amount)
       : formatDgWeightKgDisplay(amount);
     return {
@@ -481,7 +482,7 @@ function writeDataRow(
   data: DgUnifeederRow | undefined,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  grossTotalKg: boolean,
+  roundWeights: boolean,
 ): void {
   const thinAll = { top: thinEdge, left: thinEdge, bottom: thinEdge, right: thinEdge };
   const bodyFont = { name: ARIAL, size: 10, bold: true };
@@ -489,7 +490,7 @@ function writeDataRow(
   const amountCell = formatAmountKgValue(
     data,
     data ? exportWeights.get(data.id) : undefined,
-    grossTotalKg,
+    roundWeights,
   );
 
   const values: {
@@ -543,7 +544,7 @@ function buildPageDataRows(
   pageRows: readonly (DgUnifeederRow | undefined)[],
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  grossTotalKg: boolean,
+  roundWeights: boolean,
 ): void {
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
     writeDataRow(
@@ -552,12 +553,12 @@ function buildPageDataRows(
       pageRows[i],
       ports,
       exportWeights,
-      grossTotalKg,
+      roundWeights,
     );
   }
 }
 
-function buildTotalRow(ws: ExcelJS.Worksheet, pageStart: number, totalKg: number, grossTotalKg: boolean): void {
+function buildTotalRow(ws: ExcelJS.Worksheet, pageStart: number, totalKg: number, roundWeights: boolean): void {
   const totalRow = pageAbsRow(pageStart, TOTAL_ROW);
   mergeCells(ws, totalRow, 2, totalRow, 3);
   setCell(ws, totalRow, 2, 'TOTAL WEIGHT:', {
@@ -566,7 +567,7 @@ function buildTotalRow(ws: ExcelJS.Worksheet, pageStart: number, totalKg: number
     border: { top: thinEdge },
   });
   patchBorder(ws.getCell(totalRow, 3), { top: thinEdge });
-  setCell(ws, totalRow, 4, `${(grossTotalKg ? formatDgWeightKgGrossDisplay(totalKg) : formatDgWeightKgDisplay(totalKg)) || '0'} kg`, {
+  setCell(ws, totalRow, 4, `${(roundWeights ? formatDgWeightKgGrossDisplay(totalKg) : formatDgWeightKgDisplay(totalKg)) || '0'} kg`, {
     font: { name: ARIAL, size: 10, bold: true },
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
@@ -600,16 +601,16 @@ function buildPageBlock(
   ctx: DgPageContext,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  options: { showTotal: boolean; totalKg: number; grossTotalKg: boolean },
+  options: { showTotal: boolean; totalKg: number; roundWeights: boolean },
 ): void {
   buildHeaderBlock(ws, pageStart, pageNumber, ship, ctx, ports);
   buildTableHeader(ws, pageStart);
-  buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights, options.grossTotalKg);
+  buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights, options.roundWeights);
   if (pageRows.every((row) => !row)) {
     writeNoImdgCargoExcel(ws, pageStart);
   }
   if (options.showTotal) {
-    buildTotalRow(ws, pageStart, options.totalKg, options.grossTotalKg);
+    buildTotalRow(ws, pageStart, options.totalKg, options.roundWeights);
   }
   buildFooterRow(ws, pageStart);
 }
@@ -649,16 +650,16 @@ export async function buildUnifeederDgListExcelBytes(
   ports: readonly Port[] = [],
   options: UnifeederDgExcelExportOptions = {},
 ): Promise<Uint8Array> {
-  const grossTotalKg = options.grossTotalKg === true;
+  const weightOptions = resolveUnifeederExportOptions(options);
   const wb = new ExcelJS.Workbook();
   wb.creator = 'CREW Documents';
   const ws = wb.addWorksheet(UNIFEEDER_DG_EXCEL_SHEET);
   applyColumnWidths(ws);
 
   const exportRows = prepareExportRows(rows);
-  const exportWeights = buildExportWeightMap(exportRows, grossTotalKg);
+  const exportWeights = unifeederExportWeightKg(exportRows, weightOptions);
   const pageCount = exportPageCount(exportRows.length);
-  const totalKg = exportTotalKg(exportRows, grossTotalKg);
+  const totalKg = unifeederExportTotalKg(exportRows, weightOptions);
 
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
     const pageStart = pageIndex * PAGE_HEIGHT + 1;
@@ -674,7 +675,7 @@ export async function buildUnifeederDgListExcelBytes(
       {
         showTotal: pageIndex === pageCount - 1,
         totalKg,
-        grossTotalKg,
+        roundWeights: weightOptions.roundWeights,
       },
     );
     if (pageIndex < pageCount - 1) {

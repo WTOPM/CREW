@@ -1,7 +1,8 @@
 import { Port, resolveKnownPortName, resolveManifestPortName } from './crew.models';
-import { parseDgWeightKg, type DgContainerStatus } from './dg-manifest.models';
+import { parseDgWeightKg, roundDgWeightKgSum, type DgContainerStatus } from './dg-manifest.models';
 import { applyMfagSchedulesToUnifeederRow } from '../utils/dg-mfag-schedule.util';
 import { normalizeUnifeederSubRisk } from '../utils/dg-unifeeder-sub-risk.util';
+import { normalizeDgDualWeightFields, dgLineActiveWeightKg } from '../utils/dg-weight-tonnage.util';
 
 export type DgUnifeederRowField = keyof Omit<
   DgUnifeederRow,
@@ -19,6 +20,8 @@ export interface DgUnifeederRow {
   unNo: string;
   packingGroup: string;
   weightKg: string;
+  grossWeightKg?: string;
+  netWeightKg?: string;
   lq: string;
   flashPoint: string;
   marinePollutant: string;
@@ -45,6 +48,9 @@ export interface DgUnifeederManifestDocument {
   containerCount: number;
   contentFingerprint?: string;
   pdfBytesFingerprint?: string;
+  /** Grand Total Summary from PDF (kg, parsed). */
+  pdfImoNetWeightKg?: number;
+  pdfImoGrossWeightKg?: number;
 }
 
 export interface DgUnifeederLibrarySettings {
@@ -53,8 +59,12 @@ export interface DgUnifeederLibrarySettings {
   showDischarged: boolean;
   /** Preview consolidated rows (same rule as CMA DG export). */
   mergeLines: boolean;
-  /** Round line weights to whole kg; total = sum of raw weights rounded once (same as CMA DG export). */
-  grossTotalKg: boolean;
+  /** true = show gross tonnage, false = net tonnage. */
+  useGrossWeight: boolean;
+  /** Round displayed weights and totals to whole kg. */
+  roundWeights: boolean;
+  /** @deprecated Use useGrossWeight + roundWeights */
+  grossTotalKg?: boolean;
 }
 
 export function createDefaultUnifeederLibrary(): DgUnifeederLibrarySettings {
@@ -63,7 +73,8 @@ export function createDefaultUnifeederLibrary(): DgUnifeederLibrarySettings {
     onboard: [],
     showDischarged: false,
     mergeLines: false,
-    grossTotalKg: false,
+    useGrossWeight: true,
+    roundWeights: false,
   };
 }
 
@@ -72,6 +83,7 @@ export function createDgUnifeederRow(
 ): DgUnifeederRow {
   const existingId = (partial?.id ?? '').trim();
   const status: DgContainerStatus = partial?.status === 'discharged' ? 'discharged' : 'onboard';
+  const weights = normalizeDgDualWeightFields(partial);
   return applyMfagSchedulesToUnifeederRow({
     id: existingId || crypto.randomUUID(),
     size: (partial?.size ?? '').trim(),
@@ -81,7 +93,9 @@ export function createDgUnifeederRow(
     dischargePort: (partial?.dischargePort ?? '').trim(),
     unNo: (partial?.unNo ?? '').trim(),
     packingGroup: (partial?.packingGroup ?? '').trim(),
-    weightKg: (partial?.weightKg ?? '').trim(),
+    weightKg: weights.weightKg,
+    grossWeightKg: weights.grossWeightKg,
+    netWeightKg: weights.netWeightKg,
     lq: (partial?.lq ?? '').trim(),
     flashPoint: (partial?.flashPoint ?? '').trim(),
     marinePollutant: (partial?.marinePollutant ?? '').trim(),
@@ -117,6 +131,8 @@ export function createDgUnifeederManifestDocument(
     containerCount: partial?.containerCount ?? 0,
     contentFingerprint: (partial?.contentFingerprint ?? '').trim(),
     pdfBytesFingerprint: (partial?.pdfBytesFingerprint ?? '').trim(),
+    pdfImoNetWeightKg: Number(partial?.pdfImoNetWeightKg) || 0,
+    pdfImoGrossWeightKg: Number(partial?.pdfImoGrossWeightKg) || 0,
   };
 }
 
@@ -141,6 +157,13 @@ export function normalizeUnifeederLibrary(
   pageContext?: { portOfCall?: string; nextPortOfCall?: string },
 ): DgUnifeederLibrarySettings {
   if (!raw) return createDefaultUnifeederLibrary();
+  const hasNewWeightFields = 'useGrossWeight' in raw || 'roundWeights' in raw;
+  let useGrossWeight = raw.useGrossWeight !== false;
+  let roundWeights = raw.roundWeights === true;
+  if (!hasNewWeightFields && raw.grossTotalKg !== undefined) {
+    useGrossWeight = raw.grossTotalKg !== false;
+    roundWeights = raw.grossTotalKg === true;
+  }
   return {
     manifests: (raw.manifests ?? []).map((m) => createDgUnifeederManifestDocument(m ?? {})),
     onboard: (raw.onboard ?? [])
@@ -164,22 +187,26 @@ export function normalizeUnifeederLibrary(
       }),
     showDischarged: raw.showDischarged === true,
     mergeLines: raw.mergeLines === true,
-    grossTotalKg: raw.grossTotalKg === true,
+    useGrossWeight,
+    roundWeights,
   };
 }
 
 export function unifeederOnboardInventoryStats(
   onboard: readonly DgUnifeederRow[],
   includeDischarged: boolean,
-  grossTotalKg = false,
+  useGrossWeight = true,
+  roundWeights = false,
 ): { rowCount: number; dischargedCount: number; totalKg: number } {
   const visible = includeDischarged ? onboard : onboard.filter((r) => r.status === 'onboard');
   let totalKg = 0;
   for (const row of visible) {
-    totalKg += parseDgWeightKg(row.weightKg);
+    totalKg += dgLineActiveWeightKg(row, useGrossWeight);
   }
-  if (grossTotalKg) {
+  if (roundWeights) {
     totalKg = Math.round(totalKg);
+  } else {
+    totalKg = roundDgWeightKgSum(totalKg);
   }
   return {
     rowCount: visible.length,

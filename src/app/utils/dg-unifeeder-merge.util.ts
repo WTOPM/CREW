@@ -1,10 +1,11 @@
-import { formatDgWeightKgDisplay, parseDgWeightKg } from '../models/dg-manifest.models';
+import { formatDgWeightKgDisplay } from '../models/dg-manifest.models';
 import { createDgUnifeederRow, type DgUnifeederRow } from '../models/dg-unifeeder.models';
 import {
   dgExportCargoMergeKey,
-  formatDgDisplayLineWeightsKg,
   resolveDgExportMergedFlashPoint,
 } from './dg-cargo-merge.util';
+import { dgLineActiveWeightKg } from './dg-weight-tonnage.util';
+import { planDgLineWeightDisplays, type DgWeightViewOptions } from './dg-weight-view.util';
 
 function joinMpLq(lq: string, marinePollutant: string): string {
   const parts: string[] = [];
@@ -66,21 +67,20 @@ export function groupUnifeederRawRowsByContainer(
 
 export function planUnifeederMergedWeightDisplays(
   rows: readonly DgUnifeederRow[],
-  options: { mergeLines: boolean; grossTotalKg: boolean },
+  options: { mergeLines: boolean } & DgWeightViewOptions,
 ): Map<string, string> {
   const { rows: displayRows } = mergeUnifeederRowsInContainersWithMeta(rows, options.mergeLines);
   if (!displayRows.length) return new Map();
 
-  const rawWeights = displayRows.map((row) => parseDgWeightKg(row.weightKg));
-  const displays = options.grossTotalKg
-    ? formatDgDisplayLineWeightsKg(rawWeights, true)
-    : rawWeights.map((weight) => formatDgWeightKgDisplay(weight));
+  const rawWeights = displayRows.map((row) => dgLineActiveWeightKg(row, options.useGrossWeight));
+  const displays = planDgLineWeightDisplays(rawWeights, options.roundWeights);
 
   return new Map(displayRows.map((row, index) => [row.id, displays[index] ?? '']));
 }
 
 function mergeUnifeederContainerRows(
   rows: readonly DgUnifeederRow[],
+  useGross = true,
 ): { rows: DgUnifeederRow[]; sourceRowIds: Map<string, string[]> } {
   const merged = new Map<
     string,
@@ -113,7 +113,7 @@ function mergeUnifeederContainerRows(
     if (!merged.has(cargoKey)) {
       merged.set(cargoKey, {
         base: row,
-        weightSum: parseDgWeightKg(row.weightKg),
+        weightSum: dgLineActiveWeightKg(row, useGross),
         flashPoints: [row.flashPoint],
         sourceRowIds: [row.id],
       });
@@ -122,7 +122,7 @@ function mergeUnifeederContainerRows(
     }
 
     const entry = merged.get(cargoKey)!;
-    entry.weightSum += parseDgWeightKg(row.weightKg);
+    entry.weightSum += dgLineActiveWeightKg(row, useGross);
     entry.flashPoints.push(row.flashPoint);
     entry.sourceRowIds.push(row.id);
   }
@@ -158,6 +158,7 @@ export function mergeUnifeederRowsInContainers(
 export function mergeUnifeederRowsInContainersWithMeta(
   rows: readonly DgUnifeederRow[],
   mergeLines: boolean,
+  useGross = true,
 ): { rows: DgUnifeederRow[]; sourceRowIds: Map<string, string[]> } {
   if (!mergeLines) {
     return {
@@ -181,7 +182,7 @@ export function mergeUnifeederRowsInContainersWithMeta(
   const out: DgUnifeederRow[] = [];
   const sourceRowIds = new Map<string, string[]>();
   for (const key of containerOrder) {
-    const merged = mergeUnifeederContainerRows(byContainer.get(key)!);
+    const merged = mergeUnifeederContainerRows(byContainer.get(key)!, useGross);
     out.push(...merged.rows);
     for (const [id, ids] of merged.sourceRowIds) {
       sourceRowIds.set(id, ids);
@@ -211,12 +212,13 @@ export interface DgUnifeederContainerDisplayGroup {
 
 export function buildUnifeederInventoryDisplayRows(
   rows: readonly DgUnifeederRow[],
-  options: { mergeLines: boolean; grossTotalKg: boolean },
+  options: { mergeLines: boolean } & DgWeightViewOptions,
   weightDisplays?: Map<string, string>,
 ): DgUnifeederRowDisplay[] {
   const { rows: displayRows, sourceRowIds: sourceRowIdsByDisplayId } = mergeUnifeederRowsInContainersWithMeta(
     rows,
     options.mergeLines,
+    options.useGrossWeight,
   );
   const planned =
     weightDisplays ??
@@ -236,7 +238,7 @@ export function buildUnifeederInventoryDisplayRows(
 
 export function buildUnifeederContainerDisplayGroups(
   rows: readonly DgUnifeederRow[],
-  options: { mergeLines: boolean; grossTotalKg: boolean },
+  options: { mergeLines: boolean } & DgWeightViewOptions,
 ): DgUnifeederContainerDisplayGroup[] {
   const groups = groupUnifeederRawRowsByContainer(rows);
   const weightPlan = planUnifeederMergedWeightDisplays(rows, options);

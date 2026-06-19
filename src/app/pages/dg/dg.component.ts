@@ -38,6 +38,7 @@ import {
 import { DgPageArchiveService } from '../../services/dg-page-archive.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
+import { commitDgDualWeightEdit } from '../../utils/dg-weight-tonnage.util';
 import { formatDisplayDate } from '../../utils/date.util';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
@@ -76,7 +77,7 @@ import {
 } from '../../models/dg-unifeeder.models';
 
 import { DgUnifeederImportService } from '../../services/dg-unifeeder-import.service';
-import { formatUnifeederImportValidationError } from '../../utils/dg-unifeeder-pdf-summary.util';
+import { formatUnifeederImportValidationError, formatUnifeederImportValidationOk, validateUnifeederOnboardAgainstPdfSummaries } from '../../utils/dg-unifeeder-pdf-summary.util';
 import {
   buildUnifeederContentHash,
   buildUnifeederPdfBytesHash,
@@ -96,6 +97,7 @@ import {
   unNumberHasDigits,
 } from '../../utils/dg-un-number-autofill.util';
 import { normalizeUnNumber } from '../../utils/dg-un-number.util';
+import { dgFlashPointTone } from '../../utils/dg-flash-point-display.util';
 
 type DgLineField = keyof Omit<DgCargoLine, 'id'>;
 export type DgInventoryTab = DgActiveInventoryTab;
@@ -147,7 +149,14 @@ export class DgComponent {
 
   protected readonly viewOptions = computed((): DgManifestViewOptions => ({
     manifestMergeLines: this.library().manifestMergeLines,
-    manifestGrossTotalKg: this.library().manifestGrossTotalKg,
+    manifestUseGrossWeight: this.library().manifestUseGrossWeight,
+    manifestRoundWeights: this.library().manifestRoundWeights,
+  }));
+
+  protected readonly unifeederWeightOptions = computed(() => ({
+    mergeLines: this.unifeederLibrary().mergeLines,
+    useGrossWeight: this.unifeederLibrary().useGrossWeight,
+    roundWeights: this.unifeederLibrary().roundWeights,
   }));
 
   protected readonly inventoryWeightDisplays = computed(() =>
@@ -211,7 +220,7 @@ export class DgComponent {
       this.filteredUnifeederRows(),
       this.unifeederInventorySearch(),
     );
-    const options = { mergeLines: lib.mergeLines, grossTotalKg: lib.grossTotalKg };
+    const options = this.unifeederWeightOptions();
     let rawGroups = groupUnifeederRawRowsByContainer(filtered);
     const column = this.unifeederSortColumn();
     if (column) {
@@ -244,7 +253,12 @@ export class DgComponent {
       this.filteredUnifeederRows(),
       this.unifeederInventorySearch(),
     );
-    const base = unifeederOnboardInventoryStats(filtered, true, lib.grossTotalKg);
+    const base = unifeederOnboardInventoryStats(
+      filtered,
+      true,
+      lib.useGrossWeight,
+      lib.roundWeights,
+    );
     return {
       ...base,
       rowCount: this.visibleUnifeederDisplayRows().length,
@@ -254,7 +268,8 @@ export class DgComponent {
   protected readonly unifeederManifestSummary = computed(() =>
     unifeederManifestSummary(
       mergeUnifeederRowsInContainers(this.visibleUnifeederRows(), this.unifeederLibrary().mergeLines),
-      this.unifeederLibrary().grossTotalKg,
+      this.unifeederLibrary().useGrossWeight,
+      this.unifeederLibrary().roundWeights,
     ),
   );
 
@@ -283,8 +298,31 @@ export class DgComponent {
     this.storage.updateUnifeederViewSettings({ showDischarged: checked });
   }
 
-  protected toggleUnifeederGrossTotalKg(checked: boolean): void {
-    this.storage.updateUnifeederViewSettings({ grossTotalKg: checked });
+  protected setUnifeederWeightTonnage(gross: boolean): void {
+    this.storage.updateUnifeederViewSettings({ useGrossWeight: gross });
+    this.showUnifeederTonnageManifestCheck(gross);
+  }
+
+  protected toggleUnifeederRoundWeights(checked: boolean): void {
+    this.storage.updateUnifeederViewSettings({ roundWeights: checked });
+  }
+
+  private showUnifeederTonnageManifestCheck(gross: boolean): void {
+    const lib = this.unifeederLibrary();
+    const rows = lib.onboard.filter((r) => r.status === 'onboard');
+    const check = validateUnifeederOnboardAgainstPdfSummaries(rows, lib.manifests, gross);
+    if (!lib.manifests.some((m) => (m.pdfImoGrossWeightKg ?? 0) > 0 || (m.pdfImoNetWeightKg ?? 0) > 0)) {
+      return;
+    }
+    const error = formatUnifeederImportValidationError(check);
+    if (error) {
+      this.toast.showError(error);
+      return;
+    }
+    const ok = formatUnifeederImportValidationOk(check, gross, check.pdfKg, check.importedKg);
+    if (ok) {
+      this.toast.show(ok, 'success');
+    }
   }
 
   protected toggleUnifeederMergeLines(checked: boolean): void {
@@ -372,8 +410,12 @@ export class DgComponent {
     this.storage.updateDgManifestView({ manifestMergeLines: checked });
   }
 
-  protected toggleManifestGrossTotalKg(checked: boolean): void {
-    this.storage.updateDgManifestView({ manifestGrossTotalKg: checked });
+  protected setManifestWeightTonnage(gross: boolean): void {
+    this.storage.updateDgManifestView({ manifestUseGrossWeight: gross });
+  }
+
+  protected toggleManifestRoundWeights(checked: boolean): void {
+    this.storage.updateDgManifestView({ manifestRoundWeights: checked });
   }
 
   protected toggleInventorySort(column: DgInventorySortColumn): void {
@@ -414,10 +456,14 @@ export class DgComponent {
 
   protected formatSummaryKg(value: number): string {
     const lib = this.library();
-    if (lib.manifestGrossTotalKg) {
+    if (lib.manifestRoundWeights) {
       return formatDgWeightKgGrossDisplay(value) || '0';
     }
     return formatDgWeightKgDisplay(value) || '0';
+  }
+
+  protected flashPointTone(value: string): 'negative' | 'positive' | 'neutral' {
+    return dgFlashPointTone(value);
   }
 
   protected formatDate(value: string): string {
@@ -770,7 +816,9 @@ export class DgComponent {
     this.unifeederImporting.set(true);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const result = await this.unifeederImporter.importFromPdfBytes(bytes, this.storage.ports());
+      const result = await this.unifeederImporter.importFromPdfBytes(bytes, this.storage.ports(), {
+        useGrossWeight: this.unifeederLibrary().useGrossWeight,
+      });
       if (result.format === 'unknown' || !result.rows.length) {
         this.toast.showError(result.warnings[0] ?? 'Could not extract data from PDF');
         return;
@@ -821,21 +869,23 @@ export class DgComponent {
 
   protected formatUnifeederWeight(value: number): string {
     if (!Number.isFinite(value) || value === 0) return '0';
-    if (this.unifeederLibrary().grossTotalKg) {
+    if (this.unifeederLibrary().roundWeights) {
       return formatDgWeightKgGrossDisplay(value) || '0';
     }
     return formatDgWeightKgDisplay(value) || '0';
   }
 
   protected onCmaLineWeightBlur(containerId: string, lineId: string, raw: string): void {
-    const normalized = commitDgWeightKgInput(raw, this.library().manifestGrossTotalKg);
-    this.storage.updateDgOnboardCargoLine(containerId, lineId, { weightKg: normalized });
+    const lib = this.library();
+    const partial = commitDgDualWeightEdit(raw, lib.manifestUseGrossWeight, lib.manifestRoundWeights);
+    this.storage.updateDgOnboardCargoLine(containerId, lineId, partial);
   }
 
   protected onUnifeederWeightBlur(row: DgUnifeederRowDisplay, raw: string): void {
     if (!row.editable) return;
-    const normalized = commitDgWeightKgInput(raw, this.unifeederLibrary().grossTotalKg);
-    this.storage.updateUnifeederRow(this.unifeederPrimaryRowId(row), { weightKg: normalized });
+    const lib = this.unifeederLibrary();
+    const partial = commitDgDualWeightEdit(raw, lib.useGrossWeight, lib.roundWeights);
+    this.storage.updateUnifeederRow(this.unifeederPrimaryRowId(row), partial);
   }
 
   protected unifeederWeightDisplay(row: DgUnifeederRowDisplay): string {
@@ -1027,7 +1077,8 @@ export class DgComponent {
       containers: this.visibleContainers(),
       includeDischarged: lib.showDischarged,
       mergeLines: lib.manifestMergeLines,
-      grossTotalKg: lib.manifestGrossTotalKg,
+      grossTotalKg: lib.manifestRoundWeights,
+      useGrossWeight: lib.manifestUseGrossWeight,
     };
   }
 
@@ -1038,7 +1089,8 @@ export class DgComponent {
         ({ editable, sourceRowIds, weightKgDisplay, ...row }) => row,
       ),
       mergeLines: lib.mergeLines,
-      grossTotalKg: lib.grossTotalKg,
+      grossTotalKg: lib.roundWeights,
+      useGrossWeight: lib.useGrossWeight,
     };
   }
 
@@ -1099,7 +1151,9 @@ export class DgComponent {
         return;
       }
 
-      const result = await this.importer.importFromPdfBytes(bytes, this.storage.ports());
+      const result = await this.importer.importFromPdfBytes(bytes, this.storage.ports(), {
+        useGrossWeight: this.library().manifestUseGrossWeight,
+      });
       if (result.format === 'unknown' || !result.rows.length) {
         this.toast.showError(result.warnings[0] ?? 'Could not extract data from PDF');
         return;

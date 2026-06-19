@@ -133,6 +133,7 @@ import {
   type DgOnboardContainer,
 } from '../models/dg-manifest.models';
 import type { DgManifestImportResult } from './dg-manifest-import.service';
+import { normalizeDgDualWeightFields } from '../utils/dg-weight-tonnage.util';
 import {
   createDgUnifeederRow,
   createDgUnifeederManifestDocument,
@@ -925,7 +926,7 @@ export class StorageService {
         },
       };
     });
-    void this.persist('saved');
+    void this.persist('silent');
   }
 
   updateCashAdvanceForm(partial: Partial<CashAdvanceFormSettings>): void {
@@ -1024,7 +1025,11 @@ export class StorageService {
     partial: Partial<
       Pick<
         DgLibrarySettings,
-        'showDischarged' | 'manifestMergeLines' | 'manifestGrossTotalKg' | 'activeInventoryTab'
+        | 'showDischarged'
+        | 'manifestMergeLines'
+        | 'manifestUseGrossWeight'
+        | 'manifestRoundWeights'
+        | 'activeInventoryTab'
       >
     >,
   ): void {
@@ -1331,7 +1336,7 @@ export class StorageService {
 
   updateUnifeederViewSettings(
     partial: Partial<
-      Pick<DgUnifeederLibrarySettings, 'showDischarged' | 'mergeLines' | 'grossTotalKg'>
+      Pick<DgUnifeederLibrarySettings, 'showDischarged' | 'mergeLines' | 'useGrossWeight' | 'roundWeights'>
     >,
   ): void {
     this.data.update((d) => {
@@ -1362,6 +1367,10 @@ export class StorageService {
             ...lib.unifeeder,
             manifests: [],
             onboard: rows,
+            showDischarged: lib.showDischarged,
+            mergeLines: lib.manifestMergeLines,
+            useGrossWeight: lib.manifestUseGrossWeight,
+            roundWeights: lib.manifestRoundWeights,
           },
         },
       };
@@ -1383,6 +1392,10 @@ export class StorageService {
           ...lib,
           manifests: [],
           onboard: containers,
+          showDischarged: lib.unifeeder.showDischarged,
+          manifestMergeLines: lib.unifeeder.mergeLines,
+          manifestUseGrossWeight: lib.unifeeder.useGrossWeight,
+          manifestRoundWeights: lib.unifeeder.roundWeights,
         },
       };
     });
@@ -1550,7 +1563,6 @@ export class StorageService {
         .map((row) =>
           createDgUnifeederRow({
             ...row,
-            weightKg: commitDgWeightKgInput(row.weightKg),
             loadPort: resolveUnifeederRowPort(
               row.loadPort || result.header.portOfDeparture || '',
               d.ports,
@@ -1572,6 +1584,8 @@ export class StorageService {
         documentDate: (result.header.departureDate ?? '').trim(),
         loadPort,
         dischargePort,
+        pdfImoNetWeightKg: result.summary?.totalImoNetWeightKg ?? 0,
+        pdfImoGrossWeightKg: result.summary?.totalImoGrossWeightKg ?? 0,
       };
       const pageContext = { ...libInner.pageContext };
       if (loadPort) pageContext.portOfCall = loadPort;
@@ -1621,7 +1635,7 @@ export class StorageService {
       });
       const normalizedRows = result.rows.map((row) => ({
         ...row,
-        weightKg: row.weightKg?.trim() ? commitDgWeightKgInput(row.weightKg) : '',
+        ...normalizeDgDualWeightFields(row, libInner.manifestUseGrossWeight),
       }));
       const added = onboardContainersFromImportRows(
         normalizedRows,

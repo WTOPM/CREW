@@ -1,5 +1,7 @@
+import { resolveDgWeightTonnageOptions, type DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
 import type { DgPdfTextItem } from './dg-pdf-text.util';
 import type { UnifeederImportHeader, UnifeederImportRowPartial } from './dg-unifeeder-pdf.util';
+import { dualWeightFromImport } from './dg-weight-tonnage.util';
 
 const MONTHS: Record<string, string> = {
   january: '01',
@@ -296,10 +298,13 @@ function pickRowWeight(
   pageItems: readonly DgPdfTextItem[],
   dataY: number,
   cols: DpWorldColumnPositions,
+  useGrossWeight: boolean,
 ): string {
-  let weightKg = pickAtRowCol(pageItems, dataY, cols.nweight, (v) => EU_WEIGHT_RE.test(v));
+  const primary = useGrossWeight ? cols.gweight : cols.nweight;
+  const fallback = useGrossWeight ? cols.nweight : cols.gweight;
+  let weightKg = pickAtRowCol(pageItems, dataY, primary, (v) => EU_WEIGHT_RE.test(v));
   if (!weightKg) {
-    weightKg = pickAtRowCol(pageItems, dataY, cols.gweight, (v) => EU_WEIGHT_RE.test(v));
+    weightKg = pickAtRowCol(pageItems, dataY, fallback, (v) => EU_WEIGHT_RE.test(v));
   }
   if (!weightKg) {
     for (const it of pageItems) {
@@ -337,6 +342,7 @@ function parseDpWorldDataRow(
   stow: string,
   loadPort: string,
   dischargePort: string,
+  useGrossWeight: boolean,
 ): UnifeederImportRowPartial[] {
   const unAnchors = findUnAnchorsOnDataRow(pageItems, dataY);
   if (!unAnchors.length) return [];
@@ -355,7 +361,9 @@ function parseDpWorldDataRow(
     );
     const fire = pickAtRowCol(pageItems, dataY, cols.fire, (v) => /^F-[A-Z]$/i.test(v));
     const spillage = pickAtRowCol(pageItems, dataY, cols.spillage, (v) => /^S-[A-Z]$/i.test(v));
-    const weightKg = pickRowWeight(pageItems, dataY, cols);
+    const grossRaw = pickAtRowCol(pageItems, dataY, cols.gweight, (v) => EU_WEIGHT_RE.test(v));
+    const netRaw = pickAtRowCol(pageItems, dataY, cols.nweight, (v) => EU_WEIGHT_RE.test(v));
+    const weights = dualWeightFromImport(grossRaw, netRaw, useGrossWeight);
     const flashPoint = pickAtRowCol(
       pageItems,
       dataY,
@@ -384,7 +392,7 @@ function parseDpWorldDataRow(
       break;
     }
 
-    if (!weightKg.trim() && !goodsDescription.trim()) continue;
+    if (!weights.weightKg.trim() && !goodsDescription.trim()) continue;
 
     rows.push({
       size,
@@ -394,7 +402,9 @@ function parseDpWorldDataRow(
       dischargePort,
       unNo,
       packingGroup,
-      weightKg,
+      weightKg: weights.weightKg,
+      grossWeightKg: weights.grossWeightKg,
+      netWeightKg: weights.netWeightKg,
       lq: '',
       flashPoint,
       marinePollutant,
@@ -413,6 +423,7 @@ function parseDpWorldCargoPage(
   pageItems: readonly DgPdfTextItem[],
   loadPort: string,
   dischargePort: string,
+  useGrossWeight: boolean,
 ): UnifeederImportRowPartial[] {
   const imo = pageItems.find((it) => it.str === 'IMO Information');
   if (!imo) return [];
@@ -453,6 +464,7 @@ function parseDpWorldCargoPage(
         stow,
         loadPort,
         dischargePort,
+        useGrossWeight,
       ),
     );
   }
@@ -463,7 +475,9 @@ function parseDpWorldCargoPage(
 export function parseDpWorldDangerousCargoPages(
   items: readonly DgPdfTextItem[],
   header: Partial<UnifeederImportHeader>,
+  options: DgWeightTonnageOptions = {},
 ): { rows: UnifeederImportRowPartial[]; warnings: string[] } {
+  const useGrossWeight = resolveDgWeightTonnageOptions(options).useGrossWeight;
   const warnings: string[] = [];
   const loadPort = header.portOfDeparture ?? '';
   const dischargePort = header.portOfArrival ?? '';
@@ -474,7 +488,7 @@ export function parseDpWorldDangerousCargoPages(
     const pageItems = items.filter((i) => i.page === page);
     if (pageItems.some((it) => /Grand Total Summary/i.test(it.str))) continue;
 
-    const pageRows = parseDpWorldCargoPage(pageItems, loadPort, dischargePort);
+    const pageRows = parseDpWorldCargoPage(pageItems, loadPort, dischargePort, useGrossWeight);
     if (!pageRows.length) {
       const mightHaveCargo = pageItems.some(
         (it) => it.str === 'IMO Information' || /^Proper ship\.\s*name:?\s*$/i.test(it.str.trim()),

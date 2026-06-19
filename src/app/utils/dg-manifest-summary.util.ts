@@ -1,10 +1,10 @@
 import {
   dgClassSortKey,
-  parseDgWeightKg,
   roundDgWeightKgSum,
   type DgOnboardContainer,
 } from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
+import { dgLineActiveWeightKg, type DgDualWeightLine } from './dg-weight-tonnage.util';
 import { normalizeIsoContainerTypeCode } from './iso-container-type.util';
 
 /** UNIFEEDER manifest TOTAL length rows (display order). */
@@ -71,13 +71,18 @@ export function buildManifestLengthBuckets(
 }
 
 export function buildManifestClassWeightRows(
-  entries: readonly { dgClass: string; weightKg: string }[],
+  entries: readonly ({ dgClass: string } & DgDualWeightLine)[],
+  useGross = false,
+  roundWeights = false,
 ): ManifestClassWeightRow[] {
   const map = new Map<string, { dgClass: string; totalKg: number }>();
+  const finalize = roundWeights
+    ? (total: number) => Math.round(total)
+    : (total: number) => roundDgWeightKgSum(total);
 
   for (const entry of entries) {
     const dgClass = entry.dgClass.trim();
-    const weight = parseDgWeightKg(entry.weightKg);
+    const weight = dgLineActiveWeightKg(entry, useGross);
     if (!dgClass || weight <= 0) continue;
 
     const key = dgClass.replace(',', '.').toLowerCase();
@@ -90,7 +95,7 @@ export function buildManifestClassWeightRows(
   }
 
   return [...map.values()]
-    .map((row) => ({ ...row, totalKg: roundDgWeightKgSum(row.totalKg) }))
+    .map((row) => ({ ...row, totalKg: finalize(row.totalKg) }))
     .filter((row) => row.totalKg > 0)
     .sort((a, b) => {
       const cmp = dgClassSortKey(a.dgClass) - dgClassSortKey(b.dgClass);
@@ -115,24 +120,22 @@ function uniqueContainerSizesFromUnifeederRows(rows: readonly DgUnifeederRow[]):
 
 export function unifeederManifestSummary(
   rows: readonly DgUnifeederRow[],
-  grossTotalKg = false,
+  useGrossWeight = true,
+  roundWeights = false,
 ): ManifestInventorySummary {
   const lengthBuckets = buildManifestLengthBuckets(uniqueContainerSizesFromUnifeederRows(rows));
-  const classRows = buildManifestClassWeightRows(rows).map((row) => ({
-    ...row,
-    totalKg: grossTotalKg ? Math.round(row.totalKg) : row.totalKg,
-  }));
+  const classRows = buildManifestClassWeightRows(rows, useGrossWeight, roundWeights);
   let totalKg = 0;
 
   for (const row of rows) {
-    totalKg += parseDgWeightKg(row.weightKg);
+    totalKg += dgLineActiveWeightKg(row, useGrossWeight);
   }
 
   return {
     lengthBuckets,
     classRows,
     containerCount: new Set(rows.map((row) => row.containerNo.trim()).filter(Boolean)).size,
-    totalKg: grossTotalKg ? Math.round(totalKg) : roundDgWeightKgSum(totalKg),
+    totalKg: roundWeights ? Math.round(totalKg) : roundDgWeightKgSum(totalKg),
   };
 }
 
@@ -146,21 +149,20 @@ function uniqueContainerSizesFromDgContainers(
 
 export function dgOnboardManifestSummary(
   containers: readonly DgOnboardContainer[],
+  useGross = false,
+  roundWeights = false,
 ): ManifestInventorySummary {
   const lengthBuckets = buildManifestLengthBuckets(uniqueContainerSizesFromDgContainers(containers));
   const classRows = buildManifestClassWeightRows(
-    containers.flatMap((container) =>
-      container.lines.map((line) => ({
-        dgClass: line.dgClass,
-        weightKg: line.weightKg,
-      })),
-    ),
+    containers.flatMap((container) => container.lines),
+    useGross,
+    roundWeights,
   );
 
   let totalKg = 0;
   for (const container of containers) {
     for (const line of container.lines) {
-      totalKg += parseDgWeightKg(line.weightKg);
+      totalKg += dgLineActiveWeightKg(line, useGross);
     }
   }
 
@@ -168,6 +170,6 @@ export function dgOnboardManifestSummary(
     lengthBuckets,
     classRows,
     containerCount: containers.length,
-    totalKg: roundDgWeightKgSum(totalKg),
+    totalKg: roundWeights ? Math.round(totalKg) : roundDgWeightKgSum(totalKg),
   };
 }

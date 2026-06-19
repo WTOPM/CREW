@@ -71,7 +71,7 @@
                     <input
                       type="checkbox"
                       [ngModel]="auth.includeInPrint !== false"
-                      (ngModelChange)="setAuthorityIncludeInPrint(pkg.port, authIdx, $event)"
+                      (ngModelChange)="setAuthorityIncludeInPrint(pkg.port, authIdx, auth.name, $event)"
                     />
                   </label>
                   <input

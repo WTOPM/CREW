@@ -4,6 +4,7 @@ import { PortPackage, PortPackageItem } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 import { DocumentCatalogService } from '../../services/document-catalog.service';
 import { PackageRunnerService } from '../../services/package-runner.service';
+import { ToastService } from '../../services/toast.service';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import { NumberSpinDirective } from '../../directives/number-spin.directive';
 
@@ -18,6 +19,7 @@ export class PrintPackagesComponent implements OnInit {
 
   private readonly storage = inject(StorageService);
   private readonly catalog = inject(DocumentCatalogService);
+  private readonly toast = inject(ToastService);
   protected readonly runner = inject(PackageRunnerService);
 
   protected readonly hasElectron = !!window.electronAPI;
@@ -99,8 +101,19 @@ export class PrintPackagesComponent implements OnInit {
     this.storage.renameAuthority(port, authIndex, name);
   }
 
-  protected setAuthorityIncludeInPrint(port: string, authIndex: number, include: boolean): void {
+  protected setAuthorityIncludeInPrint(
+    port: string,
+    authIndex: number,
+    authorityName: string,
+    include: boolean,
+  ): void {
     this.storage.setAuthorityIncludeInPrint(port, authIndex, include);
+    const label = authorityName.trim() || 'Authority';
+    if (include) {
+      this.toast.show(`${label}: included in Print all`, 'success');
+    } else {
+      this.toast.showError(`${label}: excluded from Print all`);
+    }
   }
 
   // --- documents within an authority ---

@@ -15,17 +15,19 @@ export class DgUnifeederExcelService {
     const ship = this.storage.ship();
     const library = this.storage.dgLibrary();
     const exportShip = dgShipForExport(ship, library.pageContext);
+    const uf = library.unifeeder;
     const ctx = exportContext ?? {
-      rows: library.unifeeder.onboard.filter((row) => row.status === 'onboard'),
-      mergeLines: library.unifeeder.mergeLines,
-      grossTotalKg: library.unifeeder.grossTotalKg,
+      rows: uf.onboard.filter((row) => row.status === 'onboard'),
+      mergeLines: uf.mergeLines,
+      grossTotalKg: uf.roundWeights,
+      useGrossWeight: uf.useGrossWeight,
     };
     const bytes = await buildUnifeederDgListExcelBytes(
       exportShip,
       library.pageContext,
       ctx.rows,
       this.storage.ports(),
-      { grossTotalKg: ctx.grossTotalKg },
+      { useGrossWeight: ctx.useGrossWeight, roundWeights: ctx.grossTotalKg },
     );
     const fileName = this.fileName(ship.name, exportShip.dateOfDeparture);
     return this.delivery.deliver(bytes, fileName);

@@ -990,6 +990,131 @@
   margin: 0;
 }
 
+.dg-weight-mode {
+  flex: 0 0 auto;
+  --dg-tonnage-gross-bg: #e8f2ec;
+  --dg-tonnage-gross-border: #b8d4c4;
+  --dg-tonnage-gross-text: #4a7263;
+  --dg-tonnage-gross-soft: rgb(74 114 99 / 10%);
+  --dg-tonnage-net-bg: #eef1f8;
+  --dg-tonnage-net-border: #c4cde0;
+  --dg-tonnage-net-text: #5a6788;
+  --dg-tonnage-net-soft: rgb(90 103 136 / 10%);
+}
+
+.dg-weight-mode .choice-segmented__text {
+  min-width: 2.8rem;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.dg-weight-mode__gross .choice-segmented__text {
+  color: #7a9489;
+}
+
+.dg-weight-mode__net .choice-segmented__text {
+  color: #8a94ad;
+}
+
+.dg-weight-mode__gross:hover .choice-segmented__text {
+  background: var(--dg-tonnage-gross-soft);
+  color: var(--dg-tonnage-gross-text);
+}
+
+.dg-weight-mode__net:hover .choice-segmented__text {
+  background: var(--dg-tonnage-net-soft);
+  color: var(--dg-tonnage-net-text);
+}
+
+.dg-weight-mode__gross:has(input:checked) .choice-segmented__text {
+  background: var(--dg-tonnage-gross-bg);
+  color: var(--dg-tonnage-gross-text);
+  box-shadow: inset 0 0 0 1px var(--dg-tonnage-gross-border);
+}
+
+.dg-weight-mode__net:has(input:checked) .choice-segmented__text {
+  background: var(--dg-tonnage-net-bg);
+  color: var(--dg-tonnage-net-text);
+  box-shadow: inset 0 0 0 1px var(--dg-tonnage-net-border);
+}
+
+.dg-weight-mode__gross:has(input:focus-visible) .choice-segmented__text,
+.dg-weight-mode__net:has(input:focus-visible) .choice-segmented__text {
+  outline: 2px solid #94a3b8;
+  outline-offset: -2px;
+}
+
+.dg-weight-mode .choice-segmented__item:has(input:checked) .choice-segmented__text {
+  font-weight: 600;
+}
+
+.dg-tonnage-gross .dg-unifeeder-table .dg-cell-input--weight {
+  color: var(--dg-tonnage-gross-text);
+}
+
+.dg-tonnage-net .dg-unifeeder-table .dg-cell-input--weight {
+  color: var(--dg-tonnage-net-text);
+}
+
+.dg-tonnage-gross,
+.dg-tonnage-net {
+  --dg-tonnage-gross-bg: #e8f2ec;
+  --dg-tonnage-gross-border: #b8d4c4;
+  --dg-tonnage-gross-text: #4a7263;
+  --dg-tonnage-gross-soft: rgb(74 114 99 / 10%);
+  --dg-tonnage-net-bg: #eef1f8;
+  --dg-tonnage-net-border: #c4cde0;
+  --dg-tonnage-net-text: #5a6788;
+  --dg-tonnage-net-soft: rgb(90 103 136 / 10%);
+}
+
+.dg-tonnage-gross .dg-master-total-kg,
+.dg-tonnage-gross .dg-class-summary-total,
+.dg-tonnage-gross .dg-class-summary-kg,
+.dg-tonnage-gross .uf-inventory-strip__weight,
+.dg-tonnage-gross .dg-row-actions .dg-container-kg,
+.dg-tonnage-gross .uf-stat-chip--dg .uf-stat-chip__value {
+  color: var(--dg-tonnage-gross-text);
+}
+
+.dg-tonnage-gross .dg-cell-input--weight:not(.dg-cell-input--readonly) {
+  background: var(--dg-tonnage-gross-soft);
+  border-color: rgb(184 212 196 / 55%);
+  color: var(--dg-tonnage-gross-text);
+}
+
+.dg-tonnage-gross .dg-cell-input--weight.dg-cell-input--readonly {
+  color: var(--dg-tonnage-gross-text);
+}
+
+.dg-tonnage-gross .dg-master-total {
+  background: color-mix(in srgb, var(--dg-tonnage-gross-bg) 35%, #fef2f2);
+}
+
+.dg-tonnage-net .dg-master-total-kg,
+.dg-tonnage-net .dg-class-summary-total,
+.dg-tonnage-net .dg-class-summary-kg,
+.dg-tonnage-net .uf-inventory-strip__weight,
+.dg-tonnage-net .dg-row-actions .dg-container-kg,
+.dg-tonnage-net .uf-stat-chip--dg .uf-stat-chip__value {
+  color: var(--dg-tonnage-net-text);
+}
+
+.dg-tonnage-net .dg-cell-input--weight:not(.dg-cell-input--readonly) {
+  background: var(--dg-tonnage-net-soft);
+  border-color: rgb(196 205 224 / 55%);
+  color: var(--dg-tonnage-net-text);
+}
+
+.dg-tonnage-net .dg-cell-input--weight.dg-cell-input--readonly {
+  color: var(--dg-tonnage-net-text);
+}
+
+.dg-tonnage-net .dg-master-total {
+  background: color-mix(in srgb, var(--dg-tonnage-net-bg) 35%, #fef2f2);
+}
+
 .uf-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -1453,8 +1578,20 @@
 }
 
 .dg-unifeeder-table .dg-cell-input--weight { color: #0369a1; font-weight: 800; }
-.dg-unifeeder-table .dg-cell-input--fp { color: #dc2626; font-weight: 800; }
 .dg-unifeeder-table .dg-cell-input--mp { color: #2563eb; font-weight: 800; }
+
+/* Flash point: negative °C = blue, positive °C = red */
+.dg-master-table td.col-flash .dg-cell-input.dg-flash--negative,
+.dg-unifeeder-table .dg-cell-input--fp.dg-flash--negative {
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.dg-master-table td.col-flash .dg-cell-input.dg-flash--positive,
+.dg-unifeeder-table .dg-cell-input--fp.dg-flash--positive {
+  color: #dc2626;
+  font-weight: 800;
+}
 
 .dg-unifeeder-table .dg-cell-input:hover {
   border-color: #cbd5e1;

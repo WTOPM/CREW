@@ -390,9 +390,10 @@ export function buildDgManifestPdf(
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
   const containers = exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
   const mergeLines = exportContext?.mergeLines ?? true;
-  const grossTotalKg = exportContext?.grossTotalKg === true;
-  const allRows = dgContainersToExcelRows(containers, ports, { mergeLines, grossTotalKg });
-  const exportTotalKg = dgContainersExportTotalKg(containers, grossTotalKg);
+  const useGrossWeight = exportContext?.useGrossWeight !== false;
+  const roundWeights = exportContext?.grossTotalKg === true;
+  const allRows = dgContainersToExcelRows(containers, ports, { mergeLines, useGrossWeight, roundWeights });
+  const exportTotalKg = dgContainersExportTotalKg(containers, useGrossWeight, roundWeights);
   const widths = resolveColWidths();
   const xs = colXs(widths);
   const totalPages = Math.max(1, Math.ceil(allRows.length / ROWS_PER_PAGE) || 1);

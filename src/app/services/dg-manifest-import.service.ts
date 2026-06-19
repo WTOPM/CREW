@@ -12,6 +12,8 @@ import {
   appendManifestFilledUnWarning,
   applyCmaCargoReferenceOrManifest,
 } from '../utils/dg-import-un-reference.util';
+import { resolveDgWeightTonnageOptions, type DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
+import { dualWeightFromImport } from '../utils/dg-weight-tonnage.util';
 
 export type DgManifestPdfFormat = 'cma-imdg' | 'unknown';
 
@@ -27,9 +29,10 @@ const COL = {
   containerNo: [8, 78] as const,
   isoType: [80, 112] as const,
   properName: [305, 488] as const,
-  netWeight: [528, 572] as const,
-  imdgClass: [582, 592] as const,
-  unNo: [600, 628] as const,
+  grossWeight: [478, 525] as const,
+  netWeight: [530, 575] as const,
+  imdgClass: [575, 598] as const,
+  unNo: [598, 625] as const,
   stowage: [235, 275] as const,
   flashPoint: [300, 390] as const,
   fieldBlock: [290, 520] as const,
@@ -51,13 +54,18 @@ const FLASH_POINT_VALUE_RE = /^-?\d+(?:\.\d+)?\s*°C$/i;
 
 @Injectable({ providedIn: 'root' })
 export class DgManifestImportService {
-  async importFromPdfBytes(bytes: Uint8Array, ports: Port[] = []): Promise<DgManifestImportResult> {
+  async importFromPdfBytes(
+    bytes: Uint8Array,
+    ports: Port[] = [],
+    options: DgWeightTonnageOptions = {},
+  ): Promise<DgManifestImportResult> {
+    const { useGrossWeight } = resolveDgWeightTonnageOptions(options);
     const items = await extractDgPdfTextItems(bytes);
     const joined = items.map((i) => i.str).join(' ');
     
     // Try "Dangerous Cargo List" format first (PFR0767 v5.x)
     if (isCmaCargoListPdf(items)) {
-      const listResult = parseCmaCargoList(items, ports);
+      const listResult = parseCmaCargoList(items, ports, { useGrossWeight });
       if (listResult.rows.length > 0) {
         return {
           format: 'cma-imdg',
@@ -82,7 +90,7 @@ export class DgManifestImportService {
     const importPorts = resolveCmaImportPorts(items, ports);
     if (importPorts.pol) header.portOfDeparture = importPorts.pol;
     if (importPorts.pod) header.portOfArrival = importPorts.pod;
-    const { rows, warnings } = parseCmaCargoRows(items, importPorts, ports);
+    const { rows, warnings } = parseCmaCargoRows(items, importPorts, ports, useGrossWeight);
 
     return {
       format: 'cma-imdg',
@@ -269,6 +277,7 @@ function parseCmaCargoRows(
   items: DgPdfTextItem[],
   importPorts: { pol: string; pod: string },
   ports: readonly Port[],
+  useGrossWeight: boolean,
 ): { rows: Partial<Omit<DgManifestRow, 'id'>>[]; warnings: string[] } {
   const warnings: string[] = [];
   const classItems = items
@@ -321,7 +330,9 @@ function parseCmaCargoRows(
     }
 
     const unNo = pickNearY(items, y, 'unNo', page, (s) => UN_NO_RE.test(s));
+    const grossRaw = pickNearY(items, y, 'grossWeight', page, (s) => /[\d.,]/.test(s));
     const netRaw = pickNearY(items, y, 'netWeight', page, (s) => /[\d.,]/.test(s));
+    const weights = dualWeightFromImport(grossRaw, netRaw, useGrossWeight);
     const stowage = pickNearY(items, y, 'stowage', page, (s) => s.length > 0);
     const mpLq = parseImportedMpLq(items, y, page);
     const flashPoint = pickFlashPoint(items, y, page);
@@ -350,7 +361,9 @@ function parseCmaCargoRows(
       unNo,
       mpLq: cargo.mpLq,
       flashPoint: cargo.flashPoint,
-      weightKg: formatImportedWeight(netRaw),
+      weightKg: weights.weightKg,
+      grossWeightKg: weights.grossWeightKg,
+      netWeightKg: weights.netWeightKg,
       properShippingName: cargo.properShippingName,
     });
   }

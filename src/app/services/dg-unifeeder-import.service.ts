@@ -5,14 +5,19 @@ import {
   parseUnifeederDangerousCargoManifest,
   type UnifeederPdfParseResult,
 } from '../utils/dg-unifeeder-pdf.util';
+import type { DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
 
 export type { UnifeederPdfParseResult as UnifeederImportResult } from '../utils/dg-unifeeder-pdf.util';
 
 @Injectable({ providedIn: 'root' })
 export class DgUnifeederImportService {
-  async importFromPdfBytes(bytes: Uint8Array, ports: Port[] = []): Promise<UnifeederPdfParseResult> {
+  async importFromPdfBytes(
+    bytes: Uint8Array,
+    ports: Port[] = [],
+    options: DgWeightTonnageOptions = {},
+  ): Promise<UnifeederPdfParseResult> {
     const items = await extractDgPdfTextItems(bytes);
-    const parsed = parseUnifeederDangerousCargoManifest(items);
+    const parsed = parseUnifeederDangerousCargoManifest(items, options);
     if (parsed.format !== 'unifeeder-dg' && parsed.format !== 'dp-world-dg') return parsed;
 
     const loadPort = resolveManifestPortName(parsed.header.portOfDeparture ?? '', ports);

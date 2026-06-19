@@ -13,6 +13,8 @@ import {
   parseDpWorldHeaderFromPage,
 } from './dg-dpworld-pdf.util';
 import { finalizeUnifeederImportRows } from './dg-import-un-reference.util';
+import { resolveDgWeightTonnageOptions, type DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
+import { dualWeightFromImport } from './dg-weight-tonnage.util';
 
 export type UnifeederPdfFormat = 'dp-world-dg' | 'unifeeder-dg' | 'unknown';
 
@@ -33,6 +35,8 @@ export interface UnifeederImportRowPartial {
   unNo: string;
   packingGroup: string;
   weightKg: string;
+  grossWeightKg?: string;
+  netWeightKg?: string;
   lq: string;
   flashPoint: string;
   marinePollutant: string;
@@ -573,6 +577,22 @@ function pickImportedWeightKg(
   return fallbackRaw || bestRaw;
 }
 
+function pickLegacyImoGrossRaw(
+  fieldItems: readonly DgPdfTextItem[],
+  ax: number,
+  imoY: number,
+): string {
+  return pickNear(fieldItems, ax, imoY + IMO.nweight + 44, (v) => EU_WEIGHT_RE.test(v));
+}
+
+function pickLegacyImoNetRaw(
+  fieldItems: readonly DgPdfTextItem[],
+  ax: number,
+  imoY: number,
+): string {
+  return pickNear(fieldItems, ax, imoY + IMO.nweight, (v) => EU_WEIGHT_RE.test(v));
+}
+
 function pickNweightKg(
   fieldItems: readonly DgPdfTextItem[],
   ax: number,
@@ -606,6 +626,7 @@ function parseImoBlock(
   binding?: UnifeederImoBlockBinding,
   allowWideUnAnchors = false,
   nextAnchorX?: number,
+  useGrossWeight = true,
 ): UnifeederImportRowPartial[] {
   const blockItems = blockItemsForColumn(items, columnX, imoY);
   const size =
@@ -659,8 +680,11 @@ function parseImoBlock(
     );
     const fire = pickNear(fieldItems, ax, ty + IMO.fire, (v) => /^F-[A-Z]$/i.test(v));
     const spillage = pickNear(fieldItems, ax, ty + IMO.spillage, (v) => /^S-[A-Z]$/i.test(v));
-    const nearWeight = pickNweightKg(fieldItems, ax, imoY);
-    const weightKg = nearWeight || pickImportedWeightKg(fieldItems, ax, imoY);
+    const weights = dualWeightFromImport(
+      pickLegacyImoGrossRaw(fieldItems, ax, imoY),
+      pickLegacyImoNetRaw(fieldItems, ax, imoY),
+      useGrossWeight,
+    );
     const flashPoint = pickNear(
       fieldItems,
       ax,
@@ -693,7 +717,7 @@ function parseImoBlock(
       )?.str ?? '',
     );
 
-    if (!weightKg.trim() && !goodsDescription.trim()) continue;
+    if (!weights.weightKg.trim() && !goodsDescription.trim()) continue;
 
     rows.push({
       size,
@@ -703,7 +727,9 @@ function parseImoBlock(
       dischargePort,
       unNo,
       packingGroup,
-      weightKg,
+      weightKg: weights.weightKg,
+      grossWeightKg: weights.grossWeightKg,
+      netWeightKg: weights.netWeightKg,
       lq: '',
       flashPoint,
       marinePollutant,
@@ -812,6 +838,7 @@ function parsePageRows(
   dischargePort: string,
   inheritedBinding?: UnifeederImoBlockBinding,
   recentColumnHeaders: readonly UnifeederContainerColumnAnchor[] = [],
+  useGrossWeight = true,
 ): {
   rows: UnifeederImportRowPartial[];
   lastBinding?: UnifeederImoBlockBinding;
@@ -866,6 +893,7 @@ function parsePageRows(
       binding,
       allowWideUnAnchors,
       nextAnchorX,
+      useGrossWeight,
     );
     rows.push(...blockRows);
     if (blockRows.length) {
@@ -885,7 +913,9 @@ function parsePageRows(
 
 export function parseUnifeederDangerousCargoManifest(
   items: readonly DgPdfTextItem[],
+  options: DgWeightTonnageOptions = {},
 ): UnifeederPdfParseResult {
+  const useGrossWeight = resolveDgWeightTonnageOptions(options).useGrossWeight;
   const joined = items.map((i) => i.str).join(' ');
   if (!/Dangerous Cargo Manifest/i.test(joined) || !/IMO Information/i.test(joined)) {
     return {
@@ -897,16 +927,21 @@ export function parseUnifeederDangerousCargoManifest(
   }
 
   if (isDpWorldManifestLayout(items)) {
-    return parseDpWorldManifest(items);
+    return parseDpWorldManifest(items, useGrossWeight);
   }
 
-  return parseLegacyUnifeederManifest(items);
+  return parseLegacyUnifeederManifest(items, useGrossWeight);
 }
 
-function parseDpWorldManifest(items: readonly DgPdfTextItem[]): UnifeederPdfParseResult {
+function parseDpWorldManifest(
+  items: readonly DgPdfTextItem[],
+  useGrossWeight: boolean,
+): UnifeederPdfParseResult {
   const pages = [...new Set(items.map((i) => i.page))].sort((a, b) => a - b);
   const header = parseDpWorldHeaderFromPage(items.filter((i) => i.page === pages[0]));
-  const { rows, warnings } = parseDpWorldDangerousCargoPages(items, header);
+  const { rows, warnings } = parseDpWorldDangerousCargoPages(items, header, {
+    useGrossWeight,
+  });
 
   if (!rows.length) {
     warnings.unshift('No DP WORLD cargo rows extracted from PDF.');
@@ -917,6 +952,7 @@ function parseDpWorldManifest(items: readonly DgPdfTextItem[]): UnifeederPdfPars
   const finalized = finalizeUnifeederImportRows(rows, warnings);
   const validation = validateUnifeederImportAgainstSummary(finalized.rows, summary, {
     extractableContainers,
+    useGrossWeight,
   });
 
   return {
@@ -929,7 +965,10 @@ function parseDpWorldManifest(items: readonly DgPdfTextItem[]): UnifeederPdfPars
   };
 }
 
-function parseLegacyUnifeederManifest(items: readonly DgPdfTextItem[]): UnifeederPdfParseResult {
+function parseLegacyUnifeederManifest(
+  items: readonly DgPdfTextItem[],
+  useGrossWeight: boolean,
+): UnifeederPdfParseResult {
   const warnings: string[] = [];
   const pages = [...new Set(items.map((i) => i.page))].sort((a, b) => a - b);
   const header = parseHeaderFromPage(items.filter((i) => i.page === pages[0]));
@@ -947,6 +986,7 @@ function parseLegacyUnifeederManifest(items: readonly DgPdfTextItem[]): Unifeede
       dischargePort,
       lastBinding,
       columnHeaders,
+      useGrossWeight,
     );
     lastBinding = nextBinding;
     columnHeaders = [...nextHeaders];
@@ -972,6 +1012,7 @@ function parseLegacyUnifeederManifest(items: readonly DgPdfTextItem[]): Unifeede
   const finalized = finalizeUnifeederImportRows(rows, warnings);
   const validation = validateUnifeederImportAgainstSummary(finalized.rows, summary, {
     extractableContainers,
+    useGrossWeight,
   });
 
   return {

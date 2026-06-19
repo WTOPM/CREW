@@ -16,6 +16,7 @@ import {
   normalizeUnifeederLibrary,
   type DgUnifeederLibrarySettings,
 } from './dg-unifeeder.models';
+import { normalizeDgDualWeightFields, dgLineActiveWeightKg } from '../utils/dg-weight-tonnage.util';
 
 export type { DgPageContext };
 
@@ -33,6 +34,10 @@ export interface DgManifestRow {
   flashPoint: string;
   properShippingName: string;
   weightKg: string;
+  /** Gross weight from manifest (kg). */
+  grossWeightKg?: string;
+  /** Net weight from manifest (kg). */
+  netWeightKg?: string;
 }
 
 /** @deprecated */
@@ -55,6 +60,10 @@ export interface DgCargoLine {
   dgClass: string;
   unNo: string;
   weightKg: string;
+  /** Gross weight from manifest (kg). */
+  grossWeightKg?: string;
+  /** Net weight from manifest (kg). */
+  netWeightKg?: string;
   properShippingName: string;
   /** MP / LQ abbreviations from manifest fields (4) and (5). */
   mpLq: string;
@@ -105,8 +114,12 @@ export interface DgLibrarySettings {
   showDischarged: boolean;
   /** Preview consolidated cargo lines (same rule as PDF export). */
   manifestMergeLines: boolean;
-  /** Preview gross totals: sum raw weights, round once (same rule as PDF export). */
-  manifestGrossTotalKg: boolean;
+  /** true = show gross tonnage, false = net tonnage. */
+  manifestUseGrossWeight: boolean;
+  /** Round displayed weights and totals to whole kg. */
+  manifestRoundWeights: boolean;
+  /** @deprecated Use manifestUseGrossWeight + manifestRoundWeights */
+  manifestGrossTotalKg?: boolean;
   /** Last opened inventory table on the DG page. */
   activeInventoryTab: DgActiveInventoryTab;
   /** Port/date context for this page and DG document export. */
@@ -123,19 +136,22 @@ export interface DgLibrarySettings {
 
 export interface DgManifestViewOptions {
   manifestMergeLines: boolean;
-  manifestGrossTotalKg: boolean;
+  manifestUseGrossWeight: boolean;
+  manifestRoundWeights: boolean;
 }
 
 export function createDgCargoLine(
   partial?: Partial<Omit<DgCargoLine, 'id'> & { id?: string }>,
 ): DgCargoLine {
   const existingId = (partial?.id ?? '').trim();
-  const weightRaw = (partial?.weightKg ?? '').trim();
+  const weights = normalizeDgDualWeightFields(partial);
   return {
     id: existingId || crypto.randomUUID(),
     dgClass: (partial?.dgClass ?? '').trim(),
     unNo: (partial?.unNo ?? '').trim(),
-    weightKg: weightRaw ? commitDgWeightKgInput(weightRaw) : '',
+    weightKg: weights.weightKg,
+    grossWeightKg: weights.grossWeightKg,
+    netWeightKg: weights.netWeightKg,
     properShippingName: (partial?.properShippingName ?? '').trim(),
     mpLq: (partial?.mpLq ?? '').trim(),
     flashPoint: (partial?.flashPoint ?? '').trim(),
@@ -211,7 +227,8 @@ export function createDefaultDgLibrary(): DgLibrarySettings {
     onboard: [],
     showDischarged: false,
     manifestMergeLines: false,
-    manifestGrossTotalKg: false,
+    manifestUseGrossWeight: true,
+    manifestRoundWeights: false,
     activeInventoryTab: 'cmaCgm',
     pageContext: createEmptyDgPageContext(),
     unifeeder: createDefaultUnifeederLibrary(),
@@ -268,12 +285,21 @@ export function normalizeDgLibrary(
         'pageContext' in raw,
         shipSeed,
       );
+    const hasNewWeightFields =
+      'manifestUseGrossWeight' in raw || 'manifestRoundWeights' in raw;
+    let manifestUseGrossWeight = raw.manifestUseGrossWeight !== false;
+    let manifestRoundWeights = raw.manifestRoundWeights === true;
+    if (!hasNewWeightFields && raw.manifestGrossTotalKg !== undefined) {
+      manifestUseGrossWeight = raw.manifestGrossTotalKg !== false;
+      manifestRoundWeights = raw.manifestGrossTotalKg === true;
+    }
     return {
       manifests,
       onboard,
       showDischarged: raw.showDischarged === true,
       manifestMergeLines: raw.manifestMergeLines === true || raw.manifestRoundLineKg === true,
-      manifestGrossTotalKg: raw.manifestGrossTotalKg === true,
+      manifestUseGrossWeight,
+      manifestRoundWeights,
       activeInventoryTab: raw.activeInventoryTab === 'unifeeder' ? 'unifeeder' : 'cmaCgm',
       pageContext,
       unifeeder: normalizeUnifeederLibrary(raw.unifeeder, ports, pageContext),
@@ -341,9 +367,10 @@ function migrateLegacyDgForm(
     manifests: [{ ...doc, containerCount: onboard.length }],
     onboard,
     showDischarged: false,
-    manifestMergeLines: false,
-    manifestGrossTotalKg: false,
-    activeInventoryTab: 'cmaCgm',
+  manifestMergeLines: false,
+  manifestUseGrossWeight: true,
+  manifestRoundWeights: false,
+  activeInventoryTab: 'cmaCgm',
     pageContext: normalizeDgPageContext(undefined, false, shipSeed),
     unifeeder: createDefaultUnifeederLibrary(),
   };
@@ -411,6 +438,8 @@ export function groupLegacyRowsIntoContainers(
           dgClass: row.dgClass,
           unNo: row.unNo,
           weightKg: row.weightKg,
+          grossWeightKg: row.grossWeightKg,
+          netWeightKg: row.netWeightKg,
           properShippingName: row.properShippingName,
           mpLq: row.mpLq,
           flashPoint: row.flashPoint,
@@ -589,32 +618,34 @@ export function dgOnboardExportTotalKg(
 
 export function dgContainersExportTotalKg(
   containers: readonly DgOnboardContainer[],
-  grossTotalKg = true,
+  useGrossWeight = true,
+  roundWeights = false,
 ): number {
   const sum = containers.reduce(
     (total, container) =>
-      total + container.lines.reduce((lineSum, line) => lineSum + parseDgWeightKg(line.weightKg), 0),
+      total + container.lines.reduce((lineSum, line) => lineSum + dgLineActiveWeightKg(line, useGrossWeight), 0),
     0,
   );
-  return grossTotalKg ? Math.round(sum) : roundDgWeightKgSum(sum);
+  return roundWeights ? Math.round(sum) : roundDgWeightKgSum(sum);
 }
 
 export function dgViewContainerTotalKg(
   container: Pick<DgOnboardContainer, 'lines'>,
   options: DgManifestViewOptions,
 ): number {
-  if (options.manifestGrossTotalKg) {
-    const sum = container.lines.reduce((s, l) => s + parseDgWeightKg(l.weightKg), 0);
-    return Math.round(sum);
-  }
-  return dgContainerTotalKg(container);
+  const sum = container.lines.reduce(
+    (s, l) => s + dgLineActiveWeightKg(l, options.manifestUseGrossWeight),
+    0,
+  );
+  return options.manifestRoundWeights ? Math.round(sum) : roundDgWeightKgSum(sum);
 }
 
 export function dgContainerTotalKg(
   container: Pick<DgOnboardContainer, 'lines'>,
+  useGross = false,
 ): number {
   return roundDgWeightKgSum(
-    container.lines.reduce((sum, line) => sum + parseDgWeightKg(line.weightKg), 0),
+    container.lines.reduce((sum, line) => sum + dgLineActiveWeightKg(line, useGross), 0),
   );
 }
 
@@ -664,9 +695,11 @@ export function dgViewOnboardInventoryStats(
     lineCount: displayLineCount
       ? visible.reduce((n, c) => n + displayLineCount(c), 0)
       : base.lineCount,
-    totalKg: options.manifestGrossTotalKg
-      ? dgOnboardExportTotalKg(onboard, includeDischarged)
-      : base.totalKg,
+    totalKg: dgContainersExportTotalKg(
+      visible,
+      options.manifestUseGrossWeight,
+      options.manifestRoundWeights,
+    ),
   };
 }
 
@@ -690,12 +723,19 @@ export function dgUnSortKey(unNo: string): number {
 export function dgOnboardClassSummaries(
   onboard: readonly DgOnboardContainer[],
   includeDischarged = false,
+  useGross = false,
+  roundWeights = false,
 ): DgClassSummaryRow[] {
   const visible = includeDischarged
     ? onboard
     : onboard.filter((c) => c.status === 'onboard');
-  return dgClassSummariesFromLines(visible, (line) => parseDgWeightKg(line.weightKg), (total) =>
-    roundDgWeightKgSum(total),
+  const finalize = roundWeights
+    ? (total: number) => Math.round(total)
+    : (total: number) => roundDgWeightKgSum(total);
+  return dgClassSummariesFromLines(
+    visible,
+    (line) => dgLineActiveWeightKg(line, useGross),
+    finalize,
   );
 }
 
@@ -704,30 +744,32 @@ export function dgViewOnboardClassSummaries(
   includeDischarged: boolean,
   options: DgManifestViewOptions,
 ): DgClassSummaryRow[] {
+  const useGross = options.manifestUseGrossWeight;
+  const roundWeights = options.manifestRoundWeights;
   const visible = includeDischarged
     ? onboard
     : onboard.filter((c) => c.status === 'onboard');
   const containers = options.manifestMergeLines
     ? visible.map((container) => ({
         ...container,
-        lines: mergeDgCargoLinesForSummary(container.lines),
+        lines: mergeDgCargoLinesForSummary(container.lines, useGross),
       }))
     : visible;
-  if (options.manifestGrossTotalKg) {
-    return dgClassSummariesFromLines(containers, (line) => parseDgWeightKg(line.weightKg), (total) =>
-      Math.round(total),
-    );
-  }
-  if (options.manifestMergeLines) {
-    return dgClassSummariesFromLines(containers, (line) => parseDgWeightKg(line.weightKg), (total) =>
-      roundDgWeightKgSum(total),
-    );
-  }
-  return dgOnboardClassSummaries(onboard, includeDischarged);
+  const finalize = roundWeights
+    ? (total: number) => Math.round(total)
+    : (total: number) => roundDgWeightKgSum(total);
+  return dgClassSummariesFromLines(
+    containers,
+    (line) => dgLineActiveWeightKg(line, useGross),
+    finalize,
+  );
 }
 
-function mergeDgCargoLinesForSummary(lines: readonly DgCargoLine[]): DgCargoLine[] {
-  return mergeDgCargoLines(lines).map((row) => ({
+function mergeDgCargoLinesForSummary(
+  lines: readonly DgCargoLine[],
+  useGross: boolean,
+): DgCargoLine[] {
+  return mergeDgCargoLines(lines, useGross).map((row) => ({
     id: row.mergeKey,
     dgClass: row.dgClass,
     unNo: row.unNo,
