@@ -7,6 +7,7 @@ import {
   DocumentOverlayId,
   DocumentOverlayPrefs,
   DocumentStampOptions,
+  CrewEffectStampOptions,
   CrewMember,
   Port,
   PortCallHistoryEntry,
@@ -167,6 +168,7 @@ import {
   CrewListOverlayUpdate,
 } from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
+import { normalizeCrewSignatureByRow } from '../utils/crew-effect-signature.util';
 import {
   resolveDgPageContextFromSnapshot,
   resolveReeferPageContextFromSnapshot,
@@ -587,9 +589,9 @@ export class StorageService {
       shipStores: this.normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
       shipStores02: this.normalizeStampDocumentPrefs(shipStores02Raw, defaults.shipStores02),
       shipStores03: this.normalizeStampDocumentPrefs(shipStores03Raw, defaults.shipStores03),
-      crewEffect: this.normalizeStampDocumentPrefs(raw?.crewEffect, defaults.crewEffect),
-      crewEffect02: this.normalizeStampDocumentPrefs(crewEffect02Raw, defaults.crewEffect02),
-      crewEffect03: this.normalizeStampDocumentPrefs(crewEffect03Raw, defaults.crewEffect03),
+      crewEffect: this.normalizeCrewEffectStampPrefs(raw?.crewEffect, defaults.crewEffect),
+      crewEffect02: this.normalizeCrewEffectStampPrefs(crewEffect02Raw, defaults.crewEffect02),
+      crewEffect03: this.normalizeCrewEffectStampPrefs(crewEffect03Raw, defaults.crewEffect03),
       nilList: this.normalizeStampDocumentPrefs(raw?.nilList, defaults.nilList),
       shipMoney: this.normalizeStampDocumentPrefs(raw?.shipMoney, defaults.shipMoney),
       cashAdvance: this.normalizeStampDocumentPrefs(raw?.cashAdvance, defaults.cashAdvance),
@@ -627,6 +629,25 @@ export class StorageService {
         : {}),
     };
     return { ...defaults, ...extra, ...base } as T;
+  }
+
+  private normalizeCrewEffectStampPrefs(
+    raw: Partial<CrewEffectStampOptions> | undefined,
+    defaults: CrewEffectStampOptions,
+  ): CrewEffectStampOptions {
+    const base = this.normalizeStampDocumentPrefs(raw, defaults);
+    return {
+      ...base,
+      useCrewSignatures: raw?.useCrewSignatures ?? defaults.useCrewSignatures ?? false,
+      ...(isValidStampBox(raw?.crewSignatureBase)
+        ? { crewSignatureBase: { ...raw!.crewSignatureBase! } }
+        : defaults.crewSignatureBase
+          ? { crewSignatureBase: { ...defaults.crewSignatureBase } }
+          : {}),
+      crewSignatureByRow: normalizeCrewSignatureByRow(
+        raw?.crewSignatureByRow as Record<string, unknown> | undefined,
+      ),
+    };
   }
 
   private normalizeCrewListPrefs(
@@ -2522,6 +2543,22 @@ export class StorageService {
           ? {
               ...m,
               documents: { ...m.documents, [docType]: attached },
+            }
+          : m,
+      ),
+    }));
+    void this.persist('debounced');
+  }
+
+  setCrewSignatureAttached(crewId: string, attached: boolean, fileName: string): void {
+    this.data.update((d) => ({
+      ...d,
+      crew: d.crew.map((m) =>
+        m.id === crewId
+          ? {
+              ...m,
+              hasSignature: attached,
+              signatureFileName: attached ? fileName : '',
             }
           : m,
       ),

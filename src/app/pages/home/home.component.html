@@ -741,6 +741,12 @@
               </label>
             </div>
           </section>
+
+          <section class="crew-form-block crew-form-block--signature">
+            <h4 class="crew-form-block-title">Crew Effect signature</h4>
+            <p class="crew-form-sig-hint">Drop PNG/JPEG/PDF — printed in the Signature column (forms 01–03).</p>
+            <app-crew-signature-drop [member]="draft" (changed)="onCrewSignatureChanged()" />
+          </section>
         </div>
 
         <div class="modal-actions">

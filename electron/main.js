@@ -90,6 +90,45 @@ function getDocumentsDir() {
   return path.join(getDataDir(), 'documents');
 }
 
+function getSignaturesDir() {
+  return path.join(getDataDir(), 'signatures');
+}
+
+const CREW_SIGNATURE_EXTS = ['.png', '.jpg', '.jpeg', '.pdf'];
+
+function findCrewSignaturePath(crewId) {
+  const dir = getSignaturesDir();
+  if (!fs.existsSync(dir)) return null;
+  for (const ext of CREW_SIGNATURE_EXTS) {
+    const p = path.join(dir, `${crewId}${ext}`);
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+function removeCrewSignatureFiles(crewId) {
+  const dir = getSignaturesDir();
+  if (!fs.existsSync(dir)) return;
+  for (const ext of CREW_SIGNATURE_EXTS) {
+    const p = path.join(dir, `${crewId}${ext}`);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+  }
+}
+
+function saveCrewSignatureFromPath(crewId, sourcePath) {
+  ensureDataDir();
+  const ext = path.extname(sourcePath).toLowerCase() || '.png';
+  if (!CREW_SIGNATURE_EXTS.includes(ext)) {
+    throw new Error('Unsupported file type');
+  }
+  const dir = getSignaturesDir();
+  fs.mkdirSync(dir, { recursive: true });
+  removeCrewSignatureFiles(crewId);
+  const dest = path.join(dir, `${crewId}${ext}`);
+  fs.copyFileSync(sourcePath, dest);
+  return { fileName: path.basename(dest) };
+}
+
 function getAssetsDir() {
   return path.join(getDataDir(), 'assets');
 }
@@ -374,6 +413,51 @@ ipcMain.handle('delete-crew-documents', (_event, crewId) => {
   if (fs.existsSync(dir)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+  removeCrewSignatureFiles(crewId);
+  return true;
+});
+
+ipcMain.handle('pick-crew-signature-file', async () => {
+  const win = BrowserWindow.getFocusedWindow();
+  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+    title: 'Select crew signature',
+    filters: [{ name: 'Image or PDF', extensions: ['png', 'jpg', 'jpeg', 'pdf'] }],
+    properties: ['openFile'],
+  });
+  if (canceled || !filePaths?.[0]) return null;
+  return filePaths[0];
+});
+
+ipcMain.handle('save-crew-signature-from-path', (_event, crewId, sourcePath) =>
+  saveCrewSignatureFromPath(crewId, sourcePath),
+);
+
+ipcMain.handle('save-crew-signature-bytes', (_event, crewId, base64, fileName) => {
+  ensureDataDir();
+  const ext = path.extname(fileName).toLowerCase() || '.png';
+  if (!CREW_SIGNATURE_EXTS.includes(ext)) {
+    throw new Error('Unsupported file type');
+  }
+  const dir = getSignaturesDir();
+  fs.mkdirSync(dir, { recursive: true });
+  removeCrewSignatureFiles(crewId);
+  const dest = path.join(dir, `${crewId}${ext}`);
+  fs.writeFileSync(dest, Buffer.from(base64, 'base64'));
+  return { fileName: path.basename(dest) };
+});
+
+ipcMain.handle('read-crew-signature', (_event, crewId) => {
+  const file = findCrewSignaturePath(crewId);
+  if (!file) return null;
+  return fs.readFileSync(file).toString('base64');
+});
+
+ipcMain.handle('crew-signature-exists', (_event, crewId) => {
+  return !!findCrewSignaturePath(crewId);
+});
+
+ipcMain.handle('delete-crew-signature', (_event, crewId) => {
+  removeCrewSignatureFiles(crewId);
   return true;
 });
 

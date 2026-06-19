@@ -5,9 +5,23 @@ import {
   documentPageUsesOverlay,
   documentUsesSignature,
   documentUsesStamp,
+  CrewEffectStampOptions,
   DocumentOverlayId,
   DocumentStampOptions,
 } from '../models/document-overlay.models';
+import { AppData, hasCrewSignature } from '../models/crew.models';
+import {
+  crewEffectSignatureBase,
+  crewEffectSignatureFormConfig,
+  resolveCrewSignatureBox,
+  type CrewEffectOverlayId,
+} from '../utils/crew-effect-signature.util';
+import { crewEffectListRows } from '../utils/passenger-pdf.util';
+import {
+  normalizeCrewEffectForm,
+  normalizeCrewEffectForm02,
+  normalizeCrewEffectForm03,
+} from '../models/crew-effect.models';
 import {
   PdfStampBox,
   defaultStampBoxForDocument,
@@ -17,12 +31,14 @@ import {
   scaleStampBoxToPage,
 } from '../utils/overlay-stamp-box.util';
 import { ShipAssetsService } from './ship-assets.service';
+import { CrewSignatureService } from './crew-signature.service';
 
 export type PdfOverlayLayout = 'crewList' | 'portOfCall';
 
 @Injectable({ providedIn: 'root' })
 export class PdfOverlayService {
   private readonly assets = inject(ShipAssetsService);
+  private readonly crewSignatures = inject(CrewSignatureService);
 
   async applyToJsPdf(
     doc: jsPDF,
@@ -102,6 +118,48 @@ export class PdfOverlayService {
     return this.applyMultiPageOverlay(bytes, options, 'crewEffect03');
   }
 
+  /** Per-crew signatures in Crew Effect table rows (page 1 only). */
+  async applyCrewEffectCrewSignatures(
+    bytes: Uint8Array,
+    data: AppData,
+    documentId: CrewEffectOverlayId,
+  ): Promise<Uint8Array> {
+    const options = data.documentOverlay[documentId] as CrewEffectStampOptions;
+    if (!options.useCrewSignatures) return bytes;
+
+    const formConfig = crewEffectSignatureFormConfig(documentId);
+    const appendPassengers = this.crewEffectAppendPassengers(data, documentId);
+    const crew = crewEffectListRows(data, appendPassengers, formConfig.rowCount);
+    const base = crewEffectSignatureBase(options, documentId);
+    const baseRowY = formConfig.rowY(0);
+
+    const { PDFDocument } = await import('pdf-lib');
+    const pdf = await PDFDocument.load(bytes);
+    const page = pdf.getPages()[0];
+    if (!page) return bytes;
+
+    for (let i = 0; i < crew.length; i++) {
+      const member = crew[i];
+      if (!member || !hasCrewSignature(member)) continue;
+      const sigBytes = await this.crewSignatures.loadBytes(member.id);
+      if (!sigBytes?.length) continue;
+      const tweak = options.crewSignatureByRow?.[String(i)];
+      const box = resolveCrewSignatureBox(base, baseRowY, formConfig.rowY(i), tweak);
+      await this.drawAssetOnPage(pdf, page, sigBytes, box, 0);
+    }
+    return pdf.save();
+  }
+
+  private crewEffectAppendPassengers(data: AppData, documentId: CrewEffectOverlayId): boolean {
+    if (documentId === 'crewEffect02') {
+      return normalizeCrewEffectForm02(data.crewEffectForm02).appendPassengers;
+    }
+    if (documentId === 'crewEffect03') {
+      return normalizeCrewEffectForm03(data.crewEffectForm03).appendPassengers;
+    }
+    return normalizeCrewEffectForm(data.crewEffectForm).appendPassengers;
+  }
+
   async applyToPdfBytes(
     bytes: Uint8Array,
     options: DocumentStampOptions,
@@ -179,6 +237,16 @@ export class PdfOverlayService {
   ): PdfStampBox {
     const custom = mdhAttachment ? options.stampBoxAttachment : options.stampBox;
     return custom ?? defaultStampBoxForDocument(documentId, mdhAttachment ? 'attachment' : 'form');
+  }
+
+  async drawAssetOnPage(
+    pdf: PDFDocument,
+    page: PDFPage,
+    bytes: Uint8Array,
+    box: PdfStampBox,
+    rotationDeg = 0,
+  ): Promise<void> {
+    await this.drawAsset(pdf, page, bytes, box, rotationDeg);
   }
 
   private async drawAsset(

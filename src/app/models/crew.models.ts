@@ -32,6 +32,7 @@ export type {
   CrewListDocumentPrefs,
   CrewListTypeId,
   DocumentStampOptions,
+  CrewEffectStampOptions,
   ShipAssetsMeta,
   ShipAssetKind,
 } from './document-overlay.models';
@@ -211,6 +212,9 @@ export interface CrewMember {
   archivedFromDeparture: boolean;
   /** Which PDF scans exist on disk (experimental). */
   documents?: CrewDocumentFlags;
+  /** Crew Effect signature image (PNG/JPEG/PDF) for table Signature cell. */
+  hasSignature?: boolean;
+  signatureFileName?: string;
 }
 
 export type CrewListKind = 'arrival' | 'departure';
@@ -737,6 +741,10 @@ export function hasCrewDocument(member: CrewMember, type: CrewDocumentType): boo
 }
 
 /** Migrate legacy crew rows (active = arrival list only). */
+export function hasCrewSignature(member: CrewMember): boolean {
+  return !!member.hasSignature;
+}
+
 export function normalizeCrewDocuments(member: CrewMember): CrewMember {
   const raw = member.documents ?? {};
   return {

@@ -532,6 +532,12 @@
   min-height: 0;
 }
 
+.crew-form-sig-hint {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .crew-form-layout {
   display: flex;
   flex-direction: column;

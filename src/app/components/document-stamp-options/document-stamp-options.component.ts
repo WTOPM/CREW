@@ -1,6 +1,7 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { DocumentOverlayId } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
+import { isCrewEffectOverlayId } from '../../utils/crew-effect-signature.util';
 import { OverlayPlacementPickerComponent } from '../overlay-placement-picker/overlay-placement-picker.component';
 
 @Component({
@@ -9,13 +10,14 @@ import { OverlayPlacementPickerComponent } from '../overlay-placement-picker/ove
   template: `
     <div class="stamp-options">
       <button type="button" class="btn btn-placement" (click)="showPlacement.set(true)">
-        Stamp & signature…
+        {{ isCrewEffect() ? 'Stamp & signatures…' : 'Stamp & signature…' }}
       </button>
     </div>
 
     @if (showPlacement()) {
       <app-overlay-placement-picker
         [documentId]="documentId()"
+        [appendPassengers]="appendPassengers()"
         (close)="closePlacement()"
       />
     }
@@ -73,8 +75,11 @@ export class DocumentStampOptionsComponent {
   private readonly storage = inject(StorageService);
 
   readonly documentId = input.required<DocumentOverlayId>();
+  readonly appendPassengers = input(false);
 
   protected readonly showPlacement = signal(false);
+
+  protected readonly isCrewEffect = computed(() => isCrewEffectOverlayId(this.documentId()));
 
   protected closePlacement(): void {
     this.showPlacement.set(false);

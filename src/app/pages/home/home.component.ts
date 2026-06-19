@@ -10,9 +10,11 @@ import { LookupSelectComponent } from '../../components/lookup-select/lookup-sel
 
 import { CrewDocDropZoneComponent } from '../../components/crew-doc-drop-zone/crew-doc-drop-zone.component';
 import { CrewDocIconComponent } from '../../components/crew-doc-icon/crew-doc-icon.component';
+import { CrewSignatureDropComponent } from '../../components/crew-signature-drop/crew-signature-drop.component';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { CrewDocumentService } from '../../services/crew-document.service';
+import { CrewSignatureService } from '../../services/crew-signature.service';
 
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
@@ -55,6 +57,7 @@ export type HomeListTab =
     PortSelectComponent,
     DatePickerComponent,
     CrewDocIconComponent,
+    CrewSignatureDropComponent,
     CrewDocDropZoneComponent,
     ClickOutsideDirective,
   ],
@@ -72,6 +75,7 @@ export class HomeComponent {
   private readonly toast = inject(ToastService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly crewDocs = inject(CrewDocumentService);
+  private readonly crewSignatures = inject(CrewSignatureService);
   protected readonly appSnapshot = inject(AppSnapshotArchiveService);
 
 
@@ -528,10 +532,19 @@ export class HomeComponent {
     });
     if (!ok) return;
 
-    void this.crewDocs.deleteAllForCrew(id).then(() => {
-      this.storage.removeCrewMember(id);
-      this.toast.showDeleted();
-    });
+    void this.crewDocs.deleteAllForCrew(id).then(() =>
+      this.crewSignatures.deleteForCrew(id).then(() => {
+        this.storage.removeCrewMember(id);
+        this.toast.showDeleted();
+      }),
+    );
+  }
+
+  protected onCrewSignatureChanged(): void {
+    const id = this.editingId();
+    if (!id) return;
+    const updated = this.storage.allCrew().find((m) => m.id === id);
+    if (updated) this.editDraft.set({ ...updated });
   }
 
 

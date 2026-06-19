@@ -36,6 +36,19 @@ declare global {
       crewPdfExists: (crewId: string, docType: CrewDocumentType) => Promise<boolean>;
       deleteCrewPdf: (crewId: string, docType: CrewDocumentType) => Promise<boolean>;
       deleteCrewDocuments: (crewId: string) => Promise<boolean>;
+      pickCrewSignatureFile: () => Promise<string | null>;
+      saveCrewSignatureFromPath: (
+        crewId: string,
+        sourcePath: string,
+      ) => Promise<{ fileName: string }>;
+      saveCrewSignatureBytes: (
+        crewId: string,
+        base64: string,
+        fileName: string,
+      ) => Promise<{ fileName: string }>;
+      readCrewSignature: (crewId: string) => Promise<string | null>;
+      crewSignatureExists: (crewId: string) => Promise<boolean>;
+      deleteCrewSignature: (crewId: string) => Promise<boolean>;
       pickShipAssetFile: () => Promise<string | null>;
       saveShipAssetFromPath: (
         kind: ShipAssetKind,

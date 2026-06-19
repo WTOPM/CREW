@@ -23,6 +23,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   crewPdfExists: (crewId, docType) => ipcRenderer.invoke('crew-pdf-exists', crewId, docType),
   deleteCrewPdf: (crewId, docType) => ipcRenderer.invoke('delete-crew-pdf', crewId, docType),
   deleteCrewDocuments: (crewId) => ipcRenderer.invoke('delete-crew-documents', crewId),
+  pickCrewSignatureFile: () => ipcRenderer.invoke('pick-crew-signature-file'),
+  saveCrewSignatureFromPath: (crewId, sourcePath) =>
+    ipcRenderer.invoke('save-crew-signature-from-path', crewId, sourcePath),
+  saveCrewSignatureBytes: (crewId, base64, fileName) =>
+    ipcRenderer.invoke('save-crew-signature-bytes', crewId, base64, fileName),
+  readCrewSignature: (crewId) => ipcRenderer.invoke('read-crew-signature', crewId),
+  crewSignatureExists: (crewId) => ipcRenderer.invoke('crew-signature-exists', crewId),
+  deleteCrewSignature: (crewId) => ipcRenderer.invoke('delete-crew-signature', crewId),
   pickShipAssetFile: () => ipcRenderer.invoke('pick-ship-asset-file'),
   saveShipAssetFromPath: (kind, sourcePath) =>
     ipcRenderer.invoke('save-ship-asset-from-path', kind, sourcePath),

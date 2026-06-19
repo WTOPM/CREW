@@ -1,5 +1,23 @@
 import type { PdfStampBox } from '../utils/overlay-stamp-box.util';
 
+/** Per-row size/position tweak for Crew Effect crew signatures (relative to base box). */
+export interface CrewSignatureRowTweak {
+  offsetX?: number;
+  offsetY?: number;
+  width?: number;
+  height?: number;
+}
+
+/** Crew Effect forms — stamp/signature plus per-crew row signatures. */
+export interface CrewEffectStampOptions extends DocumentStampOptions {
+  /** Draw uploaded crew member signatures in table Signature cells. */
+  useCrewSignatures?: boolean;
+  /** Base placement for row 1 (index 0); other rows follow row Y + optional tweak. */
+  crewSignatureBase?: PdfStampBox;
+  /** Row index (0-based string key) → offset/size tweak. */
+  crewSignatureByRow?: Record<string, CrewSignatureRowTweak>;
+}
+
 /** Per-document PDF overlay toggles (stamp / signature) and placement. */
 export interface DocumentStampOptions {
   /** Page 1 (form). */
@@ -351,9 +369,9 @@ export interface DocumentOverlayPrefs {
   shipStores: DocumentStampOptions;
   shipStores02: DocumentStampOptions;
   shipStores03: DocumentStampOptions;
-  crewEffect: DocumentStampOptions;
-  crewEffect02: DocumentStampOptions;
-  crewEffect03: DocumentStampOptions;
+  crewEffect: CrewEffectStampOptions;
+  crewEffect02: CrewEffectStampOptions;
+  crewEffect03: CrewEffectStampOptions;
   nilList: DocumentStampOptions;
   shipMoney: DocumentStampOptions;
   cashAdvance: DocumentStampOptions;

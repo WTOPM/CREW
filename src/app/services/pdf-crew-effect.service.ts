@@ -33,7 +33,9 @@ export class PdfCrewEffectService {
 
   async buildFinalBytes(data: AppData): Promise<Uint8Array> {
     const bytes = await this.build(data);
-    return this.overlay.applyToPdfBytes(bytes, data.documentOverlay.crewEffect);
+    let out = await this.overlay.applyToPdfBytes(bytes, data.documentOverlay.crewEffect);
+    out = await this.overlay.applyCrewEffectCrewSignatures(out, data, 'crewEffect');
+    return out;
   }
 
   async openPreview(data: AppData): Promise<boolean> {

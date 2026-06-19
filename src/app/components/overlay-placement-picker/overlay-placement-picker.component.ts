@@ -16,6 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import {
   CREW_LIST_TYPE_LABELS,
+  CrewEffectStampOptions,
   DOCUMENT_OVERLAY_LABELS,
   documentUsesSignature,
   documentUsesStamp,
@@ -23,6 +24,16 @@ import {
   DocumentStampOptions,
   resolveCrewListStampOptions,
 } from '../../models/document-overlay.models';
+import { CrewMember, formatCrewListName } from '../../models/crew.models';
+import { CrewSignatureService } from '../../services/crew-signature.service';
+import {
+  CREW_EFFECT_SIGNATURE_FORM_CONFIG,
+  crewEffectSignatureBase,
+  isCrewEffectOverlayId,
+  resolveCrewSignatureBox,
+  type CrewEffectOverlayId,
+} from '../../utils/crew-effect-signature.util';
+import { passengersToCrewRows } from '../../utils/passenger-pdf.util';
 import {
   DocumentOverlayPreviewService,
   MdhOverlayPreviewPage,
@@ -58,8 +69,7 @@ import {
   type StampResizeHandle,
 } from '../../utils/overlay-stamp-box.util';
 
-type PlacementMode = 'none' | 'stamp' | 'signature' | 'both';
-type ResizeTarget = 'stamp' | 'signature';
+type MarkerDragTarget = 'stamp' | 'signature' | 'crewTableSig';
 
 @Component({
   selector: 'app-overlay-placement-picker',
@@ -68,6 +78,7 @@ type ResizeTarget = 'stamp' | 'signature';
     <div class="modal-backdrop placement-backdrop">
       <div
         class="placement-modal"
+        [class.placement-modal--crew-effect]="isCrewEffectDoc() && !mdhAttachment()"
         tabindex="0"
         #modalHost
         appClickOutside
@@ -75,26 +86,14 @@ type ResizeTarget = 'stamp' | 'signature';
         (click)="$event.stopPropagation()"
         (keydown)="onKeydown($event)"
       >
-        <h3>Stamp & signature — {{ docLabel() }}</h3>
-
-        <div class="choice-chips">
-          <label class="choice-chip">
-            <input
-              type="checkbox"
-              [ngModel]="useStampChecked()"
-              (ngModelChange)="onToggle('useStamp', $event)"
-            />
-            <span>Stamp</span>
-          </label>
-          <label class="choice-chip">
-            <input
-              type="checkbox"
-              [ngModel]="useSignatureChecked()"
-              (ngModelChange)="onToggle('useSignature', $event)"
-            />
-            <span>Signature</span>
-          </label>
-        </div>
+        <header class="placement-header">
+          <h3>{{ modalTitle() }}</h3>
+          @if (isCrewEffectDoc() && !mdhAttachment()) {
+            <p class="placement-subtitle">
+              Three independent layers — drag the frame you need on the preview.
+            </p>
+          }
+        </header>
 
         @if (documentId() === 'mdh' || documentId() === 'shipStores03' || documentId() === 'crewEffect03') {
           <div class="placement-mdh-tabs" role="tablist">
@@ -119,52 +118,161 @@ type ResizeTarget = 'stamp' | 'signature';
           </div>
         }
 
-        <div class="placement-rotation" role="group" aria-label="Stamp rotation">
-          <span class="placement-toolbar-label">Stamp rotation</span>
-          @for (deg of rotations; track deg) {
-            <button
-              type="button"
-              class="placement-pill placement-pill--narrow"
-              [class.placement-pill--active]="rotation() === deg"
-              (click)="setRotation(deg)"
-            >
-              {{ deg }}°
-            </button>
-          }
-        </div>
+        <section
+          class="placement-toolbar"
+          [class.placement-toolbar--crew-effect]="isCrewEffectDoc() && !mdhAttachment()"
+        >
+          <div class="placement-toolbar__primary">
+            <div class="placement-toggles">
+              <label class="placement-toggle placement-toggle--stamp">
+                <input
+                  type="checkbox"
+                  [ngModel]="useStampChecked()"
+                  (ngModelChange)="onToggle('useStamp', $event)"
+                />
+                <span class="placement-toggle__text">{{ isCrewEffectDoc() ? 'Ship stamp' : 'Stamp' }}</span>
+              </label>
+              <label class="placement-toggle placement-toggle--captain">
+                <input
+                  type="checkbox"
+                  [ngModel]="useSignatureChecked()"
+                  (ngModelChange)="onToggle('useSignature', $event)"
+                />
+                <span class="placement-toggle__text">{{ isCrewEffectDoc() ? 'Captain' : 'Signature' }}</span>
+              </label>
+              @if (isCrewEffectDoc() && !mdhAttachment()) {
+                <label class="placement-toggle placement-toggle--crew">
+                  <input
+                    type="checkbox"
+                    [ngModel]="useCrewTableSignatures()"
+                    (ngModelChange)="onToggleCrewTableSig($event)"
+                  />
+                  <span class="placement-toggle__text">Crew</span>
+                </label>
+              }
+            </div>
 
-        <p class="placement-hint">{{ placementHint() }}</p>
+            @if (isCrewEffectDoc() && !mdhAttachment() && useCrewTableSignatures()) {
+              <label class="placement-row-pick">
+                <select [ngModel]="crewTableRow()" (ngModelChange)="onCrewTableRowChange($event)">
+                  @for (row of crewTableRowLabels(); track row.index) {
+                    <option [ngValue]="row.index">
+                      {{ row.label }}{{ row.hasSignature ? '' : ' (no signature)' }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+          </div>
+
+          <div class="placement-toolbar__secondary">
+            <div class="placement-tool-group">
+              <span class="placement-tool-group__label">Rotation</span>
+              <div class="placement-tool-group__controls" role="group" aria-label="Stamp rotation">
+                @for (deg of rotations; track deg) {
+                  <button
+                    type="button"
+                    class="placement-pill placement-pill--narrow"
+                    [class.placement-pill--active]="rotation() === deg"
+                    (click)="setRotation(deg)"
+                  >
+                    {{ deg }}°
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="placement-tool-group placement-tool-group--zoom" role="group" aria-label="Preview zoom">
+              <span class="placement-tool-group__label">Zoom</span>
+              <div class="placement-tool-group__controls">
+                <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomOut()" aria-label="Zoom out">−</button>
+                <span class="placement-zoom-label">{{ zoomPercent() }}%</span>
+                <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomIn()" aria-label="Zoom in">+</button>
+                <button type="button" class="placement-pill placement-pill--fit" (click)="resetZoom()">Fit</button>
+              </div>
+            </div>
+          </div>
+
+          @if (isCrewEffectDoc() && !mdhAttachment()) {
+            <p class="placement-toolbar__hint">
+              Wheel to zoom · drag empty area to pan · resize with corner handles
+            </p>
+          }
+        </section>
+
+        @if (!isCrewEffectDoc() || mdhAttachment()) {
+          <p class="placement-hint">{{ placementHint() }}</p>
+        }
 
         @if (loadError()) {
           <p class="placement-error">{{ loadError() }}</p>
         } @else {
-          <div class="placement-readout" aria-live="polite">
-            <span class="placement-readout-line placement-readout-line--cursor">
-              Cursor: x {{ cursorPt()?.x ?? '—' }}, y {{ cursorPt()?.y ?? '—' }}
-              @if (cursorFromTop() != null) {
-                <span class="placement-readout-sub">(y from top: {{ cursorFromTop() | number: '1.0-1' }})</span>
+          @if (isCrewEffectDoc() && !mdhAttachment()) {
+            <div class="placement-metrics" aria-live="polite">
+              <div class="placement-metric placement-metric--cursor">
+                <span class="placement-metric__title">Cursor</span>
+                <span class="placement-metric__value">
+                  {{ cursorPt()?.x != null ? (cursorPt()!.x | number: '1.0-1') : '—' }},
+                  {{ cursorPt()?.y != null ? (cursorPt()!.y | number: '1.0-1') : '—' }}
+                </span>
+              </div>
+              @if (useStampChecked() && stampBoxOnPage(); as stamp) {
+                <div class="placement-metric placement-metric--stamp">
+                  <span class="placement-metric__title">Ship stamp</span>
+                  <span class="placement-metric__value">
+                    {{ stamp.x | number: '1.0-1' }}, {{ stamp.y | number: '1.0-1' }} ·
+                    {{ stamp.width | number: '1.0-1' }}×{{ stamp.height | number: '1.0-1' }} pt
+                  </span>
+                </div>
               }
-            </span>
-            @if (stampBoxOnPage(); as stamp) {
-              <span>
-                Stamp: x {{ stamp.x | number: '1.0-1' }}, y {{ stamp.y | number: '1.0-1' }},
-                {{ stamp.width | number: '1.0-1' }}×{{ stamp.height | number: '1.0-1' }} pt
+              @if (useSignatureChecked() && signatureBoxOnPage(); as sig) {
+                <div class="placement-metric placement-metric--captain">
+                  <span class="placement-metric__title">Captain</span>
+                  <span class="placement-metric__value">
+                    {{ sig.x | number: '1.0-1' }}, {{ sig.y | number: '1.0-1' }} ·
+                    {{ sig.width | number: '1.0-1' }}×{{ sig.height | number: '1.0-1' }} pt
+                  </span>
+                </div>
+              }
+              @if (showCrewTableSigMarker() && crewTableSigBoxOnPage(); as crewSig) {
+                <div class="placement-metric placement-metric--crew">
+                  <span class="placement-metric__title">{{ crewTableRowMetricLabel() }}</span>
+                  <span class="placement-metric__value">
+                    {{ crewSig.x | number: '1.0-1' }}, {{ crewSig.y | number: '1.0-1' }} ·
+                    {{ crewSig.width | number: '1.0-1' }}×{{ crewSig.height | number: '1.0-1' }} pt
+                  </span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="placement-readout" aria-live="polite">
+              <span class="placement-readout-line placement-readout-line--cursor">
+                Cursor: x {{ cursorPt()?.x ?? '—' }}, y {{ cursorPt()?.y ?? '—' }}
+                @if (cursorFromTop() != null) {
+                  <span class="placement-readout-sub">(y from top: {{ cursorFromTop() | number: '1.0-1' }})</span>
+                }
               </span>
-            }
-            @if (signatureBoxOnPage(); as sig) {
-              <span>
-                Signature: x {{ sig.x | number: '1.0-1' }}, y {{ sig.y | number: '1.0-1' }},
-                {{ sig.width | number: '1.0-1' }}×{{ sig.height | number: '1.0-1' }} pt
-              </span>
-            }
-          </div>
+              @if (stampBoxOnPage(); as stamp) {
+                <span>
+                  Stamp: x {{ stamp.x | number: '1.0-1' }}, y {{ stamp.y | number: '1.0-1' }},
+                  {{ stamp.width | number: '1.0-1' }}×{{ stamp.height | number: '1.0-1' }} pt
+                </span>
+              }
+              @if (signatureBoxOnPage(); as sig) {
+                <span>
+                  Signature: x {{ sig.x | number: '1.0-1' }}, y {{ sig.y | number: '1.0-1' }},
+                  {{ sig.width | number: '1.0-1' }}×{{ sig.height | number: '1.0-1' }} pt
+                </span>
+              }
+            </div>
 
-          <div class="placement-zoom" role="group" aria-label="Preview zoom">
-            <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomOut()" aria-label="Zoom out">−</button>
-            <span class="placement-zoom-label">{{ zoomPercent() }}%</span>
-            <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomIn()" aria-label="Zoom in">+</button>
-            <button type="button" class="placement-pill" (click)="resetZoom()">100%</button>
-          </div>
+            <div class="placement-zoom" role="group" aria-label="Preview zoom">
+              <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomOut()" aria-label="Zoom out">−</button>
+              <span class="placement-zoom-label">{{ zoomPercent() }}%</span>
+              <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomIn()" aria-label="Zoom in">+</button>
+              <button type="button" class="placement-pill" (click)="resetZoom()">Fit</button>
+            </div>
+          }
 
           <div
             class="placement-scroll"
@@ -197,7 +305,7 @@ type ResizeTarget = 'stamp' | 'signature';
                     #placementOverlay
                     [class.placement-overlay--probe]="coordProbeMode()"
                     [class.placement-overlay--panning]="viewPanning()"
-                    [class.placement-overlay--draggable]="placementMode() !== 'none' && !resizing()"
+                    [class.placement-overlay--draggable]="false"
                     [class.placement-overlay--dragging]="pointerDragging()"
                     [class.placement-overlay--resizing]="resizing()"
                     (pointerdown)="onOverlayPointerDown($event)"
@@ -211,17 +319,17 @@ type ResizeTarget = 'stamp' | 'signature';
                         >1</span
                       >
                     }
-                <div
-                  class="placement-marker placement-marker--stamp"
-                  [class.placement-marker--on]="useStampChecked()"
-                  [class.placement-marker--active]="canMoveStamp()"
-                  [class.placement-marker--resizable]="canResizeStamp()"
-                  [ngStyle]="stampOverlayStyle()"
-                >
-                  @if (stampPreviewUrl()) {
-                    <img [src]="stampPreviewUrl()" alt="" class="placement-marker-img" />
-                  }
-                  @if (canResizeStamp()) {
+                @if (useStampChecked()) {
+                  <div
+                    class="placement-marker placement-marker--stamp"
+                    [class.placement-marker--active]="true"
+                    [class.placement-marker--resizable]="true"
+                    [ngStyle]="stampOverlayStyle()"
+                    (pointerdown)="onMarkerPointerDown('stamp', $event)"
+                  >
+                    @if (stampPreviewUrl()) {
+                      <img [src]="stampPreviewUrl()" alt="" class="placement-marker-img" />
+                    }
                     @for (h of resizeHandles; track h) {
                       <span
                         class="placement-handle placement-handle--stamp placement-handle--{{ h }}"
@@ -229,19 +337,19 @@ type ResizeTarget = 'stamp' | 'signature';
                         (pointerdown)="onHandlePointerDown($event, 'stamp', h)"
                       ></span>
                     }
-                  }
-                </div>
-                <div
-                  class="placement-marker placement-marker--sig"
-                  [class.placement-marker--on]="useSignatureChecked()"
-                  [class.placement-marker--active]="canMoveSignature()"
-                  [class.placement-marker--resizable]="canResizeSignature()"
-                  [ngStyle]="signatureOverlayStyle()"
-                >
-                  @if (signaturePreviewUrl()) {
-                    <img [src]="signaturePreviewUrl()" alt="" class="placement-marker-img" />
-                  }
-                  @if (canResizeSignature()) {
+                  </div>
+                }
+                @if (useSignatureChecked()) {
+                  <div
+                    class="placement-marker placement-marker--sig"
+                    [class.placement-marker--active]="true"
+                    [class.placement-marker--resizable]="true"
+                    [ngStyle]="signatureOverlayStyle()"
+                    (pointerdown)="onMarkerPointerDown('signature', $event)"
+                  >
+                    @if (signaturePreviewUrl()) {
+                      <img [src]="signaturePreviewUrl()" alt="" class="placement-marker-img" />
+                    }
                     @for (h of resizeHandles; track h) {
                       <span
                         class="placement-handle placement-handle--sig placement-handle--{{ h }}"
@@ -249,8 +357,28 @@ type ResizeTarget = 'stamp' | 'signature';
                         (pointerdown)="onHandlePointerDown($event, 'signature', h)"
                       ></span>
                     }
-                  }
-                </div>
+                  </div>
+                }
+                @if (showCrewTableSigMarker()) {
+                  <div
+                    class="placement-marker placement-marker--crew-sig"
+                    [class.placement-marker--active]="true"
+                    [class.placement-marker--resizable]="true"
+                    [ngStyle]="crewTableSigOverlayStyle()"
+                    (pointerdown)="onMarkerPointerDown('crewTableSig', $event)"
+                  >
+                    @if (crewTableSigPreviewUrl()) {
+                      <img [src]="crewTableSigPreviewUrl()" alt="" class="placement-marker-img" />
+                    }
+                    @for (h of resizeHandles; track h) {
+                      <span
+                        class="placement-handle placement-handle--crew-sig placement-handle--{{ h }}"
+                        [attr.aria-label]="'Resize crew signature ' + h"
+                        (pointerdown)="onHandlePointerDown($event, 'crewTableSig', h)"
+                      ></span>
+                    }
+                  </div>
+                }
               </div>
             </div>
             </div>
@@ -258,10 +386,16 @@ type ResizeTarget = 'stamp' | 'signature';
           </div>
         }
 
-        <p class="placement-coords">
-          Base 96 dpi, preview {{ zoomPercent() }}% — {{ moveTargetLabel() }}, rotation {{ rotation() }}°.
-          Values match pdf-lib <code>drawText</code> (x, y from bottom-left). y from top = page height − y.
-        </p>
+        @if (isCrewEffectDoc() && !mdhAttachment()) {
+          <p class="placement-coords placement-coords--compact">
+            Coordinates in pdf-lib points (bottom-left origin). Preview {{ zoomPercent() }}%, rotation {{ rotation() }}°.
+          </p>
+        } @else {
+          <p class="placement-coords">
+            Base 96 dpi, preview {{ zoomPercent() }}% — {{ moveTargetLabel() }}, rotation {{ rotation() }}°.
+            Values match pdf-lib <code>drawText</code> (x, y from bottom-left). y from top = page height − y.
+          </p>
+        }
 
         <div class="placement-actions">
           <button type="button" class="btn btn-secondary" (click)="resetToDefault()">Reset to default</button>
@@ -293,15 +427,260 @@ type ResizeTarget = 'stamp' | 'signature';
         0 0 0 2px var(--accent-soft);
     }
 
-    .placement-modal h3 {
-      margin: 0 0 0.75rem;
-      font-size: 1.05rem;
+    .placement-header {
+      margin-bottom: 0.85rem;
     }
 
-    .choice-chips {
-      margin-bottom: 0.65rem;
-      padding-bottom: 0.65rem;
-      border-bottom: 1px solid var(--border);
+    .placement-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+
+    .placement-subtitle {
+      margin: 0.35rem 0 0;
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .placement-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-bottom: 0.85rem;
+    }
+
+    .placement-toolbar--crew-effect {
+      padding: 0.65rem 0.85rem;
+      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      gap: 0;
+    }
+
+    .placement-toolbar__primary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.45rem 0.65rem;
+    }
+
+    .placement-toolbar__secondary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 0.65rem 1.5rem;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgb(148 163 184 / 22%);
+    }
+
+    .placement-toolbar__hint {
+      margin: 0.65rem 0 0;
+      padding-top: 0.55rem;
+      border-top: 1px dashed rgb(148 163 184 / 35%);
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    .placement-toggles {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .placement-toggle {
+      display: inline-flex;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .placement-toggle + .placement-toggle {
+      border-left: 1px solid var(--border);
+    }
+
+    .placement-toggle input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      margin: 0;
+      pointer-events: none;
+    }
+
+    .placement-toggle__text {
+      display: block;
+      padding: 0.2rem 0.48rem;
+      font-size: 0.74rem;
+      font-weight: 500;
+      line-height: 1.15;
+      color: var(--text-muted);
+      white-space: nowrap;
+      transition:
+        background 0.12s ease,
+        color 0.12s ease;
+    }
+
+    .placement-toggle:hover .placement-toggle__text {
+      background: #f1f5f9;
+      color: var(--text);
+    }
+
+    .placement-toggle--stamp:has(input:checked) .placement-toggle__text {
+      background: rgb(220 38 38 / 14%);
+      color: #991b1b;
+      font-weight: 600;
+    }
+
+    .placement-toggle--captain:has(input:checked) .placement-toggle__text {
+      background: rgb(3 105 161 / 14%);
+      color: #075985;
+      font-weight: 600;
+    }
+
+    .placement-toggle--crew:has(input:checked) .placement-toggle__text {
+      background: rgb(124 58 237 / 14%);
+      color: #5b21b6;
+      font-weight: 600;
+    }
+
+    .placement-toggle:has(input:focus-visible) .placement-toggle__text {
+      outline: 2px solid var(--accent-soft);
+      outline-offset: -2px;
+    }
+
+    .placement-row-pick {
+      display: inline-flex;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      border: 1px solid rgb(124 58 237 / 40%);
+      border-radius: 6px;
+      font-size: 0.74rem;
+      line-height: 1.15;
+      overflow: hidden;
+    }
+
+    .placement-row-pick select {
+      border: none;
+      background: transparent;
+      font: inherit;
+      font-weight: 500;
+      color: #4c1d95;
+      padding: 0.2rem 0.45rem;
+      max-width: 14rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .placement-tool-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .placement-tool-group__label {
+      font-size: 0.68rem;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .placement-tool-group__controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .placement-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin: 0 0 0.55rem;
+    }
+
+    .placement-metric {
+      flex: 1 1 8.5rem;
+      min-width: 0;
+      padding: 0.38rem 0.55rem;
+      border-radius: 8px;
+      border: 1px solid;
+      display: flex;
+      flex-direction: column;
+      gap: 0.12rem;
+    }
+
+    .placement-metric__title {
+      font-size: 0.68rem;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .placement-metric__value {
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+      font-size: 0.72rem;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.35;
+      color: #334155;
+    }
+
+    .placement-metric--stamp {
+      border-color: rgb(220 38 38 / 32%);
+      background: rgb(220 38 38 / 5%);
+    }
+
+    .placement-metric--stamp .placement-metric__title {
+      color: #dc2626;
+    }
+
+    .placement-metric--captain {
+      border-color: rgb(3 105 161 / 32%);
+      background: rgb(3 105 161 / 5%);
+    }
+
+    .placement-metric--captain .placement-metric__title {
+      color: #0369a1;
+    }
+
+    .placement-metric--crew {
+      border-color: rgb(124 58 237 / 32%);
+      background: rgb(124 58 237 / 5%);
+    }
+
+    .placement-metric--crew .placement-metric__title {
+      color: #7c3aed;
+    }
+
+    .placement-metric--cursor {
+      border-color: rgb(100 116 139 / 32%);
+      background: rgb(100 116 139 / 6%);
+      flex: 0 1 7.5rem;
+    }
+
+    .placement-metric--cursor .placement-metric__title {
+      color: #64748b;
+    }
+
+    .placement-modal--crew-effect .placement-scroll {
+      max-height: min(72vh, 860px);
     }
 
     .placement-mdh-tabs {
@@ -328,40 +707,32 @@ type ResizeTarget = 'stamp' | 'signature';
       font-weight: 600;
     }
 
-    .placement-rotation {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.35rem;
-      margin-bottom: 0.65rem;
-    }
-
-    .placement-toolbar-label {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      min-width: 4.5rem;
-    }
-
     .placement-pill {
-      padding: 0.32rem 0.6rem;
+      padding: 0.22rem 0.42rem;
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 5px;
       background: #fff;
       font: inherit;
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       cursor: pointer;
     }
 
     .placement-pill--narrow {
-      min-width: 2.6rem;
+      min-width: 2.1rem;
       text-align: center;
+      padding-left: 0.3rem;
+      padding-right: 0.3rem;
     }
 
     .placement-pill--active {
       background: var(--accent-soft);
       border-color: var(--accent);
       color: var(--accent);
+      font-weight: 600;
+    }
+
+    .placement-pill--fit {
+      margin-left: 0.1rem;
       font-weight: 600;
     }
 
@@ -403,9 +774,9 @@ type ResizeTarget = 'stamp' | 'signature';
     }
 
     .placement-zoom-label {
-      min-width: 3rem;
+      min-width: 2.6rem;
       text-align: center;
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       font-weight: 600;
       color: var(--text-muted);
       font-variant-numeric: tabular-nums;
@@ -540,6 +911,7 @@ type ResizeTarget = 'stamp' | 'signature';
 
     .placement-marker--active {
       opacity: 1;
+      z-index: 5;
     }
 
     .placement-marker--stamp {
@@ -552,6 +924,32 @@ type ResizeTarget = 'stamp' | 'signature';
       background: rgb(3 105 161 / 8%);
     }
 
+    .placement-marker--crew-sig {
+      border: 2px dashed #7c3aed;
+      background: rgb(124 58 237 / 10%);
+      pointer-events: auto;
+      opacity: 1;
+      cursor: grab;
+    }
+
+    .placement-marker--stamp,
+    .placement-marker--sig {
+      pointer-events: auto;
+      opacity: 1;
+      cursor: grab;
+    }
+
+    .placement-marker--stamp:active,
+    .placement-marker--sig:active,
+    .placement-marker--crew-sig:active {
+      cursor: grabbing;
+    }
+
+    .placement-handle--crew-sig {
+      background: #7c3aed;
+      border: 1px solid #fff;
+    }
+
     .placement-marker-img {
       max-width: 100%;
       max-height: 100%;
@@ -560,6 +958,10 @@ type ResizeTarget = 'stamp' | 'signature';
     }
 
     .placement-marker--resizable {
+      pointer-events: auto;
+    }
+
+    .placement-marker--resizable .placement-marker-img {
       pointer-events: none;
     }
 
@@ -652,6 +1054,15 @@ type ResizeTarget = 'stamp' | 'signature';
       color: var(--text-muted);
     }
 
+    .placement-coords--compact {
+      margin: 0 0 0.85rem;
+      padding: 0.45rem 0.65rem;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.74rem;
+    }
+
     .placement-error {
       color: #b91c1c;
       font-size: 0.88rem;
@@ -668,6 +1079,7 @@ type ResizeTarget = 'stamp' | 'signature';
 })
 export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   readonly documentId = input.required<DocumentOverlayId>();
+  readonly appendPassengers = input(false);
   readonly close = output<void>();
 
   protected readonly rotations = OVERLAY_ROTATIONS;
@@ -676,6 +1088,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   private readonly storage = inject(StorageService);
   private readonly previewSvc = inject(DocumentOverlayPreviewService);
   private readonly assets = inject(ShipAssetsService);
+  private readonly crewSignatures = inject(CrewSignatureService);
   private readonly modalHost = viewChild<ElementRef<HTMLElement>>('modalHost');
   private readonly pdfCanvas = viewChild<ElementRef<HTMLCanvasElement>>('pdfCanvas');
   private readonly placementOverlay = viewChild<ElementRef<HTMLElement>>('placementOverlay');
@@ -687,7 +1100,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected readonly viewPanning = signal(false);
   protected readonly resizing = signal(false);
   private readonly activeResize = signal<{
-    target: ResizeTarget;
+    target: MarkerDragTarget;
     handle: StampResizeHandle;
   } | null>(null);
   protected readonly loading = signal(true);
@@ -696,6 +1109,8 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected readonly pdfProbeMarkerStyle = signal<Record<string, string> | null>(null);
   protected readonly stampPreviewUrl = signal<string | null>(null);
   protected readonly signaturePreviewUrl = signal<string | null>(null);
+  protected readonly crewTableSigPreviewUrl = signal<string | null>(null);
+  protected readonly crewTableRow = signal(0);
 
   private readonly pageSizePt = signal({ widthPt: A4_WIDTH_PT, heightPt: A4_HEIGHT_PT });
   protected readonly pageCssWidth = signal(0);
@@ -712,7 +1127,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected readonly pageScaleTransform = computed(() => `scale(${this.previewZoom()})`);
 
   protected readonly coordProbeMode = computed(
-    () => this.placementMode() === 'none' && !this.viewPanning(),
+    () => !this.markerDragging() && !this.viewPanning() && !this.resizing(),
   );
 
   private static readonly ZOOM_MIN = 0.5;
@@ -730,6 +1145,8 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   private readonly dragStampBoxPage = signal<PdfStampBox | null>(null);
   private readonly dragSignatureBoxPage = signal<PdfStampBox | null>(null);
+  private readonly dragCrewTableSigBoxPage = signal<PdfStampBox | null>(null);
+  private readonly markerDragging = signal<MarkerDragTarget | null>(null);
   private lastPointerClient: { x: number; y: number } | null = null;
   private lastPanClient: { x: number; y: number } | null = null;
   private pointerDidMove = false;
@@ -746,14 +1163,104 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.syncRotationFromStorage();
     void this.loadAssetPreviews();
+    void this.loadCrewTableSigPreview();
   }
 
   ngOnDestroy(): void {
     this.endResize(false);
     this.endPointerDrag(false);
+    this.endMarkerDrag(false);
     this.pageView?.destroy();
     this.pageView = null;
     this.revokePreviewUrls();
+  }
+
+  protected readonly isCrewEffectDoc = computed(() => isCrewEffectOverlayId(this.documentId()));
+
+  protected readonly crewEffectOverlayId = computed((): CrewEffectOverlayId => {
+    const id = this.documentId();
+    if (id === 'crewEffect02' || id === 'crewEffect03') return id;
+    return 'crewEffect';
+  });
+
+  protected readonly crewEffectOptions = computed((): CrewEffectStampOptions => {
+    const id = this.crewEffectOverlayId();
+    return this.storage.documentOverlay()[id];
+  });
+
+  protected readonly crewEffectListRows = computed((): CrewMember[] => {
+    const max = CREW_EFFECT_SIGNATURE_FORM_CONFIG[this.crewEffectOverlayId()].rowCount;
+    const crew = this.storage.activeCrewArrival().slice(0, max);
+    if (!this.appendPassengers()) return crew;
+    const remaining = max - crew.length;
+    if (remaining <= 0) return crew;
+    const passengers = passengersToCrewRows(this.storage.activePassengersArrival()).slice(
+      0,
+      remaining,
+    );
+    return [...crew, ...passengers];
+  });
+
+  protected readonly useCrewTableSignatures = computed(
+    () => this.isCrewEffectDoc() && !!this.crewEffectOptions().useCrewSignatures,
+  );
+
+  protected readonly crewTableRowLabels = computed(() =>
+    this.crewEffectListRows().map((m, i) => ({
+      index: i,
+      label: `${i + 1} — ${formatCrewListName(m)}`,
+      hasSignature: !!m.hasSignature,
+    })),
+  );
+
+  protected readonly showCrewTableSigMarker = computed(
+    () => this.useCrewTableSignatures() && !this.mdhAttachment(),
+  );
+
+  protected readonly crewTableSigBoxOnPage = computed((): PdfStampBox | null => {
+    const drag = this.dragCrewTableSigBoxPage();
+    if (drag) return drag;
+    if (!this.showCrewTableSigMarker()) return null;
+    const id = this.crewEffectOverlayId();
+    const form = CREW_EFFECT_SIGNATURE_FORM_CONFIG[id];
+    const opts = this.crewEffectOptions();
+    const base = crewEffectSignatureBase(opts, id);
+    const row = this.crewTableRow();
+    const tweak = opts.crewSignatureByRow?.[String(row)];
+    const { widthPt, heightPt } = this.pageSizePt();
+    const box = resolveCrewSignatureBox(base, form.rowY(0), form.rowY(row), tweak);
+    return clampStampBox(box, widthPt, heightPt);
+  });
+
+  protected readonly crewTableSigOverlayStyle = computed(() => {
+    const box = this.dragCrewTableSigBoxPage() ?? this.crewTableSigBoxOnPage();
+    if (!box) return { display: 'none' };
+    return this.markerStyle(box);
+  });
+
+  protected crewTableRowMetricLabel(): string {
+    const row = this.crewTableRowLabels().find((r) => r.index === this.crewTableRow());
+    return row?.label ?? `${this.crewTableRow() + 1}`;
+  }
+
+  protected modalTitle(): string {
+    if (this.isCrewEffectDoc()) {
+      return `Stamp & signatures — ${this.docLabel()}`;
+    }
+    return `Stamp & signature — ${this.docLabel()}`;
+  }
+
+  protected onCrewTableRowChange(index: number): void {
+    this.crewTableRow.set(index);
+    void this.loadCrewTableSigPreview();
+  }
+
+  protected onToggleCrewTableSig(value: boolean): void {
+    this.storage.updateDocumentOverlay(
+      this.crewEffectOverlayId(),
+      { useCrewSignatures: value },
+      'saved',
+    );
   }
 
   protected readonly mdhAttachment = computed(() => {
@@ -779,57 +1286,19 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   protected markerRotateTransform = computed(() => `rotate(${this.rotation()}deg)`);
 
-  protected placementMode = computed((): PlacementMode => {
-    const stamp = this.useStampChecked();
-    const sig = this.useSignatureChecked();
-    if (stamp && sig) return 'both';
-    if (stamp) return 'stamp';
-    if (sig) return 'signature';
-    return 'none';
-  });
-
-  protected canMoveStamp = computed(() => {
-    const m = this.placementMode();
-    return this.useStampChecked() && (m === 'stamp' || m === 'both');
-  });
-
-  protected canMoveSignature = computed(() => {
-    const m = this.placementMode();
-    return this.useSignatureChecked() && (m === 'signature' || m === 'both');
-  });
-
-  protected canResizeStamp = computed(
-    () => this.useStampChecked() && this.placementMode() !== 'none',
-  );
-
-  protected canResizeSignature = computed(
-    () => this.useSignatureChecked() && this.placementMode() !== 'none',
-  );
-
   protected placementHint = computed(() => {
-    switch (this.placementMode()) {
-      case 'both':
-        return 'Drag to move; drag edges/corners of a frame to resize. Arrow keys nudge position.';
-      case 'stamp':
-        return 'Drag to move the stamp; drag its edges/corners to resize (signature for reference).';
-      case 'signature':
-        return 'Drag to move the signature; drag its edges/corners to resize.';
-      default:
-        return 'Hover for pdf-lib coordinates. Red «1» marks exact drawText position for displayed x, y. Wheel to zoom (up to 1000%); drag LMB to pan when zoomed.';
+    if (this.isCrewEffectDoc() && !this.mdhAttachment()) {
+      return 'Each checkbox shows its own frame — drag only the frame you need. Purple = crew row from the list. Wheel zoom; drag empty area to pan.';
     }
+    return 'Drag a visible frame to move it; drag edges/corners to resize. Wheel zoom; drag empty area to pan.';
   });
 
   protected moveTargetLabel = computed(() => {
-    switch (this.placementMode()) {
-      case 'both':
-        return 'Moving stamp + signature';
-      case 'stamp':
-        return 'Moving stamp';
-      case 'signature':
-        return 'Moving signature';
-      default:
-        return 'Coordinates only';
-    }
+    const target = this.markerDragging();
+    if (target === 'stamp') return 'Moving ship stamp';
+    if (target === 'signature') return 'Moving captain signature';
+    if (target === 'crewTableSig') return 'Moving crew row signature';
+    return 'Coordinates only';
   });
 
   protected zoomIn(): void {
@@ -860,7 +1329,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       this.moveViewPan(event);
       return;
     }
-    if (this.placementMode() === 'none') {
+    if (!this.viewPanning()) {
       this.updateCursor(event);
     }
   }
@@ -907,14 +1376,17 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   protected stampBoxOnPage = computed(() => {
     const { widthPt, heightPt } = this.pageSizePt();
-    const ref = this.dragStampBoxPage() ?? this.stampBoxRef();
+    const drag = this.dragStampBoxPage();
+    if (drag) return clampStampBox(drag, widthPt, heightPt);
+    const ref = this.stampBoxRef();
     return clampStampBox(scaleStampBoxToPage(ref, widthPt, heightPt), widthPt, heightPt);
   });
 
   protected signatureBoxOnPage = computed(() => {
     const { widthPt, heightPt } = this.pageSizePt();
-    const stampRef = this.stampBoxRef();
-    const ref = this.dragSignatureBoxPage() ?? this.signatureBoxRef();
+    const drag = this.dragSignatureBoxPage();
+    if (drag) return clampStampBox(drag, widthPt, heightPt);
+    const ref = this.signatureBoxRef();
     const scaled = scaleStampBoxToPage(ref, widthPt, heightPt);
     return clampStampBox(scaled, widthPt, heightPt);
   });
@@ -949,7 +1421,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   protected onHandlePointerDown(
     event: PointerEvent,
-    target: ResizeTarget,
+    target: MarkerDragTarget,
     handle: StampResizeHandle,
   ): void {
     if (event.button !== 0) return;
@@ -967,33 +1439,62 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
     if (target === 'stamp') {
       this.dragStampBoxPage.set(this.stampBoxOnPage());
-    } else {
+    } else if (target === 'signature') {
       this.dragSignatureBoxPage.set(this.signatureBoxOnPage());
+    } else {
+      this.dragCrewTableSigBoxPage.set(this.crewTableSigBoxOnPage());
     }
+  }
+
+  protected onMarkerPointerDown(target: MarkerDragTarget, event: PointerEvent): void {
+    if (event.button !== 0 || this.resizing()) return;
+    event.stopPropagation();
+    event.preventDefault();
+
+    const overlay = this.placementOverlay()?.nativeElement;
+    if (!overlay) return;
+    overlay.setPointerCapture(event.pointerId);
+
+    this.markerDragging.set(target);
+    this.pointerDidMove = false;
+    this.lastPointerClient = { x: event.clientX, y: event.clientY };
+    this.initDragBoxForTarget(target);
+  }
+
+  private moveMarkerDrag(event: PointerEvent): void {
+    const dragging = this.markerDragging();
+    if (!dragging || !this.lastPointerClient || !this.pageView) return;
+    const canvas = this.pdfCanvas()?.nativeElement;
+    if (!canvas) return;
+    const { dx, dy } = this.pointerDeltaPdf(
+      canvas,
+      event.clientX,
+      event.clientY,
+      this.lastPointerClient.x,
+      this.lastPointerClient.y,
+    );
+    if (dx === 0 && dy === 0) return;
+    this.pointerDidMove = true;
+    this.lastPointerClient = { x: event.clientX, y: event.clientY };
+    const { widthPt, heightPt } = this.pageSizePt();
+    const box = this.dragBoxForTarget(dragging) ?? this.boxOnPageForTarget(dragging);
+    if (!box) return;
+    this.setDragBoxForTarget(dragging, nudgeStampBox(box, dx, dy, widthPt, heightPt));
   }
 
   protected onOverlayPointerDown(event: PointerEvent): void {
     if (event.button !== 0) return;
     if (this.resizing()) return;
-    const mode = this.placementMode();
-    if (mode === 'none') {
-      this.startViewPan(event);
-      return;
-    }
-
-    const el = this.placementOverlay()?.nativeElement;
-    if (!el || !this.pageView) return;
-
-    event.preventDefault();
-    el.setPointerCapture(event.pointerId);
-    this.pointerDragging.set(true);
-    this.pointerDidMove = false;
-    this.lastPointerClient = { x: event.clientX, y: event.clientY };
-    this.dragStampBoxPage.set(this.stampBoxOnPage());
-    this.dragSignatureBoxPage.set(this.signatureBoxOnPage());
+    this.startViewPan(event);
   }
 
   protected onOverlayPointerMove(event: PointerEvent): void {
+    if (this.markerDragging()) {
+      this.moveMarkerDrag(event);
+      this.updateCursor(event);
+      return;
+    }
+
     if (this.viewPanning()) {
       this.moveViewPan(event);
       this.updateCursor(event);
@@ -1025,7 +1526,6 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     }
 
     if (!this.pointerDragging()) return;
-    this.nudgeLive(this.placementMode(), dx, dy);
   }
 
   protected onOverlayPointerLeave(): void {
@@ -1038,75 +1538,26 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.markerDragging()) {
+      const el = this.placementOverlay()?.nativeElement;
+      if (el?.hasPointerCapture(event.pointerId)) {
+        el.releasePointerCapture(event.pointerId);
+      }
+      this.endMarkerDrag(this.pointerDidMove);
+      return;
+    }
+
     if (this.resizing()) {
       const el = this.placementOverlay()?.nativeElement;
       if (el?.hasPointerCapture(event.pointerId)) {
         el.releasePointerCapture(event.pointerId);
       }
       this.endResize(true);
-      return;
     }
-
-    if (!this.pointerDragging()) return;
-
-    const mode = this.placementMode();
-    const el = this.placementOverlay()?.nativeElement;
-    if (el?.hasPointerCapture(event.pointerId)) {
-      el.releasePointerCapture(event.pointerId);
-    }
-
-    if (!this.pointerDidMove && mode !== 'none' && el && this.pageView) {
-      const css = this.clientToPageCss(event.clientX, event.clientY);
-      if (!css) return;
-      const pt = this.pageView.convertToPdfPoint(css.x, css.y);
-      this.placeAt(mode, pt.x, pt.y);
-      this.endPointerDrag(false);
-      return;
-    }
-
-    this.endPointerDrag(true);
   }
 
-  protected onKeydown(event: KeyboardEvent): void {
-    const mode = this.placementMode();
-    if (mode === 'none') return;
-
-    switch (event.key) {
-      case 'ArrowLeft':
-      case 'ArrowRight':
-      case 'ArrowUp':
-      case 'ArrowDown':
-        break;
-      default:
-        return;
-    }
-
-    event.preventDefault();
-    const canvas = this.pdfCanvas()?.nativeElement;
-    const view = this.pageView;
-    if (!canvas || !view) return;
-
-    const stepPx = 8;
-    let screenDx = 0;
-    let screenDy = 0;
-    switch (event.key) {
-      case 'ArrowLeft':
-        screenDx = -stepPx;
-        break;
-      case 'ArrowRight':
-        screenDx = stepPx;
-        break;
-      case 'ArrowUp':
-        screenDy = -stepPx;
-        break;
-      case 'ArrowDown':
-        screenDy = stepPx;
-        break;
-      default:
-        return;
-    }
-    const { dx: pdfDx, dy: pdfDy } = pdfJsScreenStepToPdf(view, canvas, screenDx, screenDy);
-    this.nudgeBy(mode, pdfDx, pdfDy, true);
+  protected onKeydown(_event: KeyboardEvent): void {
+    // Arrow-key nudge removed — drag each frame independently.
   }
 
   protected resetToDefault(): void {
@@ -1117,6 +1568,14 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     const signature = defaultSignatureBoxFromStamp(stamp, A4_HEIGHT_PT);
     this.persistBoxes(stamp, signature);
 
+    if (this.isCrewEffectDoc() && !this.mdhAttachment()) {
+      this.storage.updateDocumentOverlay(
+        this.crewEffectOverlayId(),
+        { useCrewSignatures: false, crewSignatureByRow: {}, crewSignatureBase: undefined },
+        'saved',
+      );
+    }
+
     const rot: OverlayRotation = this.mdhAttachment()
       ? this.documentId() === 'mdh'
         ? 180
@@ -1126,6 +1585,24 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     this.persistRotation(rot);
     this.dragStampBoxPage.set(null);
     this.dragSignatureBoxPage.set(null);
+    this.dragCrewTableSigBoxPage.set(null);
+  }
+
+  private async loadCrewTableSigPreview(): Promise<void> {
+    this.revokeCrewTableSigPreviewUrl();
+    if (!this.isCrewEffectDoc()) return;
+    const rows = this.crewEffectListRows();
+    const member = rows[this.crewTableRow()];
+    if (!member?.hasSignature) return;
+    const bytes = await this.crewSignatures.loadBytes(member.id);
+    if (!bytes?.length) return;
+    this.crewTableSigPreviewUrl.set(URL.createObjectURL(new Blob([bytes.slice()])));
+  }
+
+  private revokeCrewTableSigPreviewUrl(): void {
+    const url = this.crewTableSigPreviewUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.crewTableSigPreviewUrl.set(null);
   }
 
   private markerStyle(box: PdfStampBox): Record<string, string> {
@@ -1205,6 +1682,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     if (sig) URL.revokeObjectURL(sig);
     this.stampPreviewUrl.set(null);
     this.signaturePreviewUrl.set(null);
+    this.revokeCrewTableSigPreviewUrl();
   }
 
   private updateCursor(event: PointerEvent | { clientX: number; clientY: number }): void {
@@ -1292,162 +1770,12 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   }
 
   private endPointerDrag(persist: boolean): void {
-    if (persist) {
-      const mode = this.placementMode();
-      const { widthPt, heightPt } = this.pageSizePt();
-      if (mode === 'stamp' && this.dragStampBoxPage()) {
-        this.persistBoxes(
-          stampBoxToRefCoordinates(this.dragStampBoxPage()!, widthPt, heightPt),
-          undefined,
-        );
-      } else if (mode === 'signature' && this.dragSignatureBoxPage()) {
-        this.persistBoxes(
-          undefined,
-          stampBoxToRefCoordinates(this.dragSignatureBoxPage()!, widthPt, heightPt),
-        );
-      } else if (mode === 'both') {
-        this.persistBoxes(
-          this.dragStampBoxPage()
-            ? stampBoxToRefCoordinates(this.dragStampBoxPage()!, widthPt, heightPt)
-            : undefined,
-          this.dragSignatureBoxPage()
-            ? stampBoxToRefCoordinates(this.dragSignatureBoxPage()!, widthPt, heightPt)
-            : undefined,
-        );
-      }
-    }
+    void persist;
     this.pointerDragging.set(false);
     this.lastPointerClient = null;
     this.dragStampBoxPage.set(null);
     this.dragSignatureBoxPage.set(null);
     this.pointerDidMove = false;
-  }
-
-  private placeAt(mode: PlacementMode, pdfX: number, pdfY: number): void {
-    const { widthPt, heightPt } = this.pageSizePt();
-    const stamp = this.stampBoxOnPage();
-    const signature = this.signatureBoxOnPage();
-
-    if (mode === 'stamp') {
-      const size = defaultStampSize(widthPt, heightPt);
-      const onPage = stampBoxCenteredOn(pdfX, pdfY, size, widthPt, heightPt);
-      this.persistBoxes(stampBoxToRefCoordinates(onPage, widthPt, heightPt), undefined);
-      return;
-    }
-
-    if (mode === 'signature') {
-      const size = defaultSignatureSize(widthPt, heightPt);
-      const onPage = stampBoxCenteredOn(pdfX, pdfY, size, widthPt, heightPt);
-      this.persistBoxes(undefined, stampBoxToRefCoordinates(onPage, widthPt, heightPt));
-      return;
-    }
-
-    const stampCenter = boxCenter(stamp);
-    const dx = pdfX - stampCenter.x;
-    const dy = pdfY - stampCenter.y;
-    this.persistBoxes(
-      stampBoxToRefCoordinates(nudgeStampBox(stamp, dx, dy, widthPt, heightPt), widthPt, heightPt),
-      stampBoxToRefCoordinates(
-        nudgeStampBox(signature, dx, dy, widthPt, heightPt),
-        widthPt,
-        heightPt,
-      ),
-    );
-  }
-
-  private resizeLive(target: ResizeTarget, handle: StampResizeHandle, dx: number, dy: number): void {
-    const { widthPt, heightPt } = this.pageSizePt();
-    if (target === 'stamp') {
-      const box = this.dragStampBoxPage() ?? this.stampBoxOnPage();
-      this.dragStampBoxPage.set(resizeStampBox(box, handle, dx, dy, widthPt, heightPt));
-      return;
-    }
-    const box = this.dragSignatureBoxPage() ?? this.signatureBoxOnPage();
-    this.dragSignatureBoxPage.set(resizeStampBox(box, handle, dx, dy, widthPt, heightPt));
-  }
-
-  private endResize(persist: boolean): void {
-    if (persist && this.pointerDidMove) {
-      const { widthPt, heightPt } = this.pageSizePt();
-      const target = this.activeResize()?.target;
-      if (target === 'stamp' && this.dragStampBoxPage()) {
-        this.persistBoxes(
-          stampBoxToRefCoordinates(this.dragStampBoxPage()!, widthPt, heightPt),
-          undefined,
-        );
-      } else if (target === 'signature' && this.dragSignatureBoxPage()) {
-        this.persistBoxes(
-          undefined,
-          stampBoxToRefCoordinates(this.dragSignatureBoxPage()!, widthPt, heightPt),
-        );
-      }
-    }
-    this.resizing.set(false);
-    this.activeResize.set(null);
-    this.lastPointerClient = null;
-    this.pointerDidMove = false;
-    if (!persist) {
-      this.dragStampBoxPage.set(null);
-      this.dragSignatureBoxPage.set(null);
-    }
-  }
-
-  private nudgeLive(mode: PlacementMode, dx: number, dy: number): void {
-    const { widthPt, heightPt } = this.pageSizePt();
-    let stamp = this.dragStampBoxPage() ?? this.stampBoxOnPage();
-    let signature = this.dragSignatureBoxPage() ?? this.signatureBoxOnPage();
-
-    if (mode === 'stamp' && this.canMoveStamp()) {
-      this.dragStampBoxPage.set(nudgeStampBox(stamp, dx, dy, widthPt, heightPt));
-      return;
-    }
-    if (mode === 'signature' && this.canMoveSignature()) {
-      this.dragSignatureBoxPage.set(nudgeStampBox(signature, dx, dy, widthPt, heightPt));
-      return;
-    }
-    if (mode === 'both') {
-      if (this.canMoveStamp()) {
-        this.dragStampBoxPage.set(nudgeStampBox(stamp, dx, dy, widthPt, heightPt));
-      }
-      if (this.canMoveSignature()) {
-        this.dragSignatureBoxPage.set(nudgeStampBox(signature, dx, dy, widthPt, heightPt));
-      }
-    }
-  }
-
-  private nudgeBy(mode: PlacementMode, dx: number, dy: number, persist = true): void {
-    const { widthPt, heightPt } = this.pageSizePt();
-    const stamp = this.stampBoxOnPage();
-    const signature = this.signatureBoxOnPage();
-
-    if (mode === 'stamp' && this.canMoveStamp()) {
-      const onPage = nudgeStampBox(stamp, dx, dy, widthPt, heightPt);
-      if (persist) {
-        this.persistBoxes(stampBoxToRefCoordinates(onPage, widthPt, heightPt), undefined);
-      }
-      return;
-    }
-    if (mode === 'signature' && this.canMoveSignature()) {
-      const onPage = nudgeStampBox(signature, dx, dy, widthPt, heightPt);
-      if (persist) {
-        this.persistBoxes(undefined, stampBoxToRefCoordinates(onPage, widthPt, heightPt));
-      }
-      return;
-    }
-    if (mode === 'both') {
-      const nextStamp = this.canMoveStamp()
-        ? nudgeStampBox(stamp, dx, dy, widthPt, heightPt)
-        : stamp;
-      const nextSig = this.canMoveSignature()
-        ? nudgeStampBox(signature, dx, dy, widthPt, heightPt)
-        : signature;
-      if (persist) {
-        this.persistBoxes(
-          stampBoxToRefCoordinates(nextStamp, widthPt, heightPt),
-          stampBoxToRefCoordinates(nextSig, widthPt, heightPt),
-        );
-      }
-    }
   }
 
   private persistBoxes(stampRef?: PdfStampBox, signatureRef?: PdfStampBox): void {
@@ -1469,6 +1797,143 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     if (Object.keys(patch).length) {
       this.storage.updateDocumentOverlay(this.documentId(), patch);
     }
+  }
+
+  private resizeLive(target: MarkerDragTarget, handle: StampResizeHandle, dx: number, dy: number): void {
+    const { widthPt, heightPt } = this.pageSizePt();
+    if (target === 'stamp') {
+      const box = this.dragStampBoxPage() ?? this.stampBoxOnPage();
+      this.dragStampBoxPage.set(resizeStampBox(box, handle, dx, dy, widthPt, heightPt));
+      return;
+    }
+    if (target === 'signature') {
+      const box = this.dragSignatureBoxPage() ?? this.signatureBoxOnPage();
+      this.dragSignatureBoxPage.set(resizeStampBox(box, handle, dx, dy, widthPt, heightPt));
+      return;
+    }
+    const box = this.dragCrewTableSigBoxPage() ?? this.crewTableSigBoxOnPage();
+    if (box) {
+      this.dragCrewTableSigBoxPage.set(resizeStampBox(box, handle, dx, dy, widthPt, heightPt));
+    }
+  }
+
+  private endResize(persist: boolean): void {
+    if (persist && this.pointerDidMove) {
+      const { widthPt, heightPt } = this.pageSizePt();
+      const target = this.activeResize()?.target;
+      if (target === 'stamp' && this.dragStampBoxPage()) {
+        this.persistBoxes(
+          stampBoxToRefCoordinates(this.dragStampBoxPage()!, widthPt, heightPt),
+          undefined,
+        );
+      } else if (target === 'signature' && this.dragSignatureBoxPage()) {
+        this.persistBoxes(
+          undefined,
+          stampBoxToRefCoordinates(this.dragSignatureBoxPage()!, widthPt, heightPt),
+        );
+      } else if (target === 'crewTableSig' && this.dragCrewTableSigBoxPage()) {
+        this.persistCrewTableSigBox(this.dragCrewTableSigBoxPage()!);
+      }
+    }
+    this.resizing.set(false);
+    this.activeResize.set(null);
+    this.lastPointerClient = null;
+    this.pointerDidMove = false;
+    if (!persist) {
+      this.dragStampBoxPage.set(null);
+      this.dragSignatureBoxPage.set(null);
+      this.dragCrewTableSigBoxPage.set(null);
+    }
+  }
+
+  private endMarkerDrag(persist: boolean): void {
+    const target = this.markerDragging();
+    if (!target) return;
+    if (persist) {
+      const box = this.dragBoxForTarget(target);
+      if (box) this.persistBoxForTarget(target, box);
+    }
+    this.markerDragging.set(null);
+    this.lastPointerClient = null;
+    this.dragStampBoxPage.set(null);
+    this.dragSignatureBoxPage.set(null);
+    this.dragCrewTableSigBoxPage.set(null);
+    this.pointerDidMove = false;
+  }
+
+  private initDragBoxForTarget(target: MarkerDragTarget): void {
+    const box = this.storedBoxOnPageForTarget(target);
+    if (box) this.setDragBoxForTarget(target, { ...box });
+  }
+
+  private storedBoxOnPageForTarget(target: MarkerDragTarget): PdfStampBox | null {
+    const { widthPt, heightPt } = this.pageSizePt();
+    if (target === 'stamp') {
+      const ref = this.stampBoxRef();
+      return clampStampBox(scaleStampBoxToPage(ref, widthPt, heightPt), widthPt, heightPt);
+    }
+    if (target === 'signature') {
+      const ref = this.signatureBoxRef();
+      return clampStampBox(scaleStampBoxToPage(ref, widthPt, heightPt), widthPt, heightPt);
+    }
+    if (!this.showCrewTableSigMarker()) return null;
+    const id = this.crewEffectOverlayId();
+    const form = CREW_EFFECT_SIGNATURE_FORM_CONFIG[id];
+    const opts = this.crewEffectOptions();
+    const base = crewEffectSignatureBase(opts, id);
+    const row = this.crewTableRow();
+    const tweak = opts.crewSignatureByRow?.[String(row)];
+    const box = resolveCrewSignatureBox(base, form.rowY(0), form.rowY(row), tweak);
+    return clampStampBox(box, widthPt, heightPt);
+  }
+
+  private dragBoxForTarget(target: MarkerDragTarget): PdfStampBox | null {
+    if (target === 'stamp') return this.dragStampBoxPage();
+    if (target === 'signature') return this.dragSignatureBoxPage();
+    return this.dragCrewTableSigBoxPage();
+  }
+
+  private boxOnPageForTarget(target: MarkerDragTarget): PdfStampBox | null {
+    if (target === 'stamp') return this.stampBoxOnPage();
+    if (target === 'signature') return this.signatureBoxOnPage();
+    return this.crewTableSigBoxOnPage();
+  }
+
+  private setDragBoxForTarget(target: MarkerDragTarget, box: PdfStampBox | null): void {
+    if (target === 'stamp') this.dragStampBoxPage.set(box);
+    else if (target === 'signature') this.dragSignatureBoxPage.set(box);
+    else this.dragCrewTableSigBoxPage.set(box);
+  }
+
+  private persistBoxForTarget(target: MarkerDragTarget, boxOnPage: PdfStampBox): void {
+    const { widthPt, heightPt } = this.pageSizePt();
+    if (target === 'crewTableSig') {
+      this.persistCrewTableSigBox(boxOnPage);
+      return;
+    }
+    const ref = stampBoxToRefCoordinates(boxOnPage, widthPt, heightPt);
+    if (target === 'stamp') {
+      this.persistBoxes(ref, undefined);
+    } else {
+      this.persistBoxes(undefined, ref);
+    }
+  }
+
+  private persistCrewTableSigBox(boxOnPage: PdfStampBox): void {
+    const id = this.crewEffectOverlayId();
+    const form = CREW_EFFECT_SIGNATURE_FORM_CONFIG[id];
+    const opts = this.crewEffectOptions();
+    const base = crewEffectSignatureBase(opts, id);
+    const row = this.crewTableRow();
+    const defaultBox = resolveCrewSignatureBox(base, form.rowY(0), form.rowY(row), {});
+    const tweak = {
+      offsetX: boxOnPage.x - defaultBox.x,
+      offsetY: boxOnPage.y - defaultBox.y,
+      width: boxOnPage.width,
+      height: boxOnPage.height,
+    };
+    const byRow = { ...(opts.crewSignatureByRow ?? {}), [String(row)]: tweak };
+    this.storage.updateDocumentOverlay(id, { crewSignatureByRow: byRow }, 'saved');
   }
 
   private syncRotationFromStorage(): void {
