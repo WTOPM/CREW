@@ -3,7 +3,7 @@ import {
   type DgCargoLine,
   type DgManifestViewOptions,
 } from '../models/dg-manifest.models';
-import { planDgLineWeightDisplays } from './dg-weight-view.util';
+import { planDgLineWeightDisplays, sumPlannedDgLineWeightsKg } from './dg-weight-view.util';
 import { dgLineActiveWeightKg } from './dg-weight-tonnage.util';
 
 function normalizeDgExportMergeName(value: string): string {
@@ -229,6 +229,36 @@ function buildDgContainerDisplayLinesRaw(
     consolidated: false,
     sourceLineIds: [line.id],
   }));
+}
+
+/** Raw kg per inventory display line (same rows as the table, incl. merge). */
+export function dgInventoryDisplayRawWeights(
+  containers: readonly { id: string; lines: readonly DgCargoLine[] }[],
+  options: DgManifestViewOptions,
+): number[] {
+  const rawWeights: number[] = [];
+  for (const container of containers) {
+    const rows = buildDgContainerDisplayLinesRaw(
+      container,
+      options.manifestMergeLines,
+      options.manifestUseGrossWeight,
+    );
+    for (const row of rows) {
+      rawWeights.push(row.rawWeightKg);
+    }
+  }
+  return rawWeights;
+}
+
+/** Total kg for onboard inventory — uses the same cargo rows as line displays (incl. merge). */
+export function dgInventoryDisplayTotalKg(
+  containers: readonly { id: string; lines: readonly DgCargoLine[] }[],
+  options: DgManifestViewOptions,
+): number {
+  return sumPlannedDgLineWeightsKg(
+    dgInventoryDisplayRawWeights(containers, options),
+    options.manifestRoundWeights,
+  );
 }
 
 export function planDgInventoryWeightDisplays(

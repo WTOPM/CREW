@@ -125,6 +125,7 @@ import {
   createDefaultDgLibrary,
   commitDgWeightKgInput,
   dgDefaultVoyageFromShip,
+  formatDgManifestSourceName,
   normalizeDgLibrary,
   onboardContainersFromImportRows,
   findDgManifestDuplicate,
@@ -1224,6 +1225,7 @@ export class StorageService {
               loadPort,
               dischargePort,
               status: 'onboard',
+              lines: [createDgCargoLine()],
             }),
           ],
         },
@@ -1573,8 +1575,9 @@ export class StorageService {
       const libInner = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
       const loadPort = resolveUnifeederRowPort(result.header.portOfDeparture ?? '', d.ports);
       const dischargePort = resolveUnifeederRowPort(result.header.portOfArrival ?? '', d.ports);
+      const documentDate = (result.header.departureDate ?? '').trim();
       const doc = createDgUnifeederManifestDocument({
-        sourceName: sourceName.replace(/\.(pdf|xlsx)$/i, '').trim() || 'Import',
+        sourceName: formatDgManifestSourceName(loadPort, documentDate, sourceName),
         rowCount: result.rows.length,
         contentFingerprint: fingerprints?.contentFingerprint?.trim() ?? '',
         pdfBytesFingerprint: fingerprints?.pdfBytesFingerprint?.trim() ?? '',
@@ -1602,7 +1605,7 @@ export class StorageService {
         rowCount: imported.length,
         containerCount,
         voyageNumber: (result.header.voyageNumber ?? '').trim(),
-        documentDate: (result.header.departureDate ?? '').trim(),
+        documentDate,
         loadPort,
         dischargePort,
         pdfImoNetWeightKg: result.summary?.totalImoNetWeightKg ?? 0,
@@ -1644,11 +1647,12 @@ export class StorageService {
       const libInner = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
       const loadPort = resolveManifestPortName(result.header.portOfDeparture ?? '', d.ports);
       const dischargePort = resolveManifestPortName(result.header.portOfArrival ?? '', d.ports);
+      const documentDate = result.header.departureDate?.trim() ?? '';
       const doc = createDgManifestDocument({
-        sourceName: sourceName.replace(/\.pdf$/i, '').trim() || 'PDF import',
+        sourceName: formatDgManifestSourceName(loadPort, documentDate, sourceName),
         voyageNumber:
           result.header.voyageNumber?.trim() || dgDefaultVoyageFromShip(d.ship),
-        documentDate: result.header.departureDate?.trim() ?? '',
+        documentDate,
         loadPort,
         dischargePort,
         contentFingerprint: fingerprints?.contentFingerprint?.trim() ?? '',

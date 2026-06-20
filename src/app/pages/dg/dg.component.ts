@@ -6,6 +6,7 @@ import {
   dgViewContainerTotalKg,
   dgViewOnboardClassSummaries,
   dgViewOnboardInventoryStats,
+  formatDgManifestSourceName,
   formatDgWeightKgDisplay,
   formatDgWeightKgGrossDisplay,
   commitDgWeightKgInput,
@@ -258,6 +259,7 @@ export class DgComponent {
       true,
       lib.useGrossWeight,
       lib.roundWeights,
+      lib.mergeLines,
     );
     return {
       ...base,
@@ -545,44 +547,38 @@ export class DgComponent {
   protected formatArchiveSavedAt(iso: string): string {
     if (!iso) return '';
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (isNaN(d.getTime())) return '';
     const day = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${day} ${months[d.getMonth()]} ${d.getFullYear()}, ${hh}:${mm}`;
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
+
+  protected manifestDisplayName(doc: DgManifestDocument): string {
+    return formatDgManifestSourceName(doc.loadPort, doc.documentDate, doc.sourceName);
+  }
+
+  protected unifeederManifestDisplayName(doc: DgUnifeederManifestDocument): string {
+    return formatDgManifestSourceName(doc.loadPort, doc.documentDate, doc.sourceName);
   }
 
   protected manifestLabel(doc: DgManifestDocument): string {
     const parts = [
       doc.voyageNumber ? `Voy ${doc.voyageNumber}` : '',
-      doc.documentDate ? this.formatDate(doc.documentDate) : '',
-      doc.loadPort ? `Load ${doc.loadPort}` : '',
+      doc.containerCount ? `${doc.containerCount} ctr` : '',
     ].filter(Boolean);
     return parts.join(' · ');
   }
 
   protected unifeederManifestMeta(doc: DgUnifeederManifestDocument): string {
     const rows = this.unifeederLibrary().onboard.filter((row) => row.sourceManifestId === doc.id);
-    const loadPort =
-      doc.loadPort.trim() ||
-      rows.map((row) => row.loadPort.trim()).find(Boolean) ||
-      '';
-    const dischargePort =
-      doc.dischargePort.trim() ||
-      rows.map((row) => row.dischargePort.trim()).find(Boolean) ||
-      '';
     const rowCount = doc.rowCount || rows.length;
     const containerCount =
       doc.containerCount ||
       new Set(rows.map((row) => row.containerNo.trim()).filter(Boolean)).size;
 
     const parts: string[] = [];
-    if (loadPort && dischargePort) parts.push(`${loadPort} → ${dischargePort}`);
-    else if (loadPort) parts.push(`Load ${loadPort}`);
-    else if (dischargePort) parts.push(`Disch ${dischargePort}`);
     if (doc.voyageNumber?.trim()) parts.push(`Voy ${doc.voyageNumber.trim()}`);
-    if (doc.documentDate?.trim()) parts.push(this.formatDate(doc.documentDate));
     parts.push(`${rowCount} rows`);
     if (containerCount > 0) parts.push(`${containerCount} ctr`);
     return parts.join(' · ');

@@ -281,6 +281,27 @@ export function clampStampBox(
   return { x, y, width: w, height: h };
 }
 
+/** Inner rect matching image aspect ratio (same fit as pdf-lib drawAsset). */
+export function fittedAssetRectInBox(box: PdfStampBox, aspectRatio: number): PdfStampBox {
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+    return { ...box };
+  }
+  const boxAspect = box.width / box.height;
+  let w = box.width;
+  let h = box.height;
+  if (aspectRatio > boxAspect) {
+    h = box.width / aspectRatio;
+  } else if (aspectRatio < boxAspect) {
+    w = box.height * aspectRatio;
+  }
+  return {
+    x: box.x + (box.width - w) / 2,
+    y: box.y + (box.height - h) / 2,
+    width: w,
+    height: h,
+  };
+}
+
 export function stampBoxCenteredOn(
   pdfX: number,
   pdfY: number,

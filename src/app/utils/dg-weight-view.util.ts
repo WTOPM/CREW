@@ -21,6 +21,24 @@ export function formatDgWeightForView(
   return formatDgWeightKgDisplay(value) || '';
 }
 
+/** One cargo line in whole-kg display (same as {@link formatDgWeightForView}). */
+export function roundDgLineWeightKg(weight: number): number {
+  if (!Number.isFinite(weight)) return 0;
+  return Math.round(weight);
+}
+
+/** Inventory/export total — when rounding, sum each line's whole kg (not round the raw sum). */
+export function sumPlannedDgLineWeightsKg(
+  rawWeights: readonly number[],
+  roundWeights: boolean,
+): number {
+  if (!rawWeights.length) return 0;
+  if (roundWeights) {
+    return rawWeights.reduce((sum, weight) => sum + roundDgLineWeightKg(weight), 0);
+  }
+  return roundDgWeightKgSum(rawWeights.reduce((sum, weight) => sum + weight, 0));
+}
+
 export function finalizeDgWeightTotalKg(total: number, roundWeights: boolean): number {
   if (!Number.isFinite(total)) return 0;
   return roundWeights ? Math.round(total) : roundDgWeightKgSum(total);

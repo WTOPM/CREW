@@ -2,6 +2,7 @@ import { Port, resolveKnownPortName, resolveManifestPortName } from './crew.mode
 import { parseDgWeightKg, roundDgWeightKgSum, type DgContainerStatus } from './dg-manifest.models';
 import { applyMfagSchedulesToUnifeederRow } from '../utils/dg-mfag-schedule.util';
 import { normalizeUnifeederSubRisk } from '../utils/dg-unifeeder-sub-risk.util';
+import { unifeederInventoryDisplayTotalKg } from '../utils/dg-unifeeder-weight.util';
 import { normalizeDgDualWeightFields, dgLineActiveWeightKg } from '../utils/dg-weight-tonnage.util';
 
 export type DgUnifeederRowField = keyof Omit<
@@ -168,7 +169,7 @@ export function normalizeUnifeederLibrary(
     manifests: (raw.manifests ?? []).map((m) => createDgUnifeederManifestDocument(m ?? {})),
     onboard: (raw.onboard ?? [])
       .map((r) => createDgUnifeederRow(r ?? {}))
-      .filter((row) => row.containerNo.trim())
+      .filter((row) => row.containerNo.trim() || !row.sourceManifestId.trim())
       .map((row) => {
         let sanitized = sanitizeUnifeederRowPorts(row, ports);
         if (!sanitized.loadPort.trim() && pageContext?.portOfCall?.trim()) {
@@ -197,17 +198,14 @@ export function unifeederOnboardInventoryStats(
   includeDischarged: boolean,
   useGrossWeight = true,
   roundWeights = false,
+  mergeLines = false,
 ): { rowCount: number; dischargedCount: number; totalKg: number } {
   const visible = includeDischarged ? onboard : onboard.filter((r) => r.status === 'onboard');
-  let totalKg = 0;
-  for (const row of visible) {
-    totalKg += dgLineActiveWeightKg(row, useGrossWeight);
-  }
-  if (roundWeights) {
-    totalKg = Math.round(totalKg);
-  } else {
-    totalKg = roundDgWeightKgSum(totalKg);
-  }
+  const totalKg = unifeederInventoryDisplayTotalKg(visible, {
+    useGrossWeight,
+    roundWeights,
+    mergeLines,
+  });
   return {
     rowCount: visible.length,
     dischargedCount: onboard.filter((r) => r.status === 'discharged').length,

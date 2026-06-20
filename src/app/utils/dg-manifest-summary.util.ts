@@ -5,6 +5,7 @@ import {
 } from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { dgLineActiveWeightKg, type DgDualWeightLine } from './dg-weight-tonnage.util';
+import { roundDgLineWeightKg, sumPlannedDgLineWeightsKg } from './dg-weight-view.util';
 import { normalizeIsoContainerTypeCode } from './iso-container-type.util';
 
 /** UNIFEEDER manifest TOTAL length rows (display order). */
@@ -77,13 +78,14 @@ export function buildManifestClassWeightRows(
 ): ManifestClassWeightRow[] {
   const map = new Map<string, { dgClass: string; totalKg: number }>();
   const finalize = roundWeights
-    ? (total: number) => Math.round(total)
+    ? (total: number) => total
     : (total: number) => roundDgWeightKgSum(total);
 
   for (const entry of entries) {
     const dgClass = entry.dgClass.trim();
-    const weight = dgLineActiveWeightKg(entry, useGross);
-    if (!dgClass || weight <= 0) continue;
+    const raw = dgLineActiveWeightKg(entry, useGross);
+    if (!dgClass || raw <= 0) continue;
+    const weight = roundWeights ? roundDgLineWeightKg(raw) : raw;
 
     const key = dgClass.replace(',', '.').toLowerCase();
     if (!map.has(key)) {
@@ -125,17 +127,13 @@ export function unifeederManifestSummary(
 ): ManifestInventorySummary {
   const lengthBuckets = buildManifestLengthBuckets(uniqueContainerSizesFromUnifeederRows(rows));
   const classRows = buildManifestClassWeightRows(rows, useGrossWeight, roundWeights);
-  let totalKg = 0;
-
-  for (const row of rows) {
-    totalKg += dgLineActiveWeightKg(row, useGrossWeight);
-  }
+  const rawWeights = rows.map((row) => dgLineActiveWeightKg(row, useGrossWeight));
 
   return {
     lengthBuckets,
     classRows,
     containerCount: new Set(rows.map((row) => row.containerNo.trim()).filter(Boolean)).size,
-    totalKg: roundWeights ? Math.round(totalKg) : roundDgWeightKgSum(totalKg),
+    totalKg: sumPlannedDgLineWeightsKg(rawWeights, roundWeights),
   };
 }
 
@@ -159,10 +157,10 @@ export function dgOnboardManifestSummary(
     roundWeights,
   );
 
-  let totalKg = 0;
+  const rawWeights: number[] = [];
   for (const container of containers) {
     for (const line of container.lines) {
-      totalKg += dgLineActiveWeightKg(line, useGross);
+      rawWeights.push(dgLineActiveWeightKg(line, useGross));
     }
   }
 
@@ -170,6 +168,6 @@ export function dgOnboardManifestSummary(
     lengthBuckets,
     classRows,
     containerCount: containers.length,
-    totalKg: roundWeights ? Math.round(totalKg) : roundDgWeightKgSum(totalKg),
+    totalKg: sumPlannedDgLineWeightsKg(rawWeights, roundWeights),
   };
 }

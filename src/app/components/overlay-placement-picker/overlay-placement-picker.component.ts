@@ -59,6 +59,7 @@ import {
   defaultSignatureSize,
   defaultStampBoxForDocument,
   defaultStampSize,
+  fittedAssetRectInBox,
   normalizeOverlayRotation,
   nudgeStampBox,
   resizeStampBox,
@@ -162,6 +163,14 @@ type MarkerDragTarget = 'stamp' | 'signature' | 'crewTableSig';
                   }
                 </select>
               </label>
+              <label class="placement-crew-all">
+                <input
+                  type="checkbox"
+                  [ngModel]="showAllCrewSigPreviews()"
+                  (ngModelChange)="onToggleShowAllCrewSigs($event)"
+                />
+                <span>All signatures</span>
+              </label>
             }
           </div>
 
@@ -195,7 +204,7 @@ type MarkerDragTarget = 'stamp' | 'signature' | 'crewTableSig';
 
           @if (isCrewEffectDoc() && !mdhAttachment()) {
             <p class="placement-toolbar__hint">
-              Wheel to zoom · drag empty area to pan · resize with corner handles
+              Wheel to zoom · drag empty area to pan · All signatures shows other rows without frames
             </p>
           }
         </section>
@@ -359,16 +368,29 @@ type MarkerDragTarget = 'stamp' | 'signature' | 'crewTableSig';
                     }
                   </div>
                 }
+                @if (showAllCrewSigPreviews()) {
+                  @for (ghost of crewSigGhostMarkers(); track ghost.rowIndex) {
+                    <div
+                      class="placement-marker placement-marker--crew-sig-ghost"
+                      [ngStyle]="ghost.style"
+                      aria-hidden="true"
+                    >
+                      @if (ghost.previewUrl) {
+                        <img [src]="ghost.previewUrl" alt="" class="placement-marker-img" />
+                      }
+                    </div>
+                  }
+                }
                 @if (showCrewTableSigMarker()) {
                   <div
-                    class="placement-marker placement-marker--crew-sig"
+                    class="placement-marker placement-marker--crew-sig placement-marker--crew-sig-active"
                     [class.placement-marker--active]="true"
                     [class.placement-marker--resizable]="true"
                     [ngStyle]="crewTableSigOverlayStyle()"
                     (pointerdown)="onMarkerPointerDown('crewTableSig', $event)"
                   >
-                    @if (crewTableSigPreviewUrl()) {
-                      <img [src]="crewTableSigPreviewUrl()" alt="" class="placement-marker-img" />
+                    @if (crewTableSigPreviewUrl(); as previewUrl) {
+                      <img [src]="previewUrl" alt="" class="placement-marker-img" />
                     }
                     @for (h of resizeHandles; track h) {
                       <span
@@ -586,6 +608,25 @@ type MarkerDragTarget = 'stamp' | 'signature' | 'crewTableSig';
       max-width: 14rem;
       cursor: pointer;
       outline: none;
+    }
+
+    .placement-crew-all {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin: 0;
+      font-size: 0.74rem;
+      font-weight: 500;
+      color: #5b21b6;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .placement-crew-all input {
+      width: 0.85rem;
+      height: 0.85rem;
+      margin: 0;
+      accent-color: #7c3aed;
     }
 
     .placement-tool-group {
@@ -924,14 +965,6 @@ type MarkerDragTarget = 'stamp' | 'signature' | 'crewTableSig';
       background: rgb(3 105 161 / 8%);
     }
 
-    .placement-marker--crew-sig {
-      border: 2px dashed #7c3aed;
-      background: rgb(124 58 237 / 10%);
-      pointer-events: auto;
-      opacity: 1;
-      cursor: grab;
-    }
-
     .placement-marker--stamp,
     .placement-marker--sig {
       pointer-events: auto;
@@ -940,9 +973,40 @@ type MarkerDragTarget = 'stamp' | 'signature' | 'crewTableSig';
     }
 
     .placement-marker--stamp:active,
-    .placement-marker--sig:active,
-    .placement-marker--crew-sig:active {
+    .placement-marker--sig:active {
       cursor: grabbing;
+    }
+
+    .placement-marker--crew-sig-active {
+      border: 2px dashed #7c3aed;
+      background: rgb(124 58 237 / 8%);
+      pointer-events: auto;
+      opacity: 1;
+      cursor: grab;
+      display: block;
+      overflow: visible;
+    }
+
+    .placement-marker--crew-sig-ghost {
+      pointer-events: none;
+      opacity: 0.42;
+      z-index: 3;
+      border: none;
+      background: none;
+      display: block;
+      overflow: visible;
+    }
+
+    .placement-marker--crew-sig-active:active {
+      cursor: grabbing;
+    }
+
+    .placement-marker--crew-sig-active .placement-marker-img,
+    .placement-marker--crew-sig-ghost .placement-marker-img {
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+      display: block;
     }
 
     .placement-handle--crew-sig {
@@ -1109,8 +1173,14 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected readonly pdfProbeMarkerStyle = signal<Record<string, string> | null>(null);
   protected readonly stampPreviewUrl = signal<string | null>(null);
   protected readonly signaturePreviewUrl = signal<string | null>(null);
-  protected readonly crewTableSigPreviewUrl = signal<string | null>(null);
+  protected readonly crewTableSigPreviewUrls = signal<Map<number, string>>(new Map());
+  protected readonly crewTableSigAspectRatios = signal<Map<number, number>>(new Map());
   protected readonly crewTableRow = signal(0);
+  protected readonly showAllCrewSigPreviews = signal(false);
+
+  protected readonly crewTableSigPreviewUrl = computed(
+    () => this.crewTableSigPreviewUrls().get(this.crewTableRow()) ?? null,
+  );
 
   private readonly pageSizePt = signal({ widthPt: A4_WIDTH_PT, heightPt: A4_HEIGHT_PT });
   protected readonly pageCssWidth = signal(0);
@@ -1219,17 +1289,28 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   protected readonly crewTableSigBoxOnPage = computed((): PdfStampBox | null => {
     const drag = this.dragCrewTableSigBoxPage();
-    if (drag) return drag;
-    if (!this.showCrewTableSigMarker()) return null;
-    const id = this.crewEffectOverlayId();
-    const form = CREW_EFFECT_SIGNATURE_FORM_CONFIG[id];
-    const opts = this.crewEffectOptions();
-    const base = crewEffectSignatureBase(opts, id);
-    const row = this.crewTableRow();
-    const tweak = opts.crewSignatureByRow?.[String(row)];
-    const { widthPt, heightPt } = this.pageSizePt();
-    const box = resolveCrewSignatureBox(base, form.rowY(0), form.rowY(row), tweak);
-    return clampStampBox(box, widthPt, heightPt);
+    const raw = drag ?? this.resolveCrewTableSigRawBox(this.crewTableRow());
+    if (!raw || !this.showCrewTableSigMarker()) return null;
+    return this.tightCrewTableSigBox(raw, this.crewTableRow());
+  });
+
+  protected readonly crewSigGhostMarkers = computed(() => {
+    if (!this.showAllCrewSigPreviews() || !this.showCrewTableSigMarker()) return [];
+    const activeRow = this.crewTableRow();
+    const previews = this.crewTableSigPreviewUrls();
+    const markers: { rowIndex: number; previewUrl: string | null; style: Record<string, string> }[] = [];
+    for (const row of this.crewTableRowLabels()) {
+      if (row.index === activeRow || !row.hasSignature) continue;
+      const raw = this.resolveCrewTableSigRawBox(row.index);
+      if (!raw) continue;
+      const box = this.tightCrewTableSigBox(raw, row.index);
+      markers.push({
+        rowIndex: row.index,
+        previewUrl: previews.get(row.index) ?? null,
+        style: this.markerStyle(box),
+      });
+    }
+    return markers;
   });
 
   protected readonly crewTableSigOverlayStyle = computed(() => {
@@ -1252,7 +1333,14 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   protected onCrewTableRowChange(index: number): void {
     this.crewTableRow.set(index);
-    void this.loadCrewTableSigPreview();
+    void this.loadCrewSigPreviewForRow(index);
+  }
+
+  protected onToggleShowAllCrewSigs(checked: boolean): void {
+    this.showAllCrewSigPreviews.set(checked);
+    if (checked) {
+      void this.loadAllCrewSigPreviews();
+    }
   }
 
   protected onToggleCrewTableSig(value: boolean): void {
@@ -1588,21 +1676,70 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     this.dragCrewTableSigBoxPage.set(null);
   }
 
-  private async loadCrewTableSigPreview(): Promise<void> {
-    this.revokeCrewTableSigPreviewUrl();
+  private async loadCrewSigPreviewForRow(rowIndex: number): Promise<void> {
     if (!this.isCrewEffectDoc()) return;
     const rows = this.crewEffectListRows();
-    const member = rows[this.crewTableRow()];
+    const member = rows[rowIndex];
     if (!member?.hasSignature) return;
+
+    const existing = this.crewTableSigPreviewUrls();
+    if (existing.has(rowIndex)) return;
+
     const bytes = await this.crewSignatures.loadBytes(member.id);
     if (!bytes?.length) return;
-    this.crewTableSigPreviewUrl.set(URL.createObjectURL(new Blob([bytes.slice()])));
+
+    const url = URL.createObjectURL(new Blob([bytes.slice()]));
+    const nextUrls = new Map(this.crewTableSigPreviewUrls());
+    nextUrls.set(rowIndex, url);
+    this.crewTableSigPreviewUrls.set(nextUrls);
+    this.measureCrewSigAspectRatio(rowIndex, url);
   }
 
-  private revokeCrewTableSigPreviewUrl(): void {
-    const url = this.crewTableSigPreviewUrl();
-    if (url) URL.revokeObjectURL(url);
-    this.crewTableSigPreviewUrl.set(null);
+  private async loadAllCrewSigPreviews(): Promise<void> {
+    const labels = this.crewTableRowLabels();
+    await Promise.all(
+      labels.filter((row) => row.hasSignature).map((row) => this.loadCrewSigPreviewForRow(row.index)),
+    );
+  }
+
+  private measureCrewSigAspectRatio(rowIndex: number, url: string): void {
+    const img = new Image();
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      const next = new Map(this.crewTableSigAspectRatios());
+      next.set(rowIndex, img.naturalWidth / img.naturalHeight);
+      this.crewTableSigAspectRatios.set(next);
+    };
+    img.src = url;
+  }
+
+  private resolveCrewTableSigRawBox(rowIndex: number): PdfStampBox | null {
+    const id = this.crewEffectOverlayId();
+    const form = CREW_EFFECT_SIGNATURE_FORM_CONFIG[id];
+    const opts = this.crewEffectOptions();
+    const base = crewEffectSignatureBase(opts, id);
+    const tweak = opts.crewSignatureByRow?.[String(rowIndex)];
+    const { widthPt, heightPt } = this.pageSizePt();
+    const box = resolveCrewSignatureBox(base, form.rowY(0), form.rowY(rowIndex), tweak);
+    return clampStampBox(box, widthPt, heightPt);
+  }
+
+  private tightCrewTableSigBox(box: PdfStampBox, rowIndex: number): PdfStampBox {
+    const aspect = this.crewTableSigAspectRatios().get(rowIndex);
+    if (!aspect) return box;
+    return fittedAssetRectInBox(box, aspect);
+  }
+
+  private async loadCrewTableSigPreview(): Promise<void> {
+    await this.loadCrewSigPreviewForRow(this.crewTableRow());
+  }
+
+  private revokeCrewTableSigPreviewUrls(): void {
+    for (const url of this.crewTableSigPreviewUrls().values()) {
+      URL.revokeObjectURL(url);
+    }
+    this.crewTableSigPreviewUrls.set(new Map());
+    this.crewTableSigAspectRatios.set(new Map());
   }
 
   private markerStyle(box: PdfStampBox): Record<string, string> {
@@ -1682,7 +1819,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     if (sig) URL.revokeObjectURL(sig);
     this.stampPreviewUrl.set(null);
     this.signaturePreviewUrl.set(null);
-    this.revokeCrewTableSigPreviewUrl();
+    this.revokeCrewTableSigPreviewUrls();
   }
 
   private updateCursor(event: PointerEvent | { clientX: number; clientY: number }): void {
@@ -1877,14 +2014,9 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       return clampStampBox(scaleStampBoxToPage(ref, widthPt, heightPt), widthPt, heightPt);
     }
     if (!this.showCrewTableSigMarker()) return null;
-    const id = this.crewEffectOverlayId();
-    const form = CREW_EFFECT_SIGNATURE_FORM_CONFIG[id];
-    const opts = this.crewEffectOptions();
-    const base = crewEffectSignatureBase(opts, id);
-    const row = this.crewTableRow();
-    const tweak = opts.crewSignatureByRow?.[String(row)];
-    const box = resolveCrewSignatureBox(base, form.rowY(0), form.rowY(row), tweak);
-    return clampStampBox(box, widthPt, heightPt);
+    const raw = this.resolveCrewTableSigRawBox(this.crewTableRow());
+    if (!raw) return null;
+    return this.tightCrewTableSigBox(raw, this.crewTableRow());
   }
 
   private dragBoxForTarget(target: MarkerDragTarget): PdfStampBox | null {

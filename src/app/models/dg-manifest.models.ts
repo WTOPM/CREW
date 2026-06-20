@@ -5,7 +5,8 @@ import {
   formatShipSecurityOfficerName,
   resolveKnownPortName,
 } from './crew.models';
-import { mergeDgCargoLines } from '../utils/dg-cargo-merge.util';
+import { dgInventoryDisplayTotalKg, mergeDgCargoLines } from '../utils/dg-cargo-merge.util';
+import { sumPlannedDgLineWeightsKg } from '../utils/dg-weight-view.util';
 import {
   createEmptyDgPageContext,
   normalizeDgPageContext,
@@ -17,6 +18,22 @@ import {
   type DgUnifeederLibrarySettings,
 } from './dg-unifeeder.models';
 import { normalizeDgDualWeightFields, dgLineActiveWeightKg } from '../utils/dg-weight-tonnage.util';
+import { formatDisplayDate } from '../utils/date.util';
+
+/** Manifest chip / import log title: load port and departure date from the PDF. */
+export function formatDgManifestSourceName(
+  loadPort: string,
+  departureDate: string,
+  fallback = '',
+): string {
+  const port = loadPort.trim();
+  const date = formatDisplayDate(departureDate.trim());
+  if (port && date) return `${port} · ${date}`;
+  if (port) return port;
+  if (date) return date;
+  const fb = fallback.trim();
+  return fb || 'Import';
+}
 
 export type { DgPageContext };
 
@@ -605,7 +622,21 @@ export function formatDgExportLineWeightKg(value: string | number | undefined | 
   return formatDgWeightKgGrossDisplay(value);
 }
 
-/** Manifest export total: sum raw line weights, then round — not sum of rounded lines. */
+/** Manifest export total: when rounding, sum each cargo line's whole kg. */
+export function dgContainersExportTotalKg(
+  containers: readonly DgOnboardContainer[],
+  useGrossWeight = true,
+  roundWeights = false,
+): number {
+  const rawWeights: number[] = [];
+  for (const container of containers) {
+    for (const line of container.lines) {
+      rawWeights.push(dgLineActiveWeightKg(line, useGrossWeight));
+    }
+  }
+  return sumPlannedDgLineWeightsKg(rawWeights, roundWeights);
+}
+
 export function dgOnboardExportTotalKg(
   onboard: readonly DgOnboardContainer[],
   includeDischarged = false,
@@ -616,28 +647,14 @@ export function dgOnboardExportTotalKg(
   return dgContainersExportTotalKg(visible);
 }
 
-export function dgContainersExportTotalKg(
-  containers: readonly DgOnboardContainer[],
-  useGrossWeight = true,
-  roundWeights = false,
-): number {
-  const sum = containers.reduce(
-    (total, container) =>
-      total + container.lines.reduce((lineSum, line) => lineSum + dgLineActiveWeightKg(line, useGrossWeight), 0),
-    0,
-  );
-  return roundWeights ? Math.round(sum) : roundDgWeightKgSum(sum);
-}
-
 export function dgViewContainerTotalKg(
   container: Pick<DgOnboardContainer, 'lines'>,
   options: DgManifestViewOptions,
 ): number {
-  const sum = container.lines.reduce(
-    (s, l) => s + dgLineActiveWeightKg(l, options.manifestUseGrossWeight),
-    0,
+  const rawWeights = container.lines.map((line) =>
+    dgLineActiveWeightKg(line, options.manifestUseGrossWeight),
   );
-  return options.manifestRoundWeights ? Math.round(sum) : roundDgWeightKgSum(sum);
+  return sumPlannedDgLineWeightsKg(rawWeights, options.manifestRoundWeights);
 }
 
 export function dgContainerTotalKg(
@@ -695,10 +712,9 @@ export function dgViewOnboardInventoryStats(
     lineCount: displayLineCount
       ? visible.reduce((n, c) => n + displayLineCount(c), 0)
       : base.lineCount,
-    totalKg: dgContainersExportTotalKg(
+    totalKg: dgInventoryDisplayTotalKg(
       visible,
-      options.manifestUseGrossWeight,
-      options.manifestRoundWeights,
+      options,
     ),
   };
 }
@@ -730,11 +746,14 @@ export function dgOnboardClassSummaries(
     ? onboard
     : onboard.filter((c) => c.status === 'onboard');
   const finalize = roundWeights
-    ? (total: number) => Math.round(total)
+    ? (total: number) => total
     : (total: number) => roundDgWeightKgSum(total);
+  const weightForLine = roundWeights
+    ? (line: DgCargoLine) => Math.round(dgLineActiveWeightKg(line, useGross))
+    : (line: DgCargoLine) => dgLineActiveWeightKg(line, useGross);
   return dgClassSummariesFromLines(
     visible,
-    (line) => dgLineActiveWeightKg(line, useGross),
+    weightForLine,
     finalize,
   );
 }
@@ -756,11 +775,14 @@ export function dgViewOnboardClassSummaries(
       }))
     : visible;
   const finalize = roundWeights
-    ? (total: number) => Math.round(total)
+    ? (total: number) => total
     : (total: number) => roundDgWeightKgSum(total);
+  const weightForLine = roundWeights
+    ? (line: DgCargoLine) => Math.round(dgLineActiveWeightKg(line, useGross))
+    : (line: DgCargoLine) => dgLineActiveWeightKg(line, useGross);
   return dgClassSummariesFromLines(
     containers,
-    (line) => dgLineActiveWeightKg(line, useGross),
+    weightForLine,
     finalize,
   );
 }

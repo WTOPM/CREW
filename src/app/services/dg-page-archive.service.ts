@@ -10,6 +10,7 @@ import {
 import { normalizeDgLibrary, type DgLibrarySettings } from '../models/dg-manifest.models';
 import type { Port, ShipInfo } from '../models/crew.models';
 import { dgPageShipContextFromLibrary } from '../utils/page-ship-context.util';
+import { formatDisplayDate } from '../utils/date.util';
 import { StorageService } from './storage.service';
 
 @Injectable({ providedIn: 'root' })
@@ -111,12 +112,11 @@ export class DgPageArchiveService {
   }
 
   defaultSaveLabel(): string {
-    const ship = this.storage.ship();
     const ctx = this.storage.dgLibrary().pageContext;
-    const voy = ship.voyageNumber?.trim() || '—';
+    const port = ctx.portOfCall?.trim() || '—';
     const dep = ctx.dateOfDeparture?.trim();
-    const depLabel = dep ? formatIsoDateLabel(dep) : 'no date';
-    return `Voy ${voy} · ${depLabel}`;
+    const depLabel = dep ? formatDisplayDate(dep) : '—';
+    return `${port} · ${depLabel}`;
   }
 
   private persistSession(): void {
@@ -229,14 +229,6 @@ function cloneLiveBackup(backup: DgPageLiveBackup, ports: readonly Port[]): DgPa
     ship: { ...backup.ship },
     dgLibrary: cloneDgLibrary(backup.dgLibrary, ports),
   };
-}
-
-function formatIsoDateLabel(iso: string): string {
-  const m = iso.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return iso;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const mon = months[parseInt(m[2], 10) - 1] ?? m[2];
-  return `${m[3]} ${mon} ${m[1]}`;
 }
 
 /** @deprecated Use dgPageShipContextFromLibrary */

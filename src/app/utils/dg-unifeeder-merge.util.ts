@@ -69,7 +69,11 @@ export function planUnifeederMergedWeightDisplays(
   rows: readonly DgUnifeederRow[],
   options: { mergeLines: boolean } & DgWeightViewOptions,
 ): Map<string, string> {
-  const { rows: displayRows } = mergeUnifeederRowsInContainersWithMeta(rows, options.mergeLines);
+  const { rows: displayRows } = mergeUnifeederRowsInContainersWithMeta(
+    rows,
+    options.mergeLines,
+    options.useGrossWeight,
+  );
   if (!displayRows.length) return new Map();
 
   const rawWeights = displayRows.map((row) => dgLineActiveWeightKg(row, options.useGrossWeight));
@@ -131,11 +135,14 @@ function mergeUnifeederContainerRows(
   const mergedRows = order.map((cargoKey) => {
     const entry = merged.get(cargoKey)!;
     const id = `merge:${containerKey}\0${cargoKey}`;
+    const weightStr = formatDgWeightKgDisplay(entry.weightSum) || String(entry.weightSum);
     sourceRowIds.set(id, [...entry.sourceRowIds]);
     return createDgUnifeederRow({
       ...entry.base,
       id,
-      weightKg: formatDgWeightKgDisplay(entry.weightSum) || String(entry.weightSum),
+      weightKg: weightStr,
+      grossWeightKg: useGross ? weightStr : '',
+      netWeightKg: useGross ? '' : weightStr,
       flashPoint: resolveDgExportMergedFlashPoint(entry.flashPoints),
     });
   });

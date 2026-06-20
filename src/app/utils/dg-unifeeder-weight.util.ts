@@ -2,10 +2,11 @@ import { parseDgWeightKg } from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { dgLineActiveWeightKg } from './dg-weight-tonnage.util';
 import {
-  finalizeDgWeightTotalKg,
   planDgLineWeightDisplays,
+  sumPlannedDgLineWeightsKg,
   type DgWeightViewOptions,
 } from './dg-weight-view.util';
+import { mergeUnifeederRowsInContainersWithMeta } from './dg-unifeeder-merge.util';
 
 /** Preview/export line weights — same allocation as CMA DG inventory. */
 export function planUnifeederInventoryWeightDisplays(
@@ -36,13 +37,38 @@ export function unifeederExportWeightKg(
   );
 }
 
+export function unifeederInventoryDisplayRawWeights(
+  rows: readonly DgUnifeederRow[],
+  options: DgWeightViewOptions & { mergeLines: boolean },
+): number[] {
+  const { rows: displayRows } = mergeUnifeederRowsInContainersWithMeta(
+    rows,
+    options.mergeLines,
+    options.useGrossWeight,
+  );
+  return displayRows.map((row) => dgLineActiveWeightKg(row, options.useGrossWeight));
+}
+
+export function unifeederInventoryDisplayTotalKg(
+  rows: readonly DgUnifeederRow[],
+  options: DgWeightViewOptions & { mergeLines: boolean },
+): number {
+  return sumPlannedDgLineWeightsKg(
+    unifeederInventoryDisplayRawWeights(rows, options),
+    options.roundWeights,
+  );
+}
+
 export function unifeederExportTotalKg(
   rows: readonly DgUnifeederRow[],
-  options: DgWeightViewOptions,
+  options: DgWeightViewOptions & { mergeLines?: boolean },
 ): number {
-  let total = 0;
-  for (const row of rows) {
-    total += dgLineActiveWeightKg(row, options.useGrossWeight);
+  if (options.mergeLines) {
+    return unifeederInventoryDisplayTotalKg(rows, {
+      ...options,
+      mergeLines: true,
+    });
   }
-  return finalizeDgWeightTotalKg(total, options.roundWeights);
+  const rawWeights = rows.map((row) => dgLineActiveWeightKg(row, options.useGrossWeight));
+  return sumPlannedDgLineWeightsKg(rawWeights, options.roundWeights);
 }

@@ -204,7 +204,7 @@
                         </svg>
                       </span>
                       <div class="cma-manifest-chip__body">
-                        <span class="cma-manifest-chip__name">{{ doc.sourceName }}</span>
+                        <span class="cma-manifest-chip__name">{{ manifestDisplayName(doc) }}</span>
                         @if (manifestLabel(doc)) {
                           <span class="cma-manifest-chip__meta">{{ manifestLabel(doc) }}</span>
                         }
@@ -973,7 +973,7 @@
                         </svg>
                       </span>
                       <div class="uf-manifest-chip__body">
-                        <span class="uf-manifest-chip__name">{{ doc.sourceName }}</span>
+                        <span class="uf-manifest-chip__name">{{ unifeederManifestDisplayName(doc) }}</span>
                         <span class="uf-manifest-chip__meta">{{ unifeederManifestMeta(doc) }}</span>
                       </div>
                       <button
@@ -1122,8 +1122,8 @@
               >
                 Excel
               </button>
-                <button type="button" class="btn btn-primary btn-sm uf-add-row-btn" title="Add row" (click)="addUnifeederRow()">
-                  + Row
+                <button type="button" class="btn btn-primary btn-sm uf-add-row-btn" title="Add container" (click)="addUnifeederRow()">
+                  + Container
                 </button>
               </div>
 
@@ -1693,13 +1693,14 @@
                     }
                   </span>
                   <span class="dg-archive-load-card__meta">
-                    Voy {{ entry.ship.voyageNumber || '—' }}
-                    · {{ entry.ship.portOfCall || '—' }}
-                    · Dep. {{ formatDate(entry.ship.dateOfDeparture) || '—' }}
+                    @if (entry.ship.voyageNumber) {
+                      Voy {{ entry.ship.voyageNumber }}
+                      ·
+                    }
+                    {{ entry.dgLibrary.onboard.length }} container(s)
                   </span>
                   <span class="dg-archive-load-card__stats">
-                    {{ entry.dgLibrary.onboard.length }} container(s)
-                    · saved {{ formatArchiveSavedAt(entry.savedAt) }}
+                    saved {{ formatArchiveSavedAt(entry.savedAt) }}
                   </span>
                 </button>
                 <button
