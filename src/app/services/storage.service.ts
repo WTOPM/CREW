@@ -702,7 +702,10 @@ export class StorageService {
     return migratePassengerMember(raw);
   }
 
-  private async persist(notify: 'silent' | 'saved' | 'debounced' = 'debounced'): Promise<void> {
+  private async persist(
+    notify: 'silent' | 'saved' | 'debounced' = 'debounced',
+    savedMessage?: string,
+  ): Promise<void> {
     const payload = { ...this.data(), seedVersion: APP_DATA_SCHEMA_VERSION };
     const electron = window.electronAPI;
     if (electron) {
@@ -714,7 +717,8 @@ export class StorageService {
       this.formSessionDirty = true;
     } else if (notify === 'saved') {
       this.toast.cancelDebouncedSaved();
-      this.toast.showSaved();
+      if (savedMessage) this.toast.show(savedMessage, 'success');
+      else this.toast.showSaved();
       this.formSessionDirty = false;
     } else if (notify === 'debounced') {
       this.toast.debouncedSaved();
@@ -733,13 +737,14 @@ export class StorageService {
   updateShip(
     partial: Partial<AppData['ship']>,
     notify?: 'silent' | 'saved' | 'debounced',
+    savedMessage?: string,
   ): void {
     // Ports/nationalities are user-managed (Settings) — do not auto-add referenced values.
     this.data.update((d) => ({ ...d, ship: { ...d.ship, ...partial } }));
     const fields = Object.keys(partial) as (keyof ShipInfo)[];
     const mode =
       notify ?? (fields.length === 1 ? shipFieldPersistNotify(fields[0]) : 'debounced');
-    void this.persist(mode);
+    void this.persist(mode, savedMessage);
   }
 
   updateCrewArr(partial: Partial<AppData['crewArr']>, notify: 'silent' | 'saved' = 'saved'): void {

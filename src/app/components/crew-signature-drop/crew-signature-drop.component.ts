@@ -1,5 +1,5 @@
 import { Component, inject, input, output } from '@angular/core';
-import { CrewMember, hasCrewSignature } from '../../models/crew.models';
+import { CrewMember, formatCrewListName, hasCrewSignature } from '../../models/crew.models';
 import { CrewSignatureService } from '../../services/crew-signature.service';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
@@ -11,8 +11,12 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
       class="crew-sig-drop"
       [class.crew-sig-drop--filled]="filled()"
       [class.crew-sig-drop--drag]="dragOver"
+      [class.crew-sig-drop--hold]="holdActive"
       [title]="tooltip()"
       (click)="onClick($event)"
+      (mousedown)="onMouseDown($event)"
+      (mouseup)="onMouseUp($event)"
+      (mouseleave)="onMouseLeave()"
       (dragover)="onDragOver($event)"
       (dragleave)="onDragLeave()"
       (drop)="onDrop($event)"
@@ -57,6 +61,12 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
       background: #ede9fe;
     }
 
+    .crew-sig-drop--hold {
+      transform: scale(0.92);
+      border-color: #dc2626;
+      box-shadow: 0 0 0 2px rgb(220 38 38 / 25%);
+    }
+
     .crew-sig-drop--filled {
       border-style: solid;
       background: #6d28d9;
@@ -74,11 +84,16 @@ export class CrewSignatureDropComponent {
   readonly member = input.required<CrewMember>();
   readonly changed = output<void>();
 
+  private static readonly HOLD_MS = 550;
+
   private readonly signatures = inject(CrewSignatureService);
   private readonly toast = inject(ToastService);
   private readonly confirmDialog = inject(ConfirmDialogService);
 
   protected dragOver = false;
+  protected holdActive = false;
+  private pressTimer: ReturnType<typeof setTimeout> | null = null;
+  private suppressClick = false;
 
   protected filled(): boolean {
     return hasCrewSignature(this.member());
@@ -86,9 +101,52 @@ export class CrewSignatureDropComponent {
 
   protected tooltip(): string {
     if (this.filled()) {
-      return 'Crew Effect signature loaded · click to replace or remove';
+      return 'Crew Effect signature loaded · click to replace · hold to delete';
     }
     return 'Crew Effect signature (drop PNG/JPEG/PDF or click)';
+  }
+
+  protected onMouseDown(event: MouseEvent): void {
+    if (event.button !== 0 || !this.filled()) return;
+    event.stopPropagation();
+    this.clearPressTimer();
+    this.holdActive = true;
+    this.pressTimer = setTimeout(() => {
+      this.pressTimer = null;
+      this.holdActive = false;
+      this.suppressClick = true;
+      void this.promptDelete();
+    }, CrewSignatureDropComponent.HOLD_MS);
+  }
+
+  protected onMouseUp(event: MouseEvent): void {
+    event.stopPropagation();
+    this.clearPressTimer();
+  }
+
+  protected onMouseLeave(): void {
+    this.clearPressTimer();
+  }
+
+  private clearPressTimer(): void {
+    if (this.pressTimer) {
+      clearTimeout(this.pressTimer);
+      this.pressTimer = null;
+    }
+    this.holdActive = false;
+  }
+
+  private async promptDelete(): Promise<void> {
+    const name = formatCrewListName(this.member()) || 'this crew member';
+    const ok = await this.confirmDialog.confirm({
+      title: 'Delete signature',
+      message: `Delete the signature for ${name}?`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    await this.remove();
+    this.toast.show('Signature removed');
   }
 
   protected onDragOver(event: DragEvent): void {
@@ -112,21 +170,11 @@ export class CrewSignatureDropComponent {
 
   protected async onClick(event: MouseEvent): Promise<void> {
     event.stopPropagation();
-    if (this.filled()) {
-      const action = await this.confirmDialog.confirm({
-        title: 'Crew Effect signature',
-        message: 'Replace the signature image, or remove it?',
-        confirmLabel: 'Replace',
-        cancelLabel: 'Remove',
-        variant: 'default',
-      });
-      if (action) {
-        await this.pickNew();
-        return;
-      }
-      await this.remove();
+    if (this.suppressClick) {
+      this.suppressClick = false;
       return;
     }
+    // Click attaches or replaces; deletion is via press-and-hold.
     await this.pickNew();
   }
 

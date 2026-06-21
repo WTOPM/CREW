@@ -227,10 +227,18 @@ export class HomeComponent {
 
 
 
+  /** Descriptive toast text for voyage fields (official English). */
+  private static readonly VOYAGE_FIELD_MESSAGES: Partial<Record<keyof ShipInfo, string>> = {
+    lastPortOfCall: 'Last port of call updated',
+    portOfCall: 'Port of call updated',
+    nextPortOfCall: 'Next port of call updated',
+    dateOfArrival: 'Date of arrival updated',
+    dateOfDeparture: 'Date of departure updated',
+  };
+
   protected onShipChange(field: keyof ShipInfo, value: string): void {
-
-    this.storage.updateShip({ [field]: value });
-
+    const message = HomeComponent.VOYAGE_FIELD_MESSAGES[field];
+    this.storage.updateShip({ [field]: value }, undefined, message);
   }
 
 
