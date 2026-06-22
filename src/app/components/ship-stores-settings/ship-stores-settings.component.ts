@@ -8,6 +8,7 @@ import {
 } from '../../models/crew.models';
 import { DocumentOverlayId } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
+import { FormsStore } from '../../services/forms.store';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
@@ -18,6 +19,7 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 })
 export class ShipStoresSettingsComponent {
   private readonly storage = inject(StorageService);
+  private readonly forms = inject(FormsStore);
 
   readonly docId = input<ShipStoresDocId>('shipStores');
 
@@ -58,7 +60,7 @@ export class ShipStoresSettingsComponent {
   }
 
   protected onPlaceOfStorageChange(value: string): void {
-    this.storage.updateShipStoresPlaceOfStorage(this.docId(), value);
+    this.forms.updateShipStoresPlaceOfStorage(this.docId(), value);
   }
 
   protected selectRow(rowNo: number): void {
@@ -70,12 +72,12 @@ export class ShipStoresSettingsComponent {
 
   protected saveArticleName(): void {
     const idx = this.selectedRow() - 1;
-    this.storage.updateShipStoresRow(this.docId(), idx, { name: this.draftName().trim() });
+    this.forms.updateShipStoresRow(this.docId(), idx, { name: this.draftName().trim() });
   }
 
   protected saveQuantityAndUnit(): void {
     const idx = this.selectedRow() - 1;
-    this.storage.updateShipStoresRow(this.docId(), idx, {
+    this.forms.updateShipStoresRow(this.docId(), idx, {
       quantity: this.draftQuantity().trim(),
       unit: this.draftUnit().trim(),
     });

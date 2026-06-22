@@ -6,6 +6,7 @@ import { DatePickerComponent } from '../../components/date-picker/date-picker.co
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { PORT_SEC_LVL_OPTIONS, PortTerminal, ShipInfo } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
+import { ReferenceListsStore } from '../../services/reference-lists.store';
 import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
 import { PrintPackagesComponent } from '../../components/print-packages/print-packages.component';
 import { CustomDocumentsComponent } from '../../components/custom-documents/custom-documents.component';
@@ -29,6 +30,7 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 })
 export class SettingsComponent {
   protected readonly storage = inject(StorageService);
+  protected readonly refLists = inject(ReferenceListsStore);
 
   protected readonly dataPath = signal<string | null>(null);
 
@@ -103,12 +105,12 @@ export class SettingsComponent {
   }
 
   protected addNationalityItem(): void {
-    this.storage.addNationality(this.newNationality());
+    this.refLists.addNationality(this.newNationality());
     this.newNationality.set('');
   }
 
   protected removeNationalityItem(name: string): void {
-    this.storage.removeNationality(name);
+    this.refLists.removeNationality(name);
   }
 
   protected closeRanks(): void {
@@ -117,14 +119,14 @@ export class SettingsComponent {
   }
 
   protected addPortItem(): void {
-    this.storage.addPort(this.newPortName(), this.newPortCode(), this.newPortCountry());
+    this.refLists.addPort(this.newPortName(), this.newPortCode(), this.newPortCountry());
     this.newPortName.set('');
     this.newPortCode.set('');
     this.newPortCountry.set('');
   }
 
   protected removePortItem(name: string): void {
-    this.storage.removePort(name);
+    this.refLists.removePort(name);
     if (this.expandedPort() === name) this.expandedPort.set('');
   }
 
@@ -139,34 +141,34 @@ export class SettingsComponent {
   }
 
   protected addPortTerminalItem(portName: string): void {
-    this.storage.addPortTerminal(portName, this.newTerminalAbbrev(), this.newTerminalName());
+    this.refLists.addPortTerminal(portName, this.newTerminalAbbrev(), this.newTerminalName());
     this.newTerminalAbbrev.set('');
     this.newTerminalName.set('');
   }
 
   protected removePortTerminalItem(portName: string, index: number): void {
-    this.storage.removePortTerminal(portName, index);
+    this.refLists.removePortTerminal(portName, index);
   }
 
   protected addRankItem(): void {
-    this.storage.addRank(this.newRank());
+    this.refLists.addRank(this.newRank());
     this.newRank.set('');
   }
 
   protected removeRankItem(name: string): void {
-    this.storage.removeRank(name);
+    this.refLists.removeRank(name);
   }
 
   protected dropRank(event: CdkDragDrop<string[]>): void {
-    this.storage.reorderRanks(event.previousIndex, event.currentIndex);
+    this.refLists.reorderRanks(event.previousIndex, event.currentIndex);
   }
 
   protected dropPort(event: CdkDragDrop<any[]>): void {
-    this.storage.reorderPorts(event.previousIndex, event.currentIndex);
+    this.refLists.reorderPorts(event.previousIndex, event.currentIndex);
   }
 
   protected dropNationality(event: CdkDragDrop<string[]>): void {
-    this.storage.reorderNationalities(event.previousIndex, event.currentIndex);
+    this.refLists.reorderNationalities(event.previousIndex, event.currentIndex);
   }
 
 }

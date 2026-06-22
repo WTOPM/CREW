@@ -19,6 +19,7 @@ import { ReeferImportService } from '../../services/reefer-import.service';
 import { ReeferPageArchiveService } from '../../services/reefer-page-archive.service';
 import { ReeferPdfService } from '../../services/reefer-pdf.service';
 import { StorageService } from '../../services/storage.service';
+import { ReeferStore } from '../../services/reefer.store';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { formatDisplayDate } from '../../utils/date.util';
@@ -45,6 +46,7 @@ type ReeferUnitField = keyof Omit<ReeferOnboardUnit, 'id' | 'sourceManifestId'>;
 })
 export class ReeferComponent {
   private readonly storage = inject(StorageService);
+  private readonly reefer = inject(ReeferStore);
   private readonly importer = inject(ReeferImportService);
   private readonly reeferPdf = inject(ReeferPdfService);
   private readonly reeferExcel = inject(ReeferExcelService);
@@ -105,19 +107,19 @@ export class ReeferComponent {
     field: 'rank' | 'name',
     value: string,
   ): void {
-    this.storage.updateReeferMonitoringSigner(which, index, field, value);
+    this.reefer.updateReeferMonitoringSigner(which, index, field, value);
   }
 
   protected toggleShowDischarged(checked: boolean): void {
-    this.storage.updateReeferViewSettings({ showDischarged: checked });
+    this.reefer.updateReeferViewSettings({ showDischarged: checked });
   }
 
   protected toggleMonitoringAddNextDays(checked: boolean): void {
-    this.storage.updateReeferViewSettings({ monitoringAddNextDays: checked });
+    this.reefer.updateReeferViewSettings({ monitoringAddNextDays: checked });
   }
 
   protected onMonitoringNextDaysChange(value: string): void {
-    this.storage.updateReeferViewSettings({
+    this.reefer.updateReeferViewSettings({
       monitoringNextDays: Number(value) as (typeof REEFER_MONITORING_NEXT_DAY_OPTIONS)[number],
     });
   }
@@ -125,11 +127,11 @@ export class ReeferComponent {
   protected toggleInventorySort(column: ReeferInventorySortColumn): void {
     const lib = this.library();
     if (lib.inventorySortColumn === column) {
-      this.storage.updateReeferViewSettings({
+      this.reefer.updateReeferViewSettings({
         inventorySortDirection: lib.inventorySortDirection === 'asc' ? 'desc' : 'asc',
       });
     } else {
-      this.storage.updateReeferViewSettings({
+      this.reefer.updateReeferViewSettings({
         inventorySortColumn: column,
         inventorySortDirection: 'asc',
       });
@@ -137,7 +139,7 @@ export class ReeferComponent {
   }
 
   protected onPageContextChange(field: keyof ReeferPageContext, value: string): void {
-    this.storage.updateReeferPageContext({ [field]: value });
+    this.reefer.updateReeferPageContext({ [field]: value });
   }
 
   private buildExportContext(): ReeferExportContext {
@@ -145,28 +147,28 @@ export class ReeferComponent {
   }
 
   protected onUnitChange(unitId: string, field: ReeferUnitField, value: string): void {
-    this.storage.updateReeferUnit(unitId, { [field]: value });
+    this.reefer.updateReeferUnit(unitId, { [field]: value });
   }
 
   protected addUnit(): void {
-    this.storage.addReeferUnit();
+    this.reefer.addReeferUnit();
   }
 
   protected removeUnit(unitId: string): void {
-    this.storage.removeReeferUnit(unitId);
+    this.reefer.removeReeferUnit(unitId);
   }
 
   protected markDischarged(unitId: string): void {
-    this.storage.setReeferUnitStatus(unitId, 'discharged');
+    this.reefer.setReeferUnitStatus(unitId, 'discharged');
   }
 
   protected restoreOnboard(unitId: string): void {
-    this.storage.setReeferUnitStatus(unitId, 'onboard');
+    this.reefer.setReeferUnitStatus(unitId, 'onboard');
   }
 
   protected removeManifest(id: string, event: Event): void {
     event.stopPropagation();
-    this.storage.removeReeferManifest(id);
+    this.reefer.removeReeferManifest(id);
   }
 
   protected exportPdf(): void {
@@ -307,7 +309,7 @@ export class ReeferComponent {
         buildReeferContentHash(result),
         buildReeferPdfBytesHash(bytes),
       ]);
-      const duplicate = this.storage.applyReeferImport(result, file.name, {
+      const duplicate = this.reefer.applyReeferImport(result, file.name, {
         contentFingerprint,
         pdfBytesFingerprint,
       });

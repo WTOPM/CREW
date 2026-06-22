@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { CrewDocumentType } from '../models/crew.models';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
-import { StorageService } from './storage.service';
+import { CrewStore } from './crew.store';
 
 const IDB_NAME = 'crew-documents';
 const IDB_STORE = 'pdfs';
@@ -13,7 +13,7 @@ function storageKey(crewId: string, docType: CrewDocumentType): string {
 
 @Injectable({ providedIn: 'root' })
 export class CrewDocumentService {
-  private readonly storage = inject(StorageService);
+  private readonly crew = inject(CrewStore);
   private idb: IDBDatabase | null = null;
 
   isElectron(): boolean {
@@ -33,7 +33,7 @@ export class CrewDocumentService {
     const api = window.electronAPI;
     if (!api) throw new Error('File path attach works in desktop app only');
     await api.saveCrewPdf(crewId, docType, sourcePath);
-    this.storage.setCrewDocumentAttached(crewId, docType, true);
+    this.crew.setCrewDocumentAttached(crewId, docType, true);
   }
 
   async pickAndAttach(crewId: string, docType: CrewDocumentType): Promise<boolean> {
@@ -72,7 +72,7 @@ export class CrewDocumentService {
     const api = window.electronAPI;
     if (api) await api.deleteCrewPdf(crewId, docType);
     await this.idbDelete(storageKey(crewId, docType));
-    this.storage.setCrewDocumentAttached(crewId, docType, false);
+    this.crew.setCrewDocumentAttached(crewId, docType, false);
   }
 
   async deleteAllForCrew(crewId: string): Promise<void> {
@@ -98,7 +98,7 @@ export class CrewDocumentService {
     } else {
       await this.idbPut(storageKey(crewId, docType), buffer);
     }
-    this.storage.setCrewDocumentAttached(crewId, docType, true);
+    this.crew.setCrewDocumentAttached(crewId, docType, true);
   }
 
   pickPdfInBrowser(): Promise<File | null> {

@@ -1,0 +1,26 @@
+---
+description: How CREW app state is structured — where mutations and selectors go
+alwaysApply: true
+---
+
+CREW state is ONE `AppData` signal, persisted as one blob, split across a kernel +
+feature stores. Do NOT reintroduce a single god service or a second source of truth.
+
+- `AppStateStore` (`src/app/services/app-state.store.ts`) — kernel: owns the
+  `data = signal<AppData>()`, `init()`, `persist(notify)`, `finishFormSession()`.
+- Feature stores own one domain's MUTATIONS each, sharing state via
+  `private readonly data = this.state.data;` then `this.data.update(...)` +
+  `void this.state.persist(notify)`:
+  `reference-lists.store`, `crew.store`, `passenger.store`, `dg-manifest.store`,
+  `reefer.store`, `document-settings.store`, `forms.store`.
+- `StorageService` — thin facade holding ALL read SELECTORS (`computed`), plus
+  ship/voyage core, snapshots, import/export. Delegates persistence to the kernel.
+- `app-data-normalizer.ts` — pure normalization/migration (no signals, no IO).
+  Schema is additive: read every field as `raw.X ?? default`; no destructive migrations.
+
+RULE when adding state logic:
+- New write → add a method to the matching FEATURE STORE (not StorageService).
+- New read → add a `computed` SELECTOR to StorageService.
+- A component injects `storage` for reads and the relevant store for writes.
+
+See `CLAUDE.md` ("State management architecture") for the full description.

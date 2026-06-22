@@ -8,6 +8,7 @@ import {
   CrewListTypeId,
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
+import { DocumentSettingsStore } from '../../services/document-settings.store';
 import { ToastService } from '../../services/toast.service';
 import { CrewAbbrChipComponent } from '../crew-abbr-chip/crew-abbr-chip.component';
 import { DocumentExportSettingsComponent } from '../document-export-settings/document-export-settings.component';
@@ -136,6 +137,7 @@ import { DocumentExportSettingsComponent } from '../document-export-settings/doc
 })
 export class CrewListSettingsComponent {
   private readonly storage = inject(StorageService);
+  private readonly docSettings = inject(DocumentSettingsStore);
   private readonly toast = inject(ToastService);
 
   protected readonly typeIds = CREW_LIST_TYPE_IDS;
@@ -154,7 +156,7 @@ export class CrewListSettingsComponent {
 
   protected onListTypeChange(value: CrewListTypeId): void {
     if (value === this.listType()) return;
-    this.storage.updateDocumentOverlay('crewList', { listType: value }, 'silent');
+    this.docSettings.updateDocumentOverlay('crewList', { listType: value }, 'silent');
     this.toast.showSelected(CREW_LIST_TYPE_LABELS[value]);
   }
 }

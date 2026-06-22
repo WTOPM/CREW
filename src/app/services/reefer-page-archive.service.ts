@@ -11,10 +11,12 @@ import { normalizeReeferLibrary, type ReeferLibrarySettings } from '../models/re
 import type { Port, ShipInfo } from '../models/crew.models';
 import { reeferPageShipContextFromLibrary } from '../utils/page-ship-context.util';
 import { StorageService } from './storage.service';
+import { ReeferStore } from './reefer.store';
 
 @Injectable({ providedIn: 'root' })
 export class ReeferPageArchiveService {
   private readonly storage = inject(StorageService);
+  private readonly reefer = inject(ReeferStore);
 
   readonly entries = signal<ReeferPageSnapshot[]>(this.readEntries());
   readonly entriesNewestFirst = computed(() => this.sortNewestFirst(this.entries()));
@@ -60,7 +62,7 @@ export class ReeferPageArchiveService {
       };
     }
 
-    this.storage.applyReeferPageSnapshot(entry.reeferLibrary, entry.ship);
+    this.reefer.applyReeferPageSnapshot(entry.reeferLibrary, entry.ship);
     this.loaded.set(structuredClone(entry));
     this.persistSession();
     return true;
@@ -68,7 +70,7 @@ export class ReeferPageArchiveService {
 
   reset(): void {
     if (this.liveBackup) {
-      this.storage.applyReeferPageSnapshot(this.liveBackup.reeferLibrary, this.liveBackup.ship);
+      this.reefer.applyReeferPageSnapshot(this.liveBackup.reeferLibrary, this.liveBackup.ship);
       this.liveBackup = null;
     }
     this.loaded.set(null);
@@ -91,7 +93,7 @@ export class ReeferPageArchiveService {
     const entry = this.entries().find((e) => e.id === session.loadedId);
     if (!entry) {
       if (session.liveBackup) {
-        this.storage.applyReeferPageSnapshot(session.liveBackup.reeferLibrary, session.liveBackup.ship);
+        this.reefer.applyReeferPageSnapshot(session.liveBackup.reeferLibrary, session.liveBackup.ship);
       }
       this.clearSession();
       return;

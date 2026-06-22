@@ -7,6 +7,7 @@ import { PkgBarComponent } from './components/pkg-bar/pkg-bar.component';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { ToastComponent } from './components/toast/toast.component';
 import { StorageService } from './services/storage.service';
+import { DocumentSettingsStore } from './services/document-settings.store';
 import { FolderAccessService } from './services/folder-access.service';
 import { ToastService } from './services/toast.service';
 import { TitleTooltipService } from './services/title-tooltip.service';
@@ -29,6 +30,7 @@ export class App implements OnInit {
   private static readonly FOLDER_HOLD_MS = 500;
 
   private readonly storage = inject(StorageService);
+  private readonly docSettings = inject(DocumentSettingsStore);
   private readonly folderAccess = inject(FolderAccessService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -79,39 +81,39 @@ export class App implements OnInit {
   }
 
   protected toggleSaveToFolder(saveToFolder: boolean): void {
-    this.storage.updateOutputSettings({ saveToFolder });
+    this.docSettings.updateOutputSettings({ saveToFolder });
   }
 
   protected selectFolder(id: string): void {
     if (this.hasElectron) {
-      this.storage.updateOutputSettings({ activePath: id });
+      this.docSettings.updateOutputSettings({ activePath: id });
     } else {
       this.folderAccess.setActive(id);
-      this.storage.updateOutputSettings({ activePath: this.folderAccess.activeName() });
+      this.docSettings.updateOutputSettings({ activePath: this.folderAccess.activeName() });
     }
   }
 
   protected async addFolder(): Promise<void> {
     if (this.hasElectron) {
       const picked = await window.electronAPI?.pickDirectory();
-      if (picked) this.storage.addSavedPath(picked);
+      if (picked) this.docSettings.addSavedPath(picked);
       else return;
     } else {
       const name = await this.folderAccess.pick();
       if (!name) return;
-      this.storage.updateOutputSettings({ activePath: name });
+      this.docSettings.updateOutputSettings({ activePath: name });
     }
-    this.storage.updateOutputSettings({ saveToFolder: true });
+    this.docSettings.updateOutputSettings({ saveToFolder: true });
   }
 
   protected async removeActiveFolder(): Promise<void> {
     const id = this.activeFolderId();
     if (!id) return;
     if (this.hasElectron) {
-      this.storage.removeSavedPath(id);
+      this.docSettings.removeSavedPath(id);
     } else {
       await this.folderAccess.remove(id);
-      this.storage.updateOutputSettings({ activePath: this.folderAccess.activeName() });
+      this.docSettings.updateOutputSettings({ activePath: this.folderAccess.activeName() });
     }
   }
 

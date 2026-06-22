@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { StorageService } from './storage.service';
+import { CrewStore } from './crew.store';
 
 const IDB_NAME = 'crew-signatures';
 const IDB_STORE = 'signatures';
@@ -9,7 +9,7 @@ const ACCEPT = 'image/png,image/jpeg,.png,.jpg,.jpeg,application/pdf,.pdf';
 
 @Injectable({ providedIn: 'root' })
 export class CrewSignatureService {
-  private readonly storage = inject(StorageService);
+  private readonly crew = inject(CrewStore);
   private idb: IDBDatabase | null = null;
 
   isElectron(): boolean {
@@ -30,7 +30,7 @@ export class CrewSignatureService {
       const path = await api.pickCrewSignatureFile();
       if (!path) return false;
       const result = await api.saveCrewSignatureFromPath(crewId, path);
-      this.storage.setCrewSignatureAttached(crewId, true, result.fileName);
+      this.crew.setCrewSignatureAttached(crewId, true, result.fileName);
       return true;
     }
     const file = await this.pickInBrowser();
@@ -61,7 +61,7 @@ export class CrewSignatureService {
     const api = window.electronAPI;
     if (api?.deleteCrewSignature) await api.deleteCrewSignature(crewId);
     await this.idbDelete(crewId);
-    this.storage.setCrewSignatureAttached(crewId, false, '');
+    this.crew.setCrewSignatureAttached(crewId, false, '');
   }
 
   async deleteForCrew(crewId: string): Promise<void> {
@@ -73,11 +73,11 @@ export class CrewSignatureService {
     const b64 = bytesToBase64(bytes);
     if (api?.saveCrewSignatureBytes) {
       const result = await api.saveCrewSignatureBytes(crewId, b64, fileName);
-      this.storage.setCrewSignatureAttached(crewId, true, result.fileName);
+      this.crew.setCrewSignatureAttached(crewId, true, result.fileName);
       return;
     }
     await this.idbPut(crewId, bytes.slice().buffer);
-    this.storage.setCrewSignatureAttached(crewId, true, fileName);
+    this.crew.setCrewSignatureAttached(crewId, true, fileName);
   }
 
   private isAllowedFile(file: File): boolean {

@@ -31,6 +31,8 @@ import {
 import { PASSENGER_RANK, PassengerMember, PaxListKind } from '../../models/passenger.models';
 
 import { StorageService } from '../../services/storage.service';
+import { CrewStore } from '../../services/crew.store';
+import { PassengerStore } from '../../services/passenger.store';
 
 import { ToastService } from '../../services/toast.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
@@ -71,6 +73,8 @@ export type HomeListTab =
 export class HomeComponent {
 
   protected readonly storage = inject(StorageService);
+  protected readonly crew = inject(CrewStore);
+  protected readonly passengers = inject(PassengerStore);
 
   private readonly toast = inject(ToastService);
   private readonly confirmDialog = inject(ConfirmDialogService);
@@ -273,7 +277,7 @@ export class HomeComponent {
 
     if (!draft || !id) return;
 
-    this.storage.updateCrewMember(id, this.crewProfilePatch(draft), 'silent');
+    this.crew.updateCrewMember(id, this.crewProfilePatch(draft), 'silent');
 
     this.cancelEdit();
 
@@ -313,7 +317,7 @@ export class HomeComponent {
 
     if (!draft || !id) return;
 
-    this.storage.updatePassenger(id, this.passengerProfilePatch(draft), 'silent');
+    this.passengers.updatePassenger(id, this.passengerProfilePatch(draft), 'silent');
 
     this.cancelPassengerEdit();
 
@@ -324,12 +328,12 @@ export class HomeComponent {
 
 
   protected addMemberToArrival(): void {
-    const member = this.storage.addCrewMemberToArrival();
+    const member = this.crew.addCrewMemberToArrival();
     this.startEdit(member);
   }
 
   protected addMemberToDeparture(): void {
-    const member = this.storage.addCrewMemberToDeparture();
+    const member = this.crew.addCrewMemberToDeparture();
     this.startEdit(member);
   }
 
@@ -337,7 +341,7 @@ export class HomeComponent {
 
   protected addMemberToArchive(): void {
 
-    const member = this.storage.addCrewMemberToArchive();
+    const member = this.crew.addCrewMemberToArchive();
 
     this.showArchive.set(true);
 
@@ -348,12 +352,12 @@ export class HomeComponent {
 
 
   protected addPassengerToArrival(): void {
-    const member = this.storage.addPassengerToArrival();
+    const member = this.passengers.addPassengerToArrival();
     this.startPassengerEdit(member);
   }
 
   protected addPassengerToDeparture(): void {
-    const member = this.storage.addPassengerToDeparture();
+    const member = this.passengers.addPassengerToDeparture();
     this.startPassengerEdit(member);
   }
 
@@ -361,7 +365,7 @@ export class HomeComponent {
 
   protected addPassengerToArchive(): void {
 
-    const member = this.storage.addPassengerToArchive();
+    const member = this.passengers.addPassengerToArchive();
 
     this.showPaxArchive.set(true);
 
@@ -378,13 +382,13 @@ export class HomeComponent {
 
 
   protected archive(id: string): void {
-    this.storage.archiveFromCrewList(id, this.crewListKind());
+    this.crew.archiveFromCrewList(id, this.crewListKind());
     if (this.editingId() === id) this.cancelEdit();
     this.toast.showArchived();
   }
 
   protected archivePassenger(id: string): void {
-    this.storage.archiveFromPassengerList(id, this.paxListKind());
+    this.passengers.archiveFromPassengerList(id, this.paxListKind());
     if (this.editingPassengerId() === id) this.cancelPassengerEdit();
     this.toast.showArchived();
   }
@@ -393,7 +397,7 @@ export class HomeComponent {
 
   protected restoreFromArchive(id: string): void {
 
-    this.storage.restoreCrewMemberToList(id, this.crewListKind());
+    this.crew.restoreCrewMemberToList(id, this.crewListKind());
 
     this.toast.showRestored();
 
@@ -403,7 +407,7 @@ export class HomeComponent {
 
   protected restorePassengerFromArchive(id: string): void {
 
-    this.storage.restorePassengerToList(id, this.paxListKind());
+    this.passengers.restorePassengerToList(id, this.paxListKind());
 
     this.toast.showRestored();
 
@@ -412,14 +416,14 @@ export class HomeComponent {
 
 
   protected syncDepartureFromArrival(): void {
-    const preview = this.storage.syncDepartureFromArrival();
+    const preview = this.crew.syncDepartureFromArrival();
     this.toast.show(this.arrivalToDepartureToast(preview), 'success');
   }
 
 
 
   protected applyDepartureToArrival(): void {
-    const preview = this.storage.applyDepartureToArrival();
+    const preview = this.crew.applyDepartureToArrival();
     this.listTab.set('crew-arrival');
     this.toast.show(this.departureToArrivalToast(preview, 'Crew'), 'success');
   }
@@ -427,14 +431,14 @@ export class HomeComponent {
 
 
   protected syncPassengerDepartureFromArrival(): void {
-    const preview = this.storage.syncPassengerDepartureFromArrival();
+    const preview = this.passengers.syncPassengerDepartureFromArrival();
     this.toast.show(this.passengerArrivalToDepartureToast(preview), 'success');
   }
 
 
 
   protected applyPassengerDepartureToArrival(): void {
-    const preview = this.storage.applyPassengerDepartureToArrival();
+    const preview = this.passengers.applyPassengerDepartureToArrival();
     this.listTab.set('pax-arrival');
     this.toast.show(this.departureToArrivalToast(preview, 'Passengers'), 'success');
   }
@@ -479,7 +483,7 @@ export class HomeComponent {
 
   protected removeFromDeparture(id: string): void {
     const member = this.storage.allCrew().find((m) => m.id === id);
-    this.storage.removeFromDepartureList(id);
+    this.crew.removeFromDepartureList(id);
     if (member?.onArrivalList && !member.archived) {
       this.toast.show('Removed from departure (still on arrival)', 'info');
     } else {
@@ -490,7 +494,7 @@ export class HomeComponent {
   protected removeFromArrival(id: string): void {
     const member = this.storage.allCrew().find((m) => m.id === id);
     const linked = this.storage.crewListsInSync();
-    this.storage.removeFromArrivalList(id);
+    this.crew.removeFromArrivalList(id);
     if (linked) {
       this.toast.showArchived();
     } else if (member?.onDepartureList && !member.archived) {
@@ -504,7 +508,7 @@ export class HomeComponent {
 
   protected removePassengerFromDeparture(id: string): void {
     const member = this.storage.allPassengers().find((m) => m.id === id);
-    this.storage.removePassengerFromDepartureList(id);
+    this.passengers.removePassengerFromDepartureList(id);
     if (member?.onArrivalList && !member.archived) {
       this.toast.show('Removed from departure (still on arrival)', 'info');
     } else {
@@ -515,7 +519,7 @@ export class HomeComponent {
   protected removePassengerFromArrival(id: string): void {
     const member = this.storage.allPassengers().find((m) => m.id === id);
     const linked = this.storage.passengerListsInSync();
-    this.storage.removePassengerFromArrivalList(id);
+    this.passengers.removePassengerFromArrivalList(id);
     if (linked) {
       this.toast.showArchived();
     } else if (member?.onDepartureList && !member.archived) {
@@ -542,7 +546,7 @@ export class HomeComponent {
 
     void this.crewDocs.deleteAllForCrew(id).then(() =>
       this.crewSignatures.deleteForCrew(id).then(() => {
-        this.storage.removeCrewMember(id);
+        this.crew.removeCrewMember(id);
         this.toast.showDeleted();
       }),
     );
@@ -566,7 +570,7 @@ export class HomeComponent {
     });
     if (!ok) return;
 
-    this.storage.removePassenger(id);
+    this.passengers.removePassenger(id);
 
     this.toast.showDeleted();
   }
@@ -574,13 +578,13 @@ export class HomeComponent {
 
 
   protected dropCrew(event: CdkDragDrop<CrewMember[]>): void {
-    this.storage.reorderCrewList(this.crewListKind(), event.previousIndex, event.currentIndex);
+    this.crew.reorderCrewList(this.crewListKind(), event.previousIndex, event.currentIndex);
   }
 
 
 
   protected dropPassengers(event: CdkDragDrop<PassengerMember[]>): void {
-    this.storage.reorderPassengerList(this.paxListKind(), event.previousIndex, event.currentIndex);
+    this.passengers.reorderPassengerList(this.paxListKind(), event.previousIndex, event.currentIndex);
   }
 
 

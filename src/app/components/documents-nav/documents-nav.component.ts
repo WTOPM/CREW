@@ -49,6 +49,7 @@ import { CrewListExcelService } from '../../services/crew-list-excel.service';
 import { PortOfCallExcelService } from '../../services/port-of-call-excel.service';
 import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
+import { FormsStore } from '../../services/forms.store';
 import { ToastService } from '../../services/toast.service';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
@@ -95,6 +96,7 @@ type MoneyDocId = (typeof MONEY_DOC_IDS)[number];
 })
 export class DocumentsNavComponent {
   private readonly storage = inject(StorageService);
+  private readonly forms = inject(FormsStore);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
@@ -364,12 +366,12 @@ export class DocumentsNavComponent {
   protected onPdfPortCountChange(value: string | number): void {
     const n = typeof value === 'number' ? value : parseInt(String(value), 10);
     if (isNaN(n)) return;
-    this.storage.updatePortOfCallSettings({ pdfRowCount: n });
+    this.forms.updatePortOfCallSettings({ pdfRowCount: n });
   }
 
   protected addPortCallRow(): void {
     const todayInMonth = defaultIsoDateInCurrentMonth();
-    this.storage.addPortCallEntry({
+    this.forms.addPortCallEntry({
       arrivalDate: todayInMonth,
       departureDate: todayInMonth,
     });
@@ -393,16 +395,16 @@ export class DocumentsNavComponent {
   }
 
   protected removePortCallRow(id: string): void {
-    this.storage.removePortCallEntry(id);
+    this.forms.removePortCallEntry(id);
   }
 
   protected updatePortCallField(id: string, field: keyof PortCallHistoryEntry, value: string): void {
-    this.storage.updatePortCallEntry(id, { [field]: value });
+    this.forms.updatePortCallEntry(id, { [field]: value });
   }
 
   protected onPortCallPortChange(id: string, portName: string): void {
     const country = portCountry(portName, this.ports());
-    this.storage.updatePortCallEntry(
+    this.forms.updatePortCallEntry(
       id,
       {
         portName,

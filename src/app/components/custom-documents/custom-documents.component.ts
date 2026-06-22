@@ -1,5 +1,6 @@
 import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { StorageService } from '../../services/storage.service';
+import { DocumentSettingsStore } from '../../services/document-settings.store';
 import { ToastService } from '../../services/toast.service';
 import { uint8ToBase64 } from '../../utils/base64.util';
 
@@ -108,6 +109,7 @@ import { uint8ToBase64 } from '../../utils/base64.util';
 })
 export class CustomDocumentsComponent {
   private readonly storage = inject(StorageService);
+  private readonly docSettings = inject(DocumentSettingsStore);
   private readonly toast = inject(ToastService);
   private readonly fileRef = viewChild<ElementRef<HTMLInputElement>>('file');
 
@@ -146,7 +148,7 @@ export class CustomDocumentsComponent {
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const name = file.name.replace(/\.pdf$/i, '').trim() || 'Document';
-      this.storage.addCustomDocument(name, uint8ToBase64(bytes));
+      this.docSettings.addCustomDocument(name, uint8ToBase64(bytes));
       this.toast.show(`Added "${name}"`, 'success');
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Upload failed');
@@ -154,7 +156,7 @@ export class CustomDocumentsComponent {
   }
 
   protected remove(id: string): void {
-    this.storage.removeCustomDocument(id);
+    this.docSettings.removeCustomDocument(id);
     this.toast.show('Document removed', 'deleted');
   }
 }

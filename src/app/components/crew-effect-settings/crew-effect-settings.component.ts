@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CrewEffectDocId } from '../../models/crew.models';
 import { DocumentOverlayId } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
+import { FormsStore } from '../../services/forms.store';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
@@ -13,6 +14,7 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 })
 export class CrewEffectSettingsComponent {
   private readonly storage = inject(StorageService);
+  private readonly forms = inject(FormsStore);
 
   readonly docId = input<CrewEffectDocId>('crewEffect');
 
@@ -34,25 +36,25 @@ export class CrewEffectSettingsComponent {
     field: 'nilCigarettes' | 'nilSpirits' | 'nilWines',
     value: boolean,
   ): void {
-    this.storage.updateCrewEffectForm('crewEffect', { [field]: value }, 'saved');
+    this.forms.updateCrewEffectForm('crewEffect', { [field]: value }, 'saved');
   }
 
   protected onNilToggle02(
     field: 'nilCigarettes' | 'nilTobaccoCigars' | 'nilSpirits' | 'nilBeer',
     value: boolean,
   ): void {
-    this.storage.updateCrewEffectForm('crewEffect02', { [field]: value }, 'saved');
+    this.forms.updateCrewEffectForm('crewEffect02', { [field]: value }, 'saved');
   }
 
   protected onNilToggle03(
     field: 'nilCigarettes' | 'nilCigars' | 'nilSpirits' | 'nilWeapons' | 'nilAmmunition',
     value: boolean,
   ): void {
-    this.storage.updateCrewEffectForm('crewEffect03', { [field]: value }, 'saved');
+    this.forms.updateCrewEffectForm('crewEffect03', { [field]: value }, 'saved');
   }
 
   protected onOthersChange(value: string): void {
-    this.storage.updateCrewEffectForm(this.docId(), { others: value });
+    this.forms.updateCrewEffectForm(this.docId(), { others: value });
   }
 
   protected appendPassengers = computed(() => {
@@ -62,7 +64,7 @@ export class CrewEffectSettingsComponent {
   });
 
   protected onAppendPassengersChange(value: boolean): void {
-    this.storage.updateCrewEffectForm(this.docId(), { appendPassengers: value }, 'saved');
+    this.forms.updateCrewEffectForm(this.docId(), { appendPassengers: value }, 'saved');
   }
 
   protected othersValue(): string {

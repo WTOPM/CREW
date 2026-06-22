@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { ShipAssetKind, ShipAssetsMeta } from '../models/document-overlay.models';
 import { StorageService } from './storage.service';
+import { DocumentSettingsStore } from './document-settings.store';
 
 const IDB_NAME = 'crew-ship-assets';
 const IDB_STORE = 'assets';
@@ -11,6 +12,7 @@ const ACCEPT = 'image/png,image/jpeg,.png,.jpg,.jpeg,application/pdf,.pdf';
 @Injectable({ providedIn: 'root' })
 export class ShipAssetsService {
   private readonly storage = inject(StorageService);
+  private readonly docSettings = inject(DocumentSettingsStore);
   private idb: IDBDatabase | null = null;
 
   isElectron(): boolean {
@@ -59,7 +61,7 @@ export class ShipAssetsService {
       kind === 'stamp'
         ? { hasStamp: false, stampFileName: '' }
         : { hasSignature: false, signatureFileName: '' };
-    this.storage.updateShipAssets(patch);
+    this.docSettings.updateShipAssets(patch);
   }
 
   meta(): ShipAssetsMeta {
@@ -80,9 +82,9 @@ export class ShipAssetsService {
 
   private applyMeta(kind: ShipAssetKind, fileName: string): void {
     if (kind === 'stamp') {
-      this.storage.updateShipAssets({ hasStamp: true, stampFileName: fileName });
+      this.docSettings.updateShipAssets({ hasStamp: true, stampFileName: fileName });
     } else {
-      this.storage.updateShipAssets({ hasSignature: true, signatureFileName: fileName });
+      this.docSettings.updateShipAssets({ hasSignature: true, signatureFileName: fileName });
     }
   }
 

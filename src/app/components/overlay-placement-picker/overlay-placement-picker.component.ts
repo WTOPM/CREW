@@ -40,6 +40,7 @@ import {
 } from '../../services/document-overlay-preview.service';
 import { ShipAssetsService } from '../../services/ship-assets.service';
 import { StorageService } from '../../services/storage.service';
+import { DocumentSettingsStore } from '../../services/document-settings.store';
 import {
   clientToViewportCss,
   CREW_LIST_PREVIEW_CSS_PX_PER_PT,
@@ -1150,6 +1151,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected readonly resizeHandles = STAMP_RESIZE_HANDLES;
 
   private readonly storage = inject(StorageService);
+  private readonly docSettings = inject(DocumentSettingsStore);
   private readonly previewSvc = inject(DocumentOverlayPreviewService);
   private readonly assets = inject(ShipAssetsService);
   private readonly crewSignatures = inject(CrewSignatureService);
@@ -1344,7 +1346,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   }
 
   protected onToggleCrewTableSig(value: boolean): void {
-    this.storage.updateDocumentOverlay(
+    this.docSettings.updateDocumentOverlay(
       this.crewEffectOverlayId(),
       { useCrewSignatures: value },
       'saved',
@@ -1492,7 +1494,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
         : attachment
           ? { useSignatureAttachment: value }
           : { useSignature: value };
-    this.storage.updateDocumentOverlay(this.documentId(), patch, 'saved');
+    this.docSettings.updateDocumentOverlay(this.documentId(), patch, 'saved');
   }
 
   protected async setMdhPage(page: MdhOverlayPreviewPage): Promise<void> {
@@ -1657,7 +1659,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     this.persistBoxes(stamp, signature);
 
     if (this.isCrewEffectDoc() && !this.mdhAttachment()) {
-      this.storage.updateDocumentOverlay(
+      this.docSettings.updateDocumentOverlay(
         this.crewEffectOverlayId(),
         { useCrewSignatures: false, crewSignatureByRow: {}, crewSignatureBase: undefined },
         'saved',
@@ -1932,7 +1934,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       }
     }
     if (Object.keys(patch).length) {
-      this.storage.updateDocumentOverlay(this.documentId(), patch);
+      this.docSettings.updateDocumentOverlay(this.documentId(), patch);
     }
   }
 
@@ -2065,7 +2067,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       height: boxOnPage.height,
     };
     const byRow = { ...(opts.crewSignatureByRow ?? {}), [String(row)]: tweak };
-    this.storage.updateDocumentOverlay(id, { crewSignatureByRow: byRow }, 'saved');
+    this.docSettings.updateDocumentOverlay(id, { crewSignatureByRow: byRow }, 'saved');
   }
 
   private syncRotationFromStorage(): void {
@@ -2082,13 +2084,13 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   private persistRotation(deg: OverlayRotation): void {
     if (this.mdhAttachment()) {
-      this.storage.updateDocumentOverlay(
+      this.docSettings.updateDocumentOverlay(
         this.documentId(),
         { overlayRotationAttachment: deg },
         'saved',
       );
     } else {
-      this.storage.updateDocumentOverlay(this.documentId(), { overlayRotation: deg }, 'saved');
+      this.docSettings.updateDocumentOverlay(this.documentId(), { overlayRotation: deg }, 'saved');
     }
   }
 

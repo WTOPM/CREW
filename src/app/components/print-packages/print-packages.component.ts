@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, output, signal } from '@angular/co
 import { FormsModule } from '@angular/forms';
 import { PortPackage, PortPackageItem } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
+import { DocumentSettingsStore } from '../../services/document-settings.store';
 import { DocumentCatalogService } from '../../services/document-catalog.service';
 import { PackageRunnerService } from '../../services/package-runner.service';
 import { ToastService } from '../../services/toast.service';
@@ -18,6 +19,7 @@ export class PrintPackagesComponent implements OnInit {
   readonly closed = output<void>();
 
   private readonly storage = inject(StorageService);
+  private readonly docSettings = inject(DocumentSettingsStore);
   private readonly catalog = inject(DocumentCatalogService);
   private readonly toast = inject(ToastService);
   protected readonly runner = inject(PackageRunnerService);
@@ -79,26 +81,26 @@ export class PrintPackagesComponent implements OnInit {
   protected addPort(): void {
     const port = this.newPort();
     if (!port) return;
-    this.storage.upsertPortPackage(port);
+    this.docSettings.upsertPortPackage(port);
     this.expanded.set(port);
     this.newPort.set('');
   }
 
   protected removePort(port: string): void {
-    this.storage.removePortPackage(port);
+    this.docSettings.removePortPackage(port);
   }
 
   // --- authorities ---
   protected addAuthority(port: string): void {
-    this.storage.addAuthority(port, '');
+    this.docSettings.addAuthority(port, '');
   }
 
   protected removeAuthority(port: string, authIndex: number): void {
-    this.storage.removeAuthority(port, authIndex);
+    this.docSettings.removeAuthority(port, authIndex);
   }
 
   protected renameAuthority(port: string, authIndex: number, name: string): void {
-    this.storage.renameAuthority(port, authIndex, name);
+    this.docSettings.renameAuthority(port, authIndex, name);
   }
 
   protected setAuthorityIncludeInPrint(
@@ -107,7 +109,7 @@ export class PrintPackagesComponent implements OnInit {
     authorityName: string,
     include: boolean,
   ): void {
-    this.storage.setAuthorityIncludeInPrint(port, authIndex, include);
+    this.docSettings.setAuthorityIncludeInPrint(port, authIndex, include);
     const label = authorityName.trim() || 'Authority';
     if (include) {
       this.toast.show(`${label}: included in Print all`, 'success');
@@ -119,7 +121,7 @@ export class PrintPackagesComponent implements OnInit {
   // --- documents within an authority ---
   protected addItem(pkg: PortPackage, authIndex: number): void {
     const items = [...pkg.authorities[authIndex].items, { documentId: '', copies: 1 }];
-    this.storage.setAuthorityItems(pkg.port, authIndex, items);
+    this.docSettings.setAuthorityItems(pkg.port, authIndex, items);
   }
 
   protected updateItem(
@@ -131,12 +133,12 @@ export class PrintPackagesComponent implements OnInit {
     const items = pkg.authorities[authIndex].items.map((it, i) =>
       i === itemIndex ? { ...it, ...patch } : it,
     );
-    this.storage.setAuthorityItems(pkg.port, authIndex, items);
+    this.docSettings.setAuthorityItems(pkg.port, authIndex, items);
   }
 
   protected removeItem(pkg: PortPackage, authIndex: number, itemIndex: number): void {
     const items = pkg.authorities[authIndex].items.filter((_, i) => i !== itemIndex);
-    this.storage.setAuthorityItems(pkg.port, authIndex, items);
+    this.docSettings.setAuthorityItems(pkg.port, authIndex, items);
   }
 
   // --- per-authority actions (only meaningful for the current Port of Call) ---
@@ -149,6 +151,6 @@ export class PrintPackagesComponent implements OnInit {
   }
 
   protected onPrinterChange(name: string): void {
-    this.storage.setPrinterName(name);
+    this.docSettings.setPrinterName(name);
   }
 }

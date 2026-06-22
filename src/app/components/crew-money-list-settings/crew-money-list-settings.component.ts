@@ -5,6 +5,7 @@ import {
   crewMoneyListAmountsFor,
 } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
+import { FormsStore } from '../../services/forms.store';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
@@ -15,6 +16,7 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 })
 export class CrewMoneyListSettingsComponent {
   private readonly storage = inject(StorageService);
+  private readonly forms = inject(FormsStore);
 
   protected readonly form = this.storage.crewMoneyListForm;
   protected readonly crew = this.storage.activeCrewArrival;
@@ -26,6 +28,6 @@ export class CrewMoneyListSettingsComponent {
     field: 'usd' | 'euro' | 'others',
     value: string,
   ): void {
-    this.storage.updateCrewMoneyListCrewAmount(crewId, { [field]: value });
+    this.forms.updateCrewMoneyListCrewAmount(crewId, { [field]: value });
   }
 }

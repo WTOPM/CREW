@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NARCOTIC_LIST_DEFAULT_UNITS_PER } from '../../models/narcotic-list.models';
 import { StorageService } from '../../services/storage.service';
+import { FormsStore } from '../../services/forms.store';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
@@ -12,6 +13,7 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
 })
 export class NarcoticListSettingsComponent {
   private readonly storage = inject(StorageService);
+  private readonly forms = inject(FormsStore);
 
   protected readonly form = this.storage.narcoticListForm;
 
@@ -29,17 +31,17 @@ export class NarcoticListSettingsComponent {
       | 'placeOfStorage',
     value: string,
   ): void {
-    this.storage.updateNarcoticListEntry(id, { [field]: value });
+    this.forms.updateNarcoticListEntry(id, { [field]: value });
   }
 
   protected addEntry(): void {
-    this.storage.addNarcoticListEntry({
+    this.forms.addNarcoticListEntry({
       unitsPer: NARCOTIC_LIST_DEFAULT_UNITS_PER,
       placeOfStorage: "Master's Safe",
     });
   }
 
   protected removeEntry(id: string): void {
-    this.storage.removeNarcoticListEntry(id);
+    this.forms.removeNarcoticListEntry(id);
   }
 }

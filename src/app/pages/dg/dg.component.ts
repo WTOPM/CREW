@@ -38,6 +38,7 @@ import {
 } from '../../utils/dg-manifest-fingerprint.util';
 import { DgPageArchiveService } from '../../services/dg-page-archive.service';
 import { StorageService } from '../../services/storage.service';
+import { DgManifestStore } from '../../services/dg-manifest.store';
 import { ToastService } from '../../services/toast.service';
 import { commitDgDualWeightEdit } from '../../utils/dg-weight-tonnage.util';
 import { formatDisplayDate } from '../../utils/date.util';
@@ -111,6 +112,7 @@ export type DgInventoryTab = DgActiveInventoryTab;
 })
 export class DgComponent {
   private readonly storage = inject(StorageService);
+  private readonly dg = inject(DgManifestStore);
   private readonly importer = inject(DgManifestImportService);
   private readonly prestowImporter = inject(DgCmaPrestowImportService);
   private readonly confirmDialog = inject(ConfirmDialogService);
@@ -293,20 +295,20 @@ export class DgComponent {
   protected archiveSaveLabel = '';
 
   protected toggleShowDischarged(checked: boolean): void {
-    this.storage.updateDgManifestView({ showDischarged: checked });
+    this.dg.updateDgManifestView({ showDischarged: checked });
   }
 
   protected toggleUnifeederShowDischarged(checked: boolean): void {
-    this.storage.updateUnifeederViewSettings({ showDischarged: checked });
+    this.dg.updateUnifeederViewSettings({ showDischarged: checked });
   }
 
   protected setUnifeederWeightTonnage(gross: boolean): void {
-    this.storage.updateUnifeederViewSettings({ useGrossWeight: gross });
+    this.dg.updateUnifeederViewSettings({ useGrossWeight: gross });
     this.showUnifeederTonnageManifestCheck(gross);
   }
 
   protected toggleUnifeederRoundWeights(checked: boolean): void {
-    this.storage.updateUnifeederViewSettings({ roundWeights: checked });
+    this.dg.updateUnifeederViewSettings({ roundWeights: checked });
   }
 
   private showUnifeederTonnageManifestCheck(gross: boolean): void {
@@ -328,11 +330,11 @@ export class DgComponent {
   }
 
   protected toggleUnifeederMergeLines(checked: boolean): void {
-    this.storage.updateUnifeederViewSettings({ mergeLines: checked });
+    this.dg.updateUnifeederViewSettings({ mergeLines: checked });
   }
 
   protected setInventoryTab(tab: DgInventoryTab): void {
-    this.storage.updateDgManifestView({ activeInventoryTab: tab });
+    this.dg.updateDgManifestView({ activeInventoryTab: tab });
   }
 
   protected dgTransferButtonTitle(): string {
@@ -364,8 +366,8 @@ export class DgComponent {
     if (!ok) return;
 
     const count = fromCma
-      ? this.storage.transferCmaDgInventoryToUnifeeder()
-      : this.storage.transferUnifeederDgInventoryToCma();
+      ? this.dg.transferCmaDgInventoryToUnifeeder()
+      : this.dg.transferUnifeederDgInventoryToCma();
     this.setInventoryTab(fromCma ? 'unifeeder' : 'cmaCgm');
     this.toast.show(`Transferred ${count} item(s) to ${targetLabel}`, 'success');
   }
@@ -401,23 +403,23 @@ export class DgComponent {
     if (!ok) return;
 
     if (fromCma) {
-      this.storage.clearCmaDgInventory();
+      this.dg.clearCmaDgInventory();
     } else {
-      this.storage.clearUnifeederDgInventory();
+      this.dg.clearUnifeederDgInventory();
     }
     this.toast.show(`${label} inventory cleared`, 'success');
   }
 
   protected toggleManifestMergeLines(checked: boolean): void {
-    this.storage.updateDgManifestView({ manifestMergeLines: checked });
+    this.dg.updateDgManifestView({ manifestMergeLines: checked });
   }
 
   protected setManifestWeightTonnage(gross: boolean): void {
-    this.storage.updateDgManifestView({ manifestUseGrossWeight: gross });
+    this.dg.updateDgManifestView({ manifestUseGrossWeight: gross });
   }
 
   protected toggleManifestRoundWeights(checked: boolean): void {
-    this.storage.updateDgManifestView({ manifestRoundWeights: checked });
+    this.dg.updateDgManifestView({ manifestRoundWeights: checked });
   }
 
   protected toggleInventorySort(column: DgInventorySortColumn): void {
@@ -440,7 +442,7 @@ export class DgComponent {
 
   protected removeManifest(id: string, event: Event): void {
     event.stopPropagation();
-    this.storage.removeDgManifest(id);
+    this.dg.removeDgManifest(id);
   }
 
   protected containerTotalKg(container: DgOnboardContainer): number {
@@ -604,11 +606,11 @@ export class DgComponent {
     field: DgOnboardContainerField,
     value: string,
   ): void {
-    this.storage.updateDgOnboardContainer(containerId, { [field]: value });
+    this.dg.updateDgOnboardContainer(containerId, { [field]: value });
   }
 
   protected onPageContextChange(field: keyof DgPageContext, value: string): void {
-    this.storage.updateDgPageContext({ [field]: value });
+    this.dg.updateDgPageContext({ [field]: value });
   }
 
   protected onUnifeederRowChange(rowId: string, field: DgUnifeederRowField, value: string): void {
@@ -621,7 +623,7 @@ export class DgComponent {
       const pageRef = mfagSpillagePageRefFromEmsCode(value);
       if (pageRef) patch.spillageSchedule = pageRef;
     }
-    this.storage.updateUnifeederRow(rowId, patch);
+    this.dg.updateUnifeederRow(rowId, patch);
   }
 
   protected unifeederPrimaryRowId(row: DgUnifeederRowDisplay): string {
@@ -638,11 +640,11 @@ export class DgComponent {
   }
 
   protected addUnifeederRow(): void {
-    this.storage.addUnifeederRow();
+    this.dg.addUnifeederRow();
   }
 
   protected addUnifeederCargoLine(group: DgUnifeederContainerDisplayGroup): void {
-    this.storage.addUnifeederRow({
+    this.dg.addUnifeederRow({
       size: group.size,
       stow: group.stow,
       containerNo: group.containerNo,
@@ -683,49 +685,49 @@ export class DgComponent {
 
   protected removeUnifeederContainer(group: DgUnifeederContainerDisplayGroup): void {
     for (const rowId of this.unifeederContainerSourceRowIds(group)) {
-      this.storage.removeUnifeederRow(rowId);
+      this.dg.removeUnifeederRow(rowId);
     }
   }
 
   protected markUnifeederContainerDischarged(group: DgUnifeederContainerDisplayGroup): void {
     for (const rowId of this.unifeederContainerSourceRowIds(group)) {
-      this.storage.setUnifeederRowStatus(rowId, 'discharged');
+      this.dg.setUnifeederRowStatus(rowId, 'discharged');
     }
   }
 
   protected restoreUnifeederContainer(group: DgUnifeederContainerDisplayGroup): void {
     for (const rowId of this.unifeederContainerSourceRowIds(group)) {
-      this.storage.setUnifeederRowStatus(rowId, 'onboard');
+      this.dg.setUnifeederRowStatus(rowId, 'onboard');
     }
   }
 
   protected removeUnifeederRow(rowId: string): void {
-    this.storage.removeUnifeederRow(rowId);
+    this.dg.removeUnifeederRow(rowId);
   }
 
   protected removeUnifeederDisplayRow(row: DgUnifeederRowDisplay): void {
     for (const id of row.sourceRowIds) {
-      this.storage.removeUnifeederRow(id);
+      this.dg.removeUnifeederRow(id);
     }
   }
 
   protected markUnifeederDischarged(rowId: string): void {
-    this.storage.setUnifeederRowStatus(rowId, 'discharged');
+    this.dg.setUnifeederRowStatus(rowId, 'discharged');
   }
 
   protected markUnifeederDisplayRowDischarged(row: DgUnifeederRowDisplay): void {
     for (const id of row.sourceRowIds) {
-      this.storage.setUnifeederRowStatus(id, 'discharged');
+      this.dg.setUnifeederRowStatus(id, 'discharged');
     }
   }
 
   protected restoreUnifeederRow(rowId: string): void {
-    this.storage.setUnifeederRowStatus(rowId, 'onboard');
+    this.dg.setUnifeederRowStatus(rowId, 'onboard');
   }
 
   protected restoreUnifeederDisplayRow(row: DgUnifeederRowDisplay): void {
     for (const id of row.sourceRowIds) {
-      this.storage.setUnifeederRowStatus(id, 'onboard');
+      this.dg.setUnifeederRowStatus(id, 'onboard');
     }
   }
 
@@ -765,7 +767,7 @@ export class DgComponent {
 
   protected removeUnifeederManifest(id: string, event: Event): void {
     event.stopPropagation();
-    this.storage.removeUnifeederManifest(id);
+    this.dg.removeUnifeederManifest(id);
   }
 
   protected pickUnifeederExcel(): void {
@@ -828,7 +830,7 @@ export class DgComponent {
         buildUnifeederContentHash(result),
         buildUnifeederPdfBytesHash(bytes),
       ]);
-      const duplicate = this.storage.applyUnifeederImport(result, file.name, {
+      const duplicate = this.dg.applyUnifeederImport(result, file.name, {
         contentFingerprint,
         pdfBytesFingerprint,
       });
@@ -874,14 +876,14 @@ export class DgComponent {
   protected onCmaLineWeightBlur(containerId: string, lineId: string, raw: string): void {
     const lib = this.library();
     const partial = commitDgDualWeightEdit(raw, lib.manifestUseGrossWeight, lib.manifestRoundWeights);
-    this.storage.updateDgOnboardCargoLine(containerId, lineId, partial);
+    this.dg.updateDgOnboardCargoLine(containerId, lineId, partial);
   }
 
   protected onUnifeederWeightBlur(row: DgUnifeederRowDisplay, raw: string): void {
     if (!row.editable) return;
     const lib = this.unifeederLibrary();
     const partial = commitDgDualWeightEdit(raw, lib.useGrossWeight, lib.roundWeights);
-    this.storage.updateUnifeederRow(this.unifeederPrimaryRowId(row), partial);
+    this.dg.updateUnifeederRow(this.unifeederPrimaryRowId(row), partial);
   }
 
   protected unifeederWeightDisplay(row: DgUnifeederRowDisplay): string {
@@ -970,7 +972,7 @@ export class DgComponent {
     field: DgLineField,
     value: string,
   ): void {
-    this.storage.updateDgOnboardCargoLine(containerId, lineId, { [field]: value });
+    this.dg.updateDgOnboardCargoLine(containerId, lineId, { [field]: value });
   }
 
   protected onUnNoEnter(event: KeyboardEvent): void {
@@ -992,7 +994,7 @@ export class DgComponent {
 
     const autofill = cmaCargoAutofillFromUnNumber(raw);
     const patch = autofill ?? { unNo: normalizeUnNumber(raw) };
-    this.storage.updateDgOnboardCargoLine(containerId, lineId, patch);
+    this.dg.updateDgOnboardCargoLine(containerId, lineId, patch);
   }
 
   protected onUnifeederUnNoCommit(row: DgUnifeederRowDisplay, event: FocusEvent): void {
@@ -1006,31 +1008,31 @@ export class DgComponent {
 
     const autofill = unifeederAutofillFromUnNumber(raw);
     const patch = autofill ?? { unNo: normalizeUnNumber(raw) };
-    this.storage.updateUnifeederRow(this.unifeederPrimaryRowId(row), patch);
+    this.dg.updateUnifeederRow(this.unifeederPrimaryRowId(row), patch);
   }
 
   protected addContainer(): void {
-    this.storage.addDgOnboardContainer();
+    this.dg.addDgOnboardContainer();
   }
 
   protected removeContainer(containerId: string): void {
-    this.storage.removeDgOnboardContainer(containerId);
+    this.dg.removeDgOnboardContainer(containerId);
   }
 
   protected markDischarged(containerId: string): void {
-    this.storage.setDgOnboardContainerStatus(containerId, 'discharged');
+    this.dg.setDgOnboardContainerStatus(containerId, 'discharged');
   }
 
   protected restoreOnboard(containerId: string): void {
-    this.storage.setDgOnboardContainerStatus(containerId, 'onboard');
+    this.dg.setDgOnboardContainerStatus(containerId, 'onboard');
   }
 
   protected addLine(containerId: string): void {
-    this.storage.addDgOnboardCargoLine(containerId);
+    this.dg.addDgOnboardCargoLine(containerId);
   }
 
   protected removeLine(containerId: string, lineId: string): void {
-    this.storage.removeDgOnboardCargoLine(containerId, lineId);
+    this.dg.removeDgOnboardCargoLine(containerId, lineId);
   }
 
   protected exportPdf(): void {
@@ -1129,7 +1131,7 @@ export class DgComponent {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const prestowResult = await this.prestowImporter.importFromPdfBytes(bytes);
       if (prestowResult.format === 'cma-prestow') {
-        const applied = this.storage.applyCmaPrestowPositions(prestowResult.positions);
+        const applied = this.dg.applyCmaPrestowPositions(prestowResult.positions);
         const parts: string[] = [];
         if (applied.dgUpdated > 0) parts.push(`${applied.dgUpdated} DG`);
         if (applied.reeferUpdated > 0) parts.push(`${applied.reeferUpdated} reefer`);
@@ -1159,7 +1161,7 @@ export class DgComponent {
         buildDgManifestContentHash(result),
         buildDgPdfBytesHash(bytes),
       ]);
-      const duplicate = this.storage.applyDgManifestImport(result, file.name, {
+      const duplicate = this.dg.applyDgManifestImport(result, file.name, {
         contentFingerprint,
         pdfBytesFingerprint,
       });

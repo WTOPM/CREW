@@ -12,10 +12,12 @@ import type { Port, ShipInfo } from '../models/crew.models';
 import { dgPageShipContextFromLibrary } from '../utils/page-ship-context.util';
 import { formatDisplayDate } from '../utils/date.util';
 import { StorageService } from './storage.service';
+import { DgManifestStore } from './dg-manifest.store';
 
 @Injectable({ providedIn: 'root' })
 export class DgPageArchiveService {
   private readonly storage = inject(StorageService);
+  private readonly dg = inject(DgManifestStore);
 
   readonly entries = signal<DgPageSnapshot[]>(this.readEntries());
   readonly entriesNewestFirst = computed(() => this.sortNewestFirst(this.entries()));
@@ -61,7 +63,7 @@ export class DgPageArchiveService {
       };
     }
 
-    this.storage.applyDgPageSnapshot(entry.dgLibrary, entry.ship);
+    this.dg.applyDgPageSnapshot(entry.dgLibrary, entry.ship);
     this.loaded.set(structuredClone(entry));
     this.persistSession();
     return true;
@@ -69,7 +71,7 @@ export class DgPageArchiveService {
 
   reset(): void {
     if (this.liveBackup) {
-      this.storage.applyDgPageSnapshot(this.liveBackup.dgLibrary, this.liveBackup.ship);
+      this.dg.applyDgPageSnapshot(this.liveBackup.dgLibrary, this.liveBackup.ship);
       this.liveBackup = null;
     }
     this.loaded.set(null);
@@ -92,7 +94,7 @@ export class DgPageArchiveService {
     const entry = this.entries().find((e) => e.id === session.loadedId);
     if (!entry) {
       if (session.liveBackup) {
-        this.storage.applyDgPageSnapshot(session.liveBackup.dgLibrary, session.liveBackup.ship);
+        this.dg.applyDgPageSnapshot(session.liveBackup.dgLibrary, session.liveBackup.ship);
       }
       this.clearSession();
       return;

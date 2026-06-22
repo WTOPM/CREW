@@ -8,6 +8,7 @@ import {
 } from '../../models/document-overlay.models';
 import { ShipAssetsService } from '../../services/ship-assets.service';
 import { StorageService } from '../../services/storage.service';
+import { DocumentSettingsStore } from '../../services/document-settings.store';
 import { ToastService } from '../../services/toast.service';
 import {
   revokeShipAssetPreviewUrl,
@@ -198,6 +199,7 @@ import {
 })
 export class DocumentStampUploadComponent implements OnInit, OnDestroy {
   private readonly storage = inject(StorageService);
+  private readonly docSettings = inject(DocumentSettingsStore);
   private readonly assets = inject(ShipAssetsService);
   private readonly toast = inject(ToastService);
 
@@ -221,7 +223,7 @@ export class DocumentStampUploadComponent implements OnInit, OnDestroy {
   }
 
   protected applyBulkToggles(): void {
-    this.storage.applyStampTogglesToAllDocuments(this.bulkUseStamp, this.bulkUseSignature);
+    this.docSettings.applyStampTogglesToAllDocuments(this.bulkUseStamp, this.bulkUseSignature);
     this.showBulkToggleToast('Stamp', this.bulkUseStamp);
     this.showBulkToggleToast('Signature', this.bulkUseSignature);
   }
