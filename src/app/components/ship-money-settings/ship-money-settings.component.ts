@@ -18,11 +18,7 @@ export class ShipMoneySettingsComponent {
   protected draftAmount = signal('');
   protected draftCurrency = signal('');
 
-  protected onEntryChange(
-    id: string,
-    field: 'amount' | 'currency',
-    value: string,
-  ): void {
+  protected onEntryChange(id: string, field: 'amount' | 'currency', value: string): void {
     this.forms.updateShipMoneyEntry(id, { [field]: value });
   }
 

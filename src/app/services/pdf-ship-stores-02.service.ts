@@ -14,10 +14,7 @@ import {
   formatShipStoresUnitText,
   normalizeShipStoresForm02,
 } from '../models/ship-stores.models';
-import {
-  formatShipStoresPeriodOfStay,
-  shipStoresPeriodDays,
-} from './ship-stores-field-positions';
+import { formatShipStoresPeriodOfStay, shipStoresPeriodDays } from './ship-stores-field-positions';
 import {
   formatShipStores02PortsRoute,
   SHIP_STORES_02_BODY_ARTICLE_MAX_WIDTH,
@@ -183,10 +180,9 @@ export class PdfShipStores02Service {
     if (this.templateBytes && this.loadedVersion === SHIP_STORES_02_TEMPLATE_VERSION) {
       return this.templateBytes;
     }
-    const res = await fetch(
-      `${SHIP_STORES_02_TEMPLATE_URL}?v=${SHIP_STORES_02_TEMPLATE_VERSION}`,
-      { cache: 'no-store' },
-    );
+    const res = await fetch(`${SHIP_STORES_02_TEMPLATE_URL}?v=${SHIP_STORES_02_TEMPLATE_VERSION}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) {
       throw new Error('Ship Stores 02 template not found (public/ship-stores-02-empty.pdf)');
     }

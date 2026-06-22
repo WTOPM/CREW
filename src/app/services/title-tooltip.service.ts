@@ -79,7 +79,10 @@ export class TitleTooltipService {
     const portZone = el?.closest('.pkg-bar-port');
 
     while (el && el !== document.body) {
-      if (el.classList.contains('dg-hint-tooltip-host') || el.classList.contains('dg-hint-tooltip')) {
+      if (
+        el.classList.contains('dg-hint-tooltip-host') ||
+        el.classList.contains('dg-hint-tooltip')
+      ) {
         return null;
       }
       if (el.matches('input, textarea, select')) {

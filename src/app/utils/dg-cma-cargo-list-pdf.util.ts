@@ -11,7 +11,10 @@ import {
   applyCmaCargoReferenceOrManifest,
   unNoInDgReference,
 } from './dg-import-un-reference.util';
-import { resolveDgWeightTonnageOptions, type DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
+import {
+  resolveDgWeightTonnageOptions,
+  type DgWeightTonnageOptions,
+} from '../models/dg-weight-tonnage.models';
 import { dualWeightFromImport } from './dg-weight-tonnage.util';
 
 /** CMA CGM PFR0767 v5.x "Dangerous Cargo List" — measured column X ranges (pt). */
@@ -159,9 +162,7 @@ function parseListHeader(
   const etd = findListLabelValue(items, 'ETD');
 
   const vesselDisplay =
-    vesselName && callSign
-      ? `m/v "${vesselName}" / ${callSign}`
-      : vesselName || callSign || '';
+    vesselName && callSign ? `m/v "${vesselName}" / ${callSign}` : vesselName || callSign || '';
 
   return {
     vesselDisplay,
@@ -175,17 +176,12 @@ function parseListHeader(
 function listContainerAnchors(items: readonly DgPdfTextItem[]): DgPdfTextItem[] {
   return items
     .filter(
-      (it) =>
-        inListCol(it.x, 'containerNo') &&
-        CONTAINER_RE.test(it.str.trim()) &&
-        it.y >= 240,
+      (it) => inListCol(it.x, 'containerNo') && CONTAINER_RE.test(it.str.trim()) && it.y >= 240,
     )
     .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x);
 }
 
-function listCargoDataRows(
-  items: readonly DgPdfTextItem[],
-): { page: number; dataY: number }[] {
+function listCargoDataRows(items: readonly DgPdfTextItem[]): { page: number; dataY: number }[] {
   const keys = new Set<string>();
   const rows: { page: number; dataY: number }[] = [];
 
@@ -210,9 +206,7 @@ function listCargoDataRows(
   return rows.sort((a, b) => a.page - b.page || a.dataY - b.dataY);
 }
 
-function containersByPage(
-  items: readonly DgPdfTextItem[],
-): Map<number, DgPdfTextItem[]> {
+function containersByPage(items: readonly DgPdfTextItem[]): Map<number, DgPdfTextItem[]> {
   const map = new Map<number, DgPdfTextItem[]>();
   for (const anchor of listContainerAnchors(items)) {
     const list = map.get(anchor.page) ?? [];

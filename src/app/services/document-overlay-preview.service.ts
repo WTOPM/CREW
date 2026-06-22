@@ -1,9 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import {
-  AppData,
-  CREW_IDENTITY_PASSPORT,
-  CREW_IDENTITY_SEAMANS_BOOK,
-} from '../models/crew.models';
+import { AppData, CREW_IDENTITY_PASSPORT, CREW_IDENTITY_SEAMANS_BOOK } from '../models/crew.models';
 import { DocumentOverlayId } from '../models/document-overlay.models';
 import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
@@ -62,7 +58,10 @@ export class DocumentOverlayPreviewService {
   private readonly narcoticListPdf = inject(PdfNarcoticListService);
   private readonly sso0108PortCallsPdf = inject(PdfSso0108PortCallsService);
 
-  async build(documentId: DocumentOverlayId, mdhPage: MdhOverlayPreviewPage = 'form'): Promise<Uint8Array> {
+  async build(
+    documentId: DocumentOverlayId,
+    mdhPage: MdhOverlayPreviewPage = 'form',
+  ): Promise<Uint8Array> {
     const data = this.appData();
     switch (documentId) {
       case 'crewList':
@@ -111,9 +110,7 @@ export class DocumentOverlayPreviewService {
   /** 1-based page index for pdf.js (MDH attachment = page 2). */
   pdfJsPageNumber(documentId: DocumentOverlayId, mdhPage: MdhOverlayPreviewPage): number {
     if (
-      (documentId === 'mdh' ||
-        documentId === 'shipStores03' ||
-        documentId === 'crewEffect03') &&
+      (documentId === 'mdh' || documentId === 'shipStores03' || documentId === 'crewEffect03') &&
       mdhPage === 'attachment'
     ) {
       return 2;
@@ -180,7 +177,9 @@ export class DocumentOverlayPreviewService {
         identityDocumentType: PASSENGER_IDENTITY_DOCUMENT,
       },
     };
-    return this.crewPdf.buildPdfBytes(pdfData, passengersToCrewRows(passengers), { overlayId: 'pax' });
+    return this.crewPdf.buildPdfBytes(pdfData, passengersToCrewRows(passengers), {
+      overlayId: 'pax',
+    });
   }
 
   private buildPassengerListV2(data: AppData): Promise<Uint8Array> {

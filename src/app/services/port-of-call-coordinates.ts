@@ -146,7 +146,10 @@ export const POC_FRAME_LABELS = {
 } as const;
 
 /** Overlay stamp/signature above field 15 signature line (pdf-lib, origin bottom-left). */
-export function pocStampBoxPdfLib(pageW = 595.28, pageH = 842): {
+export function pocStampBoxPdfLib(
+  pageW = 595.28,
+  pageH = 842,
+): {
   x: number;
   y: number;
   width: number;
@@ -213,10 +216,7 @@ export interface PocScale {
   linePt: (widthPx: number) => number;
 }
 
-export function createPocScale(
-  pageW = 595.28,
-  pageH = 842,
-): PocScale {
+export function createPocScale(pageW = 595.28, pageH = 842): PocScale {
   const srcW = POC_SRC.maxX - POC_SRC.minX;
   const srcH = POC_SRC.maxY - POC_SRC.minY + POC_TITLE_BAND_SRC + POC_FOOTER_BAND_SRC;
   const usableW = pageW - POC_MARGIN_LEFT_PT - POC_MARGIN_RIGHT_PT;

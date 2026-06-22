@@ -216,10 +216,7 @@ export function buildImoCrewListFormLayout(
   return { formTop, dataStart, dataEnd, signatureRow, lastRow: signatureRow };
 }
 
-export function fillImoCrewListHeader(
-  ws: ExcelJS.Worksheet,
-  input: ImoCrewListHeaderInput,
-): void {
+export function fillImoCrewListHeader(ws: ExcelJS.Worksheet, input: ImoCrewListHeaderInput): void {
   const { ship, isArrival, identityDocumentType, voyageDate, pageNo } = input;
   const portFromTo = [ship.lastPortOfCall, ship.nextPortOfCall].filter(Boolean).join('  /  ');
 
@@ -278,10 +275,7 @@ export function fillImoCrewListRows(
   }
 }
 
-export function drawImoCrewListNil(
-  ws: ExcelJS.Worksheet,
-  layout: ImoCrewListExcelLayout,
-): void {
+export function drawImoCrewListNil(ws: ExcelJS.Worksheet, layout: ImoCrewListExcelLayout): void {
   merge(ws, layout.dataStart, 1, layout.dataEnd, IMO_CREW_LIST_COLS);
   const nilCell = ws.getCell(layout.dataStart, 1);
   nilCell.value = CREW_LIST_BODY_NIL_LABEL;

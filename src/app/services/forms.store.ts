@@ -64,10 +64,7 @@ export class FormsStore {
     void this.state.persist('silent');
   }
 
-  updateCashAdvanceCrewAmount(
-    crewId: string,
-    partial: { usd?: string; eur?: string },
-  ): void {
+  updateCashAdvanceCrewAmount(crewId: string, partial: { usd?: string; eur?: string }): void {
     this.data.update((d) => {
       const form = normalizeCashAdvanceForm(d.cashAdvanceForm);
       const prev = form.byCrewId[crewId] ?? { usd: '', eur: '' };
@@ -100,10 +97,7 @@ export class FormsStore {
     void this.state.persist('silent');
   }
 
-  updateNarcoticListEntry(
-    id: string,
-    partial: Partial<Omit<NarcoticMedicineEntry, 'id'>>,
-  ): void {
+  updateNarcoticListEntry(id: string, partial: Partial<Omit<NarcoticMedicineEntry, 'id'>>): void {
     this.data.update((d) => {
       const form = normalizeNarcoticListForm(d.narcoticListForm);
       const entries = form.entries.map((e) => (e.id === id ? { ...e, ...partial } : e));
@@ -112,9 +106,7 @@ export class FormsStore {
     void this.state.persist('silent');
   }
 
-  addNarcoticListEntry(
-    partial?: Partial<Omit<NarcoticMedicineEntry, 'id'>>,
-  ): void {
+  addNarcoticListEntry(partial?: Partial<Omit<NarcoticMedicineEntry, 'id'>>): void {
     this.data.update((d) => {
       const form = normalizeNarcoticListForm(d.narcoticListForm);
       return {
@@ -197,8 +189,7 @@ export class FormsStore {
       const phrases = form.phrases.map((p) => (p.id === id ? { ...p, ...partial } : p));
       return { ...d, nilListForm: normalizeNilListForm({ phrases }) };
     });
-    const notify =
-      partial.enabled !== undefined && partial.text === undefined ? 'saved' : 'silent';
+    const notify = partial.enabled !== undefined && partial.text === undefined ? 'saved' : 'silent';
     void this.state.persist(notify);
   }
 
@@ -274,7 +265,10 @@ export class FormsStore {
 
   private shipStoresNormalize(
     docId: ShipStoresDocId,
-  ): typeof normalizeShipStoresForm | typeof normalizeShipStoresForm02 | typeof normalizeShipStoresForm03 {
+  ):
+    | typeof normalizeShipStoresForm
+    | typeof normalizeShipStoresForm02
+    | typeof normalizeShipStoresForm03 {
     if (docId === 'shipStores03') return normalizeShipStoresForm03;
     if (docId === 'shipStores02') return normalizeShipStoresForm02;
     return normalizeShipStoresForm;
@@ -297,7 +291,10 @@ export class FormsStore {
     void this.state.persist('silent');
   }
 
-  private patchShipStoresForm(docId: ShipStoresDocId, partial: Partial<ShipStoresFormSettings>): void {
+  private patchShipStoresForm(
+    docId: ShipStoresDocId,
+    partial: Partial<ShipStoresFormSettings>,
+  ): void {
     const field = shipStoresFormField(docId);
     const normalize = this.shipStoresNormalize(docId);
     this.data.update((d) => ({
@@ -331,9 +328,7 @@ export class FormsStore {
     }));
     const resolved =
       notify ??
-      (partial.portName != null ||
-      partial.arrivalDate != null ||
-      partial.departureDate != null
+      (partial.portName != null || partial.arrivalDate != null || partial.departureDate != null
         ? 'saved'
         : 'silent');
     void this.state.persist(resolved);

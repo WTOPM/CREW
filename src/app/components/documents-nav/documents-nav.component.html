@@ -19,7 +19,12 @@
       >
         DEPARTURE
       </button>
-      <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openCrewListSettings()">
+      <button
+        type="button"
+        class="doc-menu-item doc-menu-item--icon"
+        role="menuitem"
+        (click)="openCrewListSettings()"
+      >
         <svg class="nav-doc-settings-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path
             fill="currentColor"
@@ -40,10 +45,20 @@
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPassengerList(true)">
         ARRIVAL
       </button>
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openPassengerList(false)">
+      <button
+        type="button"
+        class="doc-menu-item"
+        role="menuitem"
+        (click)="openPassengerList(false)"
+      >
         DEPARTURE
       </button>
-      <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openPaxSettings()">
+      <button
+        type="button"
+        class="doc-menu-item doc-menu-item--icon"
+        role="menuitem"
+        (click)="openPaxSettings()"
+      >
         <svg class="nav-doc-settings-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path
             fill="currentColor"
@@ -67,10 +82,20 @@
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openPortsOfCallPdf()">
         {{ portSettingsDocLabel('portsOfCall') }}
       </button>
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openSso0108PortCallsPdf()">
+      <button
+        type="button"
+        class="doc-menu-item"
+        role="menuitem"
+        (click)="openSso0108PortCallsPdf()"
+      >
         {{ portSettingsDocLabel('sso0108') }}
       </button>
-      <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openPortOfCallSettings()">
+      <button
+        type="button"
+        class="doc-menu-item doc-menu-item--icon"
+        role="menuitem"
+        (click)="openPortOfCallSettings()"
+      >
         <svg class="nav-doc-settings-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path
             fill="currentColor"
@@ -242,7 +267,12 @@
       <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewVaccine()">
         Crew Vaccine
       </button>
-      <button type="button" class="doc-menu-item doc-menu-item--icon" role="menuitem" (click)="openMdhSettings()">
+      <button
+        type="button"
+        class="doc-menu-item doc-menu-item--icon"
+        role="menuitem"
+        (click)="openMdhSettings()"
+      >
         <svg class="nav-doc-settings-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path
             fill="currentColor"
@@ -257,14 +287,21 @@
 
 @if (showCrewListSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closeCrewListSettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-narrow doc-overlay-modal"
+      appClickOutside
+      (appClickOutside)="closeCrewListSettings()"
+      (click)="$event.stopPropagation()"
+    >
       <h3>Crew list settings</h3>
       <app-crew-list-settings />
       <div class="modal-actions">
         @if (crewListXlsVisible()) {
           <app-xls-export-button (export)="exportCrewListXls()" />
         }
-        <button type="button" class="btn btn-primary" (click)="closeCrewListSettings()">Done</button>
+        <button type="button" class="btn btn-primary" (click)="closeCrewListSettings()">
+          Done
+        </button>
       </div>
     </div>
   </div>
@@ -272,7 +309,12 @@
 
 @if (showPaxSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closePaxSettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-narrow doc-overlay-modal"
+      appClickOutside
+      (appClickOutside)="closePaxSettings()"
+      (click)="$event.stopPropagation()"
+    >
       <h3>Passenger list settings</h3>
       <app-passenger-list-settings />
       <div class="modal-actions">
@@ -284,7 +326,12 @@
 
 @if (showShipStoresSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-wide ss-modal" appClickOutside (appClickOutside)="closeShipStoresSettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-wide ss-modal"
+      appClickOutside
+      (appClickOutside)="closeShipStoresSettings()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="ss-modal-head">
         <h3>Ship Stores settings</h3>
       </header>
@@ -312,7 +359,9 @@
 
       <app-ship-stores-settings [docId]="shipStoresSettingsDoc()" />
       <div class="modal-actions">
-        <button type="button" class="btn btn-primary" (click)="closeShipStoresSettings()">Done</button>
+        <button type="button" class="btn btn-primary" (click)="closeShipStoresSettings()">
+          Done
+        </button>
       </div>
     </div>
   </div>
@@ -320,7 +369,12 @@
 
 @if (showCrewEffectSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-wide ss-modal" appClickOutside (appClickOutside)="closeCrewEffectSettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-wide ss-modal"
+      appClickOutside
+      (appClickOutside)="closeCrewEffectSettings()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="ss-modal-head">
         <h3>Crew Effect settings</h3>
       </header>
@@ -348,7 +402,9 @@
 
       <app-crew-effect-settings [docId]="crewEffectSettingsDoc()" />
       <div class="modal-actions">
-        <button type="button" class="btn btn-primary" (click)="closeCrewEffectSettings()">Done</button>
+        <button type="button" class="btn btn-primary" (click)="closeCrewEffectSettings()">
+          Done
+        </button>
       </div>
     </div>
   </div>
@@ -356,7 +412,12 @@
 
 @if (showNilListSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-wide nil-modal" appClickOutside (appClickOutside)="closeNilListSettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-wide nil-modal"
+      appClickOutside
+      (appClickOutside)="closeNilListSettings()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="nil-modal-head">
         <h3>NIL List settings</h3>
       </header>
@@ -370,7 +431,12 @@
 
 @if (showMoneySettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-wide sm-modal" appClickOutside (appClickOutside)="closeMoneySettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-wide sm-modal"
+      appClickOutside
+      (appClickOutside)="closeMoneySettings()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="sm-modal-head">
         <h3>Money settings</h3>
       </header>
@@ -413,13 +479,20 @@
 
 @if (showNarcoticListSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-wide nl-modal" appClickOutside (appClickOutside)="closeNarcoticListSettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-wide nl-modal"
+      appClickOutside
+      (appClickOutside)="closeNarcoticListSettings()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="nl-modal-head">
         <h3>Narcotic List settings</h3>
       </header>
       <app-narcotic-list-settings />
       <div class="modal-actions">
-        <button type="button" class="btn btn-primary" (click)="closeNarcoticListSettings()">Done</button>
+        <button type="button" class="btn btn-primary" (click)="closeNarcoticListSettings()">
+          Done
+        </button>
       </div>
     </div>
   </div>
@@ -427,12 +500,21 @@
 
 @if (showMdhSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-narrow doc-overlay-modal" appClickOutside (appClickOutside)="closeMdhSettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-narrow doc-overlay-modal"
+      appClickOutside
+      (appClickOutside)="closeMdhSettings()"
+      (click)="$event.stopPropagation()"
+    >
       <h3>MDH Settings</h3>
 
       <fieldset class="choice-group">
         <legend class="choice-group__legend">Select document</legend>
-        <div class="choice-segmented choice-segmented--row" role="radiogroup" aria-label="Select document">
+        <div
+          class="choice-segmented choice-segmented--row"
+          role="radiogroup"
+          aria-label="Select document"
+        >
           <label class="choice-segmented__item">
             <input
               type="radio"
@@ -457,9 +539,9 @@
       </fieldset>
 
       @if (mdhSettingsDoc() === 'crewVaccine') {
-      <app-document-stamp-options documentId="crewVaccine" />
+        <app-document-stamp-options documentId="crewVaccine" />
       } @else {
-      <app-document-stamp-options documentId="mdh" />
+        <app-document-stamp-options documentId="mdh" />
       }
 
       <div class="modal-actions">
@@ -471,154 +553,163 @@
 
 @if (showPortOfCallSettings()) {
   <div class="modal-backdrop">
-    <div class="modal modal-wide poc-modal" appClickOutside (appClickOutside)="closePortOfCallSettings()" (click)="$event.stopPropagation()">
+    <div
+      class="modal modal-wide poc-modal"
+      appClickOutside
+      (appClickOutside)="closePortOfCallSettings()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="poc-modal-head">
         <h3>Port Settings</h3>
       </header>
 
       <div class="poc-modal-body">
-      <fieldset class="choice-group poc-modal-choice">
-        <legend class="choice-group__legend">Select document</legend>
-        <div class="port-settings-doc-list" role="radiogroup" aria-label="Select document">
-          @for (id of portSettingsDocIds; track id) {
-            <label
-              class="port-settings-doc-option"
-              [class.port-settings-doc-option--selected]="portSettingsDoc() === id"
-            >
-              <input
-                type="radio"
-                name="portSettingsDoc"
-                [value]="id"
-                [ngModel]="portSettingsDoc()"
-                (ngModelChange)="onPortSettingsDocChange($event)"
-              />
-              <span class="port-settings-doc-option__label">{{ portSettingsDocLabel(id) }}</span>
-            </label>
-          }
-        </div>
-      </fieldset>
-
-      @if (portSettingsDoc() === 'portOfCall') {
-        <app-port-of-call-settings />
-      } @else if (portSettingsDoc() === 'portsOfCall') {
-        <app-document-stamp-options documentId="portsOfCall" />
-      } @else {
-        <app-document-stamp-options documentId="sso0108PortCalls" />
-      }
-
-      <div class="poc-settings-bar">
-        <label class="doc-count-field">
-          <span>Ports in PDF</span>
-          <input
-            type="number"
-            class="doc-count-input"
-            [min]="pocMinPorts"
-            [max]="pocMaxPorts"
-            [ngModel]="portOfCall().pdfRowCount"
-            (ngModelChange)="onPdfPortCountChange($event)"
-          />
-        </label>
-        <button type="button" class="poc-add-port-btn" (click)="addPortCallRow()">+ Add New Port</button>
-      </div>
-
-      <div class="poc-history-wrap">
-        <table class="poc-history-table">
-          <colgroup>
-            <col class="poc-col-port" />
-            <col class="poc-col-country" />
-            <col class="poc-col-sec" />
-            <col class="poc-col-date" />
-            <col class="poc-col-time" />
-            <col class="poc-col-date" />
-            <col class="poc-col-time" />
-            <col class="poc-col-actions" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Port</th>
-              <th>Country</th>
-              <th class="poc-th-sec">SEC.</th>
-              <th>Arr. date</th>
-              <th>Arr. time</th>
-              <th>Dep. date</th>
-              <th>Dep. time</th>
-              <th aria-label="Remove"></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of portCallHistory(); track row.id; let i = $index) {
-              <tr [class.poc-row--stripe-b]="i % 2 === 1">
-                <td class="poc-cell poc-cell--port">
-                  <app-port-select
-                    [value]="row.portName"
-                    [ports]="ports()"
-                    (valueChange)="onPortCallPortChange(row.id, $event)"
-                  />
-                </td>
-                <td class="poc-cell poc-cell--country">
-                  <input
-                    class="poc-country-input"
-                    [ngModel]="row.country"
-                    (ngModelChange)="updatePortCallField(row.id, 'country', $event)"
-                    placeholder="ITALY"
-                  />
-                </td>
-                <td class="poc-cell poc-cell--sec">
-                  <select
-                    class="poc-sec-select"
-                    [ngModel]="row.secLvl"
-                    (ngModelChange)="updatePortCallField(row.id, 'secLvl', $event)"
-                  >
-                    @for (lvl of portSecLvlOptions; track lvl) {
-                      <option [value]="lvl">{{ lvl }}</option>
-                    }
-                  </select>
-                </td>
-                <td class="poc-cell poc-cell--date">
-                  <app-partial-date-input
-                    [value]="row.arrivalDate"
-                    (valueChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
-                  />
-                </td>
-                <td class="poc-cell poc-cell--time">
-                  <app-time-input
-                    [value]="row.arrivalTime"
-                    (valueChange)="updatePortCallField(row.id, 'arrivalTime', $event)"
-                  />
-                </td>
-                <td class="poc-cell poc-cell--date">
-                  <app-partial-date-input
-                    [value]="row.departureDate"
-                    (valueChange)="updatePortCallField(row.id, 'departureDate', $event)"
-                  />
-                </td>
-                <td class="poc-cell poc-cell--time">
-                  <app-time-input
-                    [value]="row.departureTime"
-                    (valueChange)="updatePortCallField(row.id, 'departureTime', $event)"
-                  />
-                </td>
-                <td class="poc-cell poc-cell--actions">
-                  <button
-                    type="button"
-                    class="poc-remove"
-                    title="Remove port call"
-                    (click)="removePortCallRow(row.id)"
-                  >
-                    ×
-                  </button>
-                </td>
-              </tr>
+        <fieldset class="choice-group poc-modal-choice">
+          <legend class="choice-group__legend">Select document</legend>
+          <div class="port-settings-doc-list" role="radiogroup" aria-label="Select document">
+            @for (id of portSettingsDocIds; track id) {
+              <label
+                class="port-settings-doc-option"
+                [class.port-settings-doc-option--selected]="portSettingsDoc() === id"
+              >
+                <input
+                  type="radio"
+                  name="portSettingsDoc"
+                  [value]="id"
+                  [ngModel]="portSettingsDoc()"
+                  (ngModelChange)="onPortSettingsDocChange($event)"
+                />
+                <span class="port-settings-doc-option__label">{{ portSettingsDocLabel(id) }}</span>
+              </label>
             }
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </fieldset>
+
+        @if (portSettingsDoc() === 'portOfCall') {
+          <app-port-of-call-settings />
+        } @else if (portSettingsDoc() === 'portsOfCall') {
+          <app-document-stamp-options documentId="portsOfCall" />
+        } @else {
+          <app-document-stamp-options documentId="sso0108PortCalls" />
+        }
+
+        <div class="poc-settings-bar">
+          <label class="doc-count-field">
+            <span>Ports in PDF</span>
+            <input
+              type="number"
+              class="doc-count-input"
+              [min]="pocMinPorts"
+              [max]="pocMaxPorts"
+              [ngModel]="portOfCall().pdfRowCount"
+              (ngModelChange)="onPdfPortCountChange($event)"
+            />
+          </label>
+          <button type="button" class="poc-add-port-btn" (click)="addPortCallRow()">
+            + Add New Port
+          </button>
+        </div>
+
+        <div class="poc-history-wrap">
+          <table class="poc-history-table">
+            <colgroup>
+              <col class="poc-col-port" />
+              <col class="poc-col-country" />
+              <col class="poc-col-sec" />
+              <col class="poc-col-date" />
+              <col class="poc-col-time" />
+              <col class="poc-col-date" />
+              <col class="poc-col-time" />
+              <col class="poc-col-actions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Port</th>
+                <th>Country</th>
+                <th class="poc-th-sec">SEC.</th>
+                <th>Arr. date</th>
+                <th>Arr. time</th>
+                <th>Dep. date</th>
+                <th>Dep. time</th>
+                <th aria-label="Remove"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of portCallHistory(); track row.id; let i = $index) {
+                <tr [class.poc-row--stripe-b]="i % 2 === 1">
+                  <td class="poc-cell poc-cell--port">
+                    <app-port-select
+                      [value]="row.portName"
+                      [ports]="ports()"
+                      (valueChange)="onPortCallPortChange(row.id, $event)"
+                    />
+                  </td>
+                  <td class="poc-cell poc-cell--country">
+                    <input
+                      class="poc-country-input"
+                      [ngModel]="row.country"
+                      (ngModelChange)="updatePortCallField(row.id, 'country', $event)"
+                      placeholder="ITALY"
+                    />
+                  </td>
+                  <td class="poc-cell poc-cell--sec">
+                    <select
+                      class="poc-sec-select"
+                      [ngModel]="row.secLvl"
+                      (ngModelChange)="updatePortCallField(row.id, 'secLvl', $event)"
+                    >
+                      @for (lvl of portSecLvlOptions; track lvl) {
+                        <option [value]="lvl">{{ lvl }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td class="poc-cell poc-cell--date">
+                    <app-partial-date-input
+                      [value]="row.arrivalDate"
+                      (valueChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
+                    />
+                  </td>
+                  <td class="poc-cell poc-cell--time">
+                    <app-time-input
+                      [value]="row.arrivalTime"
+                      (valueChange)="updatePortCallField(row.id, 'arrivalTime', $event)"
+                    />
+                  </td>
+                  <td class="poc-cell poc-cell--date">
+                    <app-partial-date-input
+                      [value]="row.departureDate"
+                      (valueChange)="updatePortCallField(row.id, 'departureDate', $event)"
+                    />
+                  </td>
+                  <td class="poc-cell poc-cell--time">
+                    <app-time-input
+                      [value]="row.departureTime"
+                      (valueChange)="updatePortCallField(row.id, 'departureTime', $event)"
+                    />
+                  </td>
+                  <td class="poc-cell poc-cell--actions">
+                    <button
+                      type="button"
+                      class="poc-remove"
+                      title="Remove port call"
+                      (click)="removePortCallRow(row.id)"
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       </div>
       <div class="modal-actions poc-modal-actions">
         @if (portSettingsDoc() === 'portOfCall' || portSettingsDoc() === 'portsOfCall') {
           <app-xls-export-button (export)="exportPortOfCallXls()" />
         }
-        <button type="button" class="btn btn-primary" (click)="closePortOfCallSettings()">Done</button>
+        <button type="button" class="btn btn-primary" (click)="closePortOfCallSettings()">
+          Done
+        </button>
       </div>
     </div>
   </div>

@@ -51,8 +51,21 @@ export const CREW_LIST_V2_ROW_NO_X = 36;
 
 /** pdf-lib drawText baseline Y per row (0-based; row 1 = index 0) — user-measured. */
 export const CREW_LIST_V2_ROW_Y = [
-  660, 638, 616, 594, 572, 550, 527, 506, 484, // 1–9
-  462, 440, 418, 396, 374, 352, // 10–15
+  660,
+  638,
+  616,
+  594,
+  572,
+  550,
+  527,
+  506,
+  484, // 1–9
+  462,
+  440,
+  418,
+  396,
+  374,
+  352, // 10–15
 ] as const;
 
 /** Fallback step for rows beyond CREW_LIST_V2_ROW_Y (≈22 pt). */
@@ -94,8 +107,18 @@ const CREW_LIST_V2_COL_RIGHT = {
 
 /** Table body columns — maxWidth = gap to next column; all wrap up to 2 lines. */
 export const CREW_LIST_V2_ROW_COLS = {
-  name: { x: 54, maxWidth: CREW_LIST_V2_COL_RIGHT.name - 54 - CREW_LIST_V2_COL_GAP, maxLines: 2, truncate: false },
-  rank: { x: 152, maxWidth: CREW_LIST_V2_COL_RIGHT.rank - 152 - CREW_LIST_V2_COL_GAP, maxLines: 2, truncate: false },
+  name: {
+    x: 54,
+    maxWidth: CREW_LIST_V2_COL_RIGHT.name - 54 - CREW_LIST_V2_COL_GAP,
+    maxLines: 2,
+    truncate: false,
+  },
+  rank: {
+    x: 152,
+    maxWidth: CREW_LIST_V2_COL_RIGHT.rank - 152 - CREW_LIST_V2_COL_GAP,
+    maxLines: 2,
+    truncate: false,
+  },
   nationality: {
     x: 200,
     maxWidth: CREW_LIST_V2_COL_RIGHT.nationality - 200 - CREW_LIST_V2_COL_GAP,

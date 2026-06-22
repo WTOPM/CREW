@@ -4,7 +4,13 @@ import type { DgUnifeederRawContainerGroup } from './dg-unifeeder-merge.util';
 
 export type DgUnifeederSortColumn = Exclude<
   keyof DgUnifeederRow,
-  'id' | 'status' | 'sourceManifestId' | 'weightKg' | 'goodsDescription' | 'fireSchedule' | 'spillageSchedule'
+  | 'id'
+  | 'status'
+  | 'sourceManifestId'
+  | 'weightKg'
+  | 'goodsDescription'
+  | 'fireSchedule'
+  | 'spillageSchedule'
 >;
 
 export type DgUnifeederSortDirection = 'asc' | 'desc';
@@ -21,7 +27,11 @@ function compareText(a: string, b: string): number {
   return a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
 }
 
-function rowFieldCompare(a: DgUnifeederRow, b: DgUnifeederRow, column: DgUnifeederSortColumn): number {
+function rowFieldCompare(
+  a: DgUnifeederRow,
+  b: DgUnifeederRow,
+  column: DgUnifeederSortColumn,
+): number {
   switch (column) {
     case 'dgClass': {
       const cmp = dgClassSortKey(a.dgClass) - dgClassSortKey(b.dgClass);
@@ -75,7 +85,8 @@ function groupLineAggregate(
   group: DgUnifeederRawContainerGroup,
   column: DgUnifeederSortColumn,
 ): string | number {
-  if (!group.rows.length) return column === 'dgClass' || column === 'unNo' ? Number.POSITIVE_INFINITY : '';
+  if (!group.rows.length)
+    return column === 'dgClass' || column === 'unNo' ? Number.POSITIVE_INFINITY : '';
   const values = group.rows.map((row) => {
     switch (column) {
       case 'dgClass': {
@@ -124,9 +135,7 @@ export function sortUnifeederContainerGroups(
   direction: DgUnifeederSortDirection,
 ): DgUnifeederRawContainerGroup[] {
   const mul = direction === 'asc' ? 1 : -1;
-  const sorted = [...groups].sort(
-    (a, b) => mul * compareUnifeederContainerGroups(a, b, column),
-  );
+  const sorted = [...groups].sort((a, b) => mul * compareUnifeederContainerGroups(a, b, column));
   if (CONTAINER_COLUMNS.has(column)) return sorted;
 
   return sorted.map((group) => ({

@@ -33,14 +33,14 @@ import {
           <span class="stamp-drop-title">Ship stamp</span>
           @if (meta().hasStamp) {
             @if (stampPreviewUrl()) {
-              <img
-                class="stamp-drop-preview"
-                [src]="stampPreviewUrl()!"
-                alt="Ship stamp preview"
-              />
+              <img class="stamp-drop-preview" [src]="stampPreviewUrl()!" alt="Ship stamp preview" />
             }
             <span class="stamp-drop-file">{{ meta().stampFileName }}</span>
-            <button type="button" class="btn-link warn stamp-remove" (click)="removeAsset($event, 'stamp')">
+            <button
+              type="button"
+              class="btn-link warn stamp-remove"
+              (click)="removeAsset($event, 'stamp')"
+            >
               Remove
             </button>
           } @else {
@@ -67,7 +67,11 @@ import {
               />
             }
             <span class="stamp-drop-file">{{ meta().signatureFileName }}</span>
-            <button type="button" class="btn-link warn stamp-remove" (click)="removeAsset($event, 'signature')">
+            <button
+              type="button"
+              class="btn-link warn stamp-remove"
+              (click)="removeAsset($event, 'signature')"
+            >
               Remove
             </button>
           } @else {

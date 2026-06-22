@@ -44,7 +44,10 @@ export function dgExportCargoMergeKey(
 }
 
 function parseDgFlashPointCelsius(value: string): number | null {
-  const v = value.trim().replace(/\s*°C\s*$/i, '').trim();
+  const v = value
+    .trim()
+    .replace(/\s*°C\s*$/i, '')
+    .trim();
   if (!v || v === '-' || v === '—') return null;
   const n = parseFloat(v.replace(',', '.'));
   return Number.isFinite(n) ? n : null;
@@ -64,12 +67,14 @@ export function resolveDgExportMergedFlashPoint(flashPoints: readonly string[]):
   return first;
 }
 
-export function dgCargoLineHasCargo(line: Pick<DgCargoLine, 'dgClass' | 'unNo' | 'weightKg' | 'properShippingName'>): boolean {
+export function dgCargoLineHasCargo(
+  line: Pick<DgCargoLine, 'dgClass' | 'unNo' | 'weightKg' | 'properShippingName'>,
+): boolean {
   return Boolean(
     line.dgClass.trim() ||
-      line.unNo.trim() ||
-      line.weightKg.trim() ||
-      line.properShippingName.trim(),
+    line.unNo.trim() ||
+    line.weightKg.trim() ||
+    line.properShippingName.trim(),
   );
 }
 
@@ -304,9 +309,7 @@ export function buildDgContainerDisplayLines(
   return rows.map((row) => {
     const planned = weightDisplays?.get(`${container.id}:${row.id}`);
     const weightKgDisplay =
-      planned ??
-      planDgLineWeightDisplays([row.rawWeightKg], options.manifestRoundWeights)[0] ??
-      '';
+      planned ?? planDgLineWeightDisplays([row.rawWeightKg], options.manifestRoundWeights)[0] ?? '';
     return { ...row, weightKgDisplay };
   });
 }

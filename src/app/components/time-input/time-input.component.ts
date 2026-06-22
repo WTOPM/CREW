@@ -1,12 +1,4 @@
-import {
-  Component,
-  ElementRef,
-  effect,
-  input,
-  output,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, ElementRef, effect, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   clampHoursSegment,

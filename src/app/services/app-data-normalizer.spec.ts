@@ -38,7 +38,12 @@ describe('normalizeAppData', () => {
   });
 
   it('archives orphan crew (not on any list, not archived)', () => {
-    const orphan = { ...createEmptyCrewMember(), onArrivalList: false, onDepartureList: false, archived: false };
+    const orphan = {
+      ...createEmptyCrewMember(),
+      onArrivalList: false,
+      onDepartureList: false,
+      archived: false,
+    };
     const data = normalizeAppData({ crew: [orphan] });
     expect(data.crew[0].archived).toBe(true);
   });
@@ -90,7 +95,12 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
   it('archives only orphans, leaving listed/archived members untouched', () => {
     const onList = { ...createEmptyCrewMember(), onArrivalList: true };
     const archived = { ...createEmptyCrewMember(), archived: true };
-    const orphan = { ...createEmptyCrewMember(), onArrivalList: false, onDepartureList: false, archived: false };
+    const orphan = {
+      ...createEmptyCrewMember(),
+      onArrivalList: false,
+      onDepartureList: false,
+      archived: false,
+    };
 
     const [a, b, c] = rescueOrphanCrew([onList, archived, orphan]);
     expect(a.archived).toBe(false);
@@ -99,7 +109,12 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
   });
 
   it('mirrors the same behaviour for passengers', () => {
-    const orphan = { ...createEmptyPassenger(), onArrivalList: false, onDepartureList: false, archived: false };
+    const orphan = {
+      ...createEmptyPassenger(),
+      onArrivalList: false,
+      onDepartureList: false,
+      archived: false,
+    };
     expect(rescueOrphanPassengers([orphan])[0].archived).toBe(true);
   });
 });

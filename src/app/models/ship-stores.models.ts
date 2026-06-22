@@ -48,7 +48,11 @@ export function formatShipStoresQuantityText(articleName: string, quantity: stri
 }
 
 /** Unit column: when article name and unit are set (including when qty is NIL). */
-export function formatShipStoresUnitText(articleName: string, _quantity: string, unit: string): string {
+export function formatShipStoresUnitText(
+  articleName: string,
+  _quantity: string,
+  unit: string,
+): string {
   if (!articleName.trim()) return '';
   const u = unit.trim();
   if (!u || u === 'NIL') return '';

@@ -69,7 +69,9 @@ export function reeferCheckSignoffSegments(
   return segments;
 }
 
-export function reeferCheckSignoffPlainText(segments: readonly ReeferCheckSignoffSegment[]): string {
+export function reeferCheckSignoffPlainText(
+  segments: readonly ReeferCheckSignoffSegment[],
+): string {
   return segments.map((s) => s.text).join('');
 }
 

@@ -193,9 +193,7 @@ export async function openPdfJsPageView(
   const outputScale = window.devicePixelRatio || 1;
   const pageWidthPt = mediaViewport.width;
   const pageHeightPt = mediaViewport.height;
-  const textGlyphs = buildPdfTextGlyphs(
-    (await page.getTextContent()).items as PdfJsTextItem[],
-  );
+  const textGlyphs = buildPdfTextGlyphs((await page.getTextContent()).items as PdfJsTextItem[]);
 
   return {
     width: viewport.width,
@@ -223,8 +221,7 @@ export async function openPdfJsPageView(
       canvas.height = Math.floor(viewport.height * outputScale);
       canvas.style.width = `${viewport.width}px`;
       canvas.style.height = `${viewport.height}px`;
-      const transform =
-        outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
+      const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
       await page.render({
         canvas,
         canvasContext: ctx,

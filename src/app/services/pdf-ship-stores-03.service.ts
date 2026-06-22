@@ -15,10 +15,7 @@ import {
   formatShipStoresUnitText,
   normalizeShipStoresForm03,
 } from '../models/ship-stores.models';
-import {
-  formatShipStoresPeriodOfStay,
-  shipStoresPeriodDays,
-} from './ship-stores-field-positions';
+import { formatShipStoresPeriodOfStay, shipStoresPeriodDays } from './ship-stores-field-positions';
 import {
   formatShipStores03PortsRoute,
   SHIP_STORES_03_BODY_ARTICLE_MAX_WIDTH,
@@ -112,14 +109,10 @@ export class PdfShipStores03Service {
       portCountry,
     );
     const periodDays = shipStoresPeriodDays(ship.dateOfArrival, ship.dateOfDeparture);
-    const voyageDate = formatDisplayDate(
-      isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
-    );
+    const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
     const portOfCall = formatPortCallPortName(ship.portOfCall);
     const portCountryName = portCountry(ship.portOfCall, ports);
-    const portOfCallLine = portCountryName
-      ? `${portOfCall} / ${portCountryName}`
-      : portOfCall;
+    const portOfCallLine = portCountryName ? `${portOfCall} / ${portCountryName}` : portOfCall;
 
     const list = isArrival ? 'arrival' : 'departure';
     const crewCount = filterActiveCrewListFromData(data, list).length;
@@ -197,10 +190,9 @@ export class PdfShipStores03Service {
     if (this.templateBytes && this.loadedVersion === SHIP_STORES_03_TEMPLATE_VERSION) {
       return this.templateBytes;
     }
-    const res = await fetch(
-      `${SHIP_STORES_03_TEMPLATE_URL}?v=${SHIP_STORES_03_TEMPLATE_VERSION}`,
-      { cache: 'no-store' },
-    );
+    const res = await fetch(`${SHIP_STORES_03_TEMPLATE_URL}?v=${SHIP_STORES_03_TEMPLATE_VERSION}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) {
       throw new Error('Ship Stores 03 template not found (public/ship-stores-03-empty.pdf)');
     }

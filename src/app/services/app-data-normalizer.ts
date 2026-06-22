@@ -91,7 +91,8 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
   ship.homeport = resolvePortRef(ship.homeport, ports)?.name ?? ship.homeport;
   ship.waterTestPort = resolvePortRef(ship.waterTestPort, ports)?.name ?? ship.waterTestPort;
   ship.sanitationCertificateIssuedAt =
-    resolvePortRef(ship.sanitationCertificateIssuedAt, ports)?.name ?? ship.sanitationCertificateIssuedAt;
+    resolvePortRef(ship.sanitationCertificateIssuedAt, ports)?.name ??
+    ship.sanitationCertificateIssuedAt;
   ship.portOfCall = resolvePortRef(ship.portOfCall, ports)?.name ?? ship.portOfCall;
   ship.lastPortOfCall = resolvePortRef(ship.lastPortOfCall, ports)?.name ?? ship.lastPortOfCall;
   ship.nextPortOfCall = resolvePortRef(ship.nextPortOfCall, ports)?.name ?? ship.nextPortOfCall;
@@ -134,8 +135,11 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
   const narcoticListForm = normalizeNarcoticListForm(raw.narcoticListForm);
   const dgLibrary = normalizeDgLibrary(
     raw.dgLibrary,
-    (raw as Partial<AppData & { dgManifestForm?: import('../models/dg-manifest.models').DgManifestFormSettings }>)
-      .dgManifestForm,
+    (
+      raw as Partial<
+        AppData & { dgManifestForm?: import('../models/dg-manifest.models').DgManifestFormSettings }
+      >
+    ).dgManifestForm,
     ports,
     ship,
   );
@@ -255,7 +259,10 @@ function normalizePrintPackages(raw: unknown): PortPackage[] {
     Array.isArray(items)
       ? items.map((it) => ({
           documentId: String((it as PortPackageItem)?.documentId ?? '').trim(),
-          copies: Math.max(1, Math.min(99, Math.round(Number((it as PortPackageItem)?.copies) || 1))),
+          copies: Math.max(
+            1,
+            Math.min(99, Math.round(Number((it as PortPackageItem)?.copies) || 1)),
+          ),
         }))
       : [];
 
@@ -272,7 +279,13 @@ function normalizePrintPackages(raw: unknown): PortPackage[] {
       }));
     } else if (Array.isArray((pkg as { items?: unknown }).items)) {
       // Legacy: flat items -> single "General" authority.
-      authorities = [{ name: 'General', items: normItems((pkg as { items?: unknown }).items), includeInPrint: true }];
+      authorities = [
+        {
+          name: 'General',
+          items: normItems((pkg as { items?: unknown }).items),
+          includeInPrint: true,
+        },
+      ];
     } else {
       authorities = [];
     }
@@ -335,10 +348,7 @@ function normalizeDocumentOverlay(
     cashAdvance: normalizeStampDocumentPrefs(raw?.cashAdvance, defaults.cashAdvance),
     crewMoney: normalizeStampDocumentPrefs(raw?.crewMoney, defaults.crewMoney),
     narcoticList: normalizeStampDocumentPrefs(raw?.narcoticList, defaults.narcoticList),
-    sso0108PortCalls: normalizeStampDocumentPrefs(
-      raw?.sso0108PortCalls,
-      defaults.sso0108PortCalls,
-    ),
+    sso0108PortCalls: normalizeStampDocumentPrefs(raw?.sso0108PortCalls, defaults.sso0108PortCalls),
   };
   return out;
 }
@@ -388,10 +398,7 @@ function normalizeCrewEffectStampPrefs(
   };
 }
 
-function normalizePortCallHistory(
-  raw: Partial<AppData>,
-  ports: Port[],
-): PortCallHistoryEntry[] {
+function normalizePortCallHistory(raw: Partial<AppData>, ports: Port[]): PortCallHistoryEntry[] {
   const history = (raw.portCallHistory ?? []).map((entry) => ({
     ...createEmptyPortCallEntry(),
     ...entry,
@@ -439,8 +446,7 @@ function normalizeShipStoresForms(raw: Partial<AppData>): {
   shipStoresForm03: ReturnType<typeof normalizeShipStoresForm03>;
 } {
   const seedVersion = typeof raw.seedVersion === 'number' ? raw.seedVersion : 0;
-  const migrateGermanyTo03 =
-    seedVersion < APP_DATA_SCHEMA_VERSION && raw.shipStoresForm03 == null;
+  const migrateGermanyTo03 = seedVersion < APP_DATA_SCHEMA_VERSION && raw.shipStoresForm03 == null;
 
   if (migrateGermanyTo03) {
     return {
@@ -460,8 +466,7 @@ function normalizeCrewEffectForms(raw: Partial<AppData>): {
   crewEffectForm03: ReturnType<typeof normalizeCrewEffectForm03>;
 } {
   const seedVersion = typeof raw.seedVersion === 'number' ? raw.seedVersion : 0;
-  const migrateGermanyTo03 =
-    seedVersion < APP_DATA_SCHEMA_VERSION && raw.crewEffectForm03 == null;
+  const migrateGermanyTo03 = seedVersion < APP_DATA_SCHEMA_VERSION && raw.crewEffectForm03 == null;
 
   if (migrateGermanyTo03) {
     return {

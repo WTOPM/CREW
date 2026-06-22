@@ -1,13 +1,14 @@
 import ExcelJS from 'exceljs';
-import { formatDgWeightKgDisplay, formatDgWeightKgGrossDisplay, parseDgWeightKg } from '../models/dg-manifest.models';
+import {
+  formatDgWeightKgDisplay,
+  formatDgWeightKgGrossDisplay,
+  parseDgWeightKg,
+} from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { portCode, resolveManifestPortName, type Port, type ShipInfo } from '../models/crew.models';
 import type { DgPageContext } from './page-ship-context.util';
 import { normalizeMfagEmsCode } from './dg-mfag-schedule.util';
-import {
-  unifeederExportTotalKg,
-  unifeederExportWeightKg,
-} from './dg-unifeeder-weight.util';
+import { unifeederExportTotalKg, unifeederExportWeightKg } from './dg-unifeeder-weight.util';
 import { type DgWeightViewOptions } from './dg-weight-view.util';
 import { workbookToBytes } from './crew-list-excel-layout.util';
 
@@ -44,7 +45,10 @@ function exportPageCount(rowCount: number): number {
   return Math.max(1, Math.ceil(rowCount / DATA_ROW_COUNT));
 }
 
-function slicePageRows(rows: readonly DgUnifeederRow[], pageIndex: number): (DgUnifeederRow | undefined)[] {
+function slicePageRows(
+  rows: readonly DgUnifeederRow[],
+  pageIndex: number,
+): (DgUnifeederRow | undefined)[] {
   const start = pageIndex * DATA_ROW_COUNT;
   const slice = rows.slice(start, start + DATA_ROW_COUNT);
   const page: (DgUnifeederRow | undefined)[] = [];
@@ -135,7 +139,20 @@ function parseIsoDate(value: string): Date | null {
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
-const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const EN_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 
 /** English date text — independent of PC/Excel locale (e.g. 21 Nov 2025). */
 function formatEnglishDateText(value: string): string {
@@ -204,7 +221,11 @@ function remarksMpLabel(value: string): string {
 const REMARKS_COL_K = 11;
 const REMARKS_COL_L = 12;
 
-function remarksSplitBorders(): { k: Partial<ExcelJS.Borders>; l: Partial<ExcelJS.Borders>; merged: Partial<ExcelJS.Borders> } {
+function remarksSplitBorders(): {
+  k: Partial<ExcelJS.Borders>;
+  l: Partial<ExcelJS.Borders>;
+  merged: Partial<ExcelJS.Borders>;
+} {
   const merged = { top: thinEdge, left: thinEdge, bottom: thinEdge, right: thinEdge };
   return {
     k: { top: thinEdge, left: thinEdge, bottom: thinEdge },
@@ -430,10 +451,16 @@ function buildHeaderBlock(
     font: { name: ARIAL, size: 11, bold: true },
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
-  setCell(ws, r(9), 12, `to: ${resolvePortLabel(ctx.nextPortOfCall || ship.nextPortOfCall, ports)}`, {
-    font: { name: ARIAL, size: 10, bold: true },
-    alignment: { horizontal: 'center', vertical: 'middle', shrinkToFit: true },
-  });
+  setCell(
+    ws,
+    r(9),
+    12,
+    `to: ${resolvePortLabel(ctx.nextPortOfCall || ship.nextPortOfCall, ports)}`,
+    {
+      font: { name: ARIAL, size: 10, bold: true },
+      alignment: { horizontal: 'center', vertical: 'middle', shrinkToFit: true },
+    },
+  );
 
   ws.getRow(r(10)).height = 12.75;
 
@@ -558,7 +585,12 @@ function buildPageDataRows(
   }
 }
 
-function buildTotalRow(ws: ExcelJS.Worksheet, pageStart: number, totalKg: number, roundWeights: boolean): void {
+function buildTotalRow(
+  ws: ExcelJS.Worksheet,
+  pageStart: number,
+  totalKg: number,
+  roundWeights: boolean,
+): void {
   const totalRow = pageAbsRow(pageStart, TOTAL_ROW);
   mergeCells(ws, totalRow, 2, totalRow, 3);
   setCell(ws, totalRow, 2, 'TOTAL WEIGHT:', {
@@ -567,10 +599,16 @@ function buildTotalRow(ws: ExcelJS.Worksheet, pageStart: number, totalKg: number
     border: { top: thinEdge },
   });
   patchBorder(ws.getCell(totalRow, 3), { top: thinEdge });
-  setCell(ws, totalRow, 4, `${(roundWeights ? formatDgWeightKgGrossDisplay(totalKg) : formatDgWeightKgDisplay(totalKg)) || '0'} kg`, {
-    font: { name: ARIAL, size: 10, bold: true },
-    alignment: { horizontal: 'center', vertical: 'middle' },
-  });
+  setCell(
+    ws,
+    totalRow,
+    4,
+    `${(roundWeights ? formatDgWeightKgGrossDisplay(totalKg) : formatDgWeightKgDisplay(totalKg)) || '0'} kg`,
+    {
+      font: { name: ARIAL, size: 10, bold: true },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+    },
+  );
 }
 
 function buildFooterRow(ws: ExcelJS.Worksheet, pageStart: number): void {

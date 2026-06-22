@@ -31,7 +31,8 @@
           <input
             type="text"
             class="dg-archive-field__input"
-            [ngModel]="saveLabel()" (ngModelChange)="saveLabel.set($event)"
+            [ngModel]="saveLabel()"
+            (ngModelChange)="saveLabel.set($event)"
             placeholder="Snapshot name"
             maxlength="80"
             autofocus
@@ -140,7 +141,11 @@
       </div>
 
       <footer class="dg-archive-modal__foot">
-        <button type="button" class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--load" (click)="onCloseLoad()">
+        <button
+          type="button"
+          class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--load"
+          (click)="onCloseLoad()"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path
               fill="currentColor"

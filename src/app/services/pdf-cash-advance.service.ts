@@ -123,7 +123,7 @@ export class PdfCashAdvanceService {
         const [embeddedPage] = await doc.embedPages([templateDoc.getPages()[0]]);
         const newPage = doc.addPage([page.getWidth(), page.getHeight()]);
         newPage.drawPage(embeddedPage);
-        
+
         // Clear all pre-printed row numbers on new page
         for (let clearIdx = 0; clearIdx < CASH_ADVANCE_MAX_CREW_ROWS; clearIdx++) {
           const clearY = CASH_ADVANCE_PAGE_HEIGHT_PT - cashAdvanceRowBaselineY(clearIdx);
@@ -149,7 +149,11 @@ export class PdfCashAdvanceService {
         color: rgb(1, 1, 1),
       });
 
-      const drawOnPage = (text: string, x: number, opts: { fontSize?: number; maxWidth?: number; useBold?: boolean }) => {
+      const drawOnPage = (
+        text: string,
+        x: number,
+        opts: { fontSize?: number; maxWidth?: number; useBold?: boolean },
+      ) => {
         const value = text.trim();
         if (!value) return;
         currentPage.drawText(value, {
@@ -189,7 +193,7 @@ export class PdfCashAdvanceService {
     const lastPageIndex = Math.floor((allCrew.length - 1) / CASH_ADVANCE_MAX_CREW_ROWS);
     const lastRowIndex = (allCrew.length - 1) % CASH_ADVANCE_MAX_CREW_ROWS;
     const lastPage = lastPageIndex === 0 ? page : doc.getPages()[lastPageIndex];
-    
+
     for (let emptyRow = lastRowIndex + 1; emptyRow < CASH_ADVANCE_MAX_CREW_ROWS; emptyRow++) {
       const clearY = CASH_ADVANCE_PAGE_HEIGHT_PT - cashAdvanceRowBaselineY(emptyRow);
       lastPage.drawRectangle({

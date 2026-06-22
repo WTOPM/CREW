@@ -109,15 +109,13 @@ const MANIFEST_CONTAINER_TYPES: readonly IsoContainerTypeEntry[] = [
   {
     code: '42GP',
     sizeLabel: '40′ standard height',
-    summary:
-      'General-purpose dry container — standard 40-foot GP box (8′6″ external height).',
+    summary: 'General-purpose dry container — standard 40-foot GP box (8′6″ external height).',
     description: '40-foot general-purpose dry container (manifest code 42GP)',
   },
   {
     code: '22GP',
     sizeLabel: '20′ standard height',
-    summary:
-      'General-purpose dry container — standard 20-foot GP box for general cargo.',
+    summary: 'General-purpose dry container — standard 20-foot GP box for general cargo.',
     description: '20-foot general-purpose dry container (manifest code 22GP)',
   },
   {
@@ -130,8 +128,7 @@ const MANIFEST_CONTAINER_TYPES: readonly IsoContainerTypeEntry[] = [
   {
     code: 'L2GP',
     sizeLabel: '45′ standard height',
-    summary:
-      'General-purpose dry container — 45-foot GP box (ISO length code L2).',
+    summary: 'General-purpose dry container — 45-foot GP box (ISO length code L2).',
     description: '45-foot general-purpose dry container (manifest code L2GP)',
   },
   {
@@ -163,8 +160,8 @@ const ISO_LENGTH: Record<string, string> = {
   '40': '40′',
   '42': '40′',
   '45': '40′ HC',
-  'L2': '45′',
-  'L5': '45′ HC',
+  L2: '45′',
+  L5: '45′ HC',
 };
 
 const ISO_CATEGORY: Record<string, string> = {

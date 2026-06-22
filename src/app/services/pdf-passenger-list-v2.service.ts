@@ -1,6 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { jsPDF } from 'jspdf';
-import { AppData, CrewMember, formatCrewListName, formatPortCallPortName, portCountry } from '../models/crew.models';
+import {
+  AppData,
+  CrewMember,
+  formatCrewListName,
+  formatPortCallPortName,
+  portCountry,
+} from '../models/crew.models';
 import { PassengerMember } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { passengerListV2PdfFileName } from '../utils/pdf-filename.util';
@@ -105,9 +111,14 @@ export class PdfPassengerListV2Service {
     const centerX = (s.sx(152) + s.sx(1871)) / 2;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
-    doc.text(IMO_PASSENGER_LIST_TITLE, centerX, s.sy(CREW_LIST_TITLE_Y) - CREW_LIST_TITLE_OFFSET_UP_PT, {
-      align: 'center',
-    });
+    doc.text(
+      IMO_PASSENGER_LIST_TITLE,
+      centerX,
+      s.sy(CREW_LIST_TITLE_Y) - CREW_LIST_TITLE_OFFSET_UP_PT,
+      {
+        align: 'center',
+      },
+    );
   }
 
   private drawFrameLabels(doc: jsPDF, s: CoordScale): void {
@@ -170,7 +181,12 @@ export class PdfPassengerListV2Service {
     doc.line(splitX, dividerY, splitX, bodyBottom);
   }
 
-  private drawFieldLabel(doc: jsPDF, box: CoordBox, r: { x: number; y: number; w: number; h: number }, s: CoordScale): void {
+  private drawFieldLabel(
+    doc: jsPDF,
+    box: CoordBox,
+    r: { x: number; y: number; w: number; h: number },
+    s: CoordScale,
+  ): void {
     if (box.id === '14') {
       this.drawField14Label(doc, s);
       return;
@@ -217,7 +233,12 @@ export class PdfPassengerListV2Service {
 
   private drawColumn6SubLabels(doc: jsPDF, s: CoordScale): void {
     const left = s.rect(PAX_V2_COL6_X1, PAX_V2_COL6_HEADER_DIVIDER_Y, PAX_V2_COL6_SPLIT_X, 448);
-    const right = s.rect(PAX_V2_COL6_SPLIT_X, PAX_V2_COL6_HEADER_DIVIDER_Y, PAX_V2_COL6_X2 + 1, 448);
+    const right = s.rect(
+      PAX_V2_COL6_SPLIT_X,
+      PAX_V2_COL6_HEADER_DIVIDER_Y,
+      PAX_V2_COL6_X2 + 1,
+      448,
+    );
 
     const fontSize = 6.5;
     doc.setFont('helvetica', 'bold');
@@ -228,7 +249,9 @@ export class PdfPassengerListV2Service {
     const lineStep = PAX_V2_PASSPORT_LABEL_LINE_STEP_PT;
 
     doc.text(PAX_V2_COL6_SUBLABELS.docTypeLine1, leftCenterX, passportY, { align: 'center' });
-    doc.text(PAX_V2_COL6_SUBLABELS.docTypeLine2, leftCenterX, passportY + lineStep, { align: 'center' });
+    doc.text(PAX_V2_COL6_SUBLABELS.docTypeLine2, leftCenterX, passportY + lineStep, {
+      align: 'center',
+    });
 
     const blockMidY = passportY + lineStep / 2;
     doc.text(PAX_V2_COL6_SUBLABELS.expiry, right.x + right.w / 2, blockMidY, {
@@ -256,7 +279,15 @@ export class PdfPassengerListV2Service {
 
     this.valueInBox(doc, s, 152, 192, 1101, 278, ship.name);
     this.valueInBox(doc, s, 152, 277, 1101, 380, ship.nationality);
-    this.valueInBox(doc, s, 1100, 192, 1491, 278, this.formatPortWithCountry(ship.portOfCall, ports));
+    this.valueInBox(
+      doc,
+      s,
+      1100,
+      192,
+      1491,
+      278,
+      this.formatPortWithCountry(ship.portOfCall, ports),
+    );
     this.valueInBox(doc, s, 1490, 192, 2169, 278, voyageDate);
     this.valueInBox(doc, s, 1100, 277, PAX_V2_COL6_X1, 380, portFromTo);
     this.valueInBox(doc, s, 1871, 117, 2169, 192, String(CREW_LIST_PAGE_NO), 'center');
@@ -371,8 +402,25 @@ export class PdfPassengerListV2Service {
       this.dataAt(doc, s, 881, 1101, cy, member.rank, bodyFont);
       this.dataAt(doc, s, 1100, 1305, cy, member.nationality, bodyFont);
       this.dataAt(doc, s, 1304, 1491, cy, formatBirthDate(member.dateOfBirth), bodyFont);
-      this.dataAt(doc, s, PAX_V2_PLACE_OF_BIRTH_X1, PAX_V2_PLACE_OF_BIRTH_X2, cy, member.placeOfBirth, bodyFont);
-      this.dataAt(doc, s, PAX_V2_COL6_X1, PAX_V2_COL6_SPLIT_X, cy, member.passport.trim(), bodyFont, 'center');
+      this.dataAt(
+        doc,
+        s,
+        PAX_V2_PLACE_OF_BIRTH_X1,
+        PAX_V2_PLACE_OF_BIRTH_X2,
+        cy,
+        member.placeOfBirth,
+        bodyFont,
+      );
+      this.dataAt(
+        doc,
+        s,
+        PAX_V2_COL6_X1,
+        PAX_V2_COL6_SPLIT_X,
+        cy,
+        member.passport.trim(),
+        bodyFont,
+        'center',
+      );
       this.dataAt(
         doc,
         s,

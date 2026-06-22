@@ -30,8 +30,16 @@ declare global {
         copies: number,
         deviceName: string,
       ) => Promise<{ ok: boolean; error?: string }>;
-      saveCrewPdf: (crewId: string, docType: CrewDocumentType, sourcePath: string) => Promise<boolean>;
-      saveCrewPdfBytes: (crewId: string, docType: CrewDocumentType, base64: string) => Promise<boolean>;
+      saveCrewPdf: (
+        crewId: string,
+        docType: CrewDocumentType,
+        sourcePath: string,
+      ) => Promise<boolean>;
+      saveCrewPdfBytes: (
+        crewId: string,
+        docType: CrewDocumentType,
+        base64: string,
+      ) => Promise<boolean>;
       readCrewPdf: (crewId: string, docType: CrewDocumentType) => Promise<string | null>;
       crewPdfExists: (crewId: string, docType: CrewDocumentType) => Promise<boolean>;
       deleteCrewPdf: (crewId: string, docType: CrewDocumentType) => Promise<boolean>;

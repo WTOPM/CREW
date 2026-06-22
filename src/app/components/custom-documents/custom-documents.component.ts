@@ -55,7 +55,9 @@ import { uint8ToBase64 } from '../../utils/base64.util';
       border-radius: 10px;
       background: #f8fafc;
       cursor: pointer;
-      transition: border-color 0.15s ease, background 0.15s ease;
+      transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
     }
     .cdoc-drop:hover,
     .cdoc-drop--active {

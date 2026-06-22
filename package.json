@@ -11,6 +11,8 @@
     "build:electron": "ng build --configuration electron",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "format": "prettier --write \"src/**/*.{ts,html,css,scss,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,html,css,scss,json}\"",
     "electron:dev": "concurrently -k \"ng serve\" \"wait-on http://localhost:4200 && electron .\"",
     "electron:build": "npm run build:electron && electron-builder --win portable",
     "electron:pack": "npm run build:electron && electron-builder --dir",

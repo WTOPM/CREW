@@ -235,7 +235,11 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     if (!this.showAllCrewSigPreviews() || !this.showCrewTableSigMarker()) return [];
     const activeRow = this.crewTableRow();
     const previews = this.sigPreview.previewUrls();
-    const markers: { rowIndex: number; previewUrl: string | null; style: Record<string, string> }[] = [];
+    const markers: {
+      rowIndex: number;
+      previewUrl: string | null;
+      style: Record<string, string>;
+    }[] = [];
     for (const row of this.crewTableRowLabels()) {
       if (row.index === activeRow || !row.hasSignature) continue;
       const raw = this.resolveCrewTableSigRawBox(row.index);
@@ -345,7 +349,10 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
   protected onPreviewWheel(event: WheelEvent): void {
     event.preventDefault();
-    const delta = event.deltaY > 0 ? -OverlayPlacementPickerComponent.WHEEL_ZOOM_STEP : OverlayPlacementPickerComponent.WHEEL_ZOOM_STEP;
+    const delta =
+      event.deltaY > 0
+        ? -OverlayPlacementPickerComponent.WHEEL_ZOOM_STEP
+        : OverlayPlacementPickerComponent.WHEEL_ZOOM_STEP;
     this.applyZoom(this.previewZoom() + delta, event.clientX, event.clientY);
   }
 
@@ -389,7 +396,10 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   protected stampBoxRef = computed(() => {
     const opts = this.options();
     const raw = this.mdhAttachment() ? opts.stampBoxAttachment : opts.stampBox;
-    return raw ?? defaultStampBoxForDocument(this.documentId(), this.mdhAttachment() ? 'attachment' : 'form');
+    return (
+      raw ??
+      defaultStampBoxForDocument(this.documentId(), this.mdhAttachment() ? 'attachment' : 'form')
+    );
   });
 
   protected signatureBoxRef = computed(() => {
@@ -601,11 +611,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       );
     }
 
-    const rot: OverlayRotation = this.mdhAttachment()
-      ? this.documentId() === 'mdh'
-        ? 180
-        : 0
-      : 0;
+    const rot: OverlayRotation = this.mdhAttachment() ? (this.documentId() === 'mdh' ? 180 : 0) : 0;
     this.rotation.set(rot);
     this.persistRotation(rot);
     this.dragStampBoxPage.set(null);
@@ -709,9 +715,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
       this.stampPreviewUrl.set(URL.createObjectURL(new Blob([stamp.slice()])));
     }
     if (signature?.length) {
-      this.signaturePreviewUrl.set(
-        URL.createObjectURL(new Blob([signature.slice()])),
-      );
+      this.signaturePreviewUrl.set(URL.createObjectURL(new Blob([signature.slice()])));
     }
   }
 
@@ -746,8 +750,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     }
     const css = view.convertToViewportCss(pt.x, pt.y);
     const fontPx =
-      OverlayPlacementPickerComponent.PDF_PROBE_FONT_PT *
-      (view.width / view.pageWidthPt);
+      OverlayPlacementPickerComponent.PDF_PROBE_FONT_PT * (view.width / view.pageWidthPt);
     const ascentPx = fontPx * OverlayPlacementPickerComponent.PDF_PROBE_FONT_ASCENT;
     this.pdfProbeMarkerStyle.set({
       left: `${css.x}px`,
@@ -839,7 +842,12 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     }
   }
 
-  private resizeLive(target: MarkerDragTarget, handle: StampResizeHandle, dx: number, dy: number): void {
+  private resizeLive(
+    target: MarkerDragTarget,
+    handle: StampResizeHandle,
+    dx: number,
+    dy: number,
+  ): void {
     const { widthPt, heightPt } = this.pageSizePt();
     if (target === 'stamp') {
       const box = this.dragStampBoxPage() ?? this.stampBoxOnPage();

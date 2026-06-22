@@ -1,9 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { jsPDF } from 'jspdf';
-import {
-  DocumentOverlayId,
-  resolveCrewListStampOptions,
-} from '../models/document-overlay.models';
+import { DocumentOverlayId, resolveCrewListStampOptions } from '../models/document-overlay.models';
 import { PdfOverlayService } from './pdf-overlay.service';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import {
@@ -116,7 +113,11 @@ export class PdfCrewArrService {
     return new Uint8Array(bytes);
   }
 
-  async openPreview(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): Promise<boolean> {
+  async openPreview(
+    data: AppData,
+    crew: CrewMember[],
+    options?: CrewListPdfOptions,
+  ): Promise<boolean> {
     const bytes = await this.buildPdfBytes(data, crew, options);
     return this.delivery.deliver(bytes, this.fileName(data, options));
   }
@@ -126,7 +127,11 @@ export class PdfCrewArrService {
     const voyageDate = paxArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
     const pdfData: AppData = {
       ...data,
-      crewArr: { ...data.crewArr, isArrival: paxArr.isArrival, identityDocumentType: PASSENGER_IDENTITY_DOCUMENT },
+      crewArr: {
+        ...data.crewArr,
+        isArrival: paxArr.isArrival,
+        identityDocumentType: PASSENGER_IDENTITY_DOCUMENT,
+      },
     };
     return this.openPreview(pdfData, passengersToCrewRows(passengers), {
       title: IMO_PASSENGER_LIST_TITLE,
@@ -205,7 +210,11 @@ export class PdfCrewArrService {
     this.drawBodyRowDividers(doc, s);
   }
 
-  private drawFieldLabel(doc: jsPDF, box: CoordBox, r: { x: number; y: number; w: number; h: number }): void {
+  private drawFieldLabel(
+    doc: jsPDF,
+    box: CoordBox,
+    r: { x: number; y: number; w: number; h: number },
+  ): void {
     if (box.id === '14') {
       this.drawField14Label(doc, r);
       return;
@@ -272,13 +281,23 @@ export class PdfCrewArrService {
 
   private fillDynamicData(doc: jsPDF, s: CoordScale, data: AppData, crew: CrewMember[]): void {
     const { ship, crewArr, ports } = data;
-    const voyageDate = formatDisplayDate(crewArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
+    const voyageDate = formatDisplayDate(
+      crewArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
+    );
     const portFromTo = this.portsFromTo(ship.lastPortOfCall, ship.nextPortOfCall, ports);
     const docType = crewArr.identityDocumentType.trim() || 'Passport';
 
     this.valueInBox(doc, s, 152, 192, 1101, 278, ship.name);
     this.valueInBox(doc, s, 152, 277, 1101, 380, ship.nationality);
-    this.valueInBox(doc, s, 1100, 192, 1491, 278, this.formatPortWithCountry(ship.portOfCall, ports));
+    this.valueInBox(
+      doc,
+      s,
+      1100,
+      192,
+      1491,
+      278,
+      this.formatPortWithCountry(ship.portOfCall, ports),
+    );
     this.valueInBox(doc, s, 1490, 192, 2169, 278, voyageDate);
     this.valueInBox(doc, s, 1100, 277, 1872, 380, portFromTo);
     this.valueInBox(doc, s, 1871, 117, 2169, 192, String(CREW_LIST_PAGE_NO), 'center');
@@ -308,7 +327,12 @@ export class PdfCrewArrService {
     });
   }
 
-  private fillCrewRows(doc: jsPDF, s: CoordScale, crew: CrewMember[], identityDocumentType: string): void {
+  private fillCrewRows(
+    doc: jsPDF,
+    s: CoordScale,
+    crew: CrewMember[],
+    identityDocumentType: string,
+  ): void {
     const rowH = (BODY_BOTTOM_Y - BODY_TOP_Y) / CREW_LIST_ROW_COUNT;
     const bodyFont = this.bodyFontSize(s);
 
@@ -324,7 +348,15 @@ export class PdfCrewArrService {
       this.dataAt(doc, s, 1100, 1305, cy, member.nationality, bodyFont);
       this.dataAt(doc, s, 1304, 1491, cy, formatBirthDate(member.dateOfBirth), bodyFont);
       this.dataAt(doc, s, 1490, 1872, cy, member.placeOfBirth, bodyFont);
-      this.dataAt(doc, s, 1871, 2169, cy, this.identityNumber(member, identityDocumentType), bodyFont);
+      this.dataAt(
+        doc,
+        s,
+        1871,
+        2169,
+        cy,
+        this.identityNumber(member, identityDocumentType),
+        bodyFont,
+      );
     }
   }
 

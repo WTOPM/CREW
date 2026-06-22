@@ -1,10 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import {
-  AppData,
-  CrewMember,
-  formatPortCallPortName,
-  portCountry,
-} from '../models/crew.models';
+import { AppData, CrewMember, formatPortCallPortName, portCountry } from '../models/crew.models';
 import { resolveCrewListStampOptions } from '../models/document-overlay.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { PdfOverlayService } from './pdf-overlay.service';
@@ -44,7 +39,10 @@ export class PdfCrewListV3SbkPService {
 
   async buildPreviewBytes(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
     const bytes = await this.build(data, crew);
-    return this.overlay.applyToPdfBytes(bytes, resolveCrewListStampOptions(data.documentOverlay.crewList));
+    return this.overlay.applyToPdfBytes(
+      bytes,
+      resolveCrewListStampOptions(data.documentOverlay.crewList),
+    );
   }
 
   async openPreview(data: AppData, crew: CrewMember[]): Promise<boolean> {
@@ -80,9 +78,7 @@ export class PdfCrewListV3SbkPService {
 
     for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
       const page =
-        pageIndex === 0
-          ? firstPage
-          : this.addTemplatePage(doc, firstPage, embeddedTemplate);
+        pageIndex === 0 ? firstPage : this.addTemplatePage(doc, firstPage, embeddedTemplate);
 
       const slice = crew.slice(
         pageIndex * CREW_LIST_V3_SBK_P_MAX_ROWS,
@@ -143,9 +139,7 @@ export class PdfCrewListV3SbkPService {
   ): void {
     const { ship, crewArr, ports } = data;
     const isArrival = crewArr.isArrival;
-    const voyageDate = formatDisplayDate(
-      isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
-    );
+    const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
 
     const draw = (text: string, placement: CrewListV3SbkPTextPlacement) =>
       this.drawText(page, text, placement, font, black, textRotate);
@@ -179,7 +173,14 @@ export class PdfCrewListV3SbkPService {
       crewArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
     );
 
-    this.drawText(page, voyageDate, CREW_LIST_V3_SBK_P_FOOTER.signatureDate, font, black, textRotate);
+    this.drawText(
+      page,
+      voyageDate,
+      CREW_LIST_V3_SBK_P_FOOTER.signatureDate,
+      font,
+      black,
+      textRotate,
+    );
 
     const roster = data.crew.length > 0 ? data.crew : listCrew;
     const master = this.findMaster(roster);
@@ -247,7 +248,11 @@ export class PdfCrewListV3SbkPService {
       drawCell(member.nationality.trim(), colIndex, 'nationality');
       drawCell(this.formatBirthAndPlace(member), colIndex, 'dateOfBirth');
       drawCell(member.seamansBook.trim(), colIndex, 'sbookNo');
-      drawCell(this.formatPlaceOfIssue(member.seamansBookPlaceOfIssue), colIndex, 'sbookPlaceOfIssue');
+      drawCell(
+        this.formatPlaceOfIssue(member.seamansBookPlaceOfIssue),
+        colIndex,
+        'sbookPlaceOfIssue',
+      );
       drawCell(formatDisplayDate(member.sbookExpiryDate), colIndex, 'sbookExpiry');
       drawCell(member.passport.trim(), colIndex, 'passport');
       drawCell(this.formatJoiningPort(member.joiningPort), colIndex, 'joiningPort');
@@ -267,13 +272,7 @@ export class PdfCrewListV3SbkPService {
   ): void {
     const value = text.trim();
     if (!value) return;
-    const lines = this.wrapCellLines(
-      font,
-      value,
-      CREW_LIST_V3_SBK_P_FONT,
-      maxWidth,
-      maxLines,
-    );
+    const lines = this.wrapCellLines(font, value, CREW_LIST_V3_SBK_P_FONT, maxWidth, maxLines);
     // Rotate 90°: text runs along Y — stack extra lines in +X (column width).
     lines.forEach((line, index) => {
       const size = this.fitFontSize(font, line, maxWidth, CREW_LIST_V3_SBK_P_FONT);
@@ -374,7 +373,9 @@ export class PdfCrewListV3SbkPService {
       { cache: 'no-store' },
     );
     if (!res.ok) {
-      throw new Error('Crew List v3 SBK/P template not found (public/crew-list-v3-sbk-p-empty.pdf)');
+      throw new Error(
+        'Crew List v3 SBK/P template not found (public/crew-list-v3-sbk-p-empty.pdf)',
+      );
     }
     this.templateBytes = new Uint8Array(await res.arrayBuffer());
     this.loadedVersion = CREW_LIST_V3_SBK_P_TEMPLATE_VERSION;

@@ -1,11 +1,4 @@
-import {
-  AfterViewInit,
-  Directive,
-  ElementRef,
-  OnDestroy,
-  Renderer2,
-  inject,
-} from '@angular/core';
+import { AfterViewInit, Directive, ElementRef, OnDestroy, Renderer2, inject } from '@angular/core';
 
 /** Wraps native number inputs with custom stepper buttons (hover-highlighted up/down). */
 @Directive({

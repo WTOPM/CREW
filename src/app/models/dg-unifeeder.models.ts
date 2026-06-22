@@ -5,10 +5,7 @@ import { normalizeUnifeederSubRisk } from '../utils/dg-unifeeder-sub-risk.util';
 import { unifeederInventoryDisplayTotalKg } from '../utils/dg-unifeeder-weight.util';
 import { normalizeDgDualWeightFields, dgLineActiveWeightKg } from '../utils/dg-weight-tonnage.util';
 
-export type DgUnifeederRowField = keyof Omit<
-  DgUnifeederRow,
-  'id' | 'status' | 'sourceManifestId'
->;
+export type DgUnifeederRowField = keyof Omit<DgUnifeederRow, 'id' | 'status' | 'sourceManifestId'>;
 
 /** One flat DG line in the DP WORLD manifest table. */
 export interface DgUnifeederRow {
@@ -221,8 +218,6 @@ export function findUnifeederManifestDuplicate(
   const pdf = fingerprints.pdfBytesFingerprint?.trim();
   if (!content && !pdf) return undefined;
   return manifests.find(
-    (m) =>
-      (content && m.contentFingerprint === content) ||
-      (pdf && m.pdfBytesFingerprint === pdf),
+    (m) => (content && m.contentFingerprint === content) || (pdf && m.pdfBytesFingerprint === pdf),
   );
 }

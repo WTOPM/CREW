@@ -47,7 +47,20 @@ const UN_NUMBER_ROWS: UnNumberReferenceRow[] = [...UN_NUMBER_MAP.entries()]
   }));
 
 const UN_NUMBER_CLASS_ORDER = [
-  '2.1', '2.2', '2.3', '3', '4.1', '4.2', '4.3', '5.1', '5.2', '6.1', '6.2', '7', '8', '9',
+  '2.1',
+  '2.2',
+  '2.3',
+  '3',
+  '4.1',
+  '4.2',
+  '4.3',
+  '5.1',
+  '5.2',
+  '6.1',
+  '6.2',
+  '7',
+  '8',
+  '9',
 ];
 
 export function compareDgClass(a: string, b: string): number {
@@ -115,7 +128,9 @@ export function searchUnNumberRows(
   });
 }
 
-export function getUnNumberClassCounts(rows: readonly UnNumberReferenceRow[] = UN_NUMBER_ROWS): Map<string, number> {
+export function getUnNumberClassCounts(
+  rows: readonly UnNumberReferenceRow[] = UN_NUMBER_ROWS,
+): Map<string, number> {
   const counts = new Map<string, number>();
   for (const row of rows) {
     counts.set(row.dgClass, (counts.get(row.dgClass) ?? 0) + 1);
@@ -160,7 +175,9 @@ export function lookupUnNumber(raw: string | undefined | null): UnNumberTooltipE
 }
 
 /** Full DG reference row for a UN number (fire/spillage EMS codes, etc.). */
-export function lookupUnNumberReference(raw: string | undefined | null): UnNumberReferenceEntry | null {
+export function lookupUnNumberReference(
+  raw: string | undefined | null,
+): UnNumberReferenceEntry | null {
   const unNo = normalizeUnNumber(raw);
   if (!/^\d{4}$/.test(unNo) || unNo === '0000') return null;
   return UN_NUMBER_MAP.get(unNo) ?? null;

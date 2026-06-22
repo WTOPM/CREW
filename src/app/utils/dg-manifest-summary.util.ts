@@ -137,12 +137,8 @@ export function unifeederManifestSummary(
   };
 }
 
-function uniqueContainerSizesFromDgContainers(
-  containers: readonly DgOnboardContainer[],
-): string[] {
-  return containers
-    .map((container) => container.type.trim())
-    .filter(Boolean);
+function uniqueContainerSizesFromDgContainers(containers: readonly DgOnboardContainer[]): string[] {
+  return containers.map((container) => container.type.trim()).filter(Boolean);
 }
 
 export function dgOnboardManifestSummary(
@@ -150,7 +146,9 @@ export function dgOnboardManifestSummary(
   useGross = false,
   roundWeights = false,
 ): ManifestInventorySummary {
-  const lengthBuckets = buildManifestLengthBuckets(uniqueContainerSizesFromDgContainers(containers));
+  const lengthBuckets = buildManifestLengthBuckets(
+    uniqueContainerSizesFromDgContainers(containers),
+  );
   const classRows = buildManifestClassWeightRows(
     containers.flatMap((container) => container.lines),
     useGross,

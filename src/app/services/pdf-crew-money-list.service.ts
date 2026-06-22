@@ -103,7 +103,12 @@ export class PdfCrewMoneyListService {
       const y = CREW_MONEY_LIST_PAGE_HEIGHT_PT - crewMoneyListRowBaselineY(index);
       draw(String(index + 1), { x: CREW_MONEY_LIST_COL.rowNo, y, fontSize: CREW_MONEY_LIST_FONT });
       const name = formatCrewListName(member);
-      const nameSize = this.fitFontSize(font, name, CREW_MONEY_LIST_FONT, CREW_MONEY_LIST_NAME_MAX_WIDTH);
+      const nameSize = this.fitFontSize(
+        font,
+        name,
+        CREW_MONEY_LIST_FONT,
+        CREW_MONEY_LIST_NAME_MAX_WIDTH,
+      );
       if (name) {
         page.drawText(name, {
           x: CREW_MONEY_LIST_COL.name,

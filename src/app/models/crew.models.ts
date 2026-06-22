@@ -1,7 +1,10 @@
 import { parseValidityRange } from '../utils/date.util';
 import { PassengerMember, PaxArrFormSettings } from './passenger.models';
 import type { DocumentOverlayPrefs, ShipAssetsMeta } from './document-overlay.models';
-import { createDefaultDocumentOverlayPrefs, createEmptyShipAssetsMeta } from './document-overlay.models';
+import {
+  createDefaultDocumentOverlayPrefs,
+  createEmptyShipAssetsMeta,
+} from './document-overlay.models';
 import type {
   CrewEffectForm02Settings,
   CrewEffectForm03Settings,
@@ -145,7 +148,9 @@ export function shipFieldPersistNotify(field: keyof ShipInfo): 'saved' | 'deboun
 export type PersonGender = 'MALE' | 'FEMALE';
 
 export function normalizePersonGender(value: unknown): PersonGender | '' {
-  const v = String(value ?? '').trim().toUpperCase();
+  const v = String(value ?? '')
+    .trim()
+    .toUpperCase();
   if (v === 'MALE' || v === 'FEMALE') return v;
   return '';
 }
@@ -595,21 +600,17 @@ export { createDefaultNilListForm } from './nil-list.models';
 export type { ShipMoneyFormSettings, ShipMoneyEntry } from './ship-money.models';
 export { createDefaultShipMoneyForm } from './ship-money.models';
 export type { CashAdvanceFormSettings, CashAdvanceCrewAmounts } from './cash-advance.models';
-export {
-  createDefaultCashAdvanceForm,
-  cashAdvanceAmountsFor,
-} from './cash-advance.models';
+export { createDefaultCashAdvanceForm, cashAdvanceAmountsFor } from './cash-advance.models';
 export type { CrewMoneyListFormSettings, CrewMoneyListCrewAmounts } from './crew-money-list.models';
-export {
-  createDefaultCrewMoneyListForm,
-  crewMoneyListAmountsFor,
-} from './crew-money-list.models';
+export { createDefaultCrewMoneyListForm, crewMoneyListAmountsFor } from './crew-money-list.models';
 export type { NarcoticListFormSettings, NarcoticMedicineEntry } from './narcotic-list.models';
-export {
-  createDefaultNarcoticListForm,
-  createNarcoticMedicineEntry,
-} from './narcotic-list.models';
-export type { DgLibrarySettings, DgManifestDocument, DgOnboardContainer, DgCargoLine } from './dg-manifest.models';
+export { createDefaultNarcoticListForm, createNarcoticMedicineEntry } from './narcotic-list.models';
+export type {
+  DgLibrarySettings,
+  DgManifestDocument,
+  DgOnboardContainer,
+  DgCargoLine,
+} from './dg-manifest.models';
 export {
   createDefaultDgLibrary,
   createDgManifestDocument,
@@ -731,7 +732,9 @@ export function createEmptyCrewMember(): CrewMember {
   };
 }
 
-export function crewMemberLabel(member: Pick<CrewMember, 'familyName' | 'givenNames' | 'rank'>): string {
+export function crewMemberLabel(
+  member: Pick<CrewMember, 'familyName' | 'givenNames' | 'rank'>,
+): string {
   const name = [member.familyName, member.givenNames].filter(Boolean).join(' ');
   return member.rank ? `${name} — ${member.rank}` : name || 'Unnamed';
 }
@@ -906,7 +909,11 @@ export function resolveManifestPortName(ref: string, ports: readonly Port[] = []
   if (byPrefix) return byPrefix.name;
 
   const byCityToken = ports.find((p) => {
-    const city = p.name.toLowerCase().split(/[\s,(/-]/)[0]?.trim() ?? '';
+    const city =
+      p.name
+        .toLowerCase()
+        .split(/[\s,(/-]/)[0]
+        ?.trim() ?? '';
     return city === v || city.startsWith(v) || v.startsWith(city);
   });
   if (byCityToken) return byCityToken.name;
@@ -945,7 +952,9 @@ export function portCountry(name: string, ports: Port[]): string {
 }
 
 /** Newest port calls first (row 1 = latest visit). */
-export function orderPortCallHistoryForPdf(history: PortCallHistoryEntry[]): PortCallHistoryEntry[] {
+export function orderPortCallHistoryForPdf(
+  history: PortCallHistoryEntry[],
+): PortCallHistoryEntry[] {
   return [...history].sort((a, b) => {
     const aKey = a.arrivalDate || a.departureDate || '';
     const bKey = b.arrivalDate || b.departureDate || '';

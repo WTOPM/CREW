@@ -1,13 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import {
-  AppData,
-  CREW_IDENTITY_PASSPORT,
-  CREW_IDENTITY_SEAMANS_BOOK,
-} from '../models/crew.models';
-import {
-  crewListIdentityPdfFileName,
-  passengerListPdfFileName,
-} from '../utils/pdf-filename.util';
+import { AppData, CREW_IDENTITY_PASSPORT, CREW_IDENTITY_SEAMANS_BOOK } from '../models/crew.models';
+import { crewListIdentityPdfFileName, passengerListPdfFileName } from '../utils/pdf-filename.util';
 import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { base64ToUint8 } from '../utils/base64.util';
@@ -222,9 +215,7 @@ export class DocumentCatalogService {
   ): Promise<BuiltPdf> {
     const listType: AppData['documentOverlay']['crewList']['listType'] =
       identity === CREW_IDENTITY_SEAMANS_BOOK ? 'type1SeamansBook' : 'type1Passport';
-    const crew = isArrival
-      ? this.storage.activeCrewArrival()
-      : this.storage.activeCrewDeparture();
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     // Force the variant's type so rendering + per-type stamp placement match it,
     // regardless of which type the main-screen radio currently has selected.
     const data: AppData = {
@@ -249,9 +240,7 @@ export class DocumentCatalogService {
   }
 
   private async crewV3SbkBytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
-    const crew = isArrival
-      ? this.storage.activeCrewArrival()
-      : this.storage.activeCrewDeparture();
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,
       crewArr: { ...base.crewArr, isArrival },
@@ -267,9 +256,7 @@ export class DocumentCatalogService {
   }
 
   private async crewV3SbkPBytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
-    const crew = isArrival
-      ? this.storage.activeCrewArrival()
-      : this.storage.activeCrewDeparture();
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,
       crewArr: { ...base.crewArr, isArrival },
@@ -285,9 +272,7 @@ export class DocumentCatalogService {
   }
 
   private async crewV3SbkP2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
-    const crew = isArrival
-      ? this.storage.activeCrewArrival()
-      : this.storage.activeCrewDeparture();
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,
       crewArr: { ...base.crewArr, isArrival },
@@ -304,9 +289,7 @@ export class DocumentCatalogService {
 
   /** Crew List v2. */
   private async crewV2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
-    const crew = isArrival
-      ? this.storage.activeCrewArrival()
-      : this.storage.activeCrewDeparture();
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,
       crewArr: { ...base.crewArr, isArrival },

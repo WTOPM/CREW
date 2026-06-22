@@ -44,8 +44,8 @@ export const SHIP_STORES_BODY_ROW_COUNT = 27;
 
 /** Row number baselines (pdf-lib Y), coordinate picker. */
 export const SHIP_STORES_BODY_ROW_PDFLIB_Y: readonly number[] = [
-  663, 645, 627, 609, 590, 572, 554, 536, 518, 500, 482, 463, 445, 427, 410, 390, 371, 354,
-  336, 317, 301, 282, 264, 245, 227, 209, 191,
+  663, 645, 627, 609, 590, 572, 554, 536, 518, 500, 482, 463, 445, 427, 410, 390, 371, 354, 336,
+  317, 301, 282, 264, 245, 227, 209, 191,
 ];
 
 export function shipStoresBodyRowPdfLibY(rowIndex: number): number {

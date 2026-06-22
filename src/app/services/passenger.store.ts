@@ -162,7 +162,11 @@ export class PassengerStore {
     this.data.update((d) => {
       let passengers = d.passengers.map((m) => this.mapPassengerDepartureToArrival(m));
       passengers = this.mergePassengerDepartureArchiveIntoArrivalArchive(passengers);
-      passengers = this.reorderPassengerLikeList(passengers, 'departure', d.passengerDepartureOrder);
+      passengers = this.reorderPassengerLikeList(
+        passengers,
+        'departure',
+        d.passengerDepartureOrder,
+      );
       return {
         ...d,
         passengers: rescueOrphanPassengers(passengers),
@@ -299,13 +303,7 @@ export class PassengerStore {
 
   removePassengerFromArrivalList(id: string): void {
     const d = this.data();
-    if (
-      arePassengerListsInSync(
-        d.passengers,
-        d.passengerArrivalOrder,
-        d.passengerDepartureOrder,
-      )
-    ) {
+    if (arePassengerListsInSync(d.passengers, d.passengerArrivalOrder, d.passengerDepartureOrder)) {
       this.archivePassenger(id);
       return;
     }
@@ -353,26 +351,14 @@ export class PassengerStore {
             passengerDepartureOrder: undefined,
           };
         }
-        const ids = activePassengerListIds(
-          d.passengers,
-          'arrival',
-          d.passengerArrivalOrder,
-        );
+        const ids = activePassengerListIds(d.passengers, 'arrival', d.passengerArrivalOrder);
         return { ...d, passengerArrivalOrder: reorderIdList(ids, fromIndex, toIndex) };
       }
 
-      const ids = activePassengerListIds(
-        d.passengers,
-        'departure',
-        d.passengerDepartureOrder,
-      );
+      const ids = activePassengerListIds(d.passengers, 'departure', d.passengerDepartureOrder);
       const reordered = reorderIdList(ids, fromIndex, toIndex);
       if (linked) {
-        const arrivalIds = activePassengerListIds(
-          d.passengers,
-          'arrival',
-          d.passengerArrivalOrder,
-        );
+        const arrivalIds = activePassengerListIds(d.passengers, 'arrival', d.passengerArrivalOrder);
         return {
           ...d,
           passengerArrivalOrder: arrivalIds,
@@ -391,9 +377,7 @@ export class PassengerStore {
     toIndex: number,
   ): PassengerMember[] {
     const inList = (m: PassengerMember) =>
-      list === 'arrival'
-        ? !m.archived && m.onArrivalList
-        : !m.archived && m.onDepartureList;
+      list === 'arrival' ? !m.archived && m.onArrivalList : !m.archived && m.onDepartureList;
     const indices: number[] = [];
     const members: PassengerMember[] = [];
     passengers.forEach((m, i) => {

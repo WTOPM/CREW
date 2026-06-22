@@ -61,7 +61,12 @@ const CLR = {
 
 const thinEdge = { style: 'thin' as const, color: { argb: CLR.black } };
 const mediumEdge = { style: 'medium' as const, color: { argb: CLR.black } };
-const THIN: Partial<ExcelJS.Borders> = { top: thinEdge, left: thinEdge, bottom: thinEdge, right: thinEdge };
+const THIN: Partial<ExcelJS.Borders> = {
+  top: thinEdge,
+  left: thinEdge,
+  bottom: thinEdge,
+  right: thinEdge,
+};
 const MEDIUM: Partial<ExcelJS.Borders> = {
   top: mediumEdge,
   left: mediumEdge,
@@ -144,10 +149,7 @@ function exportClassTotalKg(rows: readonly DgManifestExcelRow[], dgClass: string
   return Math.round(sum);
 }
 
-function uniqueUnNumbersForClass(
-  rows: readonly DgManifestExcelRow[],
-  dgClass: string,
-): string {
+function uniqueUnNumbersForClass(rows: readonly DgManifestExcelRow[], dgClass: string): string {
   const key = dgClass.trim();
   const set = new Set<string>();
   for (const row of rows) {
@@ -610,11 +612,16 @@ export async function buildDgManifestWorksheet(
   ports: readonly Port[] = [],
   exportContext?: DgManifestExportContext,
 ): Promise<number> {
-  const containers = exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
+  const containers =
+    exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
   const mergeLines = exportContext?.mergeLines ?? true;
   const useGrossWeight = exportContext?.useGrossWeight !== false;
   const roundWeights = exportContext?.grossTotalKg === true;
-  const dataRows = dgContainersToExcelRows(containers, ports, { mergeLines, useGrossWeight, roundWeights });
+  const dataRows = dgContainersToExcelRows(containers, ports, {
+    mergeLines,
+    useGrossWeight,
+    roundWeights,
+  });
   const totalKg = dgContainersExportTotalKg(containers, useGrossWeight, roundWeights);
   const hasExportData = dataRows.some(
     (r) => r.dgClass || r.unNo || r.weightKg || r.properShippingName || r.containerNo,

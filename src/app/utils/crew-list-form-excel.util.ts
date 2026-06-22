@@ -68,7 +68,10 @@ function setBorder(cell: ExcelJS.Cell, border: Partial<ExcelJS.Borders>): void {
   cell.border = border as ExcelJS.Borders;
 }
 
-export function styleFormLabel(cell: ExcelJS.Cell, align: 'left' | 'center' | 'right' = 'left'): void {
+export function styleFormLabel(
+  cell: ExcelJS.Cell,
+  align: 'left' | 'center' | 'right' = 'left',
+): void {
   cell.font = { name: FORM_FONT, size: 7 };
   cell.alignment = { horizontal: align, vertical: 'top', wrapText: true };
   setBorder(cell, FORM_THIN_BORDER);
@@ -536,8 +539,7 @@ export function fillCrewListFormFooter(
   masterName: string,
 ): void {
   const sigSplit = Math.max(1, Math.floor(layout.colCount * (layout.colCount > 8 ? 0.45 : 0.55)));
-  ws.getCell(layout.signatureRow, 1).value =
-    `${CREW_LIST_FRAME_LABELS.field12}\n${voyageDate}`;
+  ws.getCell(layout.signatureRow, 1).value = `${CREW_LIST_FRAME_LABELS.field12}\n${voyageDate}`;
   ws.getCell(layout.signatureRow, sigSplit + 1).value = masterName;
 }
 
@@ -567,7 +569,9 @@ export function configureCrewListFormPrint(
   };
 }
 
-export function formatCrewListV2Name(member: Pick<CrewMember, 'familyName' | 'givenNames'>): string {
+export function formatCrewListV2Name(
+  member: Pick<CrewMember, 'familyName' | 'givenNames'>,
+): string {
   const parts = [member.familyName?.trim(), member.givenNames?.trim()].filter(Boolean);
   return parts.join(' ').toUpperCase();
 }
@@ -577,7 +581,9 @@ export function formatGender(gender: CrewMember['gender']): string {
   return '';
 }
 
-export function formatBirthAndPlace(member: Pick<CrewMember, 'dateOfBirth' | 'placeOfBirth'>): string {
+export function formatBirthAndPlace(
+  member: Pick<CrewMember, 'dateOfBirth' | 'placeOfBirth'>,
+): string {
   const dob = formatBirthDate(member.dateOfBirth).trim();
   const pob = member.placeOfBirth?.trim() ?? '';
   if (!dob) return pob;

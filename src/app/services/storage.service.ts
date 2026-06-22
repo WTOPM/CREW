@@ -75,11 +75,7 @@ export class StorageService {
   readonly allCrew = computed(() => this.data().crew);
   readonly paxArr = computed(() => this.data().paxArr);
   readonly activePassengersArrival = computed(() =>
-    filterActivePassengerList(
-      this.data().passengers,
-      'arrival',
-      this.data().passengerArrivalOrder,
-    ),
+    filterActivePassengerList(this.data().passengers, 'arrival', this.data().passengerArrivalOrder),
   );
   readonly activePassengersDeparture = computed(() =>
     filterActivePassengerList(
@@ -122,8 +118,7 @@ export class StorageService {
     // Ports/nationalities are user-managed (Settings) — do not auto-add referenced values.
     this.data.update((d) => ({ ...d, ship: { ...d.ship, ...partial } }));
     const fields = Object.keys(partial) as (keyof ShipInfo)[];
-    const mode =
-      notify ?? (fields.length === 1 ? shipFieldPersistNotify(fields[0]) : 'debounced');
+    const mode = notify ?? (fields.length === 1 ? shipFieldPersistNotify(fields[0]) : 'debounced');
     void this.persist(mode, savedMessage);
   }
 
@@ -153,7 +148,9 @@ export class StorageService {
     void this.persist('silent');
   }
 
-  coerceStoredMainSnapshot(raw: unknown): import('../models/app-snapshot.models').AppMainSnapshot | null {
+  coerceStoredMainSnapshot(
+    raw: unknown,
+  ): import('../models/app-snapshot.models').AppMainSnapshot | null {
     if (!raw || typeof raw !== 'object') return null;
     try {
       const empty = createEmptyAppData();

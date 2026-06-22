@@ -13,7 +13,10 @@ import {
   parseDpWorldHeaderFromPage,
 } from './dg-dpworld-pdf.util';
 import { finalizeUnifeederImportRows } from './dg-import-un-reference.util';
-import { resolveDgWeightTonnageOptions, type DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
+import {
+  resolveDgWeightTonnageOptions,
+  type DgWeightTonnageOptions,
+} from '../models/dg-weight-tonnage.models';
 import { dualWeightFromImport } from './dg-weight-tonnage.util';
 
 export type UnifeederPdfFormat = 'dp-world-dg' | 'unifeeder-dg' | 'unknown';
@@ -182,11 +185,7 @@ function pickNear(
   return '';
 }
 
-function pickNameNear(
-  items: readonly DgPdfTextItem[],
-  anchorX: number,
-  targetY: number,
-): string {
+function pickNameNear(items: readonly DgPdfTextItem[], anchorX: number, targetY: number): string {
   let best = '';
   for (const it of items) {
     if (!nearY(it, targetY, 4)) continue;
@@ -278,16 +277,11 @@ function parseHeaderFromPage(items: readonly DgPdfTextItem[]): Partial<Unifeeder
   if (!polRaw || !podRaw) {
     const sailing = items.find((it) => SAILING_DATE_RE.test(it.str));
     const slashPorts = [
-      ...new Set(
-        items
-          .filter((it) => isRealPortSlash(it.str))
-          .map((it) => it.str.trim()),
-      ),
+      ...new Set(items.filter((it) => isRealPortSlash(it.str)).map((it) => it.str.trim())),
     ];
     if (!polRaw) {
       polRaw =
-        (sailing &&
-          items.find((it) => it.y === sailing.y && isRealPortSlash(it.str))?.str) ??
+        (sailing && items.find((it) => it.y === sailing.y && isRealPortSlash(it.str))?.str) ??
         slashPorts[0] ??
         '';
     }
@@ -300,7 +294,8 @@ function parseHeaderFromPage(items: readonly DgPdfTextItem[]): Partial<Unifeeder
     findPolSailingDate(items) || items.find((it) => SAILING_DATE_RE.test(it.str))?.str || '';
 
   const voyage = items.find((it) => nearY(it, 511, 2) && /^\d{2,4}$/.test(it.str))?.str ?? '';
-  const vessel = items.find((it) => nearY(it, 511, 2) && /^[A-Z][A-Z\s-]{2,}$/.test(it.str))?.str ?? '';
+  const vessel =
+    items.find((it) => nearY(it, 511, 2) && /^[A-Z][A-Z\s-]{2,}$/.test(it.str))?.str ?? '';
 
   return {
     portOfDeparture: extractUnifeederPortName(polRaw),
@@ -389,7 +384,9 @@ function findImoRowForContainer(
   return best;
 }
 
-function findContainerColumnAnchors(items: readonly DgPdfTextItem[]): UnifeederContainerColumnAnchor[] {
+function findContainerColumnAnchors(
+  items: readonly DgPdfTextItem[],
+): UnifeederContainerColumnAnchor[] {
   const candidates: UnifeederContainerColumnAnchor[] = [];
   for (const it of items) {
     const value = it.str.trim();
@@ -400,12 +397,12 @@ function findContainerColumnAnchors(items: readonly DgPdfTextItem[]): UnifeederC
     const imo = findImoRowForContainer(items, it.x, it.y);
     const imoY = imo?.y ?? it.y - IMO.containerNo;
     const size =
-      items.find(
-        (s) =>
-          nearY(s, imoY, 4) &&
-          isSizeCodeCandidate(s.str.trim()) &&
-          Math.abs(s.x - it.x) < 70,
-      )?.str.trim() ?? '';
+      items
+        .find(
+          (s) =>
+            nearY(s, imoY, 4) && isSizeCodeCandidate(s.str.trim()) && Math.abs(s.x - it.x) < 70,
+        )
+        ?.str.trim() ?? '';
     candidates.push({
       columnX: it.x,
       y: it.y,
@@ -449,8 +446,7 @@ function findPageCargoAnchors(items: readonly DgPdfTextItem[]): Array<{ x: numbe
 
   const clusters = new Map<number, DgPdfTextItem[]>();
   for (const label of properLabels) {
-    const bucketY =
-      [...clusters.keys()].find((y) => Math.abs(y - label.y) <= 6) ?? label.y;
+    const bucketY = [...clusters.keys()].find((y) => Math.abs(y - label.y) <= 6) ?? label.y;
     if (!clusters.has(bucketY)) clusters.set(bucketY, []);
     clusters.get(bucketY)!.push(label);
   }
@@ -502,12 +498,7 @@ function findUnAnchorsForImoBlock(
   const minBlockX = columnX < 80 ? 30 : Math.max(50, columnX - 40);
   const collect = (source: readonly DgPdfTextItem[], minX: number): DgPdfTextItem[] =>
     source
-      .filter(
-        (it) =>
-          nearY(it, targetY, 4) &&
-          /^\d{4}$/.test(it.str.trim()) &&
-          it.x >= minX,
-      )
+      .filter((it) => nearY(it, targetY, 4) && /^\d{4}$/.test(it.str.trim()) && it.x >= minX)
       .sort((a, b) => a.x - b.x || a.y - b.y);
 
   const blockItems = blockItemsForColumn(pageItems, columnX, imoY);
@@ -593,11 +584,7 @@ function pickLegacyImoNetRaw(
   return pickNear(fieldItems, ax, imoY + IMO.nweight, (v) => EU_WEIGHT_RE.test(v));
 }
 
-function pickNweightKg(
-  fieldItems: readonly DgPdfTextItem[],
-  ax: number,
-  imoY: number,
-): string {
+function pickNweightKg(fieldItems: readonly DgPdfTextItem[], ax: number, imoY: number): string {
   const near = pickNear(fieldItems, ax, imoY + IMO.nweight, (v) => EU_WEIGHT_RE.test(v));
   const nearKg = parseDgWeightKg(near);
   if (nearKg >= 10) return near;
@@ -636,20 +623,24 @@ function parseImoBlock(
   const containerNo =
     binding?.containerNo ??
     normalizeUnifeederContainerNo(
-      pickLeftColumnField(blockItems, imoY + IMO.containerNo, (value) => CONTAINER_RAW_RE.test(value)) ||
+      pickLeftColumnField(blockItems, imoY + IMO.containerNo, (value) =>
+        CONTAINER_RAW_RE.test(value),
+      ) ||
         pickLeftColumnField(items, imoY + IMO.containerNo, (value) => CONTAINER_RAW_RE.test(value)),
     );
   const stow =
     binding?.stow ??
-    (items.find(
-      (it) =>
-        nearY(it, imoY + IMO.stowage, 4) &&
-        it.x >= 30 &&
-        it.x <= 160 &&
-        /^\d{4,6}$/.test(it.str.trim()),
-    )?.str.trim() ??
-      (pickLeftColumnField(blockItems, imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value)) ||
-        pickLeftColumnField(items, imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value))));
+    items
+      .find(
+        (it) =>
+          nearY(it, imoY + IMO.stowage, 4) &&
+          it.x >= 30 &&
+          it.x <= 160 &&
+          /^\d{4,6}$/.test(it.str.trim()),
+      )
+      ?.str.trim() ??
+    (pickLeftColumnField(blockItems, imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value)) ||
+      pickLeftColumnField(items, imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value)));
 
   if (!containerNo) return [];
 
@@ -751,18 +742,16 @@ function resolveBindingForImo(
 ): UnifeederImoBlockBinding | undefined {
   const blockItems = blockItemsForColumn(items, imo.x, imo.y);
   const explicitContainer = normalizeUnifeederContainerNo(
-    pickLeftColumnField(
-      blockItems,
-      imo.y + IMO.containerNo,
-      (value) => CONTAINER_RAW_RE.test(value),
+    pickLeftColumnField(blockItems, imo.y + IMO.containerNo, (value) =>
+      CONTAINER_RAW_RE.test(value),
     ),
   );
   if (explicitContainer) {
     const size = pickUnifeederSizeCode(blockItems, imo.y + IMO.size);
     const stow =
-      blockItems.find(
-        (it) => nearY(it, imo.y + IMO.stowage, 4) && /^\d{4,6}$/.test(it.str.trim()),
-      )?.str.trim() ??
+      blockItems
+        .find((it) => nearY(it, imo.y + IMO.stowage, 4) && /^\d{4,6}$/.test(it.str.trim()))
+        ?.str.trim() ??
       pickLeftColumnField(blockItems, imo.y + IMO.stowage, (value) => /^\d{4,6}$/.test(value));
     return { containerNo: explicitContainer, size, stow };
   }
@@ -774,17 +763,21 @@ function resolveBindingForImo(
 
   const headerBlockItems = blockItemsForColumn(items, header.columnX, header.imoY);
   const stow =
-    headerBlockItems.find(
-      (it) => nearY(it, header.imoY + IMO.stowage, 4) && /^\d{4,6}$/.test(it.str.trim()),
-    )?.str.trim() ??
-    items.find(
-      (it) =>
-        nearY(it, header.imoY + IMO.stowage, 4) &&
-        it.x >= 90 &&
-        it.x <= 200 &&
-        /^\d{4,6}$/.test(it.str.trim()),
-    )?.str.trim() ??
-    pickLeftColumnField(headerBlockItems, header.imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value));
+    headerBlockItems
+      .find((it) => nearY(it, header.imoY + IMO.stowage, 4) && /^\d{4,6}$/.test(it.str.trim()))
+      ?.str.trim() ??
+    items
+      .find(
+        (it) =>
+          nearY(it, header.imoY + IMO.stowage, 4) &&
+          it.x >= 90 &&
+          it.x <= 200 &&
+          /^\d{4,6}$/.test(it.str.trim()),
+      )
+      ?.str.trim() ??
+    pickLeftColumnField(headerBlockItems, header.imoY + IMO.stowage, (value) =>
+      /^\d{4,6}$/.test(value),
+    );
 
   return {
     containerNo: header.containerNo,
@@ -801,9 +794,7 @@ function resolveBindingForContinuation(
 ): UnifeederImoBlockBinding | undefined {
   const targetUnY = anchorY + IMO.unNo;
   const unXs = items
-    .filter(
-      (it) => nearY(it, targetUnY, 4) && /^\d{4}$/.test(it.str.trim()) && it.x >= 30,
-    )
+    .filter((it) => nearY(it, targetUnY, 4) && /^\d{4}$/.test(it.str.trim()) && it.x >= 30)
     .map((it) => it.x);
   if (!unXs.length) return undefined;
 
@@ -817,13 +808,15 @@ function resolveBindingForContinuation(
   if (!header) return undefined;
 
   const stow =
-    items.find(
-      (it) =>
-        nearY(it, header.imoY + IMO.stowage, 4) &&
-        it.x >= 30 &&
-        it.x <= 200 &&
-        /^\d{4,6}$/.test(it.str.trim()),
-    )?.str.trim() ?? '';
+    items
+      .find(
+        (it) =>
+          nearY(it, header.imoY + IMO.stowage, 4) &&
+          it.x >= 30 &&
+          it.x <= 200 &&
+          /^\d{4,6}$/.test(it.str.trim()),
+      )
+      ?.str.trim() ?? '';
 
   return {
     containerNo: header.containerNo,
@@ -875,12 +868,8 @@ function parsePageRows(
     let binding: UnifeederImoBlockBinding | undefined;
     if (!hasImoRows) {
       binding =
-        resolveBindingForContinuation(
-          items,
-          anchor.y,
-          containerHeaders,
-          recentColumnHeaders,
-        ) ?? activeBinding;
+        resolveBindingForContinuation(items, anchor.y, containerHeaders, recentColumnHeaders) ??
+        activeBinding;
     } else {
       binding = resolveBindingForImo(items, pseudoImo, containerHeaders) ?? activeBinding;
     }
@@ -980,7 +969,11 @@ function parseLegacyUnifeederManifest(
   const rows: UnifeederImportRowPartial[] = [];
   for (const page of pages) {
     const pageItems = items.filter((i) => i.page === page);
-    const { rows: pageRows, lastBinding: nextBinding, columnHeaders: nextHeaders } = parsePageRows(
+    const {
+      rows: pageRows,
+      lastBinding: nextBinding,
+      columnHeaders: nextHeaders,
+    } = parsePageRows(
       pageItems,
       loadPort,
       dischargePort,
@@ -992,8 +985,7 @@ function parseLegacyUnifeederManifest(
     columnHeaders = [...nextHeaders];
     if (!pageRows.length) {
       const mightHaveCargo = pageItems.some(
-        (it) =>
-          it.str === 'IMO Information' || /^Proper ship\.\s*name:?\s*$/i.test(it.str.trim()),
+        (it) => it.str === 'IMO Information' || /^Proper ship\.\s*name:?\s*$/i.test(it.str.trim()),
       );
       if (mightHaveCargo) {
         warnings.push(`Page ${page}: no DG cargo rows found.`);

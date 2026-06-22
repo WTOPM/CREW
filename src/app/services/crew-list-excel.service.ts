@@ -6,10 +6,7 @@ import {
   CREW_IDENTITY_SEAMANS_BOOK,
   CrewMember,
 } from '../models/crew.models';
-import {
-  CREW_LIST_TYPE_LABELS,
-  CrewListTypeId,
-} from '../models/document-overlay.models';
+import { CREW_LIST_TYPE_LABELS, CrewListTypeId } from '../models/document-overlay.models';
 import { formatDisplayDate } from '../utils/date.util';
 import { workbookToBytes } from '../utils/crew-list-excel-layout.util';
 import {
@@ -45,14 +42,17 @@ export class CrewListExcelService {
   async openForListType(listType: CrewListTypeId): Promise<boolean> {
     const base = this.appData();
     const isArrival = listType === 'type2Alger' ? true : base.crewArr.isArrival;
-    const crew = isArrival
-      ? this.storage.activeCrewArrival()
-      : this.storage.activeCrewDeparture();
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
 
     let bytes: Uint8Array;
     if (listType === 'type2Alger') {
       bytes = await buildAlgerCrewListExcel(base, crew);
-    } else if (listType === 'type3V2' || listType === 'type4V3Sbk' || listType === 'type5V3SbkP' || listType === 'type6V3SbkP2') {
+    } else if (
+      listType === 'type3V2' ||
+      listType === 'type4V3Sbk' ||
+      listType === 'type5V3SbkP' ||
+      listType === 'type6V3SbkP2'
+    ) {
       bytes = await buildCrewListVariantExcel(listType, base, crew);
     } else {
       bytes = await this.buildType1(base, listType);
@@ -66,9 +66,7 @@ export class CrewListExcelService {
     const isArrival = base.crewArr.isArrival;
     const identity =
       listType === 'type1SeamansBook' ? CREW_IDENTITY_SEAMANS_BOOK : CREW_IDENTITY_PASSPORT;
-    const crew = isArrival
-      ? this.storage.activeCrewArrival()
-      : this.storage.activeCrewDeparture();
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
 
     const { ship, crewArr } = base;
     const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
@@ -142,9 +140,7 @@ export class CrewListExcelService {
     const { ship, crewArr } = base;
     const isArrival = crewArr.isArrival;
     const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
-    const typeToken = pdfFileToken(
-      listType === 'type1SeamansBook' ? 'SeamansBook' : 'Passport',
-    );
+    const typeToken = pdfFileToken(listType === 'type1SeamansBook' ? 'SeamansBook' : 'Passport');
     const dirToken = isArrival ? 'Arrival' : 'Departure';
     return `Crew_List_${typeToken}_${dirToken}_${pdfFileToken(ship.name)}_${pdfFileToken(ship.portOfCall)}_${pdfFileDate(voyageDate)}.pdf`;
   }

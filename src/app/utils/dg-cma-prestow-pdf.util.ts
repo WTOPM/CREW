@@ -48,7 +48,10 @@ function findSectionY(items: readonly DgPdfTextItem[], label: string): number | 
   return y;
 }
 
-function groupRowItems(items: readonly DgPdfTextItem[], yTol = 5): { y: number; items: DgPdfTextItem[] }[] {
+function groupRowItems(
+  items: readonly DgPdfTextItem[],
+  yTol = 5,
+): { y: number; items: DgPdfTextItem[] }[] {
   const groups: { y: number; items: DgPdfTextItem[] }[] = [];
   for (const it of items) {
     const group = groups.find((g) => Math.abs(g.y - it.y) <= yTol);

@@ -1,10 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import {
-  AppData,
-  CrewMember,
-  formatPortCallPortName,
-  portCountry,
-} from '../models/crew.models';
+import { AppData, CrewMember, formatPortCallPortName, portCountry } from '../models/crew.models';
 import { resolveCrewListStampOptions } from '../models/document-overlay.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { PdfOverlayService } from './pdf-overlay.service';
@@ -42,7 +37,10 @@ export class PdfCrewListV2Service {
 
   async buildPreviewBytes(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
     const bytes = await this.build(data, crew);
-    return this.overlay.applyToPdfBytes(bytes, resolveCrewListStampOptions(data.documentOverlay.crewList));
+    return this.overlay.applyToPdfBytes(
+      bytes,
+      resolveCrewListStampOptions(data.documentOverlay.crewList),
+    );
   }
 
   async openPreview(data: AppData, crew: CrewMember[]): Promise<boolean> {
@@ -85,9 +83,7 @@ export class PdfCrewListV2Service {
 
     for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
       const page =
-        pageIndex === 0
-          ? firstPage
-          : this.addTemplatePage(doc, firstPage, embeddedTemplate);
+        pageIndex === 0 ? firstPage : this.addTemplatePage(doc, firstPage, embeddedTemplate);
 
       const slice = crew.slice(
         pageIndex * CREW_LIST_V2_MAX_ROWS,
@@ -144,9 +140,7 @@ export class PdfCrewListV2Service {
   ): void {
     const { ship, crewArr, ports } = data;
     const isArrival = crewArr.isArrival;
-    const voyageDate = formatDisplayDate(
-      isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
-    );
+    const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
 
     const draw = (text: string, placement: CrewListV2TextPlacement, useBold = false) =>
       this.drawText(page, text, placement, font, bold, black, useBold);
@@ -161,7 +155,13 @@ export class PdfCrewListV2Service {
     draw(this.formatPortWithCountry(ship.portOfCall, ports), CREW_LIST_V2_HEADER.portOfCall, true);
     draw(voyageDate, CREW_LIST_V2_HEADER.voyageDate, true);
     draw(String(pageNo), CREW_LIST_V2_HEADER.pageNo);
-    this.drawPortsFromTo(page, bold, black, this.portsFromTo(data), CREW_LIST_V2_HEADER.portsFromTo);
+    this.drawPortsFromTo(
+      page,
+      bold,
+      black,
+      this.portsFromTo(data),
+      CREW_LIST_V2_HEADER.portsFromTo,
+    );
   }
 
   private drawPortsFromTo(
@@ -211,9 +211,7 @@ export class PdfCrewListV2Service {
   ): void {
     const { ship, crewArr } = data;
     const isArrival = crewArr.isArrival;
-    const voyageDate = formatDisplayDate(
-      isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
-    );
+    const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
     const draw = (text: string, placement: CrewListV2TextPlacement, useBold = false) =>
       this.drawText(page, text, placement, font, bold, black, useBold);
 
@@ -260,11 +258,35 @@ export class PdfCrewListV2Service {
         ...rowOpts,
       });
 
-      this.drawRowCell(page, this.formatCrewListV2Name(member), CREW_LIST_V2_ROW_COLS.name, y, rowOpts);
+      this.drawRowCell(
+        page,
+        this.formatCrewListV2Name(member),
+        CREW_LIST_V2_ROW_COLS.name,
+        y,
+        rowOpts,
+      );
       this.drawRowCell(page, member.rank.trim(), CREW_LIST_V2_ROW_COLS.rank, y, rowOpts);
-      this.drawRowCell(page, member.nationality.trim(), CREW_LIST_V2_ROW_COLS.nationality, y, rowOpts);
-      this.drawRowCell(page, formatBirthDate(member.dateOfBirth), CREW_LIST_V2_ROW_COLS.dateOfBirth, y, rowOpts);
-      this.drawRowCell(page, member.placeOfBirth.trim(), CREW_LIST_V2_ROW_COLS.placeOfBirth, y, rowOpts);
+      this.drawRowCell(
+        page,
+        member.nationality.trim(),
+        CREW_LIST_V2_ROW_COLS.nationality,
+        y,
+        rowOpts,
+      );
+      this.drawRowCell(
+        page,
+        formatBirthDate(member.dateOfBirth),
+        CREW_LIST_V2_ROW_COLS.dateOfBirth,
+        y,
+        rowOpts,
+      );
+      this.drawRowCell(
+        page,
+        member.placeOfBirth.trim(),
+        CREW_LIST_V2_ROW_COLS.placeOfBirth,
+        y,
+        rowOpts,
+      );
       this.drawRowCell(page, member.passport.trim(), CREW_LIST_V2_ROW_COLS.passportNo, y, rowOpts);
       this.drawRowCell(
         page,
@@ -423,10 +445,9 @@ export class PdfCrewListV2Service {
     if (this.templateBytes && this.loadedVersion === CREW_LIST_V2_TEMPLATE_VERSION) {
       return this.templateBytes;
     }
-    const res = await fetch(
-      `${CREW_LIST_V2_TEMPLATE_URL}?v=${CREW_LIST_V2_TEMPLATE_VERSION}`,
-      { cache: 'no-store' },
-    );
+    const res = await fetch(`${CREW_LIST_V2_TEMPLATE_URL}?v=${CREW_LIST_V2_TEMPLATE_VERSION}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) {
       throw new Error('Crew List v2 template not found (public/crew-list-v2-empty.pdf)');
     }

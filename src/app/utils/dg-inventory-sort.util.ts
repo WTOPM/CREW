@@ -34,10 +34,7 @@ function compareText(a: string, b: string): number {
   return a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
 }
 
-function compareLineField(
-  line: DgCargoLine,
-  column: DgInventorySortColumn,
-): string | number {
+function compareLineField(line: DgCargoLine, column: DgInventorySortColumn): string | number {
   switch (column) {
     case 'dgClass':
       return dgClassSortKey(line.dgClass);
@@ -76,7 +73,9 @@ function containerFieldCompare(
     case 'loadPort':
       return compareText(a.loadPort, b.loadPort) || compareText(a.containerNo, b.containerNo);
     case 'dischargePort':
-      return compareText(a.dischargePort, b.dischargePort) || compareText(a.containerNo, b.containerNo);
+      return (
+        compareText(a.dischargePort, b.dischargePort) || compareText(a.containerNo, b.containerNo)
+      );
     case 'stowage':
       return compareText(a.stowage, b.stowage) || compareText(a.containerNo, b.containerNo);
     default:

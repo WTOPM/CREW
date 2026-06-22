@@ -30,7 +30,9 @@ function compareUnits(
     case 'loadPort':
       return compareText(a.loadPort, b.loadPort) || compareText(a.containerNo, b.containerNo);
     case 'dischargePort':
-      return compareText(a.dischargePort, b.dischargePort) || compareText(a.containerNo, b.containerNo);
+      return (
+        compareText(a.dischargePort, b.dischargePort) || compareText(a.containerNo, b.containerNo)
+      );
     case 'position':
       return compareText(a.position, b.position) || compareText(a.containerNo, b.containerNo);
   }
@@ -58,7 +60,11 @@ export function reeferVisibleOnboardUnits(library: ReeferLibrarySettings): Reefe
     ? [...library.onboard]
     : library.onboard.filter((u) => u.status !== 'discharged');
   if (library.inventorySortColumn) {
-    list = sortReeferOnboardUnits(list, library.inventorySortColumn, library.inventorySortDirection);
+    list = sortReeferOnboardUnits(
+      list,
+      library.inventorySortColumn,
+      library.inventorySortDirection,
+    );
   }
   return list;
 }

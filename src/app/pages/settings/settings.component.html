@@ -25,7 +25,10 @@
           </label>
           <label class="ship-field">
             <span>Nationality</span>
-            <input [ngModel]="ship().nationality" (ngModelChange)="onShipChange('nationality', $event)" />
+            <input
+              [ngModel]="ship().nationality"
+              (ngModelChange)="onShipChange('nationality', $event)"
+            />
           </label>
           <label class="ship-field ship-field--wide">
             <span>Homeport</span>
@@ -41,7 +44,10 @@
           </label>
           <label class="ship-field">
             <span>Charterer</span>
-            <input [ngModel]="ship().charterer" (ngModelChange)="onShipChange('charterer', $event)" />
+            <input
+              [ngModel]="ship().charterer"
+              (ngModelChange)="onShipChange('charterer', $event)"
+            />
           </label>
           <label class="ship-field">
             <span>Voyage Number</span>
@@ -154,11 +160,17 @@
           <div class="ship-block-grid ship-block-grid--2">
             <label class="ship-field">
               <span>Gross</span>
-              <input [ngModel]="ship().grossTonnage" (ngModelChange)="onShipChange('grossTonnage', $event)" />
+              <input
+                [ngModel]="ship().grossTonnage"
+                (ngModelChange)="onShipChange('grossTonnage', $event)"
+              />
             </label>
             <label class="ship-field">
               <span>Net</span>
-              <input [ngModel]="ship().netTonnage" (ngModelChange)="onShipChange('netTonnage', $event)" />
+              <input
+                [ngModel]="ship().netTonnage"
+                (ngModelChange)="onShipChange('netTonnage', $event)"
+              />
             </label>
           </div>
         </div>
@@ -184,7 +196,9 @@
           <span class="ref-tile__stats">
             <span class="ref-tile__chip">{{ ports().length }} ports</span>
             @if (totalPortTerminals() > 0) {
-              <span class="ref-tile__chip ref-tile__chip--soft">{{ totalPortTerminals() }} terminals</span>
+              <span class="ref-tile__chip ref-tile__chip--soft"
+                >{{ totalPortTerminals() }} terminals</span
+              >
             }
           </span>
         </span>
@@ -219,7 +233,9 @@
 
   <section class="card ref-settings-card">
     <h2>Printing</h2>
-    <p class="section-desc">Per-port document packages — open or print a chosen set of documents at once.</p>
+    <p class="section-desc">
+      Per-port document packages — open or print a chosen set of documents at once.
+    </p>
     <div class="settings-tiles">
       <button type="button" class="settings-tile settings-tile--packages" (click)="openPackages()">
         <span class="tile-icon" aria-hidden="true">🖨️</span>
@@ -246,35 +262,67 @@
 
 @if (showPortsModal()) {
   <div class="modal-backdrop">
-    <div class="modal ref-modal ref-modal--ports" appClickOutside (appClickOutside)="closePorts()" (click)="$event.stopPropagation()">
+    <div
+      class="modal ref-modal ref-modal--ports"
+      appClickOutside
+      (appClickOutside)="closePorts()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="ref-modal__head">
         <span class="ref-modal__mark" aria-hidden="true">⚓</span>
         <div class="ref-modal__head-text">
           <h3>Ports</h3>
-          <p class="ref-modal__hint">Port directory for forms, manifests and document packages. Terminals are optional per port.</p>
+          <p class="ref-modal__hint">
+            Port directory for forms, manifests and document packages. Terminals are optional per
+            port.
+          </p>
         </div>
       </header>
 
       <div class="ref-modal__add ref-modal__add--grid">
         <label class="ref-field">
           <span>Name</span>
-          <input placeholder="Hamburg" [ngModel]="newPortName()" (ngModelChange)="newPortName.set($event)" />
+          <input
+            placeholder="Hamburg"
+            [ngModel]="newPortName()"
+            (ngModelChange)="newPortName.set($event)"
+          />
         </label>
         <label class="ref-field ref-field--code">
           <span>UN/LOCODE</span>
-          <input placeholder="DEHAM" [ngModel]="newPortCode()" (ngModelChange)="newPortCode.set($event)" />
+          <input
+            placeholder="DEHAM"
+            [ngModel]="newPortCode()"
+            (ngModelChange)="newPortCode.set($event)"
+          />
         </label>
         <label class="ref-field">
           <span>Country</span>
-          <input placeholder="GERMANY" [ngModel]="newPortCountry()" (ngModelChange)="newPortCountry.set($event)" (keyup.enter)="addPortItem()" />
+          <input
+            placeholder="GERMANY"
+            [ngModel]="newPortCountry()"
+            (ngModelChange)="newPortCountry.set($event)"
+            (keyup.enter)="addPortItem()"
+          />
         </label>
-        <button type="button" class="ref-add-btn ref-add-btn--ports" title="Add port" (click)="addPortItem()">+</button>
+        <button
+          type="button"
+          class="ref-add-btn ref-add-btn--ports"
+          title="Add port"
+          (click)="addPortItem()"
+        >
+          +
+        </button>
       </div>
 
       <div class="ref-modal__list-wrap">
         <ul class="ref-modal__list port-list" cdkDropList (cdkDropListDropped)="dropPort($event)">
           @for (p of ports(); track p.name) {
-            <li cdkDrag class="ref-modal__row port-list-item" [class.port-list-item--open]="expandedPort() === p.name">
+            <li
+              cdkDrag
+              class="ref-modal__row port-list-item"
+              [class.port-list-item--open]="expandedPort() === p.name"
+            >
               <div class="port-list-main">
                 <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
                 <button
@@ -289,14 +337,25 @@
                 <div class="port-list-label">
                   <span class="port-list-name">{{ p.name }}</span>
                   <span class="port-list-meta">
-                    @if (p.code) { <span class="port-meta-chip">{{ p.code }}</span> }
-                    @if (p.country) { <span class="port-meta-chip port-meta-chip--muted">{{ p.country }}</span> }
+                    @if (p.code) {
+                      <span class="port-meta-chip">{{ p.code }}</span>
+                    }
+                    @if (p.country) {
+                      <span class="port-meta-chip port-meta-chip--muted">{{ p.country }}</span>
+                    }
                   </span>
                 </div>
                 @if (portTerminalCount(p) > 0) {
                   <span class="port-term-badge">{{ portTerminalCount(p) }}</span>
                 }
-                <button type="button" class="ref-row-remove" title="Remove port" (click)="removePortItem(p.name)">×</button>
+                <button
+                  type="button"
+                  class="ref-row-remove"
+                  title="Remove port"
+                  (click)="removePortItem(p.name)"
+                >
+                  ×
+                </button>
               </div>
               @if (expandedPort() === p.name) {
                 <div class="port-terminals">
@@ -307,7 +366,9 @@
                         <strong>Terminals are optional</strong>
                         <p>
                           Leave empty if this port has a single berth. Otherwise add
-                          <span class="port-term-example"><kbd>EGH</kbd> Eurogate Terminal Hamburg</span>
+                          <span class="port-term-example"
+                            ><kbd>EGH</kbd> Eurogate Terminal Hamburg</span
+                          >
                           — short code first, then full name.
                         </p>
                       </div>
@@ -372,12 +433,19 @@
 
 @if (showRanksModal()) {
   <div class="modal-backdrop">
-    <div class="modal ref-modal ref-modal--ranks" appClickOutside (appClickOutside)="closeRanks()" (click)="$event.stopPropagation()">
+    <div
+      class="modal ref-modal ref-modal--ranks"
+      appClickOutside
+      (appClickOutside)="closeRanks()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="ref-modal__head">
         <span class="ref-modal__mark" aria-hidden="true">★</span>
         <div class="ref-modal__head-text">
           <h3>Ranks</h3>
-          <p class="ref-modal__hint">Order matters — drag rows to set rank priority on crew lists.</p>
+          <p class="ref-modal__hint">
+            Order matters — drag rows to set rank priority on crew lists.
+          </p>
         </div>
       </header>
 
@@ -391,7 +459,14 @@
             (keyup.enter)="addRankItem()"
           />
         </label>
-        <button type="button" class="ref-add-btn ref-add-btn--ranks" title="Add rank" (click)="addRankItem()">+</button>
+        <button
+          type="button"
+          class="ref-add-btn ref-add-btn--ranks"
+          title="Add rank"
+          (click)="addRankItem()"
+        >
+          +
+        </button>
       </div>
 
       <div class="ref-modal__list-wrap">
@@ -400,7 +475,14 @@
             <li cdkDrag class="ref-modal__row">
               <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
               <span class="ref-modal__row-label">{{ r }}</span>
-              <button type="button" class="ref-row-remove" title="Remove rank" (click)="removeRankItem(r)">×</button>
+              <button
+                type="button"
+                class="ref-row-remove"
+                title="Remove rank"
+                (click)="removeRankItem(r)"
+              >
+                ×
+              </button>
             </li>
           }
         </ul>
@@ -415,7 +497,12 @@
 
 @if (showNationalitiesModal()) {
   <div class="modal-backdrop">
-    <div class="modal ref-modal ref-modal--nationalities" appClickOutside (appClickOutside)="closeNationalities()" (click)="$event.stopPropagation()">
+    <div
+      class="modal ref-modal ref-modal--nationalities"
+      appClickOutside
+      (appClickOutside)="closeNationalities()"
+      (click)="$event.stopPropagation()"
+    >
       <header class="ref-modal__head">
         <span class="ref-modal__mark" aria-hidden="true">🌍</span>
         <div class="ref-modal__head-text">
@@ -434,7 +521,14 @@
             (keyup.enter)="addNationalityItem()"
           />
         </label>
-        <button type="button" class="ref-add-btn ref-add-btn--nationalities" title="Add nationality" (click)="addNationalityItem()">+</button>
+        <button
+          type="button"
+          class="ref-add-btn ref-add-btn--nationalities"
+          title="Add nationality"
+          (click)="addNationalityItem()"
+        >
+          +
+        </button>
       </div>
 
       <div class="ref-modal__list-wrap">
@@ -443,7 +537,14 @@
             <li cdkDrag class="ref-modal__row">
               <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
               <span class="ref-modal__row-label">{{ n }}</span>
-              <button type="button" class="ref-row-remove" title="Remove nationality" (click)="removeNationalityItem(n)">×</button>
+              <button
+                type="button"
+                class="ref-row-remove"
+                title="Remove nationality"
+                (click)="removeNationalityItem(n)"
+              >
+                ×
+              </button>
             </li>
           }
         </ul>

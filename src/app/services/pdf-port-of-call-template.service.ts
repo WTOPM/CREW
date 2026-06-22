@@ -69,9 +69,7 @@ export class PdfPortOfCallTemplateService {
 
     pages.forEach((pageRows, pageIndex) => {
       const page =
-        pageIndex === 0
-          ? firstPage
-          : this.addTemplatePage(doc, firstPage, embeddedTemplate);
+        pageIndex === 0 ? firstPage : this.addTemplatePage(doc, firstPage, embeddedTemplate);
 
       this.drawHeader(page, font, black, data);
       this.drawPortRows(page, font, black, data.ports, pageRows);
@@ -90,7 +88,12 @@ export class PdfPortOfCallTemplateService {
     return page;
   }
 
-  private drawHeader(page: PDFPage, font: PDFFont, color: import('pdf-lib').RGB, data: AppData): void {
+  private drawHeader(
+    page: PDFPage,
+    font: PDFFont,
+    color: import('pdf-lib').RGB,
+    data: AppData,
+  ): void {
     const { ship } = data;
     const ports = data.ports;
     const draw = (text: string, placement: PocTemplateTextPlacement) => {

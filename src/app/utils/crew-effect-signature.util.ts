@@ -1,7 +1,13 @@
 import type { DocumentOverlayId } from '../models/document-overlay.models';
-import type { CrewSignatureRowTweak, CrewEffectStampOptions } from '../models/document-overlay.models';
+import type {
+  CrewSignatureRowTweak,
+  CrewEffectStampOptions,
+} from '../models/document-overlay.models';
 import type { PdfStampBox } from './overlay-stamp-box.util';
-import { CREW_EFFECT_ROW_COUNT, crewEffectRowPdfLibY } from '../services/crew-effect-field-positions';
+import {
+  CREW_EFFECT_ROW_COUNT,
+  crewEffectRowPdfLibY,
+} from '../services/crew-effect-field-positions';
 import {
   CREW_EFFECT_02_ROW_COUNT,
   crewEffect02RowPdfLibY,
@@ -106,10 +112,14 @@ export function normalizeCrewSignatureByRow(
     if (!/^\d+$/.test(key) || !val || typeof val !== 'object') continue;
     const v = val as Record<string, unknown>;
     const tweak: CrewSignatureRowTweak = {};
-    if (typeof v['offsetX'] === 'number' && Number.isFinite(v['offsetX'])) tweak.offsetX = v['offsetX'];
-    if (typeof v['offsetY'] === 'number' && Number.isFinite(v['offsetY'])) tweak.offsetY = v['offsetY'];
-    if (typeof v['width'] === 'number' && (v['width'] as number) > 0) tweak.width = v['width'] as number;
-    if (typeof v['height'] === 'number' && (v['height'] as number) > 0) tweak.height = v['height'] as number;
+    if (typeof v['offsetX'] === 'number' && Number.isFinite(v['offsetX']))
+      tweak.offsetX = v['offsetX'];
+    if (typeof v['offsetY'] === 'number' && Number.isFinite(v['offsetY']))
+      tweak.offsetY = v['offsetY'];
+    if (typeof v['width'] === 'number' && (v['width'] as number) > 0)
+      tweak.width = v['width'] as number;
+    if (typeof v['height'] === 'number' && (v['height'] as number) > 0)
+      tweak.height = v['height'] as number;
     if (Object.keys(tweak).length) out[key] = tweak;
   }
   return out;

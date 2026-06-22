@@ -1,0 +1,20 @@
+# Build outputs & deps
+node_modules/
+dist/
+out-tsc/
+CREW-App/
+build/
+coverage/
+
+# Generated / data
+*.min.js
+package-lock.json
+data/
+**/crew-data.json
+
+# Assets
+*.ico
+*.png
+*.jpg
+*.pdf
+*.xlsx

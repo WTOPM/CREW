@@ -66,7 +66,18 @@ export type DgInventoryTab = DgActiveInventoryTab;
 
 @Component({
   selector: 'app-dg',
-  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ContainerTypeTooltipDirective, DgClassTooltipDirective, UnNumberTooltipDirective, DgArchiveModalsComponent, DgUnifeederInventoryComponent],
+  imports: [
+    RouterLink,
+    FormsModule,
+    DgActIconComponent,
+    PortSelectComponent,
+    DatePickerComponent,
+    ContainerTypeTooltipDirective,
+    DgClassTooltipDirective,
+    UnNumberTooltipDirective,
+    DgArchiveModalsComponent,
+    DgUnifeederInventoryComponent,
+  ],
   templateUrl: './dg.component.html',
 })
 export class DgComponent {
@@ -105,11 +116,13 @@ export class DgComponent {
     return list;
   });
 
-  protected readonly viewOptions = computed((): DgManifestViewOptions => ({
-    manifestMergeLines: this.library().manifestMergeLines,
-    manifestUseGrossWeight: this.library().manifestUseGrossWeight,
-    manifestRoundWeights: this.library().manifestRoundWeights,
-  }));
+  protected readonly viewOptions = computed(
+    (): DgManifestViewOptions => ({
+      manifestMergeLines: this.library().manifestMergeLines,
+      manifestUseGrossWeight: this.library().manifestUseGrossWeight,
+      manifestRoundWeights: this.library().manifestRoundWeights,
+    }),
+  );
 
   protected readonly inventoryWeightDisplays = computed(() =>
     planDgInventoryWeightDisplays(this.visibleContainers(), this.viewOptions()),
@@ -137,8 +150,9 @@ export class DgComponent {
   protected readonly inventorySortColumn = signal<DgInventorySortColumn | null>(null);
   protected readonly inventorySortDirection = signal<DgInventorySortDirection>('asc');
   protected readonly inventorySearch = signal('');
-  protected readonly activeInventoryTab = computed((): DgInventoryTab =>
-    this.library().activeInventoryTab === 'unifeeder' ? 'unifeeder' : 'cmaCgm',
+  protected readonly activeInventoryTab = computed(
+    (): DgInventoryTab =>
+      this.library().activeInventoryTab === 'unifeeder' ? 'unifeeder' : 'cmaCgm',
   );
 
   protected readonly unifeederLibrary = computed(() => this.library().unifeeder);
@@ -271,7 +285,11 @@ export class DgComponent {
   }
 
   protected containerDisplayLines(container: DgOnboardContainer): DgCargoLineDisplay[] {
-    return buildDgContainerDisplayLines(container, this.viewOptions(), this.inventoryWeightDisplays());
+    return buildDgContainerDisplayLines(
+      container,
+      this.viewOptions(),
+      this.inventoryWeightDisplays(),
+    );
   }
 
   protected containerDisplayLineCount(container: DgOnboardContainer): number {
@@ -364,7 +382,11 @@ export class DgComponent {
 
   protected onCmaLineWeightBlur(containerId: string, lineId: string, raw: string): void {
     const lib = this.library();
-    const partial = commitDgDualWeightEdit(raw, lib.manifestUseGrossWeight, lib.manifestRoundWeights);
+    const partial = commitDgDualWeightEdit(
+      raw,
+      lib.manifestUseGrossWeight,
+      lib.manifestRoundWeights,
+    );
     this.dg.updateDgOnboardCargoLine(containerId, lineId, partial);
   }
 
@@ -421,11 +443,7 @@ export class DgComponent {
     (event.target as HTMLInputElement | null)?.blur();
   }
 
-  protected onCmaUnNoCommit(
-    containerId: string,
-    lineId: string,
-    event: FocusEvent,
-  ): void {
+  protected onCmaUnNoCommit(containerId: string, lineId: string, event: FocusEvent): void {
     const input = event.target as HTMLInputElement | null;
     if (!input) return;
 
@@ -465,34 +483,42 @@ export class DgComponent {
     if (this.exportingPdf()) return;
 
     this.exportingPdf.set(true);
-    void this.dgPdf.openManifest(this.buildExportContext()).then((ok) => {
-      if (ok) {
-        this.toast.show('PDF manifest opened', 'success');
-      } else {
-        this.toast.showError('Could not open PDF');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'PDF export failed');
-    }).finally(() => {
-      this.exportingPdf.set(false);
-    });
+    void this.dgPdf
+      .openManifest(this.buildExportContext())
+      .then((ok) => {
+        if (ok) {
+          this.toast.show('PDF manifest opened', 'success');
+        } else {
+          this.toast.showError('Could not open PDF');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'PDF export failed');
+      })
+      .finally(() => {
+        this.exportingPdf.set(false);
+      });
   }
 
   protected exportExcel(): void {
     if (this.exportingExcel()) return;
 
     this.exportingExcel.set(true);
-    void this.dgExcel.openManifest(this.buildExportContext()).then((ok) => {
-      if (ok) {
-        this.toast.show('Excel manifest opened', 'success');
-      } else {
-        this.toast.showError('Could not open Excel file');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Excel export failed');
-    }).finally(() => {
-      this.exportingExcel.set(false);
-    });
+    void this.dgExcel
+      .openManifest(this.buildExportContext())
+      .then((ok) => {
+        if (ok) {
+          this.toast.show('Excel manifest opened', 'success');
+        } else {
+          this.toast.showError('Could not open Excel file');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Excel export failed');
+      })
+      .finally(() => {
+        this.exportingExcel.set(false);
+      });
   }
 
   private buildExportContext(): DgManifestExportContext {

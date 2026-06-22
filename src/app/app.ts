@@ -22,7 +22,15 @@ interface FolderOption {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, PkgBarComponent, ConfirmDialogComponent, ToastComponent, FormsModule],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    PkgBarComponent,
+    ConfirmDialogComponent,
+    ToastComponent,
+    FormsModule,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

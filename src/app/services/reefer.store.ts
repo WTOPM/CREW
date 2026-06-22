@@ -85,9 +85,7 @@ export class ReeferStore {
     this.data.update((d) => {
       const lib = normalizeReeferLibrary(d.reeferLibrary, d.ports, d.ship);
       const key = which === 'morning' ? 'monitoringMorningSigners' : 'monitoringEveningSigners';
-      const signers = lib[key].map((s, i) =>
-        i === index ? { ...s, [field]: value } : s,
-      );
+      const signers = lib[key].map((s, i) => (i === index ? { ...s, [field]: value } : s));
       return {
         ...d,
         reeferLibrary: { ...lib, [key]: signers },

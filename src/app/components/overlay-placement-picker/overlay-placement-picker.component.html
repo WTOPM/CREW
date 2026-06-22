@@ -1,255 +1,297 @@
-    <div class="modal-backdrop placement-backdrop">
-      <div
-        class="placement-modal"
-        [class.placement-modal--crew-effect]="isCrewEffectDoc() && !mdhAttachment()"
-        tabindex="0"
-        #modalHost
-        appClickOutside
-        (appClickOutside)="close.emit()"
-        (click)="$event.stopPropagation()"
-        (keydown)="onKeydown($event)"
-      >
-        <header class="placement-header">
-          <h3>{{ modalTitle() }}</h3>
-          @if (isCrewEffectDoc() && !mdhAttachment()) {
-            <p class="placement-subtitle">
-              Three independent layers — drag the frame you need on the preview.
-            </p>
-          }
-        </header>
+<div class="modal-backdrop placement-backdrop">
+  <div
+    class="placement-modal"
+    [class.placement-modal--crew-effect]="isCrewEffectDoc() && !mdhAttachment()"
+    tabindex="0"
+    #modalHost
+    appClickOutside
+    (appClickOutside)="close.emit()"
+    (click)="$event.stopPropagation()"
+    (keydown)="onKeydown($event)"
+  >
+    <header class="placement-header">
+      <h3>{{ modalTitle() }}</h3>
+      @if (isCrewEffectDoc() && !mdhAttachment()) {
+        <p class="placement-subtitle">
+          Three independent layers — drag the frame you need on the preview.
+        </p>
+      }
+    </header>
 
-        @if (documentId() === 'mdh' || documentId() === 'shipStores03' || documentId() === 'crewEffect03') {
-          <div class="placement-mdh-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              class="placement-tab"
-              [class.placement-tab--active]="mdhPage() === 'form'"
-              (click)="setMdhPage('form')"
-            >
-              Page 1 (form)
-            </button>
-            <button
-              type="button"
-              role="tab"
-              class="placement-tab"
-              [class.placement-tab--active]="mdhPage() === 'attachment'"
-              (click)="setMdhPage('attachment')"
-            >
-              Page 2
-            </button>
-          </div>
-        }
-
-        <section
-          class="placement-toolbar"
-          [class.placement-toolbar--crew-effect]="isCrewEffectDoc() && !mdhAttachment()"
+    @if (
+      documentId() === 'mdh' || documentId() === 'shipStores03' || documentId() === 'crewEffect03'
+    ) {
+      <div class="placement-mdh-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="placement-tab"
+          [class.placement-tab--active]="mdhPage() === 'form'"
+          (click)="setMdhPage('form')"
         >
-          <div class="placement-toolbar__primary">
-            <div class="placement-toggles">
-              <label class="placement-toggle placement-toggle--stamp">
-                <input
-                  type="checkbox"
-                  [ngModel]="useStampChecked()"
-                  (ngModelChange)="onToggle('useStamp', $event)"
-                />
-                <span class="placement-toggle__text">{{ isCrewEffectDoc() ? 'Ship stamp' : 'Stamp' }}</span>
-              </label>
-              <label class="placement-toggle placement-toggle--captain">
-                <input
-                  type="checkbox"
-                  [ngModel]="useSignatureChecked()"
-                  (ngModelChange)="onToggle('useSignature', $event)"
-                />
-                <span class="placement-toggle__text">{{ isCrewEffectDoc() ? 'Captain' : 'Signature' }}</span>
-              </label>
-              @if (isCrewEffectDoc() && !mdhAttachment()) {
-                <label class="placement-toggle placement-toggle--crew">
-                  <input
-                    type="checkbox"
-                    [ngModel]="useCrewTableSignatures()"
-                    (ngModelChange)="onToggleCrewTableSig($event)"
-                  />
-                  <span class="placement-toggle__text">Crew</span>
-                </label>
-              }
-            </div>
+          Page 1 (form)
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="placement-tab"
+          [class.placement-tab--active]="mdhPage() === 'attachment'"
+          (click)="setMdhPage('attachment')"
+        >
+          Page 2
+        </button>
+      </div>
+    }
 
-            @if (isCrewEffectDoc() && !mdhAttachment() && useCrewTableSignatures()) {
-              <label class="placement-row-pick">
-                <select [ngModel]="crewTableRow()" (ngModelChange)="onCrewTableRowChange($event)">
-                  @for (row of crewTableRowLabels(); track row.index) {
-                    <option [ngValue]="row.index">
-                      {{ row.label }}{{ row.hasSignature ? '' : ' (no signature)' }}
-                    </option>
-                  }
-                </select>
-              </label>
-              <label class="placement-crew-all">
-                <input
-                  type="checkbox"
-                  [ngModel]="showAllCrewSigPreviews()"
-                  (ngModelChange)="onToggleShowAllCrewSigs($event)"
-                />
-                <span>All signatures</span>
-              </label>
-            }
-          </div>
-
-          <div class="placement-toolbar__secondary">
-            <div class="placement-tool-group">
-              <span class="placement-tool-group__label">Rotation</span>
-              <div class="placement-tool-group__controls" role="group" aria-label="Stamp rotation">
-                @for (deg of rotations; track deg) {
-                  <button
-                    type="button"
-                    class="placement-pill placement-pill--narrow"
-                    [class.placement-pill--active]="rotation() === deg"
-                    (click)="setRotation(deg)"
-                  >
-                    {{ deg }}°
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="placement-tool-group placement-tool-group--zoom" role="group" aria-label="Preview zoom">
-              <span class="placement-tool-group__label">Zoom</span>
-              <div class="placement-tool-group__controls">
-                <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomOut()" aria-label="Zoom out">−</button>
-                <span class="placement-zoom-label">{{ zoomPercent() }}%</span>
-                <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomIn()" aria-label="Zoom in">+</button>
-                <button type="button" class="placement-pill placement-pill--fit" (click)="resetZoom()">Fit</button>
-              </div>
-            </div>
-          </div>
-
+    <section
+      class="placement-toolbar"
+      [class.placement-toolbar--crew-effect]="isCrewEffectDoc() && !mdhAttachment()"
+    >
+      <div class="placement-toolbar__primary">
+        <div class="placement-toggles">
+          <label class="placement-toggle placement-toggle--stamp">
+            <input
+              type="checkbox"
+              [ngModel]="useStampChecked()"
+              (ngModelChange)="onToggle('useStamp', $event)"
+            />
+            <span class="placement-toggle__text">{{
+              isCrewEffectDoc() ? 'Ship stamp' : 'Stamp'
+            }}</span>
+          </label>
+          <label class="placement-toggle placement-toggle--captain">
+            <input
+              type="checkbox"
+              [ngModel]="useSignatureChecked()"
+              (ngModelChange)="onToggle('useSignature', $event)"
+            />
+            <span class="placement-toggle__text">{{
+              isCrewEffectDoc() ? 'Captain' : 'Signature'
+            }}</span>
+          </label>
           @if (isCrewEffectDoc() && !mdhAttachment()) {
-            <p class="placement-toolbar__hint">
-              Wheel to zoom · drag empty area to pan · All signatures shows other rows without frames
-            </p>
+            <label class="placement-toggle placement-toggle--crew">
+              <input
+                type="checkbox"
+                [ngModel]="useCrewTableSignatures()"
+                (ngModelChange)="onToggleCrewTableSig($event)"
+              />
+              <span class="placement-toggle__text">Crew</span>
+            </label>
           }
-        </section>
+        </div>
 
-        @if (!isCrewEffectDoc() || mdhAttachment()) {
-          <p class="placement-hint">{{ placementHint() }}</p>
+        @if (isCrewEffectDoc() && !mdhAttachment() && useCrewTableSignatures()) {
+          <label class="placement-row-pick">
+            <select [ngModel]="crewTableRow()" (ngModelChange)="onCrewTableRowChange($event)">
+              @for (row of crewTableRowLabels(); track row.index) {
+                <option [ngValue]="row.index">
+                  {{ row.label }}{{ row.hasSignature ? '' : ' (no signature)' }}
+                </option>
+              }
+            </select>
+          </label>
+          <label class="placement-crew-all">
+            <input
+              type="checkbox"
+              [ngModel]="showAllCrewSigPreviews()"
+              (ngModelChange)="onToggleShowAllCrewSigs($event)"
+            />
+            <span>All signatures</span>
+          </label>
         }
+      </div>
 
-        @if (loadError()) {
-          <p class="placement-error">{{ loadError() }}</p>
-        } @else {
-          @if (isCrewEffectDoc() && !mdhAttachment()) {
-            <div class="placement-metrics" aria-live="polite">
-              <div class="placement-metric placement-metric--cursor">
-                <span class="placement-metric__title">Cursor</span>
-                <span class="placement-metric__value">
-                  {{ cursorPt()?.x != null ? (cursorPt()!.x | number: '1.0-1') : '—' }},
-                  {{ cursorPt()?.y != null ? (cursorPt()!.y | number: '1.0-1') : '—' }}
-                </span>
-              </div>
-              @if (useStampChecked() && stampBoxOnPage(); as stamp) {
-                <div class="placement-metric placement-metric--stamp">
-                  <span class="placement-metric__title">Ship stamp</span>
-                  <span class="placement-metric__value">
-                    {{ stamp.x | number: '1.0-1' }}, {{ stamp.y | number: '1.0-1' }} ·
-                    {{ stamp.width | number: '1.0-1' }}×{{ stamp.height | number: '1.0-1' }} pt
-                  </span>
-                </div>
-              }
-              @if (useSignatureChecked() && signatureBoxOnPage(); as sig) {
-                <div class="placement-metric placement-metric--captain">
-                  <span class="placement-metric__title">Captain</span>
-                  <span class="placement-metric__value">
-                    {{ sig.x | number: '1.0-1' }}, {{ sig.y | number: '1.0-1' }} ·
-                    {{ sig.width | number: '1.0-1' }}×{{ sig.height | number: '1.0-1' }} pt
-                  </span>
-                </div>
-              }
-              @if (showCrewTableSigMarker() && crewTableSigBoxOnPage(); as crewSig) {
-                <div class="placement-metric placement-metric--crew">
-                  <span class="placement-metric__title">{{ crewTableRowMetricLabel() }}</span>
-                  <span class="placement-metric__value">
-                    {{ crewSig.x | number: '1.0-1' }}, {{ crewSig.y | number: '1.0-1' }} ·
-                    {{ crewSig.width | number: '1.0-1' }}×{{ crewSig.height | number: '1.0-1' }} pt
-                  </span>
-                </div>
-              }
-            </div>
-          } @else {
-            <div class="placement-readout" aria-live="polite">
-              <span class="placement-readout-line placement-readout-line--cursor">
-                Cursor: x {{ cursorPt()?.x ?? '—' }}, y {{ cursorPt()?.y ?? '—' }}
-                @if (cursorFromTop() != null) {
-                  <span class="placement-readout-sub">(y from top: {{ cursorFromTop() | number: '1.0-1' }})</span>
-                }
+      <div class="placement-toolbar__secondary">
+        <div class="placement-tool-group">
+          <span class="placement-tool-group__label">Rotation</span>
+          <div class="placement-tool-group__controls" role="group" aria-label="Stamp rotation">
+            @for (deg of rotations; track deg) {
+              <button
+                type="button"
+                class="placement-pill placement-pill--narrow"
+                [class.placement-pill--active]="rotation() === deg"
+                (click)="setRotation(deg)"
+              >
+                {{ deg }}°
+              </button>
+            }
+          </div>
+        </div>
+
+        <div
+          class="placement-tool-group placement-tool-group--zoom"
+          role="group"
+          aria-label="Preview zoom"
+        >
+          <span class="placement-tool-group__label">Zoom</span>
+          <div class="placement-tool-group__controls">
+            <button
+              type="button"
+              class="placement-pill placement-pill--narrow"
+              (click)="zoomOut()"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <span class="placement-zoom-label">{{ zoomPercent() }}%</span>
+            <button
+              type="button"
+              class="placement-pill placement-pill--narrow"
+              (click)="zoomIn()"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <button type="button" class="placement-pill placement-pill--fit" (click)="resetZoom()">
+              Fit
+            </button>
+          </div>
+        </div>
+      </div>
+
+      @if (isCrewEffectDoc() && !mdhAttachment()) {
+        <p class="placement-toolbar__hint">
+          Wheel to zoom · drag empty area to pan · All signatures shows other rows without frames
+        </p>
+      }
+    </section>
+
+    @if (!isCrewEffectDoc() || mdhAttachment()) {
+      <p class="placement-hint">{{ placementHint() }}</p>
+    }
+
+    @if (loadError()) {
+      <p class="placement-error">{{ loadError() }}</p>
+    } @else {
+      @if (isCrewEffectDoc() && !mdhAttachment()) {
+        <div class="placement-metrics" aria-live="polite">
+          <div class="placement-metric placement-metric--cursor">
+            <span class="placement-metric__title">Cursor</span>
+            <span class="placement-metric__value">
+              {{ cursorPt()?.x != null ? (cursorPt()!.x | number: '1.0-1') : '—' }},
+              {{ cursorPt()?.y != null ? (cursorPt()!.y | number: '1.0-1') : '—' }}
+            </span>
+          </div>
+          @if (useStampChecked() && stampBoxOnPage(); as stamp) {
+            <div class="placement-metric placement-metric--stamp">
+              <span class="placement-metric__title">Ship stamp</span>
+              <span class="placement-metric__value">
+                {{ stamp.x | number: '1.0-1' }}, {{ stamp.y | number: '1.0-1' }} ·
+                {{ stamp.width | number: '1.0-1' }}×{{ stamp.height | number: '1.0-1' }} pt
               </span>
-              @if (stampBoxOnPage(); as stamp) {
-                <span>
-                  Stamp: x {{ stamp.x | number: '1.0-1' }}, y {{ stamp.y | number: '1.0-1' }},
-                  {{ stamp.width | number: '1.0-1' }}×{{ stamp.height | number: '1.0-1' }} pt
-                </span>
-              }
-              @if (signatureBoxOnPage(); as sig) {
-                <span>
-                  Signature: x {{ sig.x | number: '1.0-1' }}, y {{ sig.y | number: '1.0-1' }},
-                  {{ sig.width | number: '1.0-1' }}×{{ sig.height | number: '1.0-1' }} pt
-                </span>
-              }
-            </div>
-
-            <div class="placement-zoom" role="group" aria-label="Preview zoom">
-              <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomOut()" aria-label="Zoom out">−</button>
-              <span class="placement-zoom-label">{{ zoomPercent() }}%</span>
-              <button type="button" class="placement-pill placement-pill--narrow" (click)="zoomIn()" aria-label="Zoom in">+</button>
-              <button type="button" class="placement-pill" (click)="resetZoom()">Fit</button>
             </div>
           }
-
-          <div
-            class="placement-scroll"
-            #placementScroll
-            [class.placement-scroll--panning]="viewPanning()"
-            [class.placement-scroll--probe]="coordProbeMode()"
-            (wheel)="onPreviewWheel($event)"
-            (pointermove)="onScrollPointerMove($event)"
-            (pointerup)="onScrollPointerUp($event)"
-            (pointercancel)="onScrollPointerUp($event)"
-          >
-            @if (loading()) {
-              <p class="placement-loading">Loading document…</p>
-            }
-            <div class="placement-scroll-center" [class.placement-scroll-center--hidden]="loading()">
-              <div
-                class="placement-page-wrap"
-                [style.width.px]="pageWrapWidth()"
-                [style.height.px]="pageWrapHeight()"
+          @if (useSignatureChecked() && signatureBoxOnPage(); as sig) {
+            <div class="placement-metric placement-metric--captain">
+              <span class="placement-metric__title">Captain</span>
+              <span class="placement-metric__value">
+                {{ sig.x | number: '1.0-1' }}, {{ sig.y | number: '1.0-1' }} ·
+                {{ sig.width | number: '1.0-1' }}×{{ sig.height | number: '1.0-1' }} pt
+              </span>
+            </div>
+          }
+          @if (showCrewTableSigMarker() && crewTableSigBoxOnPage(); as crewSig) {
+            <div class="placement-metric placement-metric--crew">
+              <span class="placement-metric__title">{{ crewTableRowMetricLabel() }}</span>
+              <span class="placement-metric__value">
+                {{ crewSig.x | number: '1.0-1' }}, {{ crewSig.y | number: '1.0-1' }} ·
+                {{ crewSig.width | number: '1.0-1' }}×{{ crewSig.height | number: '1.0-1' }} pt
+              </span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="placement-readout" aria-live="polite">
+          <span class="placement-readout-line placement-readout-line--cursor">
+            Cursor: x {{ cursorPt()?.x ?? '—' }}, y {{ cursorPt()?.y ?? '—' }}
+            @if (cursorFromTop() != null) {
+              <span class="placement-readout-sub"
+                >(y from top: {{ cursorFromTop() | number: '1.0-1' }})</span
               >
-                <div
-                  class="placement-page"
-                  [style.width.px]="pageCssWidth()"
-                  [style.height.px]="pageCssHeight()"
-                  [style.transform]="pageScaleTransform()"
-                >
-                  <canvas #pdfCanvas class="placement-canvas"></canvas>
-                  <div
-                    class="placement-overlay"
-                    #placementOverlay
-                    [class.placement-overlay--probe]="coordProbeMode()"
-                    [class.placement-overlay--panning]="viewPanning()"
-                    [class.placement-overlay--draggable]="false"
-                    [class.placement-overlay--dragging]="pointerDragging()"
-                    [class.placement-overlay--resizing]="resizing()"
-                    (pointerdown)="onOverlayPointerDown($event)"
-                    (pointermove)="onOverlayPointerMove($event)"
-                    (pointerup)="onOverlayPointerUp($event)"
-                    (pointercancel)="onOverlayPointerUp($event)"
-                    (pointerleave)="onOverlayPointerLeave()"
+            }
+          </span>
+          @if (stampBoxOnPage(); as stamp) {
+            <span>
+              Stamp: x {{ stamp.x | number: '1.0-1' }}, y {{ stamp.y | number: '1.0-1' }},
+              {{ stamp.width | number: '1.0-1' }}×{{ stamp.height | number: '1.0-1' }} pt
+            </span>
+          }
+          @if (signatureBoxOnPage(); as sig) {
+            <span>
+              Signature: x {{ sig.x | number: '1.0-1' }}, y {{ sig.y | number: '1.0-1' }},
+              {{ sig.width | number: '1.0-1' }}×{{ sig.height | number: '1.0-1' }} pt
+            </span>
+          }
+        </div>
+
+        <div class="placement-zoom" role="group" aria-label="Preview zoom">
+          <button
+            type="button"
+            class="placement-pill placement-pill--narrow"
+            (click)="zoomOut()"
+            aria-label="Zoom out"
+          >
+            −
+          </button>
+          <span class="placement-zoom-label">{{ zoomPercent() }}%</span>
+          <button
+            type="button"
+            class="placement-pill placement-pill--narrow"
+            (click)="zoomIn()"
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+          <button type="button" class="placement-pill" (click)="resetZoom()">Fit</button>
+        </div>
+      }
+
+      <div
+        class="placement-scroll"
+        #placementScroll
+        [class.placement-scroll--panning]="viewPanning()"
+        [class.placement-scroll--probe]="coordProbeMode()"
+        (wheel)="onPreviewWheel($event)"
+        (pointermove)="onScrollPointerMove($event)"
+        (pointerup)="onScrollPointerUp($event)"
+        (pointercancel)="onScrollPointerUp($event)"
+      >
+        @if (loading()) {
+          <p class="placement-loading">Loading document…</p>
+        }
+        <div class="placement-scroll-center" [class.placement-scroll-center--hidden]="loading()">
+          <div
+            class="placement-page-wrap"
+            [style.width.px]="pageWrapWidth()"
+            [style.height.px]="pageWrapHeight()"
+          >
+            <div
+              class="placement-page"
+              [style.width.px]="pageCssWidth()"
+              [style.height.px]="pageCssHeight()"
+              [style.transform]="pageScaleTransform()"
+            >
+              <canvas #pdfCanvas class="placement-canvas"></canvas>
+              <div
+                class="placement-overlay"
+                #placementOverlay
+                [class.placement-overlay--probe]="coordProbeMode()"
+                [class.placement-overlay--panning]="viewPanning()"
+                [class.placement-overlay--draggable]="false"
+                [class.placement-overlay--dragging]="pointerDragging()"
+                [class.placement-overlay--resizing]="resizing()"
+                (pointerdown)="onOverlayPointerDown($event)"
+                (pointermove)="onOverlayPointerMove($event)"
+                (pointerup)="onOverlayPointerUp($event)"
+                (pointercancel)="onOverlayPointerUp($event)"
+                (pointerleave)="onOverlayPointerLeave()"
+              >
+                @if (pdfProbeMarkerStyle(); as probeStyle) {
+                  <span class="placement-pdf-probe" [ngStyle]="probeStyle" aria-hidden="true"
+                    >1</span
                   >
-                    @if (pdfProbeMarkerStyle(); as probeStyle) {
-                      <span class="placement-pdf-probe" [ngStyle]="probeStyle" aria-hidden="true"
-                        >1</span
-                      >
-                    }
+                }
                 @if (useStampChecked()) {
                   <div
                     class="placement-marker placement-marker--stamp"
@@ -316,7 +358,9 @@
                     }
                     @for (h of resizeHandles; track h) {
                       <span
-                        class="placement-handle placement-handle--crew-sig placement-handle--{{ h }}"
+                        class="placement-handle placement-handle--crew-sig placement-handle--{{
+                          h
+                        }}"
                         [attr.aria-label]="'Resize crew signature ' + h"
                         (pointerdown)="onHandlePointerDown($event, 'crewTableSig', h)"
                       ></span>
@@ -325,25 +369,29 @@
                 }
               </div>
             </div>
-            </div>
-            </div>
           </div>
-        }
-
-        @if (isCrewEffectDoc() && !mdhAttachment()) {
-          <p class="placement-coords placement-coords--compact">
-            Coordinates in pdf-lib points (bottom-left origin). Preview {{ zoomPercent() }}%, rotation {{ rotation() }}°.
-          </p>
-        } @else {
-          <p class="placement-coords">
-            Base 96 dpi, preview {{ zoomPercent() }}% — {{ moveTargetLabel() }}, rotation {{ rotation() }}°.
-            Values match pdf-lib <code>drawText</code> (x, y from bottom-left). y from top = page height − y.
-          </p>
-        }
-
-        <div class="placement-actions">
-          <button type="button" class="btn btn-secondary" (click)="resetToDefault()">Reset to default</button>
-          <button type="button" class="btn btn-primary" (click)="close.emit()">Done</button>
         </div>
       </div>
+    }
+
+    @if (isCrewEffectDoc() && !mdhAttachment()) {
+      <p class="placement-coords placement-coords--compact">
+        Coordinates in pdf-lib points (bottom-left origin). Preview {{ zoomPercent() }}%, rotation
+        {{ rotation() }}°.
+      </p>
+    } @else {
+      <p class="placement-coords">
+        Base 96 dpi, preview {{ zoomPercent() }}% — {{ moveTargetLabel() }}, rotation
+        {{ rotation() }}°. Values match pdf-lib <code>drawText</code> (x, y from bottom-left). y
+        from top = page height − y.
+      </p>
+    }
+
+    <div class="placement-actions">
+      <button type="button" class="btn btn-secondary" (click)="resetToDefault()">
+        Reset to default
+      </button>
+      <button type="button" class="btn btn-primary" (click)="close.emit()">Done</button>
     </div>
+  </div>
+</div>

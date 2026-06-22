@@ -162,7 +162,12 @@ export class PackageRunnerService {
   }
 
   private enabledIds(): Set<string> {
-    return new Set(this.catalog.available().filter((d) => d.enabled).map((d) => d.id));
+    return new Set(
+      this.catalog
+        .available()
+        .filter((d) => d.enabled)
+        .map((d) => d.id),
+    );
   }
 
   private skip(id: string): void {

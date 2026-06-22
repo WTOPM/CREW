@@ -36,13 +36,11 @@ export const CREW_MONEY_LIST_COL = {
 export const CREW_MONEY_LIST_NAME_MAX_WIDTH =
   CREW_MONEY_LIST_COL.rank - CREW_MONEY_LIST_COL.name - 4;
 export const CREW_MONEY_LIST_RANK_MAX_WIDTH = 45;
-export const CREW_MONEY_LIST_USD_MAX_WIDTH =
-  CREW_MONEY_LIST_COL.euro - CREW_MONEY_LIST_COL.usd - 4;
+export const CREW_MONEY_LIST_USD_MAX_WIDTH = CREW_MONEY_LIST_COL.euro - CREW_MONEY_LIST_COL.usd - 4;
 export const CREW_MONEY_LIST_EURO_MAX_WIDTH =
   CREW_MONEY_LIST_COL.others - CREW_MONEY_LIST_COL.euro - 4;
 /** Others column inner width (to signature column at ~451). */
-export const CREW_MONEY_LIST_OTHERS_MAX_WIDTH =
-  451 - CREW_MONEY_LIST_COL.others - 4;
+export const CREW_MONEY_LIST_OTHERS_MAX_WIDTH = 451 - CREW_MONEY_LIST_COL.others - 4;
 
 export function crewMoneyListRowBaselineY(index: number): number {
   return CREW_MONEY_LIST_FIRST_ROW_BASELINE_Y + index * CREW_MONEY_LIST_ROW_STEP;

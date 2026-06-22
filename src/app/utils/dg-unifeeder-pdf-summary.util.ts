@@ -1,4 +1,8 @@
-import { formatDgWeightKgDisplay, parseDgWeightKg, roundDgWeightKgSum } from '../models/dg-manifest.models';
+import {
+  formatDgWeightKgDisplay,
+  parseDgWeightKg,
+  roundDgWeightKgSum,
+} from '../models/dg-manifest.models';
 import type { DgPdfTextItem } from './dg-pdf-text.util';
 import { dgLineActiveWeightKg, type DgDualWeightLine } from './dg-weight-tonnage.util';
 import { manifestLengthLabelFromSizeCode } from './dg-manifest-summary.util';
@@ -62,11 +66,7 @@ function pickCountNearLabel(
   return null;
 }
 
-function pickGrandWeight(
-  pageItems: readonly DgPdfTextItem[],
-  xMin: number,
-  xMax: number,
-): number {
+function pickGrandWeight(pageItems: readonly DgPdfTextItem[], xMin: number, xMax: number): number {
   for (const it of pageItems) {
     if (it.x < xMin || it.x > xMax) continue;
     if (!EU_WEIGHT_RE.test(it.str.trim())) continue;
@@ -114,11 +114,7 @@ export function parseUnifeederGrandTotalSummary(
       if (!LENGTH_KEYS.includes(label as LengthKey)) continue;
       if (it.y < 40 || it.y > 70) continue;
       const countItem = pageItems.find(
-        (c) =>
-          /^\d+$/.test(c.str.trim()) &&
-          c.y >= 68 &&
-          c.y <= 95 &&
-          Math.abs(c.x - it.x) <= 35,
+        (c) => /^\d+$/.test(c.str.trim()) && c.y >= 68 && c.y <= 95 && Math.abs(c.x - it.x) <= 35,
       );
       if (countItem) {
         containerCountsByLength[label as LengthKey] = parseInt(countItem.str.trim(), 10);
@@ -138,10 +134,7 @@ export function parseUnifeederGrandTotalSummary(
     }
   }
 
-  const totalContainers = LENGTH_KEYS.reduce(
-    (sum, key) => sum + containerCountsByLength[key],
-    0,
-  );
+  const totalContainers = LENGTH_KEYS.reduce((sum, key) => sum + containerCountsByLength[key], 0);
   const totalImoNetWeightKg =
     layout === 'dp-world'
       ? pickGrandWeightNearLabel(pageItems, /Total\s+IMO\s+Netweight/i, 190, 215) ||
@@ -221,10 +214,7 @@ function importedTotalWeightKg(
 }
 
 /** Per-line gross rounding can drift a few kg vs one PDF grand-total figure. */
-function manifestWeightToleranceKg(
-  rowCount: number,
-  useGrossWeight: boolean,
-): number {
+function manifestWeightToleranceKg(rowCount: number, useGrossWeight: boolean): number {
   const base = useGrossWeight ? 5 : 2;
   const perRow = useGrossWeight ? 0.5 : 0.2;
   return Math.max(base, Math.ceil(rowCount * perRow));
@@ -245,7 +235,11 @@ function weightTotalsMatch(
 export function validateUnifeederImportAgainstSummary(
   rows: readonly UnifeederImportRowForValidation[],
   summary: UnifeederPdfGrandTotalSummary | null,
-  options: { useGrossWeight?: boolean; grossTotalKg?: boolean; extractableContainers?: number } = {},
+  options: {
+    useGrossWeight?: boolean;
+    grossTotalKg?: boolean;
+    extractableContainers?: number;
+  } = {},
 ): UnifeederImportValidation {
   if (!summary) return { ok: true, mismatches: [] };
 
@@ -258,8 +252,7 @@ export function validateUnifeederImportAgainstSummary(
   const pdfKg = Math.round(
     useGrossWeight ? summary.totalImoGrossWeightKg : summary.totalImoNetWeightKg,
   );
-  const weightOk =
-    pdfKg > 0 && weightTotalsMatch(pdfKg, importedKg, rows.length, useGrossWeight);
+  const weightOk = pdfKg > 0 && weightTotalsMatch(pdfKg, importedKg, rows.length, useGrossWeight);
   const containerDelta =
     summary.totalContainers > 0 ? Math.abs(summary.totalContainers - importedContainers) : 0;
   const extractable = options.extractableContainers ?? 0;
@@ -298,7 +291,9 @@ export function validateUnifeederImportAgainstSummary(
   return { ok: mismatches.length === 0, mismatches };
 }
 
-export function formatUnifeederImportValidationError(validation: UnifeederImportValidation): string {
+export function formatUnifeederImportValidationError(
+  validation: UnifeederImportValidation,
+): string {
   if (validation.ok || !validation.mismatches.length) return '';
   return `Manifest check failed: ${validation.mismatches.join('; ')}`;
 }
@@ -314,7 +309,9 @@ export function formatUnifeederImportValidationOk(
   const inventoryLabel = useGrossWeight
     ? String(Math.round(importedKg))
     : formatDgWeightKgDisplay(importedKg) || String(importedKg);
-  const pdfLabel = useGrossWeight ? String(Math.round(pdfKg)) : formatDgWeightKgDisplay(pdfKg) || String(pdfKg);
+  const pdfLabel = useGrossWeight
+    ? String(Math.round(pdfKg))
+    : formatDgWeightKgDisplay(pdfKg) || String(pdfKg);
   return `Manifest check OK: ${kind} PDF ${pdfLabel} kg, inventory ${inventoryLabel} kg`;
 }
 

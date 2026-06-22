@@ -47,7 +47,11 @@ import { PdfShipStores02Service } from '../../services/pdf-ship-stores-02.servic
 import { PdfShipStores03Service } from '../../services/pdf-ship-stores-03.service';
 import { CrewListExcelService } from '../../services/crew-list-excel.service';
 import { PortOfCallExcelService } from '../../services/port-of-call-excel.service';
-import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT, POC_TEMPLATE_ROW_COUNT } from '../../services/port-of-call-coordinates';
+import {
+  POC_MAX_ROW_COUNT,
+  POC_MIN_ROW_COUNT,
+  POC_TEMPLATE_ROW_COUNT,
+} from '../../services/port-of-call-coordinates';
 import { StorageService } from '../../services/storage.service';
 import { FormsStore } from '../../services/forms.store';
 import { ToastService } from '../../services/toast.service';
@@ -317,9 +321,7 @@ export class DocumentsNavComponent {
   protected onMdhSettingsDocChange(value: 'mdh' | 'crewVaccine'): void {
     if (value === this.mdhSettingsDoc()) return;
     this.mdhSettingsDoc.set(value);
-    this.toast.showSelected(
-      value === 'mdh' ? 'Maritime Declaration of Health' : 'Crew Vaccine',
-    );
+    this.toast.showSelected(value === 'mdh' ? 'Maritime Declaration of Health' : 'Crew Vaccine');
   }
 
   protected openPortOfCallPdf(): void {
@@ -329,19 +331,29 @@ export class DocumentsNavComponent {
   }
 
   protected openPortsOfCallPdf(): void {
-    void this.portOfCallTemplatePdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) this.toast.showError('Allow pop-ups to open Port of Call - Security preview');
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Port of Call - Security preview failed');
-    });
+    void this.portOfCallTemplatePdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) this.toast.showError('Allow pop-ups to open Port of Call - Security preview');
+      })
+      .catch((err) => {
+        this.toast.showError(
+          err instanceof Error ? err.message : 'Port of Call - Security preview failed',
+        );
+      });
   }
 
   protected openSso0108PortCallsPdf(): void {
-    void this.sso0108PortCallsPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) this.toast.showError('Allow pop-ups to open Port of Call - SSO-0108 preview');
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Port of Call - SSO-0108');
-    });
+    void this.sso0108PortCallsPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) this.toast.showError('Allow pop-ups to open Port of Call - SSO-0108 preview');
+      })
+      .catch((err) => {
+        this.toast.showError(
+          err instanceof Error ? err.message : 'Failed to open Port of Call - SSO-0108',
+        );
+      });
   }
 
   protected openPortOfCallSettings(): void {
@@ -398,7 +410,11 @@ export class DocumentsNavComponent {
     this.forms.removePortCallEntry(id);
   }
 
-  protected updatePortCallField(id: string, field: keyof PortCallHistoryEntry, value: string): void {
+  protected updatePortCallField(
+    id: string,
+    field: keyof PortCallHistoryEntry,
+    value: string,
+  ): void {
     this.forms.updatePortCallEntry(id, { [field]: value });
   }
 
@@ -425,33 +441,42 @@ export class DocumentsNavComponent {
   }
 
   protected openShipStores(): void {
-    void this.shipStoresPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open Ship Stores preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
-    });
+    void this.shipStoresPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Ship Stores preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
+      });
   }
 
   protected openShipStores02(): void {
-    void this.shipStores02Pdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open Ship Stores preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
-    });
+    void this.shipStores02Pdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Ship Stores preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
+      });
   }
 
   protected openShipStores03(): void {
-    void this.shipStores03Pdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open Ship Stores preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
-    });
+    void this.shipStores03Pdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Ship Stores preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Stores');
+      });
   }
 
   protected openShipStoresSettings(): void {
@@ -474,33 +499,42 @@ export class DocumentsNavComponent {
   }
 
   protected openCrewEffect(): void {
-    void this.crewEffectPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open Crew Effect preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
-    });
+    void this.crewEffectPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Crew Effect preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
+      });
   }
 
   protected openCrewEffect02(): void {
-    void this.crewEffect02Pdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open Crew Effect preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
-    });
+    void this.crewEffect02Pdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Crew Effect preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
+      });
   }
 
   protected openCrewEffect03(): void {
-    void this.crewEffect03Pdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open Crew Effect preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
-    });
+    void this.crewEffect03Pdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Crew Effect preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Effect');
+      });
   }
 
   protected openCrewEffectSettings(): void {
@@ -513,13 +547,16 @@ export class DocumentsNavComponent {
   }
 
   protected openNilList(): void {
-    void this.nilListPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open NIL List preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open NIL List');
-    });
+    void this.nilListPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open NIL List preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open NIL List');
+      });
   }
 
   protected openNilListSettings(): void {
@@ -556,37 +593,49 @@ export class DocumentsNavComponent {
   }
 
   protected openShipMoney(): void {
-    void this.shipMoneyPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open Ship Money preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Money');
-    });
+    void this.shipMoneyPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Ship Money preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Ship Money');
+      });
   }
 
   protected openCashAdvance(): void {
-    void this.cashAdvancePdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) this.toast.showError('Allow pop-ups to open Cash Advance preview');
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Cash Advance');
-    });
+    void this.cashAdvancePdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) this.toast.showError('Allow pop-ups to open Cash Advance preview');
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Cash Advance');
+      });
   }
 
   protected openCrewMoneyList(): void {
-    void this.crewMoneyListPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) this.toast.showError('Allow pop-ups to open Crew Money preview');
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Money');
-    });
+    void this.crewMoneyListPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) this.toast.showError('Allow pop-ups to open Crew Money preview');
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Money');
+      });
   }
 
   protected openNarcoticList(): void {
-    void this.narcoticListPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) this.toast.showError('Allow pop-ups to open Narcotic List preview');
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Narcotic List');
-    });
+    void this.narcoticListPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) this.toast.showError('Allow pop-ups to open Narcotic List preview');
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Narcotic List');
+      });
   }
 
   protected openNarcoticListSettings(): void {
@@ -599,23 +648,29 @@ export class DocumentsNavComponent {
   }
 
   protected openMdh(): void {
-    void this.mdhPdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open MDH preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to generate MDH');
-    });
+    void this.mdhPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open MDH preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to generate MDH');
+      });
   }
 
   protected openCrewVaccine(): void {
-    void this.crewVaccinePdf.openPreview(this.appData()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Allow pop-ups to open Crew Vaccine preview');
-      }
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Vaccine');
-    });
+    void this.crewVaccinePdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Crew Vaccine preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Vaccine');
+      });
   }
 
   private appData(isArrival?: boolean): AppData {

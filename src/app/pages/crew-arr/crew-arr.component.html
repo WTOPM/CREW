@@ -39,7 +39,12 @@
       </div>
       <label>
         <span>Page No.</span>
-        <input type="number" min="1" [ngModel]="crewArr().pageNo" (ngModelChange)="updateSetting('pageNo', +$event)" />
+        <input
+          type="number"
+          min="1"
+          [ngModel]="crewArr().pageNo"
+          (ngModelChange)="updateSetting('pageNo', +$event)"
+        />
       </label>
       <label>
         <span>Identity document (field 6)</span>
@@ -52,9 +57,8 @@
     </div>
     <p class="hint">
       Ship, ports, dates, and crew (up to 23 people) come from the
-      <a routerLink="/">home page</a>.
-      Click <strong>Open Crew List</strong> to open a PDF preview in a new browser window.
+      <a routerLink="/">home page</a>. Click <strong>Open Crew List</strong> to open a PDF preview
+      in a new browser window.
     </p>
   </section>
 </div>
-

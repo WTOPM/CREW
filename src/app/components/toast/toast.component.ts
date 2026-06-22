@@ -60,7 +60,9 @@ import { ToastService, ToastVariant } from '../../services/toast.service';
         0 10px 40px rgb(15 23 42 / 14%),
         0 2px 8px rgb(15 23 42 / 8%);
       animation: toast-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
       overflow: hidden;
     }
 

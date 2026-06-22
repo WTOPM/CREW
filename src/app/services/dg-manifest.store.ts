@@ -106,10 +106,7 @@ export class DgManifestStore {
   addDgOnboardContainer(partial?: Partial<Omit<DgOnboardContainer, 'id' | 'lines'>>): void {
     this.data.update((d) => {
       const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
-      const loadPort = resolveKnownPortName(
-        partial?.loadPort ?? d.ship.portOfCall ?? '',
-        d.ports,
-      );
+      const loadPort = resolveKnownPortName(partial?.loadPort ?? d.ship.portOfCall ?? '', d.ports);
       const dischargePort = resolveKnownPortName(
         partial?.dischargePort ?? d.ship.nextPortOfCall ?? '',
         d.ports,
@@ -151,9 +148,7 @@ export class DgManifestStore {
         ...d,
         dgLibrary: {
           ...lib,
-          onboard: lib.onboard.map((c) =>
-            c.id === containerId ? { ...c, ...resolved } : c,
-          ),
+          onboard: lib.onboard.map((c) => (c.id === containerId ? { ...c, ...resolved } : c)),
         },
       };
     });
@@ -203,10 +198,7 @@ export class DgManifestStore {
     void this.state.persist('silent');
   }
 
-  addDgOnboardCargoLine(
-    containerId: string,
-    partial?: Partial<Omit<DgCargoLine, 'id'>>,
-  ): void {
+  addDgOnboardCargoLine(containerId: string, partial?: Partial<Omit<DgCargoLine, 'id'>>): void {
     this.data.update((d) => {
       const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
       return {
@@ -214,9 +206,7 @@ export class DgManifestStore {
         dgLibrary: {
           ...lib,
           onboard: lib.onboard.map((c) =>
-            c.id === containerId
-              ? { ...c, lines: [...c.lines, createDgCargoLine(partial)] }
-              : c,
+            c.id === containerId ? { ...c, lines: [...c.lines, createDgCargoLine(partial)] } : c,
           ),
         },
       };
@@ -232,9 +222,7 @@ export class DgManifestStore {
         dgLibrary: {
           ...lib,
           onboard: lib.onboard.map((c) =>
-            c.id === containerId
-              ? { ...c, lines: c.lines.filter((l) => l.id !== lineId) }
-              : c,
+            c.id === containerId ? { ...c, lines: c.lines.filter((l) => l.id !== lineId) } : c,
           ),
         },
       };
@@ -259,7 +247,10 @@ export class DgManifestStore {
 
   updateUnifeederViewSettings(
     partial: Partial<
-      Pick<DgUnifeederLibrarySettings, 'showDischarged' | 'mergeLines' | 'useGrossWeight' | 'roundWeights'>
+      Pick<
+        DgUnifeederLibrarySettings,
+        'showDischarged' | 'mergeLines' | 'useGrossWeight' | 'roundWeights'
+      >
     >,
   ): void {
     this.data.update((d) => {
@@ -361,9 +352,7 @@ export class DgManifestStore {
     void this.state.persist('silent');
   }
 
-  addUnifeederRow(
-    partial?: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>>,
-  ): void {
+  addUnifeederRow(partial?: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>>): void {
     this.data.update((d) => {
       const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
       const ctx = lib.pageContext;
@@ -467,7 +456,12 @@ export class DgManifestStore {
     sourceName: string,
     fingerprints?: { contentFingerprint?: string; pdfBytesFingerprint?: string },
   ): import('../models/dg-unifeeder.models').DgUnifeederManifestDocument | null {
-    const lib = normalizeDgLibrary(this.data().dgLibrary, undefined, this.data().ports, this.data().ship);
+    const lib = normalizeDgLibrary(
+      this.data().dgLibrary,
+      undefined,
+      this.data().ports,
+      this.data().ship,
+    );
     const duplicate = findUnifeederManifestDuplicate(lib.unifeeder.manifests, fingerprints ?? {});
     if (duplicate) return duplicate;
 
@@ -550,8 +544,7 @@ export class DgManifestStore {
       const documentDate = result.header.departureDate?.trim() ?? '';
       const doc = createDgManifestDocument({
         sourceName: formatDgManifestSourceName(loadPort, documentDate, sourceName),
-        voyageNumber:
-          result.header.voyageNumber?.trim() || dgDefaultVoyageFromShip(d.ship),
+        voyageNumber: result.header.voyageNumber?.trim() || dgDefaultVoyageFromShip(d.ship),
         documentDate,
         loadPort,
         dischargePort,
@@ -582,9 +575,11 @@ export class DgManifestStore {
     return null;
   }
 
-  applyCmaPrestowPositions(
-    positions: readonly { containerNo: string; position: string }[],
-  ): { dgUpdated: number; reeferUpdated: number; unmatched: string[] } {
+  applyCmaPrestowPositions(positions: readonly { containerNo: string; position: string }[]): {
+    dgUpdated: number;
+    reeferUpdated: number;
+    unmatched: string[];
+  } {
     const byContainer = new Map(
       positions.map((row) => [row.containerNo.trim().toUpperCase(), row.position.trim()]),
     );

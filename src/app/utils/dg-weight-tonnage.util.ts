@@ -46,9 +46,7 @@ export function commitDgDualWeightEdit(
 ): { weightKg: string; grossWeightKg?: string; netWeightKg?: string } {
   const decimal = commitDgWeightKgInput(raw, false);
   if (!decimal) {
-    return useGross
-      ? { weightKg: '', grossWeightKg: '' }
-      : { weightKg: '', netWeightKg: '' };
+    return useGross ? { weightKg: '', grossWeightKg: '' } : { weightKg: '', netWeightKg: '' };
   }
   const display = roundWeights ? commitDgWeightKgInput(decimal, true) : decimal;
   if (useGross) {

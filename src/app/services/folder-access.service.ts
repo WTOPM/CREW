@@ -56,9 +56,11 @@ export class FolderAccessService {
   /** Prompt the user to add a folder. Returns its name, or null if cancelled. */
   async pick(): Promise<string | null> {
     if (!this.supported) return null;
-    const picker = (window as unknown as {
-      showDirectoryPicker: (opts?: { mode?: string }) => Promise<FileSystemDirectoryHandle>;
-    }).showDirectoryPicker;
+    const picker = (
+      window as unknown as {
+        showDirectoryPicker: (opts?: { mode?: string }) => Promise<FileSystemDirectoryHandle>;
+      }
+    ).showDirectoryPicker;
     const handle = await picker({ mode: 'readwrite' });
 
     // Reuse an existing entry with the same name, else create one.

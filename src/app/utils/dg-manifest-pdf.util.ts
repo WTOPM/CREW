@@ -64,7 +64,13 @@ const EMPTY_ROW: DgManifestExcelRow = {
 };
 
 const COLS: PdfCol[] = [
-  { label: '', w: 13, align: 'center', value: (_r, i) => (i >= 0 ? String(i + 1) : ''), singleLine: true },
+  {
+    label: '',
+    w: 13,
+    align: 'center',
+    value: (_r, i) => (i >= 0 ? String(i + 1) : ''),
+    singleLine: true,
+  },
   { label: 'POL', w: 26, align: 'center', value: (r) => r.pol, singleLine: true },
   { label: 'POD', w: 26, align: 'center', value: (r) => r.pod, singleLine: true },
   { label: 'Type', w: 24, align: 'center', value: (r) => r.type, singleLine: true },
@@ -72,8 +78,21 @@ const COLS: PdfCol[] = [
   { label: 'Stowage', w: 26, align: 'center', value: (r) => r.stowage, singleLine: true },
   { label: 'Class', w: 20, align: 'center', value: (r) => r.dgClass, singleLine: true },
   { label: 'UN-No.', w: 24, align: 'center', value: (r) => r.unNo, singleLine: true },
-  { label: 'MP/LQ', w: 22, align: 'center', value: (r) => formatDgMpLqPdfDisplay(r.mpLq), singleLine: true },
-  { label: 'FLASH POINT', headerLines: ['FLASH', 'POINT'], w: 26, align: 'center', value: (r) => r.flashPoint, singleLine: true },
+  {
+    label: 'MP/LQ',
+    w: 22,
+    align: 'center',
+    value: (r) => formatDgMpLqPdfDisplay(r.mpLq),
+    singleLine: true,
+  },
+  {
+    label: 'FLASH POINT',
+    headerLines: ['FLASH', 'POINT'],
+    w: 26,
+    align: 'center',
+    value: (r) => r.flashPoint,
+    singleLine: true,
+  },
   { label: 'PROPER SHIPPING NAME', w: 0, align: 'left', value: (r) => r.properShippingName },
   {
     label: 'Weight, kg',
@@ -305,7 +324,19 @@ function drawDataRow(
     } else if (hasData) {
       text = col.value(row, globalIndex);
     }
-    drawTextInCell(doc, text, xs[i], y, widths[i], ROW_H, col.align, 6.5, 'bolditalic', undefined, col.singleLine);
+    drawTextInCell(
+      doc,
+      text,
+      xs[i],
+      y,
+      widths[i],
+      ROW_H,
+      col.align,
+      6.5,
+      'bolditalic',
+      undefined,
+      col.singleLine,
+    );
   });
 }
 
@@ -317,10 +348,7 @@ function drawPageFooter(doc: jsPDF, pageNum: number, totalPages: number): void {
   doc.text(label, PAGE_W - MARGIN, PAGE_H - 6, { align: 'right' });
 }
 
-function drawNoImdgCargoOverlay(
-  doc: jsPDF,
-  tableY: number,
-): void {
+function drawNoImdgCargoOverlay(doc: jsPDF, tableY: number): void {
   const bodyTop = tableY + TABLE_HEAD_H;
   const bodyH = ROWS_PER_PAGE * ROW_H;
   const rect = { x: MARGIN, y: bodyTop, w: CONTENT_W, h: bodyH };
@@ -388,11 +416,16 @@ export function buildDgManifestPdf(
   exportContext?: DgManifestExportContext,
 ): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-  const containers = exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
+  const containers =
+    exportContext?.containers ?? library.onboard.filter((c) => c.status === 'onboard');
   const mergeLines = exportContext?.mergeLines ?? true;
   const useGrossWeight = exportContext?.useGrossWeight !== false;
   const roundWeights = exportContext?.grossTotalKg === true;
-  const allRows = dgContainersToExcelRows(containers, ports, { mergeLines, useGrossWeight, roundWeights });
+  const allRows = dgContainersToExcelRows(containers, ports, {
+    mergeLines,
+    useGrossWeight,
+    roundWeights,
+  });
   const exportTotalKg = dgContainersExportTotalKg(containers, useGrossWeight, roundWeights);
   const widths = resolveColWidths();
   const xs = colXs(widths);

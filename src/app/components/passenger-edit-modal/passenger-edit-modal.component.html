@@ -1,68 +1,91 @@
-    <div class="modal-backdrop">
-      <div class="modal modal-crew-edit modal-crew-edit--scroll" appClickOutside (appClickOutside)="cancel.emit()" (click)="$event.stopPropagation()">
-        <h3>Edit passenger</h3>
+<div class="modal-backdrop">
+  <div
+    class="modal modal-crew-edit modal-crew-edit--scroll"
+    appClickOutside
+    (appClickOutside)="cancel.emit()"
+    (click)="$event.stopPropagation()"
+  >
+    <h3>Edit passenger</h3>
 
-        <div class="crew-form-layout">
-          <section class="crew-form-block">
-            <h4 class="crew-form-block-title">Personal details</h4>
-            <div class="form-grid">
-              <label>
-                <span>Family name</span>
-                <input [ngModel]="draft().familyName" (ngModelChange)="updateField('familyName', $event)" />
-              </label>
-              <label>
-                <span>Given names</span>
-                <input [ngModel]="draft().givenNames" (ngModelChange)="updateField('givenNames', $event)" />
-              </label>
-              <label>
-                <span>Nationality</span>
-                <app-lookup-select
-                  [value]="draft().nationality"
-                  [options]="nationalities()"
-                  (valueChange)="updateField('nationality', $event)"
-                />
-              </label>
-              <label>
-                <span>Gender</span>
-                <select [ngModel]="draft().gender" (ngModelChange)="updateField('gender', $event)">
-                  <option value="">— select —</option>
-                  <option value="MALE">MALE</option>
-                  <option value="FEMALE">FEMALE</option>
-                </select>
-              </label>
-              <label>
-                <span>Date of birth</span>
-                <app-date-picker [value]="draft().dateOfBirth" (valueChange)="updateField('dateOfBirth', $event)" />
-              </label>
-              <label>
-                <span>Place of birth</span>
-                <input [ngModel]="draft().placeOfBirth" (ngModelChange)="updateField('placeOfBirth', $event)" />
-              </label>
-            </div>
-          </section>
-
-          <section class="crew-form-block crew-form-block--passport">
-            <h4 class="crew-form-block-title">Passport</h4>
-            <div class="form-grid">
-              <label>
-                <span>Passport No.</span>
-                <input [ngModel]="draft().passport" (ngModelChange)="updateField('passport', $event)" />
-              </label>
-              <label>
-                <span>Issue date</span>
-                <app-date-picker [value]="draft().passportIssueDate" (valueChange)="updateField('passportIssueDate', $event)" />
-              </label>
-              <label>
-                <span>Expiry date</span>
-                <app-date-picker [value]="draft().passportExpiryDate" (valueChange)="updateField('passportExpiryDate', $event)" />
-              </label>
-            </div>
-          </section>
+    <div class="crew-form-layout">
+      <section class="crew-form-block">
+        <h4 class="crew-form-block-title">Personal details</h4>
+        <div class="form-grid">
+          <label>
+            <span>Family name</span>
+            <input
+              [ngModel]="draft().familyName"
+              (ngModelChange)="updateField('familyName', $event)"
+            />
+          </label>
+          <label>
+            <span>Given names</span>
+            <input
+              [ngModel]="draft().givenNames"
+              (ngModelChange)="updateField('givenNames', $event)"
+            />
+          </label>
+          <label>
+            <span>Nationality</span>
+            <app-lookup-select
+              [value]="draft().nationality"
+              [options]="nationalities()"
+              (valueChange)="updateField('nationality', $event)"
+            />
+          </label>
+          <label>
+            <span>Gender</span>
+            <select [ngModel]="draft().gender" (ngModelChange)="updateField('gender', $event)">
+              <option value="">— select —</option>
+              <option value="MALE">MALE</option>
+              <option value="FEMALE">FEMALE</option>
+            </select>
+          </label>
+          <label>
+            <span>Date of birth</span>
+            <app-date-picker
+              [value]="draft().dateOfBirth"
+              (valueChange)="updateField('dateOfBirth', $event)"
+            />
+          </label>
+          <label>
+            <span>Place of birth</span>
+            <input
+              [ngModel]="draft().placeOfBirth"
+              (ngModelChange)="updateField('placeOfBirth', $event)"
+            />
+          </label>
         </div>
+      </section>
 
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
-          <button type="button" class="btn btn-save" (click)="onSave()">Save</button>
+      <section class="crew-form-block crew-form-block--passport">
+        <h4 class="crew-form-block-title">Passport</h4>
+        <div class="form-grid">
+          <label>
+            <span>Passport No.</span>
+            <input [ngModel]="draft().passport" (ngModelChange)="updateField('passport', $event)" />
+          </label>
+          <label>
+            <span>Issue date</span>
+            <app-date-picker
+              [value]="draft().passportIssueDate"
+              (valueChange)="updateField('passportIssueDate', $event)"
+            />
+          </label>
+          <label>
+            <span>Expiry date</span>
+            <app-date-picker
+              [value]="draft().passportExpiryDate"
+              (valueChange)="updateField('passportExpiryDate', $event)"
+            />
+          </label>
         </div>
-      </div>
+      </section>
     </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
+      <button type="button" class="btn btn-save" (click)="onSave()">Save</button>
+    </div>
+  </div>
+</div>

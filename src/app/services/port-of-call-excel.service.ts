@@ -27,8 +27,7 @@ export class PortOfCallExcelService {
 
   async openForDoc(doc: PortSettingsDocId): Promise<boolean> {
     const base = this.appData();
-    const bytes =
-      doc === 'portsOfCall' ? await this.buildSecurity(base) : await this.build(base);
+    const bytes = doc === 'portsOfCall' ? await this.buildSecurity(base) : await this.build(base);
     const voyageDate = base.ship.dateOfArrival || base.ship.dateOfDeparture;
     const fileName =
       doc === 'portsOfCall'
@@ -49,8 +48,7 @@ export class PortOfCallExcelService {
     wb.creator = 'CREW Documents';
 
     pages.forEach((pageRows, pageIndex) => {
-      const sheetName =
-        pageIndex === 0 ? POC_EXCEL_SHEET : `${POC_EXCEL_SHEET} (${pageIndex + 1})`;
+      const sheetName = pageIndex === 0 ? POC_EXCEL_SHEET : `${POC_EXCEL_SHEET} (${pageIndex + 1})`;
       const ws = wb.addWorksheet(sheetName, {
         pageSetup: { paperSize: 9, orientation: 'portrait' },
       });

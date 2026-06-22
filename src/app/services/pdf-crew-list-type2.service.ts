@@ -48,7 +48,10 @@ export class PdfCrewListType2Service {
 
   async buildPreviewBytes(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
     const bytes = await this.build(data, crew);
-    return this.overlay.applyToPdfBytes(bytes, resolveCrewListStampOptions(data.documentOverlay.crewList));
+    return this.overlay.applyToPdfBytes(
+      bytes,
+      resolveCrewListStampOptions(data.documentOverlay.crewList),
+    );
   }
 
   async openPreview(data: AppData, crew: CrewMember[]): Promise<boolean> {
@@ -58,12 +61,7 @@ export class PdfCrewListType2Service {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    return crewListType2PdfFileName(
-      ship.name,
-      ship.portOfCall,
-      ship.dateOfArrival,
-      true,
-    );
+    return crewListType2PdfFileName(ship.name, ship.portOfCall, ship.dateOfArrival, true);
   }
 
   async build(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
@@ -93,9 +91,7 @@ export class PdfCrewListType2Service {
 
     for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
       const page =
-        pageIndex === 0
-          ? firstPage
-          : this.addTemplatePage(doc, firstPage, embeddedTemplate);
+        pageIndex === 0 ? firstPage : this.addTemplatePage(doc, firstPage, embeddedTemplate);
 
       const slice = crew.slice(
         pageIndex * CREW_LIST_ALGER_MAX_ROWS,

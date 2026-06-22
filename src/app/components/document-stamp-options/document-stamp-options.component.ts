@@ -34,13 +34,7 @@ import { OverlayPlacementPickerComponent } from '../overlay-placement-picker/ove
       letter-spacing: 0.02em;
       color: #fff;
       border: none;
-      background: linear-gradient(
-        120deg,
-        #4f46e5 0%,
-        #7c3aed 28%,
-        #c026d3 58%,
-        #e11d48 100%
-      );
+      background: linear-gradient(120deg, #4f46e5 0%, #7c3aed 28%, #c026d3 58%, #e11d48 100%);
       background-size: 200% 200%;
       background-position: 0% 50%;
       box-shadow:

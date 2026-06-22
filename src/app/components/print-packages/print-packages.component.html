@@ -1,10 +1,15 @@
 <div class="modal-backdrop">
-  <div class="modal modal-wide pkg-modal" appClickOutside (appClickOutside)="close()" (click)="$event.stopPropagation()">
+  <div
+    class="modal modal-wide pkg-modal"
+    appClickOutside
+    (appClickOutside)="close()"
+    (click)="$event.stopPropagation()"
+  >
     <header class="pkg-head">
       <h3>Document packages</h3>
       <p class="pkg-sub">
-        Plan documents per port, grouped by authority (Immigration, Customs…). Use Open / Print
-        per authority here, or Open all / Print all for the current Port of Call in the top bar.
+        Plan documents per port, grouped by authority (Immigration, Customs…). Use Open / Print per
+        authority here, or Open all / Print all for the current Port of Call in the top bar.
       </p>
     </header>
 
@@ -44,7 +49,9 @@
           @if (pkg.port === currentPort()) {
             <span class="pkg-badge">current</span>
           }
-          <span class="pkg-port-count">{{ pkg.authorities.length }} authority(ies) · {{ portDocCount(pkg) }} doc(s)</span>
+          <span class="pkg-port-count"
+            >{{ pkg.authorities.length }} authority(ies) · {{ portDocCount(pkg) }} doc(s)</span
+          >
           <button
             type="button"
             class="pkg-remove"
@@ -66,12 +73,18 @@
                 <div class="pkg-auth-head">
                   <label
                     class="pkg-auth-print"
-                    [title]="auth.includeInPrint === false ? 'Excluded from Print all (top bar)' : 'Include in Print all (top bar)'"
+                    [title]="
+                      auth.includeInPrint === false
+                        ? 'Excluded from Print all (top bar)'
+                        : 'Include in Print all (top bar)'
+                    "
                   >
                     <input
                       type="checkbox"
                       [ngModel]="auth.includeInPrint !== false"
-                      (ngModelChange)="setAuthorityIncludeInPrint(pkg.port, authIdx, auth.name, $event)"
+                      (ngModelChange)="
+                        setAuthorityIncludeInPrint(pkg.port, authIdx, auth.name, $event)
+                      "
                     />
                   </label>
                   <input
@@ -147,7 +160,11 @@
               </div>
             }
 
-            <button type="button" class="btn btn-secondary pkg-add-auth" (click)="addAuthority(pkg.port)">
+            <button
+              type="button"
+              class="btn btn-secondary pkg-add-auth"
+              (click)="addAuthority(pkg.port)"
+            >
               + Add authority
             </button>
           </div>

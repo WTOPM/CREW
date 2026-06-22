@@ -128,34 +128,44 @@ function drawTopHeader(
   const depLabelEnd = lastCol - 2;
   const depValueStart = lastCol - 1;
 
-  drawTextInRect(doc, 'SHIP NAME:', reeferLogCellRect(metrics, 1, 2), { size: metaSize, align: 'left' });
-  drawTextInRect(doc, ship.name || '', reeferLogCellRect(metrics, 1, 3, 1, 4), { size: metaSize });
-  drawTextInRect(doc, 'DEPARTURE PORT:', reeferLogCellRect(metrics, 1, depLabelStart, 1, depLabelEnd), {
+  drawTextInRect(doc, 'SHIP NAME:', reeferLogCellRect(metrics, 1, 2), {
     size: metaSize,
-    align: 'right',
-    pad: 4,
+    align: 'left',
   });
+  drawTextInRect(doc, ship.name || '', reeferLogCellRect(metrics, 1, 3, 1, 4), { size: metaSize });
+  drawTextInRect(
+    doc,
+    'DEPARTURE PORT:',
+    reeferLogCellRect(metrics, 1, depLabelStart, 1, depLabelEnd),
+    {
+      size: metaSize,
+      align: 'right',
+      pad: 4,
+    },
+  );
   drawTextInRect(doc, depPortCode || '', reeferLogCellRect(metrics, 1, depValueStart, 1, lastCol), {
     size: metaSize,
   });
 
   drawTextInRect(doc, 'IMO:', reeferLogCellRect(metrics, 2, 2), { size: metaSize, align: 'left' });
   drawTextInRect(doc, ship.imoNo || '', reeferLogCellRect(metrics, 2, 3, 2, 4), { size: metaSize });
-  drawTextInRect(doc, 'DEPARTURE DATE:', reeferLogCellRect(metrics, 2, depLabelStart, 2, depLabelEnd), {
-    size: metaSize,
-    align: 'right',
-    pad: 4,
-  });
+  drawTextInRect(
+    doc,
+    'DEPARTURE DATE:',
+    reeferLogCellRect(metrics, 2, depLabelStart, 2, depLabelEnd),
+    {
+      size: metaSize,
+      align: 'right',
+      pad: 4,
+    },
+  );
   drawTextInRect(doc, depDate || '', reeferLogCellRect(metrics, 2, depValueStart, 2, lastCol), {
     size: metaSize,
   });
 
-  drawTextInRect(
-    doc,
-    `REEFER MONITORING LOG - ${year}`,
-    reeferLogCellRect(metrics, 4, 7, 4, 11),
-    { size: metaSize },
-  );
+  drawTextInRect(doc, `REEFER MONITORING LOG - ${year}`, reeferLogCellRect(metrics, 4, 7, 4, 11), {
+    size: metaSize,
+  });
 }
 
 function drawTableHeader(
@@ -245,9 +255,14 @@ function drawDataRows(
       { size: dataSize },
     );
     const setPoint = parseReeferSetPointNumber(unit.setPointTemp);
-    drawTextInRect(doc, setPoint === '' ? '' : String(setPoint), reeferLogCellRect(metrics, row, 5), {
-      size: dataSize,
-    });
+    drawTextInRect(
+      doc,
+      setPoint === '' ? '' : String(setPoint),
+      reeferLogCellRect(metrics, row, 5),
+      {
+        size: dataSize,
+      },
+    );
     drawTextInRect(doc, unit.position, reeferLogCellRect(metrics, row, 7), {
       size: dataSize,
       align: 'left',
@@ -263,9 +278,20 @@ function shiftRectY(
   return { ...rect, y: rect.y + dy };
 }
 
-function drawFooter(doc: jsPDF, metrics: ReeferLogGridMetrics, lastCol: number, library: ReeferLibrarySettings): void {
+function drawFooter(
+  doc: jsPDF,
+  metrics: ReeferLogGridMetrics,
+  lastCol: number,
+  library: ReeferLibrarySettings,
+): void {
   const footSize = reeferLogFontSize(metrics, 9);
-  const lastDataRow = reeferLogCellRect(metrics, REEFER_LOG_DATA_END, 1, REEFER_LOG_DATA_END, lastCol);
+  const lastDataRow = reeferLogCellRect(
+    metrics,
+    REEFER_LOG_DATA_END,
+    1,
+    REEFER_LOG_DATA_END,
+    lastCol,
+  );
   const footerStart = reeferLogCellRect(metrics, 38, 1).y;
   const footerShift = lastDataRow.y + lastDataRow.h + footSize * 1.1 - footerStart;
 
@@ -320,7 +346,8 @@ export function buildReeferMonitoringPdfBytes(
   const layout = buildReeferLogLayout(library);
   const metrics = buildReeferLogGridMetrics(pageW, pageH, layout.colWidths);
   const year = reeferLogTitleYear(ship.dateOfDeparture);
-  const depPortCode = portCode(ship.portOfCall, [...ports]) || resolveReeferExportPortCode(ship.portOfCall, ports);
+  const depPortCode =
+    portCode(ship.portOfCall, [...ports]) || resolveReeferExportPortCode(ship.portOfCall, ports);
   const depDate = formatDisplayDate(ship.dateOfDeparture);
   const dateBlocks = buildReeferMonitoringDateBlocks(
     ship.dateOfDeparture,

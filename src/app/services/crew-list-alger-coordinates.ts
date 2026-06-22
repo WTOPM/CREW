@@ -89,7 +89,8 @@ const ALGER_ROW_YS = Object.values(CREW_LIST_ALGER_ROW_Y).map((r) => r.y);
 export const CREW_LIST_ALGER_BODY_NIL = {
   x:
     CREW_LIST_ALGER_COL_FIRST_X +
-    (crewListAlgerColX(Math.max(0, CREW_LIST_ALGER_MAX_ROWS - 1)) - CREW_LIST_ALGER_COL_FIRST_X) / 2,
+    (crewListAlgerColX(Math.max(0, CREW_LIST_ALGER_MAX_ROWS - 1)) - CREW_LIST_ALGER_COL_FIRST_X) /
+      2,
   y: (Math.min(...ALGER_ROW_YS) + Math.max(...ALGER_ROW_YS)) / 2,
   fontSize: 84,
 } as const;

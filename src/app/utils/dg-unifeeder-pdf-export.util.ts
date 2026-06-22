@@ -164,7 +164,10 @@ function drawTextInRect(
   const align = opts.align ?? 'center';
   const maxW = Math.max(2, rect.w - pad * 2);
   const lines = label.includes('\n')
-    ? label.split('\n').map((line) => line.trim()).filter(Boolean)
+    ? label
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
     : doc.getTextWidth(label) > maxW
       ? (doc.splitTextToSize(label, maxW) as string[])
       : [label];
@@ -209,7 +212,20 @@ function parseIsoDate(value: string): Date | null {
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
-const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const EN_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 
 function formatEnglishDateText(value: string): string {
   const dt = parseIsoDate(value);
@@ -312,7 +328,14 @@ function resolveRemarksLayout(data: DgUnifeederRow | undefined): RemarksLayout {
   if (partCount === 1) {
     const text = left || center || right;
     const align = hasLeft ? 'left' : hasCenter ? 'center' : 'right';
-    return { merged: true, kText: text, lText: '', mergedAlign: align, kAlign: 'center', lAlign: 'center' };
+    return {
+      merged: true,
+      kText: text,
+      lText: '',
+      mergedAlign: align,
+      kAlign: 'center',
+      lAlign: 'center',
+    };
   }
 
   if (hasLeft && hasRight && !hasCenter) {
@@ -324,7 +347,13 @@ function resolveRemarksLayout(data: DgUnifeederRow | undefined): RemarksLayout {
   if (!hasLeft && hasCenter && hasRight) {
     return { merged: false, kText: center, lText: right, kAlign: 'center', lAlign: 'right' };
   }
-  return { merged: false, kText: `${left}  ${center}`, lText: right, kAlign: 'left', lAlign: 'right' };
+  return {
+    merged: false,
+    kText: `${left}  ${center}`,
+    lText: right,
+    kAlign: 'left',
+    lAlign: 'right',
+  };
 }
 
 function formatEms(fire: string, spillage: string): string {
@@ -346,7 +375,10 @@ function exportPageCount(rowCount: number): number {
   return Math.max(1, Math.ceil(rowCount / DATA_ROW_COUNT));
 }
 
-function slicePageRows(rows: readonly DgUnifeederRow[], pageIndex: number): (DgUnifeederRow | undefined)[] {
+function slicePageRows(
+  rows: readonly DgUnifeederRow[],
+  pageIndex: number,
+): (DgUnifeederRow | undefined)[] {
   const start = pageIndex * DATA_ROW_COUNT;
   const slice = rows.slice(start, start + DATA_ROW_COUNT);
   const page: (DgUnifeederRow | undefined)[] = [];
@@ -399,7 +431,14 @@ function drawHeaderBlock(
 
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, 'PNG', logoRect.x + 1, logoRect.y + 1, logoRect.w - 2, logoRect.h - 2);
+      doc.addImage(
+        logoDataUrl,
+        'PNG',
+        logoRect.x + 1,
+        logoRect.y + 1,
+        logoRect.w - 2,
+        logoRect.h - 2,
+      );
     } catch {
       // skip logo when image decode fails
     }
@@ -419,7 +458,12 @@ function drawHeaderBlock(
   strokeRect(doc, pageNumRect, thick);
 
   drawTextInRect(doc, 'Dangerous Goods', titleRow, { font: TIMES, size: subSize });
-  drawTextInRect(doc, 'Page »', pageLabelRect, { font: TIMES, size: pageLabelSize, align: 'right', pad: 3 });
+  drawTextInRect(doc, 'Page »', pageLabelRect, {
+    font: TIMES,
+    size: pageLabelSize,
+    align: 'right',
+    pad: 3,
+  });
   drawTextInRect(doc, String(pageNumber), pageNumRect, { font: TIMES, size: pageLabelSize });
 
   const shipRow = 9;
@@ -437,10 +481,15 @@ function drawHeaderBlock(
     align: 'right',
     pad: 3,
   });
-  drawTextInRect(doc, formatEnglishDateText(ctx.dateOfDeparture || ship.dateOfDeparture), cellRect(metrics, shipRow, 5), {
-    size: metaValueSize,
-    bold: true,
-  });
+  drawTextInRect(
+    doc,
+    formatEnglishDateText(ctx.dateOfDeparture || ship.dateOfDeparture),
+    cellRect(metrics, shipRow, 5),
+    {
+      size: metaValueSize,
+      bold: true,
+    },
+  );
   drawTextInRect(doc, 'Voyage No.:', cellRect(metrics, shipRow, 7), {
     size: metaLabelSize,
     align: 'left',
@@ -455,10 +504,15 @@ function drawHeaderBlock(
     align: 'left',
     pad: 3,
   });
-  drawTextInRect(doc, resolvePortLabel(ctx.portOfCall || ship.portOfCall, ports), cellRect(metrics, shipRow, 11), {
-    size: metaValueSize,
-    bold: true,
-  });
+  drawTextInRect(
+    doc,
+    resolvePortLabel(ctx.portOfCall || ship.portOfCall, ports),
+    cellRect(metrics, shipRow, 11),
+    {
+      size: metaValueSize,
+      bold: true,
+    },
+  );
   drawTextInRect(
     doc,
     `to: ${resolvePortLabel(ctx.nextPortOfCall || ship.nextPortOfCall, ports)}`,
@@ -466,12 +520,17 @@ function drawHeaderBlock(
     { size: metaLabelSize, bold: true },
   );
 
-  drawTextInRect(doc, 'EmS and MFAG enter chapter no. / relevant pages', cellRect(metrics, 11, 1, 11, 12), {
-    font: TIMES,
-    size: noteSize,
-    align: 'left',
-    pad: 4,
-  });
+  drawTextInRect(
+    doc,
+    'EmS and MFAG enter chapter no. / relevant pages',
+    cellRect(metrics, 11, 1, 11, 12),
+    {
+      font: TIMES,
+      size: noteSize,
+      align: 'left',
+      pad: 4,
+    },
+  );
 }
 
 function drawTableHeader(doc: jsPDF, metrics: GridMetrics): void {
@@ -511,7 +570,12 @@ function drawDataRow(
   const emsSize = fontSize(metrics, 9);
   const mfagSize = fontSize(metrics, 6);
 
-  const values: { col: number; text: string; align?: 'left' | 'center' | 'right'; size?: number }[] = [
+  const values: {
+    col: number;
+    text: string;
+    align?: 'left' | 'center' | 'right';
+    size?: number;
+  }[] = [
     { col: 1, text: data?.dgClass ?? '' },
     { col: 2, text: data?.unNo ?? '' },
     { col: 3, text: data?.packingGroup ?? '' },
@@ -557,18 +621,36 @@ function drawDataRow(
 
   const kRect = cellRect(metrics, row, 11);
   const lRect = cellRect(metrics, row, 12);
-  drawTextInRect(doc, remarks.kText, kRect, { size: bodySize, align: remarks.kAlign, bold: true, pad: 3 });
-  drawTextInRect(doc, remarks.lText, lRect, { size: bodySize, align: remarks.lAlign, bold: true, pad: 3 });
+  drawTextInRect(doc, remarks.kText, kRect, {
+    size: bodySize,
+    align: remarks.kAlign,
+    bold: true,
+    pad: 3,
+  });
+  drawTextInRect(doc, remarks.lText, lRect, {
+    size: bodySize,
+    align: remarks.lAlign,
+    bold: true,
+    pad: 3,
+  });
 }
 
-function drawTotalRow(doc: jsPDF, metrics: GridMetrics, totalKg: number, roundWeights: boolean): void {
+function drawTotalRow(
+  doc: jsPDF,
+  metrics: GridMetrics,
+  totalKg: number,
+  roundWeights: boolean,
+): void {
   const bodySize = fontSize(metrics, 10);
   const labelRect = cellRect(metrics, TOTAL_ROW, 2, TOTAL_ROW, 3);
   const amountRect = cellRect(metrics, TOTAL_ROW, 4);
   strokeRect(doc, labelRect);
   strokeRect(doc, amountRect);
   drawTextInRect(doc, 'TOTAL WEIGHT:', labelRect, { size: bodySize, bold: true });
-  drawTextInRect(doc, formatTotalKg(totalKg, roundWeights), amountRect, { size: bodySize, bold: true });
+  drawTextInRect(doc, formatTotalKg(totalKg, roundWeights), amountRect, {
+    size: bodySize,
+    bold: true,
+  });
 }
 
 function drawFooterRow(doc: jsPDF, metrics: GridMetrics): void {
@@ -595,7 +677,15 @@ function drawPageBlock(
   drawHeaderBlock(doc, metrics, pageNumber, ship, ctx, ports, logoDataUrl);
   drawTableHeader(doc, metrics);
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
-    drawDataRow(doc, metrics, DATA_FIRST_ROW + i, pageRows[i], ports, exportWeights, options.roundWeights);
+    drawDataRow(
+      doc,
+      metrics,
+      DATA_FIRST_ROW + i,
+      pageRows[i],
+      ports,
+      exportWeights,
+      options.roundWeights,
+    );
   }
   if (options.showTotal) {
     drawTotalRow(doc, metrics, options.totalKg, options.roundWeights);

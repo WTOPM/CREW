@@ -42,7 +42,9 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
           </header>
 
           <footer class="dg-archive-modal__foot">
-            <button type="button" class="btn btn-secondary" (click)="cancel()">{{ d.cancelLabel }}</button>
+            <button type="button" class="btn btn-secondary" (click)="cancel()">
+              {{ d.cancelLabel }}
+            </button>
             <button
               type="button"
               class="btn"

@@ -23,7 +23,10 @@ const PACKING_GROUPS: Record<'I' | 'II' | 'III', DgPackingGroupEntry> = {
 };
 
 export function normalizeDgPackingGroupKey(raw: string): 'I' | 'II' | 'III' | null {
-  const value = raw.trim().toUpperCase().replace(/^PG\s*/i, '');
+  const value = raw
+    .trim()
+    .toUpperCase()
+    .replace(/^PG\s*/i, '');
   if (!value || value === '--' || value === '—' || value === '-') return null;
   if (value === 'I' || value === '1') return 'I';
   if (value === 'II' || value === '2') return 'II';

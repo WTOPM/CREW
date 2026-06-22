@@ -1,14 +1,5 @@
-import {
-  Directive,
-  ElementRef,
-  HostListener,
-  Input,
-  OnDestroy,
-} from '@angular/core';
-import {
-  lookupMfagFireSchedule,
-  lookupMfagSpillageSchedule,
-} from '../utils/dg-mfag-schedule.util';
+import { Directive, ElementRef, HostListener, Input, OnDestroy } from '@angular/core';
+import { lookupMfagFireSchedule, lookupMfagSpillageSchedule } from '../utils/dg-mfag-schedule.util';
 import { showHintTooltip } from '../utils/hint-tooltip.util';
 
 const SHOW_DELAY_MS = 500;

@@ -22,11 +22,7 @@
             (ngModelChange)="onEntryChange(entry.id, 'currency', $event)"
           />
         </label>
-        <button
-          type="button"
-          class="btn btn-link warn sm-remove"
-          (click)="removeEntry(entry.id)"
-        >
+        <button type="button" class="btn btn-link warn sm-remove" (click)="removeEntry(entry.id)">
           Remove
         </button>
       </li>

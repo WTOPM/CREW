@@ -187,7 +187,7 @@ function sealHeaderRow6FixedBorders(ws: ExcelJS.Worksheet): void {
     const cell = ws.getCell(6, col);
     cell.border = {
       top: THIN.top,
-      left: col === 1 ? THIN.left : cell.border?.left ?? THIN.left,
+      left: col === 1 ? THIN.left : (cell.border?.left ?? THIN.left),
       bottom: THIN.bottom,
       right: THIN.right,
     };
@@ -218,9 +218,9 @@ function sealHeaderRowOuterBorders(ws: ExcelJS.Worksheet, lastCol: number): void
     const cell = ws.getCell(row, col);
     cell.border = {
       top: cell.border?.top ?? THIN.top,
-      left: col === 1 ? THIN.left : cell.border?.left ?? THIN.left,
+      left: col === 1 ? THIN.left : (cell.border?.left ?? THIN.left),
       bottom: THIN.bottom,
-      right: col === lastCol ? THIN.right : cell.border?.right ?? THIN.right,
+      right: col === lastCol ? THIN.right : (cell.border?.right ?? THIN.right),
     };
   }
 }
@@ -246,10 +246,24 @@ function drawDataRows(
     aCell.border = THIN;
     aCell.fill = WHITE_FILL;
 
-    const rowValues: { col: number; value: ExcelJS.CellValue; fontSize: number; align?: 'left' | 'center' }[] = [
+    const rowValues: {
+      col: number;
+      value: ExcelJS.CellValue;
+      fontSize: number;
+      align?: 'left' | 'center';
+    }[] = [
       { col: 2, value: unit?.containerNo ?? '', fontSize: 10, align: 'left' },
-      { col: 3, value: unit ? resolveReeferExportPortCode(unit.loadPort, ports) : '', fontSize: 10, align: 'left' },
-      { col: 4, value: unit ? resolveReeferExportPortCode(unit.dischargePort, ports) : '', fontSize: 10 },
+      {
+        col: 3,
+        value: unit ? resolveReeferExportPortCode(unit.loadPort, ports) : '',
+        fontSize: 10,
+        align: 'left',
+      },
+      {
+        col: 4,
+        value: unit ? resolveReeferExportPortCode(unit.dischargePort, ports) : '',
+        fontSize: 10,
+      },
       { col: 5, value: unit ? parseSetPointNumber(unit.setPointTemp) : '', fontSize: 10 },
       { col: 6, value: '', fontSize: 10 },
       { col: 7, value: unit?.position ?? '', fontSize: 10, align: 'left' },
@@ -281,9 +295,17 @@ function drawDataRows(
 
 function drawFooter(ws: ExcelJS.Worksheet, lastCol: number, library: ReeferLibrarySettings): void {
   merge(ws, 38, 1, 38, 6);
-  setCell(ws, 38, 1, reeferCheckSignoffExcelRichText(reeferCheckSignoffSegments('08:30', library.monitoringMorningSigners)), {
-    alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
-  });
+  setCell(
+    ws,
+    38,
+    1,
+    reeferCheckSignoffExcelRichText(
+      reeferCheckSignoffSegments('08:30', library.monitoringMorningSigners),
+    ),
+    {
+      alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
+    },
+  );
   for (let col = 8; col <= lastCol; col++) {
     setCell(ws, 38, col, 'Sig.:________', {
       font: { name: ARIAL, size: 9 },
@@ -292,9 +314,17 @@ function drawFooter(ws: ExcelJS.Worksheet, lastCol: number, library: ReeferLibra
   }
 
   merge(ws, 39, 1, 39, 6);
-  setCell(ws, 39, 1, reeferCheckSignoffExcelRichText(reeferCheckSignoffSegments('16:55', library.monitoringEveningSigners)), {
-    alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
-  });
+  setCell(
+    ws,
+    39,
+    1,
+    reeferCheckSignoffExcelRichText(
+      reeferCheckSignoffSegments('16:55', library.monitoringEveningSigners),
+    ),
+    {
+      alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
+    },
+  );
   for (let col = 8; col <= lastCol; col++) {
     setCell(ws, 39, col, 'Sig.:________', {
       font: { name: ARIAL, size: 9 },
@@ -361,7 +391,8 @@ export async function buildReeferMonitoringExcelBytes(
 
   const layout = buildReeferLogLayout(library);
   const year = reeferLogTitleYear(ship.dateOfDeparture);
-  const depPortCode = portCode(ship.portOfCall, [...ports]) || resolveReeferExportPortCode(ship.portOfCall, ports);
+  const depPortCode =
+    portCode(ship.portOfCall, [...ports]) || resolveReeferExportPortCode(ship.portOfCall, ports);
   const departureDate = isoToExcelDate(ship.dateOfDeparture);
   const exportUnits = padReeferExportUnits(reeferExportOnboardUnits(library, exportContext?.units));
 

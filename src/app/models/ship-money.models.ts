@@ -23,10 +23,7 @@ export function createShipMoneyEntry(amount = '', currency = ''): ShipMoneyEntry
 
 export function createDefaultShipMoneyForm(): ShipMoneyFormSettings {
   return {
-    entries: [
-      createShipMoneyEntry('2800', 'USD'),
-      createShipMoneyEntry('6300', 'EURO'),
-    ],
+    entries: [createShipMoneyEntry('2800', 'USD'), createShipMoneyEntry('6300', 'EURO')],
   };
 }
 

@@ -198,7 +198,20 @@ export class AppSnapshotArchiveService {
 function formatIsoDateLabel(iso: string): string {
   const m = iso.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return iso;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   const mon = months[parseInt(m[2], 10) - 1] ?? m[2];
   return `${m[3]} ${mon} ${m[1]}`;
 }

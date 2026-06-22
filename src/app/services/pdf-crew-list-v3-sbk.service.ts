@@ -1,10 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import {
-  AppData,
-  CrewMember,
-  formatPortCallPortName,
-  portCountry,
-} from '../models/crew.models';
+import { AppData, CrewMember, formatPortCallPortName, portCountry } from '../models/crew.models';
 import { resolveCrewListStampOptions } from '../models/document-overlay.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { PdfOverlayService } from './pdf-overlay.service';
@@ -40,7 +35,10 @@ export class PdfCrewListV3SbkService {
 
   async buildPreviewBytes(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
     const bytes = await this.build(data, crew);
-    return this.overlay.applyToPdfBytes(bytes, resolveCrewListStampOptions(data.documentOverlay.crewList));
+    return this.overlay.applyToPdfBytes(
+      bytes,
+      resolveCrewListStampOptions(data.documentOverlay.crewList),
+    );
   }
 
   async openPreview(data: AppData, crew: CrewMember[]): Promise<boolean> {
@@ -76,9 +74,7 @@ export class PdfCrewListV3SbkService {
 
     for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
       const page =
-        pageIndex === 0
-          ? firstPage
-          : this.addTemplatePage(doc, firstPage, embeddedTemplate);
+        pageIndex === 0 ? firstPage : this.addTemplatePage(doc, firstPage, embeddedTemplate);
 
       const slice = crew.slice(
         pageIndex * CREW_LIST_V3_SBK_MAX_ROWS,
@@ -148,9 +144,7 @@ export class PdfCrewListV3SbkService {
   private drawHeader(page: PDFPage, font: PDFFont, black: RGB, data: AppData): void {
     const { ship, crewArr, ports } = data;
     const isArrival = crewArr.isArrival;
-    const voyageDate = formatDisplayDate(
-      isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
-    );
+    const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
 
     const draw = (text: string, placement: CrewListV3SbkTextPlacement) =>
       this.drawText(page, text, placement, font, black);
@@ -207,9 +201,7 @@ export class PdfCrewListV3SbkService {
   ): void {
     const { ship, crewArr } = data;
     const isArrival = crewArr.isArrival;
-    const voyageDate = formatDisplayDate(
-      isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
-    );
+    const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
 
     this.drawText(page, voyageDate, CREW_LIST_V3_SBK_FOOTER.signatureDate, font, black);
 
@@ -251,12 +243,42 @@ export class PdfCrewListV3SbkService {
         ...rowOpts,
       });
 
-      this.drawRowCell(page, this.formatCrewListV3SbkName(member), CREW_LIST_V3_SBK_ROW_COLS.name, y, rowOpts);
+      this.drawRowCell(
+        page,
+        this.formatCrewListV3SbkName(member),
+        CREW_LIST_V3_SBK_ROW_COLS.name,
+        y,
+        rowOpts,
+      );
       this.drawRowCell(page, member.rank.trim(), CREW_LIST_V3_SBK_ROW_COLS.rank, y, rowOpts);
-      this.drawRowCell(page, member.nationality.trim(), CREW_LIST_V3_SBK_ROW_COLS.nationality, y, rowOpts);
-      this.drawRowCell(page, formatBirthDate(member.dateOfBirth), CREW_LIST_V3_SBK_ROW_COLS.dateOfBirth, y, rowOpts);
-      this.drawRowCell(page, member.placeOfBirth.trim(), CREW_LIST_V3_SBK_ROW_COLS.placeOfBirth, y, rowOpts);
-      this.drawRowCell(page, member.seamansBook.trim(), CREW_LIST_V3_SBK_ROW_COLS.sbookNo, y, rowOpts);
+      this.drawRowCell(
+        page,
+        member.nationality.trim(),
+        CREW_LIST_V3_SBK_ROW_COLS.nationality,
+        y,
+        rowOpts,
+      );
+      this.drawRowCell(
+        page,
+        formatBirthDate(member.dateOfBirth),
+        CREW_LIST_V3_SBK_ROW_COLS.dateOfBirth,
+        y,
+        rowOpts,
+      );
+      this.drawRowCell(
+        page,
+        member.placeOfBirth.trim(),
+        CREW_LIST_V3_SBK_ROW_COLS.placeOfBirth,
+        y,
+        rowOpts,
+      );
+      this.drawRowCell(
+        page,
+        member.seamansBook.trim(),
+        CREW_LIST_V3_SBK_ROW_COLS.sbookNo,
+        y,
+        rowOpts,
+      );
       this.drawRowCell(
         page,
         formatDisplayDate(member.sbookExpiryDate),
@@ -343,9 +365,7 @@ export class PdfCrewListV3SbkService {
       if (lines.length === maxLines - 1) {
         const restWords = line ? [line, ...words.slice(wi + 1)] : words.slice(wi + 1);
         const rest = restWords.join(' ');
-        lines.push(
-          truncate ? this.truncateToWidth(font, rest, size, maxWidth) : rest,
-        );
+        lines.push(truncate ? this.truncateToWidth(font, rest, size, maxWidth) : rest);
         return lines;
       }
     }

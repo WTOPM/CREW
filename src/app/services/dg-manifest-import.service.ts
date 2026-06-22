@@ -12,7 +12,10 @@ import {
   appendManifestFilledUnWarning,
   applyCmaCargoReferenceOrManifest,
 } from '../utils/dg-import-un-reference.util';
-import { resolveDgWeightTonnageOptions, type DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
+import {
+  resolveDgWeightTonnageOptions,
+  type DgWeightTonnageOptions,
+} from '../models/dg-weight-tonnage.models';
 import { dualWeightFromImport } from '../utils/dg-weight-tonnage.util';
 
 export type DgManifestPdfFormat = 'cma-imdg' | 'unknown';
@@ -62,7 +65,7 @@ export class DgManifestImportService {
     const { useGrossWeight } = resolveDgWeightTonnageOptions(options);
     const items = await extractDgPdfTextItems(bytes);
     const joined = items.map((i) => i.str).join(' ');
-    
+
     // Try "Dangerous Cargo List" format first (PFR0767 v5.x)
     if (isCmaCargoListPdf(items)) {
       const listResult = parseCmaCargoList(items, ports, { useGrossWeight });
@@ -75,7 +78,7 @@ export class DgManifestImportService {
         };
       }
     }
-    
+
     // Try standard "Dangerous Cargo Manifest" format
     if (!/Dangerous Cargo Manifest|PFR0767_IMDG/i.test(joined)) {
       return {
@@ -144,8 +147,7 @@ function parseCmaHeader(items: DgPdfTextItem[]): Partial<Omit<DgManifestFormSett
   const loadPort = findPortValue(items, 'loadPort');
   const transhipmentPort = findPortValue(items, 'transhipmentPort');
   const dischargePort = findDischargePort(items);
-  const arrivalPort =
-    !isBlankManifestPort(transhipmentPort) ? transhipmentPort : dischargePort;
+  const arrivalPort = !isBlankManifestPort(transhipmentPort) ? transhipmentPort : dischargePort;
   const vesselName = pickInBand(items, 117, 122, 'vessel', (s) => s.length > 1 && s !== 'Vessel');
   const voyage = pickInBand(items, 131, 136, 'voyage', (s) => s.length > 3 && s !== 'Voyage');
   const callSign = pickInBand(items, 131, 136, 'callSign', (s) => /^[A-Z0-9]+$/i.test(s));
@@ -180,7 +182,13 @@ function findDischargePort(items: DgPdfTextItem[]): string {
     );
     if (val) return val.str.trim();
   }
-  return pickInBand(items, 129, 134, 'dischargePort', (s) => s.length > 2 && s !== ':' && s !== '-');
+  return pickInBand(
+    items,
+    129,
+    134,
+    'dischargePort',
+    (s) => s.length > 2 && s !== ':' && s !== '-',
+  );
 }
 
 function findPortValue(items: DgPdfTextItem[], kind: 'loadPort' | 'transhipmentPort'): string {
@@ -315,8 +323,7 @@ function parseCmaCargoRows(
     const page = classItem.page;
     const explicitContainer = pickNearY(items, y, 'containerNo', page, (s) => CONTAINER_RE.test(s));
     const container = explicitContainer || lastContainer;
-    const isoType =
-      pickNearY(items, y, 'isoType', page, (s) => ISO_TYPE_RE.test(s)) || lastType;
+    const isoType = pickNearY(items, y, 'isoType', page, (s) => ISO_TYPE_RE.test(s)) || lastType;
     if (container) lastContainer = container;
     if (isoType) lastType = isoType;
 

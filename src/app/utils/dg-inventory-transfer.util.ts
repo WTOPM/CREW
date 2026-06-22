@@ -86,7 +86,9 @@ export function cmaContainersToUnifeederRows(
   return rows;
 }
 
-export function unifeederRowsToCmaContainers(rows: readonly DgUnifeederRow[]): DgOnboardContainer[] {
+export function unifeederRowsToCmaContainers(
+  rows: readonly DgUnifeederRow[],
+): DgOnboardContainer[] {
   const map = new Map<string, DgOnboardContainer>();
   for (const row of rows) {
     if (!unifeederRowHasCargo(row)) continue;

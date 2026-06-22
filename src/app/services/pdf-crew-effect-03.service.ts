@@ -6,10 +6,7 @@ import {
   formatPortCallPortName,
 } from '../models/crew.models';
 import { crewEffectListRows } from '../utils/passenger-pdf.util';
-import {
-  CREW_EFFECT_NIL_LABEL,
-  normalizeCrewEffectForm03,
-} from '../models/crew-effect.models';
+import { CREW_EFFECT_NIL_LABEL, normalizeCrewEffectForm03 } from '../models/crew-effect.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewEffect03PdfFileName } from '../utils/pdf-filename.util';
 import {
@@ -130,19 +127,59 @@ export class PdfCrewEffect03Service {
         CREW_EFFECT_03_COL.rankMaxWidth,
       );
       if (form.nilCigarettes) {
-        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.cigarettes, y, fontSize);
+        this.drawTableCell(
+          page,
+          font,
+          black,
+          CREW_EFFECT_NIL_LABEL,
+          CREW_EFFECT_03_COL.cigarettes,
+          y,
+          fontSize,
+        );
       }
       if (form.nilCigars) {
-        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.cigars, y, fontSize);
+        this.drawTableCell(
+          page,
+          font,
+          black,
+          CREW_EFFECT_NIL_LABEL,
+          CREW_EFFECT_03_COL.cigars,
+          y,
+          fontSize,
+        );
       }
       if (form.nilSpirits) {
-        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.spirits, y, fontSize);
+        this.drawTableCell(
+          page,
+          font,
+          black,
+          CREW_EFFECT_NIL_LABEL,
+          CREW_EFFECT_03_COL.spirits,
+          y,
+          fontSize,
+        );
       }
       if (form.nilWeapons) {
-        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.weapons, y, fontSize);
+        this.drawTableCell(
+          page,
+          font,
+          black,
+          CREW_EFFECT_NIL_LABEL,
+          CREW_EFFECT_03_COL.weapons,
+          y,
+          fontSize,
+        );
       }
       if (form.nilAmmunition) {
-        this.drawTableCell(page, font, black, CREW_EFFECT_NIL_LABEL, CREW_EFFECT_03_COL.ammunition, y, fontSize);
+        this.drawTableCell(
+          page,
+          font,
+          black,
+          CREW_EFFECT_NIL_LABEL,
+          CREW_EFFECT_03_COL.ammunition,
+          y,
+          fontSize,
+        );
       }
       if (others) {
         this.drawTableCell(
@@ -224,10 +261,9 @@ export class PdfCrewEffect03Service {
     if (this.templateBytes && this.loadedVersion === CREW_EFFECT_03_TEMPLATE_VERSION) {
       return this.templateBytes;
     }
-    const res = await fetch(
-      `${CREW_EFFECT_03_TEMPLATE_URL}?v=${CREW_EFFECT_03_TEMPLATE_VERSION}`,
-      { cache: 'no-store' },
-    );
+    const res = await fetch(`${CREW_EFFECT_03_TEMPLATE_URL}?v=${CREW_EFFECT_03_TEMPLATE_VERSION}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) {
       throw new Error('Crew Effect 03 template not found (public/crew-effect-03-empty.pdf)');
     }

@@ -145,9 +145,8 @@ export class CrewStore {
     return {
       onArrival: active.filter((m) => m.onArrivalList).length,
       departureOnlyToArchive: active.filter((m) => m.onDepartureList && !m.onArrivalList).length,
-      departureArchiveMerged: this.data().crew.filter(
-        (m) => m.archivedFromDeparture && !m.archived,
-      ).length,
+      departureArchiveMerged: this.data().crew.filter((m) => m.archivedFromDeparture && !m.archived)
+        .length,
     };
   }
 
@@ -174,9 +173,8 @@ export class CrewStore {
     return {
       onDeparture: active.filter((m) => m.onDepartureList).length,
       arrivalOnlyToArchive: active.filter((m) => m.onArrivalList && !m.onDepartureList).length,
-      departureArchiveMerged: this.data().crew.filter(
-        (m) => m.archivedFromDeparture && !m.archived,
-      ).length,
+      departureArchiveMerged: this.data().crew.filter((m) => m.archivedFromDeparture && !m.archived)
+        .length,
     };
   }
 
@@ -389,9 +387,7 @@ export class CrewStore {
     toIndex: number,
   ): CrewMember[] {
     const inList = (m: CrewMember) =>
-      list === 'arrival'
-        ? !m.archived && m.onArrivalList
-        : !m.archived && m.onDepartureList;
+      list === 'arrival' ? !m.archived && m.onArrivalList : !m.archived && m.onDepartureList;
     const indices: number[] = [];
     const members: CrewMember[] = [];
     crew.forEach((m, i) => {

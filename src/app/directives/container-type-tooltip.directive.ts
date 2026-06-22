@@ -1,10 +1,4 @@
-import {
-  Directive,
-  ElementRef,
-  HostListener,
-  Input,
-  OnDestroy,
-} from '@angular/core';
+import { Directive, ElementRef, HostListener, Input, OnDestroy } from '@angular/core';
 import { lookupIsoContainerType, containerTypeSizeLabel } from '../utils/iso-container-type.util';
 import { showHintTooltip } from '../utils/hint-tooltip.util';
 

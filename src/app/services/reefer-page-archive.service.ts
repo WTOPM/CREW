@@ -93,7 +93,10 @@ export class ReeferPageArchiveService {
     const entry = this.entries().find((e) => e.id === session.loadedId);
     if (!entry) {
       if (session.liveBackup) {
-        this.reefer.applyReeferPageSnapshot(session.liveBackup.reeferLibrary, session.liveBackup.ship);
+        this.reefer.applyReeferPageSnapshot(
+          session.liveBackup.reeferLibrary,
+          session.liveBackup.ship,
+        );
       }
       this.clearSession();
       return;
@@ -218,11 +221,17 @@ export class ReeferPageArchiveService {
   }
 }
 
-function cloneReeferLibrary(lib: ReeferLibrarySettings, ports: readonly Port[]): ReeferLibrarySettings {
+function cloneReeferLibrary(
+  lib: ReeferLibrarySettings,
+  ports: readonly Port[],
+): ReeferLibrarySettings {
   return normalizeReeferLibrary(structuredClone(lib), ports);
 }
 
-function cloneLiveBackup(backup: ReeferPageLiveBackup, ports: readonly Port[]): ReeferPageLiveBackup {
+function cloneLiveBackup(
+  backup: ReeferPageLiveBackup,
+  ports: readonly Port[],
+): ReeferPageLiveBackup {
   return {
     ship: { ...backup.ship },
     reeferLibrary: cloneReeferLibrary(backup.reeferLibrary, ports),
@@ -232,7 +241,20 @@ function cloneLiveBackup(backup: ReeferPageLiveBackup, ports: readonly Port[]): 
 function formatIsoDateLabel(iso: string): string {
   const m = iso.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return iso;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   const mon = months[parseInt(m[2], 10) - 1] ?? m[2];
   return `${m[3]} ${mon} ${m[1]}`;
 }

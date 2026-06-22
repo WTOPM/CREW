@@ -119,7 +119,11 @@ export function buildReeferTimeRow7(dayCount: number): { col: number; time: stri
   return rows;
 }
 
-export function buildReeferDateFormulas(dayCount: number, lastCol: number, dayOffset: number): string[] {
+export function buildReeferDateFormulas(
+  dayCount: number,
+  lastCol: number,
+  dayOffset: number,
+): string[] {
   const depRef = `${excelColumnLetter(lastCol - 1)}2`;
   const firstFormula = dayOffset > 0 ? `${depRef}+${dayOffset}` : depRef;
   const formulas = [firstFormula];

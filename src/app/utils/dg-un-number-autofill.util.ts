@@ -14,9 +14,7 @@ export function unNumberHasDigits(raw: string | undefined | null): boolean {
 }
 
 /** CMA cargo line fields available from the UN number reference. */
-export function cmaCargoAutofillFromUnNumber(
-  raw: string,
-): Partial<Omit<DgCargoLine, 'id'>> | null {
+export function cmaCargoAutofillFromUnNumber(raw: string): Partial<Omit<DgCargoLine, 'id'>> | null {
   if (!unNumberHasDigits(raw)) return null;
 
   const entry = lookupUnNumberReference(raw);

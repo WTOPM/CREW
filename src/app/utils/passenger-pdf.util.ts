@@ -1,4 +1,9 @@
-import { AppData, CrewMember, createEmptyCrewMember, filterActiveCrewListFromData } from '../models/crew.models';
+import {
+  AppData,
+  CrewMember,
+  createEmptyCrewMember,
+  filterActiveCrewListFromData,
+} from '../models/crew.models';
 import {
   filterActivePassengerListFromData,
   PASSENGER_RANK,

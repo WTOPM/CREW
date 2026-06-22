@@ -1,15 +1,15 @@
-import type { CrewMember, PortAuthority, PortPackage, PortPackageItem } from '../models/crew.models';
+import type {
+  CrewMember,
+  PortAuthority,
+  PortPackage,
+  PortPackageItem,
+} from '../models/crew.models';
 import type { AppData } from '../models/crew.models';
 import type { AppMainSnapshot } from '../models/app-snapshot.models';
 import type { PassengerMember } from '../models/passenger.models';
 
 export function extractMainAppSnapshot(data: AppData): AppMainSnapshot {
-  const {
-    dgLibrary: _dg,
-    reeferLibrary: _rf,
-    seedVersion: _sv,
-    ...main
-  } = structuredClone(data);
+  const { dgLibrary: _dg, reeferLibrary: _rf, seedVersion: _sv, ...main } = structuredClone(data);
   return main;
 }
 
@@ -21,7 +21,10 @@ export function cloneMainAppSnapshot(snapshot: AppMainSnapshot): AppMainSnapshot
  * Apply a saved snapshot onto live data while preserving reference lists,
  * the fullest document packages, and crew/passenger archives.
  */
-export function mergeMainAppSnapshotIntoLive(live: AppData, snapshot: AppMainSnapshot): AppMainSnapshot {
+export function mergeMainAppSnapshotIntoLive(
+  live: AppData,
+  snapshot: AppMainSnapshot,
+): AppMainSnapshot {
   const snap = structuredClone(snapshot);
   return {
     ...snap,
@@ -34,7 +37,10 @@ export function mergeMainAppSnapshotIntoLive(live: AppData, snapshot: AppMainSna
   };
 }
 
-function mergeCrewMembersForSnapshotApply(live: CrewMember[], snapshot: CrewMember[]): CrewMember[] {
+function mergeCrewMembersForSnapshotApply(
+  live: CrewMember[],
+  snapshot: CrewMember[],
+): CrewMember[] {
   return mergeRosterForSnapshotApply(live, snapshot);
 }
 
@@ -71,7 +77,10 @@ function mergeRosterForSnapshotApply<T extends CrewMember | PassengerMember>(
   return result;
 }
 
-export function mergePrintPackagesMaxFilled(live: PortPackage[], snapshot: PortPackage[]): PortPackage[] {
+export function mergePrintPackagesMaxFilled(
+  live: PortPackage[],
+  snapshot: PortPackage[],
+): PortPackage[] {
   const byPort = new Map<string, PortPackage>();
 
   for (const pkg of [...live, ...snapshot]) {

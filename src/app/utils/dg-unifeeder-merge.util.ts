@@ -1,9 +1,6 @@
 import { formatDgWeightKgDisplay } from '../models/dg-manifest.models';
 import { createDgUnifeederRow, type DgUnifeederRow } from '../models/dg-unifeeder.models';
-import {
-  dgExportCargoMergeKey,
-  resolveDgExportMergedFlashPoint,
-} from './dg-cargo-merge.util';
+import { dgExportCargoMergeKey, resolveDgExportMergedFlashPoint } from './dg-cargo-merge.util';
 import { dgLineActiveWeightKg } from './dg-weight-tonnage.util';
 import { planDgLineWeightDisplays, type DgWeightViewOptions } from './dg-weight-view.util';
 
@@ -20,17 +17,19 @@ function joinMpLq(lq: string, marinePollutant: string): string {
   return parts.join(' ');
 }
 
-function unifeederRowHasCargo(row: Pick<DgUnifeederRow, 'dgClass' | 'unNo' | 'weightKg' | 'goodsDescription'>): boolean {
+function unifeederRowHasCargo(
+  row: Pick<DgUnifeederRow, 'dgClass' | 'unNo' | 'weightKg' | 'goodsDescription'>,
+): boolean {
   return Boolean(
-    row.dgClass.trim() ||
-      row.unNo.trim() ||
-      row.weightKg.trim() ||
-      row.goodsDescription.trim(),
+    row.dgClass.trim() || row.unNo.trim() || row.weightKg.trim() || row.goodsDescription.trim(),
   );
 }
 
 export function unifeederContainerKey(
-  row: Pick<DgUnifeederRow, 'containerNo' | 'loadPort' | 'dischargePort' | 'status' | 'size' | 'stow'>,
+  row: Pick<
+    DgUnifeederRow,
+    'containerNo' | 'loadPort' | 'dischargePort' | 'status' | 'size' | 'stow'
+  >,
 ): string {
   return [
     row.containerNo.trim().toUpperCase(),
@@ -222,14 +221,9 @@ export function buildUnifeederInventoryDisplayRows(
   options: { mergeLines: boolean } & DgWeightViewOptions,
   weightDisplays?: Map<string, string>,
 ): DgUnifeederRowDisplay[] {
-  const { rows: displayRows, sourceRowIds: sourceRowIdsByDisplayId } = mergeUnifeederRowsInContainersWithMeta(
-    rows,
-    options.mergeLines,
-    options.useGrossWeight,
-  );
-  const planned =
-    weightDisplays ??
-    planUnifeederMergedWeightDisplays(rows, options);
+  const { rows: displayRows, sourceRowIds: sourceRowIdsByDisplayId } =
+    mergeUnifeederRowsInContainersWithMeta(rows, options.mergeLines, options.useGrossWeight);
+  const planned = weightDisplays ?? planUnifeederMergedWeightDisplays(rows, options);
 
   return displayRows.map((row) => {
     const lineSourceIds = sourceRowIdsByDisplayId.get(row.id) ?? [row.id];

@@ -1,10 +1,4 @@
-import {
-  Directive,
-  ElementRef,
-  HostListener,
-  Input,
-  OnDestroy,
-} from '@angular/core';
+import { Directive, ElementRef, HostListener, Input, OnDestroy } from '@angular/core';
 import {
   formatDgPackingGroupReference,
   lookupDgPackingGroup,

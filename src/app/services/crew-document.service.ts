@@ -29,7 +29,11 @@ export class CrewDocumentService {
     await this.saveBytes(crewId, docType, buf);
   }
 
-  async attachFromPath(crewId: string, docType: CrewDocumentType, sourcePath: string): Promise<void> {
+  async attachFromPath(
+    crewId: string,
+    docType: CrewDocumentType,
+    sourcePath: string,
+  ): Promise<void> {
     const api = window.electronAPI;
     if (!api) throw new Error('File path attach works in desktop app only');
     await api.saveCrewPdf(crewId, docType, sourcePath);
@@ -90,7 +94,11 @@ export class CrewDocumentService {
     return openPdfBlobPreview(bytes);
   }
 
-  private async saveBytes(crewId: string, docType: CrewDocumentType, buffer: ArrayBuffer): Promise<void> {
+  private async saveBytes(
+    crewId: string,
+    docType: CrewDocumentType,
+    buffer: ArrayBuffer,
+  ): Promise<void> {
     const api = window.electronAPI;
     const b64 = bytesToBase64(new Uint8Array(buffer));
     if (api) {

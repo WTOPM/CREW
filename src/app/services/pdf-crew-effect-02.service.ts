@@ -7,10 +7,7 @@ import {
   portCountry,
 } from '../models/crew.models';
 import { crewEffectListRows } from '../utils/passenger-pdf.util';
-import {
-  CREW_EFFECT_NIL_LABEL,
-  normalizeCrewEffectForm02,
-} from '../models/crew-effect.models';
+import { CREW_EFFECT_NIL_LABEL, normalizeCrewEffectForm02 } from '../models/crew-effect.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { crewEffect02PdfFileName } from '../utils/pdf-filename.util';
@@ -316,10 +313,9 @@ export class PdfCrewEffect02Service {
     if (this.templateBytes && this.loadedVersion === CREW_EFFECT_02_TEMPLATE_VERSION) {
       return this.templateBytes;
     }
-    const res = await fetch(
-      `${CREW_EFFECT_02_TEMPLATE_URL}?v=${CREW_EFFECT_02_TEMPLATE_VERSION}`,
-      { cache: 'no-store' },
-    );
+    const res = await fetch(`${CREW_EFFECT_02_TEMPLATE_URL}?v=${CREW_EFFECT_02_TEMPLATE_VERSION}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) {
       throw new Error('Crew Effect 02 template not found (public/crew-effect-02-empty.pdf)');
     }

@@ -23,7 +23,10 @@ import { ReeferStore } from '../../services/reefer.store';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { formatDisplayDate } from '../../utils/date.util';
-import { buildReeferContentHash, buildReeferPdfBytesHash } from '../../utils/reefer-fingerprint.util';
+import {
+  buildReeferContentHash,
+  buildReeferPdfBytesHash,
+} from '../../utils/reefer-fingerprint.util';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
@@ -174,25 +177,39 @@ export class ReeferComponent {
   protected exportPdf(): void {
     if (this.exportingPdf()) return;
     this.exportingPdf.set(true);
-    void this.reeferPdf.openMonitoringLog(this.buildExportContext()).then((ok) => {
-      this.toast.show(ok ? 'Reefer log PDF opened' : 'Could not open PDF', ok ? 'success' : 'error');
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'PDF export failed');
-    }).finally(() => {
-      this.exportingPdf.set(false);
-    });
+    void this.reeferPdf
+      .openMonitoringLog(this.buildExportContext())
+      .then((ok) => {
+        this.toast.show(
+          ok ? 'Reefer log PDF opened' : 'Could not open PDF',
+          ok ? 'success' : 'error',
+        );
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'PDF export failed');
+      })
+      .finally(() => {
+        this.exportingPdf.set(false);
+      });
   }
 
   protected exportExcel(): void {
     if (this.exportingExcel()) return;
     this.exportingExcel.set(true);
-    void this.reeferExcel.openMonitoringLog(this.buildExportContext()).then((ok) => {
-      this.toast.show(ok ? 'Reefer log Excel opened' : 'Could not open Excel', ok ? 'success' : 'error');
-    }).catch((err) => {
-      this.toast.showError(err instanceof Error ? err.message : 'Excel export failed');
-    }).finally(() => {
-      this.exportingExcel.set(false);
-    });
+    void this.reeferExcel
+      .openMonitoringLog(this.buildExportContext())
+      .then((ok) => {
+        this.toast.show(
+          ok ? 'Reefer log Excel opened' : 'Could not open Excel',
+          ok ? 'success' : 'error',
+        );
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Excel export failed');
+      })
+      .finally(() => {
+        this.exportingExcel.set(false);
+      });
   }
 
   protected startArchiveSave(): void {
@@ -314,7 +331,9 @@ export class ReeferComponent {
         pdfBytesFingerprint,
       });
       if (duplicate) {
-        this.toast.showError(`This manifest was already imported (${duplicate.sourceName || 'existing entry'})`);
+        this.toast.showError(
+          `This manifest was already imported (${duplicate.sourceName || 'existing entry'})`,
+        );
         return;
       }
 

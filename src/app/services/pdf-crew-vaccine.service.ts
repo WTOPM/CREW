@@ -155,7 +155,9 @@ export class PdfCrewVaccineService {
 
     // Captain name at 279, 94
     const captain = activeCrew.find((m) => m.rank?.toLowerCase().includes('master'));
-    const captainName = captain ? `${captain.familyName || ''}${captain.familyName && captain.givenNames ? ', ' : ''}${captain.givenNames || ''}` : '';
+    const captainName = captain
+      ? `${captain.familyName || ''}${captain.familyName && captain.givenNames ? ', ' : ''}${captain.givenNames || ''}`
+      : '';
     page.drawText(captainName, {
       x: 279,
       y: 94,

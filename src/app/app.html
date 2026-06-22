@@ -1,7 +1,12 @@
 <div class="app-shell">
   <nav class="top-nav">
     <div class="top-nav__start">
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="brand">
+      <a
+        routerLink="/"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="brand"
+      >
         <img class="brand-logo" src="logo.svg" width="44" height="44" alt="" />
         <span class="brand-text">
           <span class="brand-title">CREW</span>
@@ -11,7 +16,9 @@
       </a>
 
       <div class="nav-links" aria-label="Main navigation">
-        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+          >Home</a
+        >
         <a routerLink="/dg" routerLinkActive="active" class="nav-dg">DG</a>
         <a routerLink="/reefer" routerLinkActive="active" class="nav-reefer">REEFER</a>
         <a routerLink="/settings" routerLinkActive="active" class="nav-settings">
@@ -64,14 +71,18 @@
             (mousedown)="onFolderBtnDown($event)"
             (mouseup)="onFolderBtnUp()"
             (mouseleave)="onFolderBtnLeave()"
-          >📁</button>
+          >
+            📁
+          </button>
           <button
             type="button"
             class="output-btn"
             title="Remove selected folder"
             [disabled]="!activeFolderId()"
             (click)="removeActiveFolder()"
-          >×</button>
+          >
+            ×
+          </button>
         } @else {
           <span class="output-note">Folder saving needs Chrome or Edge</span>
         }

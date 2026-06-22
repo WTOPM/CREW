@@ -1,10 +1,7 @@
 import { Component, computed, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  MFAG_FIRE_SCHEDULE_REFS,
-  MFAG_SPILLAGE_SCHEDULE_REFS,
-} from '../../data/dg-mfag-reference';
+import { MFAG_FIRE_SCHEDULE_REFS, MFAG_SPILLAGE_SCHEDULE_REFS } from '../../data/dg-mfag-reference';
 import { DgClassTooltipDirective } from '../../directives/dg-class-tooltip.directive';
 import {
   formatUnNumberMeta,

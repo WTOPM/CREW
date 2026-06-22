@@ -39,14 +39,20 @@ export function isoFromParts(year: number, monthIndex: number, day: number): str
   return Number.isNaN(Date.parse(iso)) ? '' : iso;
 }
 
-export function partsFromIso(iso: string): { year: number; monthIndex: number; day: number } | null {
+export function partsFromIso(
+  iso: string,
+): { year: number; monthIndex: number; day: number } | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
   const [y, m, d] = iso.split('-').map((n) => parseInt(n, 10));
   if (!y || !m || !d) return null;
   return { year: y, monthIndex: m - 1, day: d };
 }
 
-export function buildMonthGrid(year: number, monthIndex: number, selectedIso: string): CalendarCell[] {
+export function buildMonthGrid(
+  year: number,
+  monthIndex: number,
+  selectedIso: string,
+): CalendarCell[] {
   const today = todayIsoLocal();
   const first = new Date(year, monthIndex, 1);
   const startOffset = (first.getDay() + 6) % 7;

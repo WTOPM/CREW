@@ -120,10 +120,7 @@ export function createCoordScale(
 ): CoordScale {
   const srcW = CREW_LIST_SRC.maxX - CREW_LIST_SRC.minX;
   const srcH =
-    CREW_LIST_SRC.maxY -
-    CREW_LIST_SRC.minY +
-    CREW_LIST_TITLE_BAND_SRC +
-    CREW_LIST_FOOTER_BAND_SRC;
+    CREW_LIST_SRC.maxY - CREW_LIST_SRC.minY + CREW_LIST_TITLE_BAND_SRC + CREW_LIST_FOOTER_BAND_SRC;
   const usableW = pageW - marginLeft - marginRight;
   const usableH = pageH - marginTop - marginBottom;
   const scale = Math.min(usableW / srcW, usableH / srcH);

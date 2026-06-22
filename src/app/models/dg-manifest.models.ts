@@ -121,7 +121,10 @@ export interface DgManifestDocument {
 }
 
 /** @deprecated Use DgOnboardContainer */
-export type DgContainerEntry = Omit<DgOnboardContainer, 'loadPort' | 'dischargePort' | 'status' | 'sourceManifestId'>;
+export type DgContainerEntry = Omit<
+  DgOnboardContainer,
+  'loadPort' | 'dischargePort' | 'status' | 'sourceManifestId'
+>;
 
 export type DgActiveInventoryTab = 'cmaCgm' | 'unifeeder';
 
@@ -176,17 +179,16 @@ export function createDgCargoLine(
 }
 
 export function createDgOnboardContainer(
-  partial?: Partial<Omit<DgOnboardContainer, 'id' | 'lines'> & {
-    id?: string;
-    lines?: DgCargoLine[];
-  }>,
+  partial?: Partial<
+    Omit<DgOnboardContainer, 'id' | 'lines'> & {
+      id?: string;
+      lines?: DgCargoLine[];
+    }
+  >,
 ): DgOnboardContainer {
   const existingId = (partial?.id ?? '').trim();
-  const lines = Array.isArray(partial?.lines)
-    ? partial.lines.map((l) => createDgCargoLine(l))
-    : [];
-  const status: DgContainerStatus =
-    partial?.status === 'discharged' ? 'discharged' : 'onboard';
+  const lines = Array.isArray(partial?.lines) ? partial.lines.map((l) => createDgCargoLine(l)) : [];
+  const status: DgContainerStatus = partial?.status === 'discharged' ? 'discharged' : 'onboard';
   return {
     id: existingId || crypto.randomUUID(),
     containerNo: (partial?.containerNo ?? '').trim(),
@@ -201,7 +203,9 @@ export function createDgOnboardContainer(
 }
 
 export function createDgManifestDocument(
-  partial?: Partial<Omit<DgManifestDocument, 'id' | 'addedAt' | 'containerCount' | 'containers'>> & {
+  partial?: Partial<
+    Omit<DgManifestDocument, 'id' | 'addedAt' | 'containerCount' | 'containers'>
+  > & {
     id?: string;
     addedAt?: string;
     containerCount?: number;
@@ -232,9 +236,7 @@ export function findDgManifestDuplicate(
   const pdf = fingerprints.pdfBytesFingerprint?.trim();
   if (!content && !pdf) return undefined;
   return manifests.find(
-    (m) =>
-      (content && m.contentFingerprint === content) ||
-      (pdf && m.pdfBytesFingerprint === pdf),
+    (m) => (content && m.contentFingerprint === content) || (pdf && m.pdfBytesFingerprint === pdf),
   );
 }
 
@@ -286,9 +288,7 @@ export function normalizeDgLibrary(
       sanitizeDgManifestPorts(createDgManifestDocument(m ?? {}), ports),
     );
     let onboard = Array.isArray(raw.onboard)
-      ? raw.onboard.map((c) =>
-          sanitizeDgOnboardPorts(createDgOnboardContainer(c ?? {}), ports),
-        )
+      ? raw.onboard.map((c) => sanitizeDgOnboardPorts(createDgOnboardContainer(c ?? {}), ports))
       : [];
 
     if (!onboard.length && rawManifests?.length) {
@@ -297,13 +297,8 @@ export function normalizeDgLibrary(
       ).map((c) => sanitizeDgOnboardPorts(c, ports));
     }
 
-    const pageContext = normalizeDgPageContext(
-        raw.pageContext,
-        'pageContext' in raw,
-        shipSeed,
-      );
-    const hasNewWeightFields =
-      'manifestUseGrossWeight' in raw || 'manifestRoundWeights' in raw;
+    const pageContext = normalizeDgPageContext(raw.pageContext, 'pageContext' in raw, shipSeed);
+    const hasNewWeightFields = 'manifestUseGrossWeight' in raw || 'manifestRoundWeights' in raw;
     let manifestUseGrossWeight = raw.manifestUseGrossWeight !== false;
     let manifestRoundWeights = raw.manifestRoundWeights === true;
     if (!hasNewWeightFields && raw.manifestGrossTotalKg !== undefined) {
@@ -384,16 +379,18 @@ function migrateLegacyDgForm(
     manifests: [{ ...doc, containerCount: onboard.length }],
     onboard,
     showDischarged: false,
-  manifestMergeLines: false,
-  manifestUseGrossWeight: true,
-  manifestRoundWeights: false,
-  activeInventoryTab: 'cmaCgm',
+    manifestMergeLines: false,
+    manifestUseGrossWeight: true,
+    manifestRoundWeights: false,
+    activeInventoryTab: 'cmaCgm',
     pageContext: normalizeDgPageContext(undefined, false, shipSeed),
     unifeeder: createDefaultUnifeederLibrary(),
   };
 }
 
-function normalizeLegacyDgManifestForm(raw: Partial<DgManifestFormSettings>): DgManifestFormSettings {
+function normalizeLegacyDgManifestForm(
+  raw: Partial<DgManifestFormSettings>,
+): DgManifestFormSettings {
   const rows = Array.isArray(raw.rows)
     ? raw.rows.map((r) => createLegacyDgManifestRow(r ?? {}))
     : [];
@@ -432,9 +429,18 @@ function createLegacyDgManifestRow(
 export function groupLegacyRowsIntoContainers(
   rows: readonly Partial<DgManifestRow>[],
 ): Pick<DgOnboardContainer, 'containerNo' | 'type' | 'stowage' | 'lines'>[] {
-  const map = new Map<string, Pick<DgOnboardContainer, 'containerNo' | 'type' | 'stowage' | 'lines'>>();
+  const map = new Map<
+    string,
+    Pick<DgOnboardContainer, 'containerNo' | 'type' | 'stowage' | 'lines'>
+  >();
   for (const row of rows) {
-    const hasCargo = row.unNo || row.dgClass || row.properShippingName || row.weightKg || row.mpLq || row.flashPoint;
+    const hasCargo =
+      row.unNo ||
+      row.dgClass ||
+      row.properShippingName ||
+      row.weightKg ||
+      row.mpLq ||
+      row.flashPoint;
     if (!hasCargo && !row.containerNo) continue;
 
     const key = (row.containerNo ?? '').trim() || '__no_container__';
@@ -476,9 +482,7 @@ export function onboardContainersFromImportRows(
 ): DgOnboardContainer[] {
   const grouped = groupLegacyRowsIntoContainers(rows);
   return grouped.map((g) => {
-    const rowsForContainer = rows.filter(
-      (r) => (r.containerNo ?? '').trim() === g.containerNo,
-    );
+    const rowsForContainer = rows.filter((r) => (r.containerNo ?? '').trim() === g.containerNo);
     const rowWithPorts = rowsForContainer.find((r) => r.pol || r.pod);
     let loadPort = (rowWithPorts?.pol ?? defaultLoadPort).trim();
     let dischargePort = defaultDischargePort.trim();
@@ -641,9 +645,7 @@ export function dgOnboardExportTotalKg(
   onboard: readonly DgOnboardContainer[],
   includeDischarged = false,
 ): number {
-  const visible = includeDischarged
-    ? onboard
-    : onboard.filter((c) => c.status === 'onboard');
+  const visible = includeDischarged ? onboard : onboard.filter((c) => c.status === 'onboard');
   return dgContainersExportTotalKg(visible);
 }
 
@@ -685,9 +687,7 @@ export function dgOnboardInventoryStats(
   totalKg: number;
   dischargedCount: number;
 } {
-  const visible = includeDischarged
-    ? onboard
-    : onboard.filter((c) => c.status === 'onboard');
+  const visible = includeDischarged ? onboard : onboard.filter((c) => c.status === 'onboard');
   const dischargedCount = onboard.filter((c) => c.status === 'discharged').length;
   return {
     containerCount: visible.length,
@@ -704,18 +704,13 @@ export function dgViewOnboardInventoryStats(
   displayLineCount?: (container: DgOnboardContainer) => number,
 ): ReturnType<typeof dgOnboardInventoryStats> {
   const base = dgOnboardInventoryStats(onboard, includeDischarged);
-  const visible = includeDischarged
-    ? onboard
-    : onboard.filter((c) => c.status === 'onboard');
+  const visible = includeDischarged ? onboard : onboard.filter((c) => c.status === 'onboard');
   return {
     ...base,
     lineCount: displayLineCount
       ? visible.reduce((n, c) => n + displayLineCount(c), 0)
       : base.lineCount,
-    totalKg: dgInventoryDisplayTotalKg(
-      visible,
-      options,
-    ),
+    totalKg: dgInventoryDisplayTotalKg(visible, options),
   };
 }
 
@@ -742,20 +737,14 @@ export function dgOnboardClassSummaries(
   useGross = false,
   roundWeights = false,
 ): DgClassSummaryRow[] {
-  const visible = includeDischarged
-    ? onboard
-    : onboard.filter((c) => c.status === 'onboard');
+  const visible = includeDischarged ? onboard : onboard.filter((c) => c.status === 'onboard');
   const finalize = roundWeights
     ? (total: number) => total
     : (total: number) => roundDgWeightKgSum(total);
   const weightForLine = roundWeights
     ? (line: DgCargoLine) => Math.round(dgLineActiveWeightKg(line, useGross))
     : (line: DgCargoLine) => dgLineActiveWeightKg(line, useGross);
-  return dgClassSummariesFromLines(
-    visible,
-    weightForLine,
-    finalize,
-  );
+  return dgClassSummariesFromLines(visible, weightForLine, finalize);
 }
 
 export function dgViewOnboardClassSummaries(
@@ -765,9 +754,7 @@ export function dgViewOnboardClassSummaries(
 ): DgClassSummaryRow[] {
   const useGross = options.manifestUseGrossWeight;
   const roundWeights = options.manifestRoundWeights;
-  const visible = includeDischarged
-    ? onboard
-    : onboard.filter((c) => c.status === 'onboard');
+  const visible = includeDischarged ? onboard : onboard.filter((c) => c.status === 'onboard');
   const containers = options.manifestMergeLines
     ? visible.map((container) => ({
         ...container,
@@ -780,11 +767,7 @@ export function dgViewOnboardClassSummaries(
   const weightForLine = roundWeights
     ? (line: DgCargoLine) => Math.round(dgLineActiveWeightKg(line, useGross))
     : (line: DgCargoLine) => dgLineActiveWeightKg(line, useGross);
-  return dgClassSummariesFromLines(
-    containers,
-    weightForLine,
-    finalize,
-  );
+  return dgClassSummariesFromLines(containers, weightForLine, finalize);
 }
 
 function mergeDgCargoLinesForSummary(

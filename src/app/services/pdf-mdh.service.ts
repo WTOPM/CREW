@@ -102,25 +102,49 @@ export class PdfMdhService {
       draw('nil', MDH_FIELDS.passengerThird);
     }
 
-    const portHistory = orderPortCallHistoryForPdf(data.portCallHistory).slice(0, MDH_MAX_PORT_ROWS);
+    const portHistory = orderPortCallHistoryForPdf(data.portCallHistory).slice(
+      0,
+      MDH_MAX_PORT_ROWS,
+    );
     portHistory.forEach((entry, i) => {
       const row = MDH_PORT_ROWS[i];
       if (!row) return;
-      this.drawPlacement(page, height, font, rgb, {
-        x: MDH_PORT_COL.port.x,
-        lineY: row.lineY,
-        lift: MDH_PORT_COL.port.lift,
-      }, formatPortCallPortName(entry.portName));
-      this.drawPlacement(page, height, font, rgb, {
-        x: MDH_PORT_COL.date.x,
-        lineY: row.lineY,
-        lift: MDH_PORT_COL.date.lift,
-      }, formatMdhPortDate(entry.departureDate || entry.arrivalDate));
-      this.drawPlacement(page, height, font, rgb, {
-        x: MDH_PORT_COL.code.x,
-        lineY: row.lineY,
-        lift: MDH_PORT_COL.code.lift,
-      }, portCode(entry.portName, ports));
+      this.drawPlacement(
+        page,
+        height,
+        font,
+        rgb,
+        {
+          x: MDH_PORT_COL.port.x,
+          lineY: row.lineY,
+          lift: MDH_PORT_COL.port.lift,
+        },
+        formatPortCallPortName(entry.portName),
+      );
+      this.drawPlacement(
+        page,
+        height,
+        font,
+        rgb,
+        {
+          x: MDH_PORT_COL.date.x,
+          lineY: row.lineY,
+          lift: MDH_PORT_COL.date.lift,
+        },
+        formatMdhPortDate(entry.departureDate || entry.arrivalDate),
+      );
+      this.drawPlacement(
+        page,
+        height,
+        font,
+        rgb,
+        {
+          x: MDH_PORT_COL.code.x,
+          lineY: row.lineY,
+          lift: MDH_PORT_COL.code.lift,
+        },
+        portCode(entry.portName, ports),
+      );
     });
 
     for (const slot of MDH_HEALTH_NO) {
@@ -138,7 +162,9 @@ export class PdfMdhService {
   }
 
   /** Page 2+ — static schedule/attachment (stamp overlay applied in applyMdhOverlay). */
-  private async appendStaticPages(doc: Awaited<ReturnType<typeof import('pdf-lib').PDFDocument.load>>): Promise<void> {
+  private async appendStaticPages(
+    doc: Awaited<ReturnType<typeof import('pdf-lib').PDFDocument.load>>,
+  ): Promise<void> {
     const { PDFDocument } = await import('pdf-lib');
     const page2 = await this.loadTemplatePage2();
     const attachment = await PDFDocument.load(page2);
@@ -184,7 +210,9 @@ export class PdfMdhService {
 
   private async loadTemplatePage2(): Promise<Uint8Array> {
     if (this.templatePage2Bytes) return this.templatePage2Bytes;
-    const res = await fetch(`${MDH_TEMPLATE_PAGE2_URL}?v=${this.templateVersion}`, { cache: 'no-store' });
+    const res = await fetch(`${MDH_TEMPLATE_PAGE2_URL}?v=${this.templateVersion}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) {
       throw new Error('MDH page 2 not found (public/mdh-template-page2.pdf)');
     }

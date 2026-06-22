@@ -145,17 +145,16 @@ export function normalizeReeferLibrary(
       inventorySortDirection: raw.inventorySortDirection === 'desc' ? 'desc' : 'asc',
       monitoringMorningSigners: normalizeReeferMonitoringSigners(raw.monitoringMorningSigners),
       monitoringEveningSigners: normalizeReeferMonitoringSigners(raw.monitoringEveningSigners),
-      pageContext: normalizeReeferPageContext(
-        raw.pageContext,
-        'pageContext' in raw,
-        shipSeed,
-      ),
+      pageContext: normalizeReeferPageContext(raw.pageContext, 'pageContext' in raw, shipSeed),
     };
   }
   return createDefaultReeferLibrary();
 }
 
-function sanitizeReeferUnitPorts(unit: ReeferOnboardUnit, ports: readonly Port[]): ReeferOnboardUnit {
+function sanitizeReeferUnitPorts(
+  unit: ReeferOnboardUnit,
+  ports: readonly Port[],
+): ReeferOnboardUnit {
   return {
     ...unit,
     setPointTemp: formatReeferSetPoint(unit.setPointTemp),
@@ -194,9 +193,7 @@ export function findReeferManifestDuplicate(
   const pdf = fingerprints.pdfBytesFingerprint?.trim();
   if (!content && !pdf) return undefined;
   return manifests.find(
-    (m) =>
-      (content && m.contentFingerprint === content) ||
-      (pdf && m.pdfBytesFingerprint === pdf),
+    (m) => (content && m.contentFingerprint === content) || (pdf && m.pdfBytesFingerprint === pdf),
   );
 }
 

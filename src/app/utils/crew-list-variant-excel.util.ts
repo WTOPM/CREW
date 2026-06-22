@@ -1,10 +1,5 @@
 import ExcelJS from 'exceljs';
-import {
-  AppData,
-  CrewMember,
-  formatPortCallPortName,
-  portCode,
-} from '../models/crew.models';
+import { AppData, CrewMember, formatPortCallPortName, portCode } from '../models/crew.models';
 import { CREW_LIST_TYPE_LABELS } from '../models/document-overlay.models';
 import { formatBirthDate, formatDisplayDate } from './date.util';
 import { workbookToBytes } from './crew-list-excel-layout.util';
@@ -57,7 +52,11 @@ const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConf
       { header: 'Date of birth', width: 9, value: (m) => formatBirthDate(m.dateOfBirth) },
       { header: 'Place of birth', width: 14, value: (m) => m.placeOfBirth },
       { header: 'Passport No.', width: 11, value: (m) => m.passport },
-      { header: 'Passport expiry', width: 10, value: (m) => formatDisplayDate(m.passportExpiryDate) },
+      {
+        header: 'Passport expiry',
+        width: 10,
+        value: (m) => formatDisplayDate(m.passportExpiryDate),
+      },
       {
         header: 'Place of issue',
         width: 11,
@@ -83,7 +82,11 @@ const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConf
       { header: 'Date of birth', width: 10, value: (m) => formatBirthDate(m.dateOfBirth) },
       { header: 'Place of birth', width: 18, value: (m) => m.placeOfBirth },
       { header: "Seaman's book No.", width: 13, value: (m) => m.seamansBook },
-      { header: "Seaman's book expiry", width: 13, value: (m) => formatDisplayDate(m.sbookExpiryDate) },
+      {
+        header: "Seaman's book expiry",
+        width: 13,
+        value: (m) => formatDisplayDate(m.sbookExpiryDate),
+      },
     ],
   },
   type5V3SbkP: {
@@ -103,11 +106,11 @@ const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConf
       { header: 'Date and place of birth', width: 18, value: (m) => formatBirthAndPlace(m) },
       { header: "Seaman's book No.", width: 10, value: (m) => m.seamansBook },
       {
-        header: "S.book place of issue",
+        header: 'S.book place of issue',
         width: 12,
         value: (m) => formatPlaceOfIssue(m.seamansBookPlaceOfIssue),
       },
-      { header: "S.book expiry", width: 10, value: (m) => formatDisplayDate(m.sbookExpiryDate) },
+      { header: 'S.book expiry', width: 10, value: (m) => formatDisplayDate(m.sbookExpiryDate) },
       { header: 'Passport No.', width: 10, value: (m) => m.passport },
       {
         header: 'Joining port',
@@ -135,18 +138,22 @@ const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConf
       { header: 'Date and place of birth', width: 16, value: (m) => formatBirthAndPlace(m) },
       { header: "Seaman's book No.", width: 9, value: (m) => m.seamansBook },
       {
-        header: "S.book place of issue",
+        header: 'S.book place of issue',
         width: 11,
         value: (m) => formatPlaceOfIssue(m.seamansBookPlaceOfIssue),
       },
-      { header: "S.book expiry", width: 9, value: (m) => formatDisplayDate(m.sbookExpiryDate) },
+      { header: 'S.book expiry', width: 9, value: (m) => formatDisplayDate(m.sbookExpiryDate) },
       { header: 'Passport No.', width: 9, value: (m) => m.passport },
       {
         header: 'Passport place of issue',
         width: 11,
         value: (m) => formatPlaceOfIssue(m.passportPlaceOfIssue),
       },
-      { header: 'Passport expiry', width: 9, value: (m) => formatDisplayDate(m.passportExpiryDate) },
+      {
+        header: 'Passport expiry',
+        width: 9,
+        value: (m) => formatDisplayDate(m.passportExpiryDate),
+      },
     ],
   },
 };
@@ -215,15 +222,26 @@ export async function buildCrewListVariantExcel(
   wb.creator = 'CREW Documents';
 
   pages.forEach((pageCrew, pageIndex) => {
-    const sheetName =
-      pageIndex === 0 ? 'Crew List' : `Crew List (${pageIndex + 1})`;
-    addFormSheet(wb, sheetName, config, data, crew, pageIndex, pageCrew, pageIndex * config.maxRows);
+    const sheetName = pageIndex === 0 ? 'Crew List' : `Crew List (${pageIndex + 1})`;
+    addFormSheet(
+      wb,
+      sheetName,
+      config,
+      data,
+      crew,
+      pageIndex,
+      pageCrew,
+      pageIndex * config.maxRows,
+    );
   });
 
   return workbookToBytes(wb);
 }
 
-export async function buildAlgerCrewListExcel(data: AppData, crew: CrewMember[]): Promise<Uint8Array> {
+export async function buildAlgerCrewListExcel(
+  data: AppData,
+  crew: CrewMember[],
+): Promise<Uint8Array> {
   const { ship, ports } = data;
   const voyageDate = formatDisplayDate(ship.dateOfArrival);
   const title = CREW_LIST_TYPE_LABELS.type2Alger;

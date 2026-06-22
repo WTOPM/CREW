@@ -1,221 +1,291 @@
-    <div class="modal-backdrop">
-      <div class="modal modal-crew-edit modal-crew-edit--scroll" appClickOutside (appClickOutside)="cancel.emit()" (click)="$event.stopPropagation()">
-        <h3>Edit crew member</h3>
+<div class="modal-backdrop">
+  <div
+    class="modal modal-crew-edit modal-crew-edit--scroll"
+    appClickOutside
+    (appClickOutside)="cancel.emit()"
+    (click)="$event.stopPropagation()"
+  >
+    <h3>Edit crew member</h3>
 
-        <div class="crew-form-layout">
-          <section class="crew-form-block">
-            <h4 class="crew-form-block-title">Personal details</h4>
-            <div class="form-grid">
-              <label>
-                <span>Family name</span>
-                <input [ngModel]="draft().familyName" (ngModelChange)="updateField('familyName', $event)" />
-              </label>
-              <label>
-                <span>Given names</span>
-                <input [ngModel]="draft().givenNames" (ngModelChange)="updateField('givenNames', $event)" />
-              </label>
-              <label>
-                <span>Rank</span>
-                <app-lookup-select
-                  [value]="draft().rank"
-                  [options]="ranks()"
-                  (valueChange)="updateField('rank', $event)"
+    <div class="crew-form-layout">
+      <section class="crew-form-block">
+        <h4 class="crew-form-block-title">Personal details</h4>
+        <div class="form-grid">
+          <label>
+            <span>Family name</span>
+            <input
+              [ngModel]="draft().familyName"
+              (ngModelChange)="updateField('familyName', $event)"
+            />
+          </label>
+          <label>
+            <span>Given names</span>
+            <input
+              [ngModel]="draft().givenNames"
+              (ngModelChange)="updateField('givenNames', $event)"
+            />
+          </label>
+          <label>
+            <span>Rank</span>
+            <app-lookup-select
+              [value]="draft().rank"
+              [options]="ranks()"
+              (valueChange)="updateField('rank', $event)"
+            />
+          </label>
+          <label>
+            <span>Nationality</span>
+            <app-lookup-select
+              [value]="draft().nationality"
+              [options]="nationalities()"
+              (valueChange)="updateField('nationality', $event)"
+            />
+          </label>
+          <label>
+            <span>Gender</span>
+            <select [ngModel]="draft().gender" (ngModelChange)="updateField('gender', $event)">
+              <option value="">— select —</option>
+              <option value="MALE">MALE</option>
+              <option value="FEMALE">FEMALE</option>
+            </select>
+          </label>
+          <label>
+            <span>Date of birth</span>
+            <app-date-picker
+              [value]="draft().dateOfBirth"
+              (valueChange)="updateField('dateOfBirth', $event)"
+            />
+          </label>
+          <label>
+            <span>Place of birth</span>
+            <input
+              [ngModel]="draft().placeOfBirth"
+              (ngModelChange)="updateField('placeOfBirth', $event)"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section class="crew-form-block crew-form-block--passport">
+        <h4 class="crew-form-block-title">Passport</h4>
+        <div class="form-grid">
+          <label>
+            <span>Passport No.</span>
+            <input [ngModel]="draft().passport" (ngModelChange)="updateField('passport', $event)" />
+          </label>
+          <label>
+            <span>Place of issue</span>
+            <input
+              [ngModel]="draft().passportPlaceOfIssue"
+              (ngModelChange)="updateField('passportPlaceOfIssue', $event)"
+            />
+          </label>
+          <label>
+            <span>Issue date</span>
+            <app-date-picker
+              [value]="draft().passportIssueDate"
+              (valueChange)="updateField('passportIssueDate', $event)"
+            />
+          </label>
+          <label>
+            <span>Expiry date</span>
+            <app-date-picker
+              [value]="draft().passportExpiryDate"
+              (valueChange)="updateField('passportExpiryDate', $event)"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section class="crew-form-block crew-form-block--sbook">
+        <h4 class="crew-form-block-title">Seaman's book</h4>
+        <div class="form-grid">
+          <label>
+            <span>S/book No.</span>
+            <input
+              [ngModel]="draft().seamansBook"
+              (ngModelChange)="updateField('seamansBook', $event)"
+            />
+          </label>
+          <label>
+            <span>Place of issue</span>
+            <input
+              [ngModel]="draft().seamansBookPlaceOfIssue"
+              (ngModelChange)="updateField('seamansBookPlaceOfIssue', $event)"
+            />
+          </label>
+          <label>
+            <span>Issue date</span>
+            <app-date-picker
+              [value]="draft().sbookIssueDate"
+              (valueChange)="updateField('sbookIssueDate', $event)"
+            />
+          </label>
+          <label>
+            <span class="sbook-expiry-head">
+              <span>Expiry date</span>
+              <span class="sbook-unlimited">
+                <input
+                  type="checkbox"
+                  [ngModel]="draft().sbookExpiryDate === 'UNLIMITED'"
+                  (ngModelChange)="updateField('sbookExpiryDate', $event ? 'UNLIMITED' : '')"
                 />
-              </label>
-              <label>
-                <span>Nationality</span>
-                <app-lookup-select
-                  [value]="draft().nationality"
-                  [options]="nationalities()"
-                  (valueChange)="updateField('nationality', $event)"
-                />
-              </label>
-              <label>
-                <span>Gender</span>
-                <select [ngModel]="draft().gender" (ngModelChange)="updateField('gender', $event)">
-                  <option value="">— select —</option>
-                  <option value="MALE">MALE</option>
-                  <option value="FEMALE">FEMALE</option>
-                </select>
-              </label>
-              <label>
-                <span>Date of birth</span>
-                <app-date-picker [value]="draft().dateOfBirth" (valueChange)="updateField('dateOfBirth', $event)" />
-              </label>
-              <label>
-                <span>Place of birth</span>
-                <input [ngModel]="draft().placeOfBirth" (ngModelChange)="updateField('placeOfBirth', $event)" />
-              </label>
-            </div>
-          </section>
+                <span>Unlimited</span>
+              </span>
+            </span>
+            @if (draft().sbookExpiryDate === 'UNLIMITED') {
+              <input type="text" class="sbook-unlimited-field" value="UNLIMITED" readonly />
+            } @else {
+              <app-date-picker
+                [value]="draft().sbookExpiryDate"
+                (valueChange)="updateField('sbookExpiryDate', $event)"
+              />
+            }
+          </label>
+        </div>
+      </section>
 
-          <section class="crew-form-block crew-form-block--passport">
-            <h4 class="crew-form-block-title">Passport</h4>
-            <div class="form-grid">
-              <label>
-                <span>Passport No.</span>
-                <input [ngModel]="draft().passport" (ngModelChange)="updateField('passport', $event)" />
-              </label>
-              <label>
-                <span>Place of issue</span>
-                <input [ngModel]="draft().passportPlaceOfIssue" (ngModelChange)="updateField('passportPlaceOfIssue', $event)" />
-              </label>
-              <label>
-                <span>Issue date</span>
-                <app-date-picker [value]="draft().passportIssueDate" (valueChange)="updateField('passportIssueDate', $event)" />
-              </label>
-              <label>
-                <span>Expiry date</span>
-                <app-date-picker [value]="draft().passportExpiryDate" (valueChange)="updateField('passportExpiryDate', $event)" />
-              </label>
-            </div>
-          </section>
+      <section class="crew-form-block crew-form-block--flag">
+        <h4 class="crew-form-block-title">{{ flagStateBookSectionTitle() }}</h4>
+        <div class="form-grid">
+          <label>
+            <span>{{ flagStateBookNumberLabel() }}</span>
+            <input
+              [ngModel]="draft().cyprusSeamansBook"
+              (ngModelChange)="updateField('cyprusSeamansBook', $event)"
+            />
+          </label>
+          <label>
+            <span>{{ flagStateBookIssueLabel() }}</span>
+            <app-date-picker
+              [value]="draft().cyprusIssueDate"
+              (valueChange)="updateField('cyprusIssueDate', $event)"
+            />
+          </label>
+          <label>
+            <span>{{ flagStateBookExpiryLabel() }}</span>
+            <app-date-picker
+              [value]="draft().cyprusExpiryDate"
+              (valueChange)="updateField('cyprusExpiryDate', $event)"
+            />
+          </label>
+        </div>
+      </section>
 
-          <section class="crew-form-block crew-form-block--sbook">
-            <h4 class="crew-form-block-title">Seaman's book</h4>
-            <div class="form-grid">
-              <label>
-                <span>S/book No.</span>
-                <input [ngModel]="draft().seamansBook" (ngModelChange)="updateField('seamansBook', $event)" />
-              </label>
-              <label>
-                <span>Place of issue</span>
-                <input [ngModel]="draft().seamansBookPlaceOfIssue" (ngModelChange)="updateField('seamansBookPlaceOfIssue', $event)" />
-              </label>
-              <label>
-                <span>Issue date</span>
-                <app-date-picker [value]="draft().sbookIssueDate" (valueChange)="updateField('sbookIssueDate', $event)" />
-              </label>
-              <label>
-                <span class="sbook-expiry-head">
-                  <span>Expiry date</span>
-                  <span class="sbook-unlimited">
-                    <input
-                      type="checkbox"
-                      [ngModel]="draft().sbookExpiryDate === 'UNLIMITED'"
-                      (ngModelChange)="updateField('sbookExpiryDate', $event ? 'UNLIMITED' : '')"
-                    />
-                    <span>Unlimited</span>
-                  </span>
-                </span>
-                @if (draft().sbookExpiryDate === 'UNLIMITED') {
-                  <input type="text" class="sbook-unlimited-field" value="UNLIMITED" readonly />
-                } @else {
-                  <app-date-picker [value]="draft().sbookExpiryDate" (valueChange)="updateField('sbookExpiryDate', $event)" />
-                }
-              </label>
-            </div>
-          </section>
+      <section class="crew-form-block crew-form-block--visa">
+        <h4 class="crew-form-block-title">Visa</h4>
+        <div class="form-grid">
+          <label>
+            <span>Visa / type</span>
+            <input [ngModel]="draft().visa" (ngModelChange)="updateField('visa', $event)" />
+          </label>
+          <label>
+            <span>Issue date</span>
+            <app-date-picker
+              [value]="draft().visaIssueDate"
+              (valueChange)="updateField('visaIssueDate', $event)"
+            />
+          </label>
+          <label>
+            <span>Expiry date</span>
+            <app-date-picker
+              [value]="draft().visaExpiryDate"
+              (valueChange)="updateField('visaExpiryDate', $event)"
+            />
+          </label>
+        </div>
+      </section>
 
-          <section class="crew-form-block crew-form-block--flag">
-            <h4 class="crew-form-block-title">{{ flagStateBookSectionTitle() }}</h4>
-            <div class="form-grid">
-              <label>
-                <span>{{ flagStateBookNumberLabel() }}</span>
-                <input [ngModel]="draft().cyprusSeamansBook" (ngModelChange)="updateField('cyprusSeamansBook', $event)" />
-              </label>
-              <label>
-                <span>{{ flagStateBookIssueLabel() }}</span>
-                <app-date-picker [value]="draft().cyprusIssueDate" (valueChange)="updateField('cyprusIssueDate', $event)" />
-              </label>
-              <label>
-                <span>{{ flagStateBookExpiryLabel() }}</span>
-                <app-date-picker [value]="draft().cyprusExpiryDate" (valueChange)="updateField('cyprusExpiryDate', $event)" />
-              </label>
-            </div>
-          </section>
+      <section class="crew-form-block crew-form-block--joining">
+        <h4 class="crew-form-block-title">Joining</h4>
+        <div class="form-grid">
+          <label>
+            <span>Joining date</span>
+            <app-date-picker
+              [value]="draft().joiningDate"
+              (valueChange)="updateField('joiningDate', $event)"
+            />
+          </label>
+          <label>
+            <span>Joining port</span>
+            <app-port-select
+              [value]="draft().joiningPort"
+              [ports]="ports()"
+              (valueChange)="updateField('joiningPort', $event)"
+            />
+          </label>
+        </div>
+      </section>
 
-          <section class="crew-form-block crew-form-block--visa">
-            <h4 class="crew-form-block-title">Visa</h4>
-            <div class="form-grid">
-              <label>
-                <span>Visa / type</span>
-                <input [ngModel]="draft().visa" (ngModelChange)="updateField('visa', $event)" />
-              </label>
-              <label>
-                <span>Issue date</span>
-                <app-date-picker [value]="draft().visaIssueDate" (valueChange)="updateField('visaIssueDate', $event)" />
-              </label>
-              <label>
-                <span>Expiry date</span>
-                <app-date-picker [value]="draft().visaExpiryDate" (valueChange)="updateField('visaExpiryDate', $event)" />
-              </label>
-            </div>
-          </section>
+      <section class="crew-form-block crew-form-block--vaccination">
+        <h4 class="crew-form-block-title">Vaccination</h4>
 
-          <section class="crew-form-block crew-form-block--joining">
-            <h4 class="crew-form-block-title">Joining</h4>
-            <div class="form-grid">
-              <label>
-                <span>Joining date</span>
-                <app-date-picker [value]="draft().joiningDate" (valueChange)="updateField('joiningDate', $event)" />
-              </label>
-              <label>
-                <span>Joining port</span>
-                <app-port-select
-                  [value]="draft().joiningPort"
-                  [ports]="ports()"
-                  (valueChange)="updateField('joiningPort', $event)"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section class="crew-form-block crew-form-block--vaccination">
-            <h4 class="crew-form-block-title">Vaccination</h4>
-
-            <p class="crew-form-vaccine-kind">COVID</p>
-            <div class="form-grid">
-              <label>
-                <span>Vaccine medical product</span>
-                <input [ngModel]="draft().vaccineMedicalProduct" (ngModelChange)="updateField('vaccineMedicalProduct', $event)" />
-              </label>
-              <label>
-                <span>Date of vaccination</span>
-                <app-date-picker [value]="draft().dateOfVaccination" (valueChange)="updateField('dateOfVaccination', $event)" />
-              </label>
-            </div>
-
-            <p class="crew-form-vaccine-kind">Yellow Fever</p>
-            <div class="form-grid">
-              <label>
-                <span>Date of vaccination</span>
-                <app-date-picker [value]="draft().dateOfYellowFeverVaccination" (valueChange)="updateField('dateOfYellowFeverVaccination', $event)" />
-              </label>
-              <label class="yellow-fever-expiry">
-                <span class="yellow-fever-expiry-head">
-                  Expiry
-                  <label class="yellow-fever-expiry-toggle" title="Free text instead of date">
-                    <input
-                      type="checkbox"
-                      [ngModel]="draft().yellowFeverExpiryIsText"
-                      (ngModelChange)="setYellowFeverExpiryIsText($event)"
-                    />
-                  </label>
-                </span>
-                @if (draft().yellowFeverExpiryIsText) {
-                  <input
-                    [ngModel]="draft().yellowFeverExpiryText"
-                    (ngModelChange)="updateField('yellowFeverExpiryText', $event)"
-                    placeholder="VALIDITY FOR LIFE OF PERSON"
-                  />
-                } @else {
-                  <app-date-picker [value]="draft().yellowFeverExpiryDate" (valueChange)="updateField('yellowFeverExpiryDate', $event)" />
-                }
-              </label>
-            </div>
-          </section>
-
-          <section class="crew-form-block crew-form-block--signature">
-            <h4 class="crew-form-block-title">Crew Effect signature</h4>
-            <p class="crew-form-sig-hint">Drop PNG/JPEG/PDF — printed in the Signature column (forms 01–03).</p>
-            <app-crew-signature-drop [member]="draft()" (changed)="onSignatureChanged()" />
-          </section>
+        <p class="crew-form-vaccine-kind">COVID</p>
+        <div class="form-grid">
+          <label>
+            <span>Vaccine medical product</span>
+            <input
+              [ngModel]="draft().vaccineMedicalProduct"
+              (ngModelChange)="updateField('vaccineMedicalProduct', $event)"
+            />
+          </label>
+          <label>
+            <span>Date of vaccination</span>
+            <app-date-picker
+              [value]="draft().dateOfVaccination"
+              (valueChange)="updateField('dateOfVaccination', $event)"
+            />
+          </label>
         </div>
 
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
-          <button type="button" class="btn btn-save" (click)="onSave()">Save</button>
+        <p class="crew-form-vaccine-kind">Yellow Fever</p>
+        <div class="form-grid">
+          <label>
+            <span>Date of vaccination</span>
+            <app-date-picker
+              [value]="draft().dateOfYellowFeverVaccination"
+              (valueChange)="updateField('dateOfYellowFeverVaccination', $event)"
+            />
+          </label>
+          <label class="yellow-fever-expiry">
+            <span class="yellow-fever-expiry-head">
+              Expiry
+              <label class="yellow-fever-expiry-toggle" title="Free text instead of date">
+                <input
+                  type="checkbox"
+                  [ngModel]="draft().yellowFeverExpiryIsText"
+                  (ngModelChange)="setYellowFeverExpiryIsText($event)"
+                />
+              </label>
+            </span>
+            @if (draft().yellowFeverExpiryIsText) {
+              <input
+                [ngModel]="draft().yellowFeverExpiryText"
+                (ngModelChange)="updateField('yellowFeverExpiryText', $event)"
+                placeholder="VALIDITY FOR LIFE OF PERSON"
+              />
+            } @else {
+              <app-date-picker
+                [value]="draft().yellowFeverExpiryDate"
+                (valueChange)="updateField('yellowFeverExpiryDate', $event)"
+              />
+            }
+          </label>
         </div>
-      </div>
+      </section>
+
+      <section class="crew-form-block crew-form-block--signature">
+        <h4 class="crew-form-block-title">Crew Effect signature</h4>
+        <p class="crew-form-sig-hint">
+          Drop PNG/JPEG/PDF — printed in the Signature column (forms 01–03).
+        </p>
+        <app-crew-signature-drop [member]="draft()" (changed)="onSignatureChanged()" />
+      </section>
     </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
+      <button type="button" class="btn btn-save" (click)="onSave()">Save</button>
+    </div>
+  </div>
+</div>

@@ -45,10 +45,7 @@ export interface PackageCatalogEntry {
   label: string;
 }
 
-function crewListPackageLabel(
-  type: CrewListTypeId,
-  direction: 'Arrival' | 'Departure',
-): string {
+function crewListPackageLabel(type: CrewListTypeId, direction: 'Arrival' | 'Departure'): string {
   return `${CREW_LIST_TYPE_LABELS[type]} — ${direction}`;
 }
 

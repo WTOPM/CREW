@@ -236,7 +236,9 @@
   font-weight: 600;
   color: #64748b;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .reefer-drop-zone--active {
@@ -523,11 +525,24 @@
   font-family: ui-monospace, monospace;
 }
 
-.col-index { width: 2.2rem; text-align: center; }
-.col-container { min-width: 9rem; }
-.col-pol, .col-pod { min-width: 7rem; }
-.col-set { min-width: 5.5rem; white-space: nowrap; }
-.col-position { min-width: 6rem; }
+.col-index {
+  width: 2.2rem;
+  text-align: center;
+}
+.col-container {
+  min-width: 9rem;
+}
+.col-pol,
+.col-pod {
+  min-width: 7rem;
+}
+.col-set {
+  min-width: 5.5rem;
+  white-space: nowrap;
+}
+.col-position {
+  min-width: 6rem;
+}
 
 .reefer-inventory-head h2 {
   margin: 0;

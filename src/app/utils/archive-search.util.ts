@@ -63,7 +63,10 @@ export function filterCrewArchive(members: CrewMember[], query: string): CrewMem
   return members.filter((m) => matchesArchiveQuery(crewMemberSearchText(m), query));
 }
 
-export function filterPassengerArchive(members: PassengerMember[], query: string): PassengerMember[] {
+export function filterPassengerArchive(
+  members: PassengerMember[],
+  query: string,
+): PassengerMember[] {
   if (!query.trim()) return members;
   return members.filter((m) => matchesArchiveQuery(passengerMemberSearchText(m), query));
 }

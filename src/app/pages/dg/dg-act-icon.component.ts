@@ -9,27 +9,67 @@ export type DgActIconKind = 'discharge' | 'restore' | 'add' | 'remove' | 'line-r
       @case ('discharge') {
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          <path d="M8 11l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <path
+            d="M8 11l4 4 4-4"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
           <path d="M5 19h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
       }
       @case ('restore') {
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9 14 4 9l5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-          <path d="M4 9h10a5 5 0 0 1 5 5v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <path
+            d="M9 14 4 9l5-5"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M4 9h10a5 5 0 0 1 5 5v1"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       }
       @case ('add') {
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <path
+            d="M12 5v14M5 12h14"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
         </svg>
       }
       @case ('remove') {
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 7h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          <path d="M9 7V5h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-          <path d="M8 7l1 12h6l1-12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <path
+            d="M10 11v6M14 11v6"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+          <path
+            d="M9 7V5h6v2"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M8 7l1 12h6l1-12"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       }
       @case ('line-remove') {

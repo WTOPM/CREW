@@ -39,10 +39,7 @@ export interface DocumentStampOptions {
 }
 
 /** Whether stamp is enabled for the given page (page 1 vs attachment). */
-export function documentUsesStamp(
-  options: DocumentStampOptions,
-  attachmentPage: boolean,
-): boolean {
+export function documentUsesStamp(options: DocumentStampOptions, attachmentPage: boolean): boolean {
   return attachmentPage ? Boolean(options.useStampAttachment) : options.useStamp;
 }
 
@@ -58,7 +55,9 @@ export function documentPageUsesOverlay(
   options: DocumentStampOptions,
   attachmentPage: boolean,
 ): boolean {
-  return documentUsesStamp(options, attachmentPage) || documentUsesSignature(options, attachmentPage);
+  return (
+    documentUsesStamp(options, attachmentPage) || documentUsesSignature(options, attachmentPage)
+  );
 }
 
 /** Active crew list variant (only one at a time). */
@@ -399,10 +398,12 @@ export function createDefaultCrewListPrefs(): CrewListDocumentPrefs {
 }
 
 /** Migrate saved data from old dual-checkbox crew list prefs. */
-export function normalizeCrewListType(raw: Partial<CrewListDocumentPrefs> & {
-  type1Passport?: boolean;
-  type1SeamansBook?: boolean;
-}): CrewListTypeId {
+export function normalizeCrewListType(
+  raw: Partial<CrewListDocumentPrefs> & {
+    type1Passport?: boolean;
+    type1SeamansBook?: boolean;
+  },
+): CrewListTypeId {
   if (
     raw.listType === 'type1Passport' ||
     raw.listType === 'type1SeamansBook' ||

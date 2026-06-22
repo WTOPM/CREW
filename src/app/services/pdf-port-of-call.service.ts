@@ -249,7 +249,9 @@ export class PdfPortOfCallService {
 
     for (const line of lines) {
       const isValue =
-        kind === 'value' || line.placement === 'valueBottom' || line.placement === 'valueBottomCenter';
+        kind === 'value' ||
+        line.placement === 'valueBottom' ||
+        line.placement === 'valueBottomCenter';
       const fontSize = isValue
         ? Math.max(7, Math.min(10, r.h * 0.45))
         : Math.max(4.5, Math.min(6.5, Math.min(r.w, r.h) * 0.38));
@@ -302,7 +304,12 @@ export class PdfPortOfCallService {
         case 'valueBottomCenter':
           align = 'center';
           x = r.x + r.w / 2;
-          y = r.y + r.h - padY - fontSize * 0.15 + (isHeaderCell ? POC_HEADER_VALUE_SHIFT_DOWN_PT : 0);
+          y =
+            r.y +
+            r.h -
+            padY -
+            fontSize * 0.15 +
+            (isHeaderCell ? POC_HEADER_VALUE_SHIFT_DOWN_PT : 0);
           break;
         case 'topLeft':
         default:

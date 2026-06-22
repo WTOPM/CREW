@@ -6,7 +6,6 @@ import { FormsModule } from '@angular/forms';
 
 import { DocumentsNavComponent } from '../../components/documents-nav/documents-nav.component';
 
-
 import { CrewDocDropZoneComponent } from '../../components/crew-doc-drop-zone/crew-doc-drop-zone.component';
 import { CrewDocIconComponent } from '../../components/crew-doc-icon/crew-doc-icon.component';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
@@ -15,7 +14,6 @@ import { CrewEditModalComponent } from '../../components/crew-edit-modal/crew-ed
 import { PassengerEditModalComponent } from '../../components/passenger-edit-modal/passenger-edit-modal.component';
 import { CrewDocumentService } from '../../services/crew-document.service';
 import { CrewSignatureService } from '../../services/crew-signature.service';
-
 
 import {
   CrewListKind,
@@ -40,14 +38,9 @@ import { AppSnapshotArchiveService } from '../../services/app-snapshot-archive.s
 import { filterCrewArchive, filterPassengerArchive } from '../../utils/archive-search.util';
 import { formatDisplayDate } from '../../utils/date.util';
 
-export type HomeListTab =
-  | 'crew-arrival'
-  | 'crew-departure'
-  | 'pax-arrival'
-  | 'pax-departure';
+export type HomeListTab = 'crew-arrival' | 'crew-departure' | 'pax-arrival' | 'pax-departure';
 
 @Component({
-
   selector: 'app-home',
 
   imports: [
@@ -65,11 +58,8 @@ export type HomeListTab =
   templateUrl: './home.component.html',
 
   styleUrl: './home.component.css',
-
 })
-
 export class HomeComponent {
-
   protected readonly storage = inject(StorageService);
   protected readonly crew = inject(CrewStore);
   protected readonly passengers = inject(PassengerStore);
@@ -79,8 +69,6 @@ export class HomeComponent {
   private readonly crewDocs = inject(CrewDocumentService);
   private readonly crewSignatures = inject(CrewSignatureService);
   protected readonly appSnapshot = inject(AppSnapshotArchiveService);
-
-
 
   protected readonly ship = this.storage.ship;
 
@@ -105,8 +93,6 @@ export class HomeComponent {
 
   protected readonly archivedPassengers = this.storage.archivedPassengers;
 
-
-
   protected readonly listTab = signal<HomeListTab>('crew-arrival');
 
   protected readonly isCrewTab = computed(() => {
@@ -114,12 +100,12 @@ export class HomeComponent {
     return t === 'crew-arrival' || t === 'crew-departure';
   });
 
-  protected readonly crewListKind = computed((): CrewListKind =>
-    this.listTab() === 'crew-departure' ? 'departure' : 'arrival',
+  protected readonly crewListKind = computed(
+    (): CrewListKind => (this.listTab() === 'crew-departure' ? 'departure' : 'arrival'),
   );
 
-  protected readonly paxListKind = computed((): PaxListKind =>
-    this.listTab() === 'pax-departure' ? 'departure' : 'arrival',
+  protected readonly paxListKind = computed(
+    (): PaxListKind => (this.listTab() === 'pax-departure' ? 'departure' : 'arrival'),
   );
 
   protected readonly listCrew = computed(() =>
@@ -127,7 +113,9 @@ export class HomeComponent {
   );
 
   protected readonly listPassengers = computed(() =>
-    this.paxListKind() === 'arrival' ? this.activePassengersArrival() : this.activePassengersDeparture(),
+    this.paxListKind() === 'arrival'
+      ? this.activePassengersArrival()
+      : this.activePassengersDeparture(),
   );
 
   protected readonly crewArchiveSearch = signal('');
@@ -149,8 +137,6 @@ export class HomeComponent {
 
   protected showPaxArchive = signal(false);
 
-
-
   protected formatDate = formatDisplayDate;
   protected readonly passengerRank = PASSENGER_RANK;
 
@@ -167,7 +153,11 @@ export class HomeComponent {
   }
 
   protected crewArchiveCountLabel(): string {
-    return this.archiveCountLabel(this.archivedCrew().length, this.filteredArchivedCrew().length, this.crewArchiveSearch());
+    return this.archiveCountLabel(
+      this.archivedCrew().length,
+      this.filteredArchivedCrew().length,
+      this.crewArchiveSearch(),
+    );
   }
 
   protected paxArchiveCountLabel(): string {
@@ -183,9 +173,6 @@ export class HomeComponent {
     return `${shown} / ${total}`;
   }
 
-
-
-
   /** Descriptive toast text for voyage fields (official English). */
   private static readonly VOYAGE_FIELD_MESSAGES: Partial<Record<keyof ShipInfo, string>> = {
     lastPortOfCall: 'Last port of call updated',
@@ -199,8 +186,6 @@ export class HomeComponent {
     const message = HomeComponent.VOYAGE_FIELD_MESSAGES[field];
     this.storage.updateShip({ [field]: value }, undefined, message);
   }
-
-
 
   protected startEdit(member: CrewMember): void {
     this.cancelPassengerEdit();
@@ -219,8 +204,6 @@ export class HomeComponent {
     this.toast.showSaved();
   }
 
-
-
   protected startPassengerEdit(member: PassengerMember): void {
     this.cancelEdit();
     this.editingPax.set(member);
@@ -238,8 +221,6 @@ export class HomeComponent {
     this.toast.showSaved();
   }
 
-
-
   protected addMemberToArrival(): void {
     const member = this.crew.addCrewMemberToArrival();
     this.startEdit(member);
@@ -250,19 +231,13 @@ export class HomeComponent {
     this.startEdit(member);
   }
 
-
-
   protected addMemberToArchive(): void {
-
     const member = this.crew.addCrewMemberToArchive();
 
     this.showArchive.set(true);
 
     this.startEdit(member);
-
   }
-
-
 
   protected addPassengerToArrival(): void {
     const member = this.passengers.addPassengerToArrival();
@@ -274,25 +249,17 @@ export class HomeComponent {
     this.startPassengerEdit(member);
   }
 
-
-
   protected addPassengerToArchive(): void {
-
     const member = this.passengers.addPassengerToArchive();
 
     this.showPaxArchive.set(true);
 
     this.startPassengerEdit(member);
-
   }
-
-
 
   protected setListTab(tab: HomeListTab): void {
     this.listTab.set(tab);
   }
-
-
 
   protected archive(id: string): void {
     this.crew.archiveFromCrewList(id, this.crewListKind());
@@ -306,34 +273,22 @@ export class HomeComponent {
     this.toast.showArchived();
   }
 
-
-
   protected restoreFromArchive(id: string): void {
-
     this.crew.restoreCrewMemberToList(id, this.crewListKind());
 
     this.toast.showRestored();
-
   }
 
-
-
   protected restorePassengerFromArchive(id: string): void {
-
     this.passengers.restorePassengerToList(id, this.paxListKind());
 
     this.toast.showRestored();
-
   }
-
-
 
   protected syncDepartureFromArrival(): void {
     const preview = this.crew.syncDepartureFromArrival();
     this.toast.show(this.arrivalToDepartureToast(preview), 'success');
   }
-
-
 
   protected applyDepartureToArrival(): void {
     const preview = this.crew.applyDepartureToArrival();
@@ -341,14 +296,10 @@ export class HomeComponent {
     this.toast.show(this.departureToArrivalToast(preview, 'Crew'), 'success');
   }
 
-
-
   protected syncPassengerDepartureFromArrival(): void {
     const preview = this.passengers.syncPassengerDepartureFromArrival();
     this.toast.show(this.passengerArrivalToDepartureToast(preview), 'success');
   }
-
-
 
   protected applyPassengerDepartureToArrival(): void {
     const preview = this.passengers.applyPassengerDepartureToArrival();
@@ -356,10 +307,7 @@ export class HomeComponent {
     this.toast.show(this.departureToArrivalToast(preview, 'Passengers'), 'success');
   }
 
-  private departureToArrivalToast(
-    preview: DepartureToArrivalSyncPreview,
-    label: string,
-  ): string {
+  private departureToArrivalToast(preview: DepartureToArrivalSyncPreview, label: string): string {
     const parts = [`${label}: ${preview.onDeparture} from departure → arrival`];
     if (preview.arrivalOnlyToArchive > 0) {
       parts.push(`${preview.arrivalOnlyToArchive} to archive`);
@@ -392,8 +340,6 @@ export class HomeComponent {
     return parts.join('; ');
   }
 
-
-
   protected removeFromDeparture(id: string): void {
     const member = this.storage.allCrew().find((m) => m.id === id);
     this.crew.removeFromDepartureList(id);
@@ -416,8 +362,6 @@ export class HomeComponent {
       this.toast.showArchived();
     }
   }
-
-
 
   protected removePassengerFromDeparture(id: string): void {
     const member = this.storage.allPassengers().find((m) => m.id === id);
@@ -442,8 +386,6 @@ export class HomeComponent {
     }
   }
 
-
-
   protected onCrewDocAttached(): void {
     /* storage signal refresh */
   }
@@ -465,8 +407,6 @@ export class HomeComponent {
     );
   }
 
-
-
   protected async removePassenger(id: string): Promise<void> {
     const ok = await this.confirmDialog.confirm({
       title: 'Delete passenger',
@@ -481,36 +421,25 @@ export class HomeComponent {
     this.toast.showDeleted();
   }
 
-
-
   protected dropCrew(event: CdkDragDrop<CrewMember[]>): void {
     this.crew.reorderCrewList(this.crewListKind(), event.previousIndex, event.currentIndex);
   }
 
-
-
   protected dropPassengers(event: CdkDragDrop<PassengerMember[]>): void {
-    this.passengers.reorderPassengerList(this.paxListKind(), event.previousIndex, event.currentIndex);
+    this.passengers.reorderPassengerList(
+      this.paxListKind(),
+      event.previousIndex,
+      event.currentIndex,
+    );
   }
-
-
 
   protected restoreListLabel(): string {
-
     return this.crewListKind() === 'arrival' ? 'Add to arrival list' : 'Add to departure list';
-
   }
-
-
 
   protected restorePassengerListLabel(): string {
-
     return this.paxListKind() === 'arrival' ? 'Add to arrival list' : 'Add to departure list';
-
   }
-
-
-
 
   /** Persist only profile fields — list flags stay in storage unchanged. */
   private passengerProfilePatch(draft: PassengerMember): Partial<PassengerMember> {
@@ -561,6 +490,4 @@ export class HomeComponent {
       documents: draft.documents,
     };
   }
-
 }
-

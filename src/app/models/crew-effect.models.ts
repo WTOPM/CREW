@@ -23,7 +23,7 @@ export function createDefaultCrewEffectForm(): CrewEffectFormSettings {
 }
 
 export function normalizeCrewEffectForm(
-  raw: Partial<CrewEffectFormSettings> & { pageNo?: string; signatureText?: string } | undefined,
+  raw: (Partial<CrewEffectFormSettings> & { pageNo?: string; signatureText?: string }) | undefined,
 ): CrewEffectFormSettings {
   const defaults = createDefaultCrewEffectForm();
   const legacy = raw as { others?: string; signatureText?: string } | undefined;
@@ -62,7 +62,9 @@ export function createDefaultCrewEffectForm02(): CrewEffectForm02Settings {
 }
 
 export function normalizeCrewEffectForm02(
-  raw: Partial<CrewEffectForm02Settings> & { pageNo?: string; signatureText?: string } | undefined,
+  raw:
+    | (Partial<CrewEffectForm02Settings> & { pageNo?: string; signatureText?: string })
+    | undefined,
 ): CrewEffectForm02Settings {
   const defaults = createDefaultCrewEffectForm02();
   const legacy = raw as { others?: string; signatureText?: string } | undefined;
@@ -102,7 +104,9 @@ export function createDefaultCrewEffectForm03(): CrewEffectForm03Settings {
 }
 
 export function normalizeCrewEffectForm03(
-  raw: Partial<CrewEffectForm03Settings> & { pageNo?: string; signatureText?: string } | undefined,
+  raw:
+    | (Partial<CrewEffectForm03Settings> & { pageNo?: string; signatureText?: string })
+    | undefined,
 ): CrewEffectForm03Settings {
   const defaults = createDefaultCrewEffectForm03();
   const legacy = raw as { others?: string; signatureText?: string } | undefined;

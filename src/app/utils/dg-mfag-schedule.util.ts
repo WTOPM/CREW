@@ -62,7 +62,9 @@ export function lookupMfagFireSchedule(raw: string | undefined | null): MfagSche
   return row ? buildEntry('fire', row) : null;
 }
 
-export function lookupMfagSpillageSchedule(raw: string | undefined | null): MfagScheduleEntry | null {
+export function lookupMfagSpillageSchedule(
+  raw: string | undefined | null,
+): MfagScheduleEntry | null {
   const code = normalizeMfagEmsCode(raw);
   if (code.startsWith('S-')) {
     const row = SPILLAGE_BY_CODE.get(code);
@@ -87,8 +89,7 @@ export function mfagSpillagePageRefFromEmsCode(raw: string | undefined | null): 
 export function applyMfagSchedulesToUnifeederRow<
   T extends { fire?: string; spillage?: string; fireSchedule?: string; spillageSchedule?: string },
 >(row: T): T {
-  const fireSchedule =
-    row.fireSchedule?.trim() || mfagFirePageRefFromEmsCode(row.fire ?? '') || '';
+  const fireSchedule = row.fireSchedule?.trim() || mfagFirePageRefFromEmsCode(row.fire ?? '') || '';
   const spillageSchedule =
     row.spillageSchedule?.trim() || mfagSpillagePageRefFromEmsCode(row.spillage ?? '') || '';
   return { ...row, fireSchedule, spillageSchedule };

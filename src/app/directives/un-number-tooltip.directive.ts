@@ -1,10 +1,4 @@
-import {
-  Directive,
-  ElementRef,
-  HostListener,
-  Input,
-  OnDestroy,
-} from '@angular/core';
+import { Directive, ElementRef, HostListener, Input, OnDestroy } from '@angular/core';
 import { lookupUnNumber } from '../utils/dg-un-number.util';
 import { showHintTooltip } from '../utils/hint-tooltip.util';
 

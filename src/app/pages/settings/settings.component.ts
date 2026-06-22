@@ -170,6 +170,4 @@ export class SettingsComponent {
   protected dropNationality(event: CdkDragDrop<string[]>): void {
     this.refLists.reorderNationalities(event.previousIndex, event.currentIndex);
   }
-
 }
-

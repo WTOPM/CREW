@@ -16,7 +16,11 @@ describe('ReferenceListsStore', () => {
   it('addPort adds a trimmed port', () => {
     store.addPort('  Hamburg  ', 'DEHAM', 'GERMANY');
     expect(state.data().ports).toHaveLength(1);
-    expect(state.data().ports[0]).toMatchObject({ name: 'Hamburg', code: 'DEHAM', country: 'GERMANY' });
+    expect(state.data().ports[0]).toMatchObject({
+      name: 'Hamburg',
+      code: 'DEHAM',
+      country: 'GERMANY',
+    });
   });
 
   it('addPort ignores blank names', () => {

@@ -43,7 +43,10 @@ function parseDotDate(value: string): string {
 }
 
 /** Parse legacy range "dd.MM.yyyy-dd.MM.yyyy" → ISO issue/expiry dates. */
-export function parseValidityRange(value: string | undefined | null): { issue: string; expiry: string } {
+export function parseValidityRange(value: string | undefined | null): {
+  issue: string;
+  expiry: string;
+} {
   const v = value?.trim() ?? '';
   if (!v) return { issue: '', expiry: '' };
 

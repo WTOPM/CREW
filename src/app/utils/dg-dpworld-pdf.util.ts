@@ -1,4 +1,7 @@
-import { resolveDgWeightTonnageOptions, type DgWeightTonnageOptions } from '../models/dg-weight-tonnage.models';
+import {
+  resolveDgWeightTonnageOptions,
+  type DgWeightTonnageOptions,
+} from '../models/dg-weight-tonnage.models';
 import type { DgPdfTextItem } from './dg-pdf-text.util';
 import type { UnifeederImportHeader, UnifeederImportRowPartial } from './dg-unifeeder-pdf.util';
 import { dualWeightFromImport } from './dg-weight-tonnage.util';
@@ -197,9 +200,7 @@ export function isDpWorldManifestLayout(items: readonly DgPdfTextItem[]): boolea
   const page1 = items.filter((i) => i.page === 1);
   const imo = page1.find((i) => i.str === 'IMO Information');
   if (!imo) return false;
-  return page1.some(
-    (i) => /^\d{4}$/.test(i.str.trim()) && i.y > imo.y + 12 && i.y < imo.y + 45,
-  );
+  return page1.some((i) => /^\d{4}$/.test(i.str.trim()) && i.y > imo.y + 12 && i.y < imo.y + 45);
 }
 
 export function parseDpWorldHeaderFromPage(
@@ -324,11 +325,7 @@ function findUnAnchorsOnDataRow(
 ): DgPdfTextItem[] {
   return pageItems
     .filter(
-      (it) =>
-        nearY(it, dataY, 4) &&
-        /^\d{4}$/.test(it.str.trim()) &&
-        it.x >= 90 &&
-        it.x <= 200,
+      (it) => nearY(it, dataY, 4) && /^\d{4}$/.test(it.str.trim()) && it.x >= 90 && it.x <= 200,
     )
     .sort((a, b) => a.x - b.x);
 }

@@ -1,8 +1,5 @@
 import { Injectable } from '@angular/core';
-import {
-  formatReeferSetPoint,
-  type ReeferImportRow,
-} from '../models/reefer.models';
+import { formatReeferSetPoint, type ReeferImportRow } from '../models/reefer.models';
 import { resolveManifestPortName, type Port } from '../models/crew.models';
 import { extractDgPdfTextItems, type DgPdfTextItem } from '../utils/dg-pdf-text.util';
 
@@ -75,11 +72,7 @@ function isBlankManifestPort(raw: string): boolean {
   return !s || s === '-' || s === '—' || /^[-–—:\s]+$/.test(s);
 }
 
-function findPortAtY(
-  items: DgPdfTextItem[],
-  col: readonly [number, number],
-  y: number,
-): string {
+function findPortAtY(items: DgPdfTextItem[], col: readonly [number, number], y: number): string {
   for (const it of items) {
     if (!nearY(it, y, 1)) continue;
     if (!inCol(it.x, col)) continue;
@@ -131,8 +124,7 @@ function parseCmaReeferHeader(items: DgPdfTextItem[]): Partial<ReeferImportHeade
     headerItems.find((it) => nearY(it, 103, 1) && inCol(it.x, COL.voyage))?.str.trim() ?? '';
   const vessel =
     headerItems.find((it) => nearY(it, 116, 1) && inCol(it.x, COL.vessel))?.str.trim() ?? '';
-  const etd =
-    headerItems.find((it) => nearY(it, 175, 1) && inCol(it.x, COL.etd))?.str.trim() ?? '';
+  const etd = headerItems.find((it) => nearY(it, 175, 1) && inCol(it.x, COL.etd))?.str.trim() ?? '';
   return {
     voyageNumber: voyage,
     vesselName: vessel,
@@ -145,8 +137,18 @@ function normalizeEtdDate(raw: string): string {
   const m = v.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
   if (!m) return v;
   const months: Record<string, string> = {
-    JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
-    JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12',
+    JAN: '01',
+    FEB: '02',
+    MAR: '03',
+    APR: '04',
+    MAY: '05',
+    JUN: '06',
+    JUL: '07',
+    AUG: '08',
+    SEP: '09',
+    OCT: '10',
+    NOV: '11',
+    DEC: '12',
   };
   const mm = months[m[2].toUpperCase()];
   if (!mm) return v;

@@ -266,9 +266,20 @@ export class PdfOverlayService {
       const scale = Math.min(box.width / natural.width, box.height / natural.height);
       const w = natural.width * scale;
       const h = natural.height * scale;
-      this.drawAssetAtCenter(page, rotationDeg, box, w, h, (x, y) => {
-        page.drawPage(embedded, { x, y, width: w, height: h });
-      }, pushGraphicsState, popGraphicsState, translate, rotateDegrees);
+      this.drawAssetAtCenter(
+        page,
+        rotationDeg,
+        box,
+        w,
+        h,
+        (x, y) => {
+          page.drawPage(embedded, { x, y, width: w, height: h });
+        },
+        pushGraphicsState,
+        popGraphicsState,
+        translate,
+        rotateDegrees,
+      );
       return;
     }
 
@@ -281,9 +292,20 @@ export class PdfOverlayService {
     const scale = Math.min(box.width / image.width, box.height / image.height);
     const w = image.width * scale;
     const h = image.height * scale;
-    this.drawAssetAtCenter(page, rotationDeg, box, w, h, (x, y) => {
-      page.drawImage(image, { x, y, width: w, height: h });
-    }, pushGraphicsState, popGraphicsState, translate, rotateDegrees);
+    this.drawAssetAtCenter(
+      page,
+      rotationDeg,
+      box,
+      w,
+      h,
+      (x, y) => {
+        page.drawImage(image, { x, y, width: w, height: h });
+      },
+      pushGraphicsState,
+      popGraphicsState,
+      translate,
+      rotateDegrees,
+    );
   }
 
   /**
@@ -319,5 +341,11 @@ export class PdfOverlayService {
 }
 
 function isPdfBytes(bytes: Uint8Array): boolean {
-  return bytes.length >= 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+  return (
+    bytes.length >= 4 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46
+  );
 }

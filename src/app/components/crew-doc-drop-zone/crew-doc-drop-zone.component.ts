@@ -30,7 +30,12 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 
     @if (showModal()) {
       <div class="modal-backdrop">
-        <div class="modal crew-doc-modal" appClickOutside (appClickOutside)="closeModal()" (click)="$event.stopPropagation()">
+        <div
+          class="modal crew-doc-modal"
+          appClickOutside
+          (appClickOutside)="closeModal()"
+          (click)="$event.stopPropagation()"
+        >
           <h3>Attach PDF scan</h3>
           <p class="crew-doc-modal-file">{{ pendingFile()?.name }}</p>
           <label>
@@ -55,7 +60,12 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
           </fieldset>
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
-            <button type="button" class="btn btn-primary" [disabled]="!canAttach()" (click)="confirmAttach()">
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="!canAttach()"
+              (click)="confirmAttach()"
+            >
               Attach
             </button>
           </div>

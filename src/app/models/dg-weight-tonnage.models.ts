@@ -6,9 +6,9 @@ export interface DgWeightTonnageOptions {
   grossTotalKg?: boolean;
 }
 
-export function resolveDgWeightTonnageOptions(
-  options: DgWeightTonnageOptions = {},
-): { useGrossWeight: boolean } {
+export function resolveDgWeightTonnageOptions(options: DgWeightTonnageOptions = {}): {
+  useGrossWeight: boolean;
+} {
   if ('useGrossWeight' in options) {
     return { useGrossWeight: options.useGrossWeight !== false };
   }

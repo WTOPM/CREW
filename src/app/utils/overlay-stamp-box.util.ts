@@ -55,7 +55,10 @@ export function defaultStampSize(pageW: number, pageH: number): { width: number;
   return { width, height };
 }
 
-export function defaultSignatureSize(pageW: number, pageH: number): { width: number; height: number } {
+export function defaultSignatureSize(
+  pageW: number,
+  pageH: number,
+): { width: number; height: number } {
   return {
     width: pageW * SIGNATURE_WIDTH_FRAC,
     height: pageH * SIGNATURE_HEIGHT_FRAC,
@@ -202,8 +205,7 @@ function resizeStampBoxCorner(
 
   const scaleW = proposedW / width;
   const scaleH = proposedH / height;
-  const scale =
-    Math.abs(scaleW - 1) >= Math.abs(scaleH - 1) ? scaleW : scaleH;
+  const scale = Math.abs(scaleW - 1) >= Math.abs(scaleH - 1) ? scaleW : scaleH;
 
   let newWidth = width * scale;
   let newHeight = height * scale;
