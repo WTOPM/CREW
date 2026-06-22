@@ -44,9 +44,56 @@ add a **mutation** to the matching feature store; add a read **selector** to
 `StorageService`. A component injects `storage` for reads and the relevant store for writes.
 Keep the persisted blob single — never add a second source of truth.
 
+Keep `dg-manifest.store.ts` cross-tab transfer (CMA ↔ Unifeeder) in the store, not the
+component. Pure normalization/migration belongs in `app-data-normalizer.ts`, not in stores.
+
+## Component & UI conventions (IMPORTANT)
+
+- **No inline `template`/`styles` in components.** Use `templateUrl` + `styleUrl` files
+  (every component follows this). If you find an inline block, extract it to files.
+- **Split big templates into child components** when a cohesive region grows large
+  (modals, inventory tabs, edit forms). Pattern: child takes `[input]`, emits
+  `(save)`/`(cancel)`/`(close)`, owns a local working draft via `linkedSignal`.
+  Examples: `crew-edit-modal`, `passenger-edit-modal`, `dg-archive-modals`,
+  `dg-unifeeder-inventory`.
+- **Styles must move with the markup.** Angular scopes component CSS, so when you move
+  markup into a child, move its CSS too. Shared/cross-component styles (modal, form,
+  table, `.dg-*`/`.uf-*`) live in the **global** `src/styles.css` — that's where the
+  modal/form/DG styles already are. Keep namespaced class names (`dg-`, `uf-`, `cma-`,
+  `crew-form-`) so globalizing never collides.
+- **Component-scoped services** (`providers: [X]` on the `@Component`) for per-instance
+  lifecycle, e.g. object-URL previews that must be revoked on destroy
+  (`CrewSignaturePreviewStore`). Root-`providedIn` for everything shared.
+- **Reads vs writes:** components inject `StorageService` for read selectors and the
+  relevant feature store for mutations (see state section above).
+- Use modern Angular signals API: `signal`, `computed`, `linkedSignal`, `input()`,
+  `output()`, `viewChild()`, `inject()`. Standalone components (no NgModules).
+
+## Testing
+
+- Runner: **vitest** via `@angular/build:unit-test`. Run: `npm test` (one-shot:
+  `npx ng test --watch=false`). Spec files are excluded from the production build.
+- **Prefer pure unit tests** over TestBed where possible: normalizers and feature stores
+  test cleanly. For a store, `TestBed.inject(AppStateStore)`, `state.data.set(createEmptyAppData())`,
+  then `TestBed.inject(TheStore)` and assert on `state.data()` after mutations.
+  See `crew.store.spec.ts`, `reference-lists.store.spec.ts`, `app-data-normalizer.spec.ts`.
+- **What to cover first:** anything in `app-data-normalizer.ts` (additive schema /
+  migrations — the riskiest to break silently) and feature-store mutations.
+- Components that use `RouterLink`/router need `provideRouter([])` in the TestBed providers.
+
+## Verify before claiming done
+
+- After any change run `npx tsc --noEmit -p tsconfig.app.json` **and** `npm run build`
+  (AOT compiles templates — a broken binding fails the build). Both must be clean (exit 0,
+  no `NG####` warnings). Run `npm test` when you touched store/normalizer/util logic.
+- Refactors must be **behavior-preserving (1:1)** unless asked otherwise. The app starts
+  empty, so interactive features can't be verified on a fresh dev instance — say so and
+  ask the user to confirm on real data when visual verification matters.
+
 ## Build commands
 
 - Web build: `npm run build`
+- Tests: `npm test` (vitest)
 - Portable exe: `npm run electron:build` → outputs `CREW-App\CREW-Documents.exe`.
 - Electron setup is complete (`angular.json` `electron` config + `package.json` `build`);
   all referenced assets exist under `build/`. No extra setup needed to produce the exe.
