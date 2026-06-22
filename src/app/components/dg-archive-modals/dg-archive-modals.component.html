@@ -1,0 +1,155 @@
+@if (showSave()) {
+  <div class="modal-backdrop dg-archive-backdrop">
+    <div
+      class="modal dg-archive-modal dg-archive-modal--save"
+      role="dialog"
+      aria-labelledby="dg-archive-save-title"
+      appClickOutside
+      (appClickOutside)="cancelSave()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon dg-archive-modal__icon--save" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+            />
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="dg-archive-save-title">Save DG page snapshot</h3>
+          <p class="dg-archive-modal__hint">
+            Saves onboard inventory, import history, voyage and departure shown on this page.
+          </p>
+        </div>
+      </header>
+
+      <div class="dg-archive-modal__body">
+        <label class="dg-archive-field">
+          <span class="dg-archive-field__label">Snapshot name</span>
+          <input
+            type="text"
+            class="dg-archive-field__input"
+            [ngModel]="saveLabel()" (ngModelChange)="saveLabel.set($event)"
+            placeholder="Snapshot name"
+            maxlength="80"
+            autofocus
+            (keydown.enter)="confirmSave()"
+            (keydown.escape)="cancelSave()"
+          />
+        </label>
+      </div>
+
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" (click)="cancelSave()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--save"
+          [disabled]="dgArchive.saving()"
+          (click)="confirmSave()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+            />
+          </svg>
+          {{ dgArchive.saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (showLoad()) {
+  <div class="modal-backdrop dg-archive-backdrop">
+    <div
+      class="modal dg-archive-modal dg-archive-modal--load"
+      role="dialog"
+      aria-labelledby="dg-archive-load-title"
+      appClickOutside
+      (appClickOutside)="onCloseLoad()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon dg-archive-modal__icon--load" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+            />
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="dg-archive-load-title">Load DG page snapshot</h3>
+          <p class="dg-archive-modal__hint">
+            Restores onboard inventory, import history, voyage and departure from a saved snapshot.
+          </p>
+        </div>
+      </header>
+
+      <div class="dg-archive-modal__body dg-archive-modal__body--list">
+        @if (dgArchive.entriesNewestFirst().length === 0) {
+          <div class="dg-archive-empty">
+            <span class="dg-archive-empty__title">No snapshots yet</span>
+            <span class="dg-archive-empty__text">
+              Use <strong>Save snapshot</strong> in the page header to store the current DG page.
+            </span>
+          </div>
+        } @else {
+          <ul class="dg-archive-load-list">
+            @for (entry of dgArchive.entriesNewestFirst(); track entry.id) {
+              <li class="dg-archive-load-row">
+                <button
+                  type="button"
+                  class="dg-archive-load-card"
+                  [class.dg-archive-load-card--active]="dgArchive.loaded()?.id === entry.id"
+                  (click)="pickSnapshot(entry)"
+                >
+                  <span class="dg-archive-load-card__header">
+                    <span class="dg-archive-load-card__label">{{ entry.label }}</span>
+                    @if (dgArchive.loaded()?.id === entry.id) {
+                      <span class="dg-archive-load-card__badge">Loaded</span>
+                    }
+                  </span>
+                  <span class="dg-archive-load-card__meta">
+                    @if (entry.ship.voyageNumber) {
+                      Voy {{ entry.ship.voyageNumber }}
+                      ·
+                    }
+                    {{ entry.dgLibrary.onboard.length }} container(s)
+                  </span>
+                  <span class="dg-archive-load-card__stats">
+                    saved {{ formatSavedAt(entry.savedAt) }}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="dg-archive-load-delete"
+                  title="Delete snapshot"
+                  aria-label="Delete snapshot {{ entry.label }}"
+                  (click)="deleteSnapshot(entry, $event)"
+                >
+                  ×
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--load" (click)="onCloseLoad()">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+            />
+          </svg>
+          Done
+        </button>
+      </footer>
+    </div>
+  </div>
+}

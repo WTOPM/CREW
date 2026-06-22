@@ -44,10 +44,9 @@ import { commitDgDualWeightEdit } from '../../utils/dg-weight-tonnage.util';
 import { formatDisplayDate } from '../../utils/date.util';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
-import { ClickOutsideDirective } from '../../directives/click-outside.directive';
+import { DgArchiveModalsComponent } from '../../components/dg-archive-modals/dg-archive-modals.component';
 import { ContainerTypeTooltipDirective } from '../../directives/container-type-tooltip.directive';
 import { DgClassTooltipDirective } from '../../directives/dg-class-tooltip.directive';
-import type { DgPageSnapshot } from '../../models/dg-page-archive.models';
 
 import {
   sortDgOnboardContainers,
@@ -106,7 +105,7 @@ export type DgInventoryTab = DgActiveInventoryTab;
 
 @Component({
   selector: 'app-dg',
-  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ClickOutsideDirective, ContainerTypeTooltipDirective, DgClassTooltipDirective, MfagScheduleTooltipDirective, UnNumberTooltipDirective, PackingGroupTooltipDirective],
+  imports: [RouterLink, FormsModule, DgActIconComponent, PortSelectComponent, DatePickerComponent, ContainerTypeTooltipDirective, DgClassTooltipDirective, MfagScheduleTooltipDirective, UnNumberTooltipDirective, PackingGroupTooltipDirective, DgArchiveModalsComponent],
   templateUrl: './dg.component.html',
   styleUrl: './dg.component.css',
 })
@@ -292,7 +291,6 @@ export class DgComponent {
   protected readonly dgArchive = this.pageArchive;
   protected readonly showArchiveSaveModal = signal(false);
   protected readonly showArchiveLoadModal = signal(false);
-  protected archiveSaveLabel = '';
 
   protected toggleShowDischarged(checked: boolean): void {
     this.dg.updateDgManifestView({ showDischarged: checked });
@@ -476,40 +474,12 @@ export class DgComponent {
 
   protected startArchiveSave(): void {
     this.showArchiveLoadModal.set(false);
-    this.archiveSaveLabel = this.pageArchive.defaultSaveLabel();
     this.showArchiveSaveModal.set(true);
-  }
-
-  protected cancelArchiveSave(): void {
-    this.showArchiveSaveModal.set(false);
-    this.archiveSaveLabel = '';
-  }
-
-  protected confirmArchiveSave(): void {
-    const entry = this.pageArchive.save(this.archiveSaveLabel);
-    if (!entry) {
-      this.toast.showError('Enter a name for the snapshot');
-      return;
-    }
-    this.showArchiveSaveModal.set(false);
-    this.archiveSaveLabel = '';
-    this.toast.show(`Saved "${entry.label}"`, 'success');
   }
 
   protected openArchiveLoad(): void {
     this.showArchiveSaveModal.set(false);
     this.showArchiveLoadModal.set(true);
-  }
-
-  protected closeArchiveLoad(): void {
-    this.showArchiveLoadModal.set(false);
-  }
-
-  protected pickArchiveSnapshot(entry: DgPageSnapshot): void {
-    if (this.pageArchive.load(entry.id)) {
-      this.showArchiveLoadModal.set(false);
-      this.toast.show(`Page state loaded from archive: "${entry.label}"`, 'info');
-    }
   }
 
   protected resetArchiveView(): void {
@@ -533,27 +503,6 @@ export class DgComponent {
 
     this.pageArchive.commitLoadedAsLive();
     this.toast.show('Snapshot is now live DG data', 'success');
-  }
-
-  protected deleteArchiveSnapshot(entry: DgPageSnapshot, event: MouseEvent): void {
-    event.stopPropagation();
-    const wasLoaded = this.pageArchive.loaded()?.id === entry.id;
-    this.pageArchive.remove(entry.id);
-    if (wasLoaded) {
-      this.toast.show(`Deleted "${entry.label}" — back to live page`, 'success');
-    } else {
-      this.toast.show(`Deleted "${entry.label}"`, 'success');
-    }
-  }
-
-  protected formatArchiveSavedAt(iso: string): string {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}.${month}.${year}`;
   }
 
   protected manifestDisplayName(doc: DgManifestDocument): string {

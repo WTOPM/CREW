@@ -6,17 +6,16 @@ import { FormsModule } from '@angular/forms';
 
 import { DocumentsNavComponent } from '../../components/documents-nav/documents-nav.component';
 
-import { LookupSelectComponent } from '../../components/lookup-select/lookup-select.component';
 
 import { CrewDocDropZoneComponent } from '../../components/crew-doc-drop-zone/crew-doc-drop-zone.component';
 import { CrewDocIconComponent } from '../../components/crew-doc-icon/crew-doc-icon.component';
-import { CrewSignatureDropComponent } from '../../components/crew-signature-drop/crew-signature-drop.component';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
+import { CrewEditModalComponent } from '../../components/crew-edit-modal/crew-edit-modal.component';
+import { PassengerEditModalComponent } from '../../components/passenger-edit-modal/passenger-edit-modal.component';
 import { CrewDocumentService } from '../../services/crew-document.service';
 import { CrewSignatureService } from '../../services/crew-signature.service';
 
-import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 import {
   CrewListKind,
@@ -55,13 +54,12 @@ export type HomeListTab =
     FormsModule,
     DragDropModule,
     DocumentsNavComponent,
-    LookupSelectComponent,
     PortSelectComponent,
     DatePickerComponent,
     CrewDocIconComponent,
-    CrewSignatureDropComponent,
     CrewDocDropZoneComponent,
-    ClickOutsideDirective,
+    CrewEditModalComponent,
+    PassengerEditModalComponent,
   ],
 
   templateUrl: './home.component.html',
@@ -143,13 +141,9 @@ export class HomeComponent {
     filterPassengerArchive(this.archivedPassengers(), this.paxArchiveSearch()),
   );
 
-  protected editingId = signal<string | null>(null);
+  protected editingCrew = signal<CrewMember | null>(null);
 
-  protected editDraft = signal<CrewMember | null>(null);
-
-  protected editingPassengerId = signal<string | null>(null);
-
-  protected passengerEditDraft = signal<PassengerMember | null>(null);
+  protected editingPax = signal<PassengerMember | null>(null);
 
   protected showArchive = signal(false);
 
@@ -191,45 +185,6 @@ export class HomeComponent {
 
 
 
-  protected flagStateName(): string {
-
-    return this.ship().nationality?.trim() || 'Flag state';
-
-  }
-
-
-
-  protected flagStateBookSectionTitle(): string {
-
-    return `${this.flagStateName()} seaman's book`;
-
-  }
-
-
-
-  protected flagStateBookNumberLabel(): string {
-
-    return `${this.flagStateName()} S/book No.`;
-
-  }
-
-
-
-  protected flagStateBookIssueLabel(): string {
-
-    return `${this.flagStateName()} S/book issue`;
-
-  }
-
-
-
-  protected flagStateBookExpiryLabel(): string {
-
-    return `${this.flagStateName()} S/book expiry`;
-
-  }
-
-
 
   /** Descriptive toast text for voyage fields (official English). */
   private static readonly VOYAGE_FIELD_MESSAGES: Partial<Record<keyof ShipInfo, string>> = {
@@ -248,81 +203,39 @@ export class HomeComponent {
 
 
   protected startEdit(member: CrewMember): void {
-
     this.cancelPassengerEdit();
-
-    this.editingId.set(member.id);
-
-    this.editDraft.set({ ...member });
-
+    this.editingCrew.set(member);
   }
-
-
 
   protected cancelEdit(): void {
-
-    this.editingId.set(null);
-
-    this.editDraft.set(null);
-
+    this.editingCrew.set(null);
   }
 
-
-
-  protected saveEdit(): void {
-
-    const draft = this.editDraft();
-
-    const id = this.editingId();
-
-    if (!draft || !id) return;
-
-    this.crew.updateCrewMember(id, this.crewProfilePatch(draft), 'silent');
-
+  protected onCrewSave(draft: CrewMember): void {
+    const m = this.editingCrew();
+    if (!m) return;
+    this.crew.updateCrewMember(m.id, this.crewProfilePatch(draft), 'silent');
     this.cancelEdit();
-
     this.toast.showSaved();
-
   }
 
 
 
   protected startPassengerEdit(member: PassengerMember): void {
-
     this.cancelEdit();
-
-    this.editingPassengerId.set(member.id);
-
-    this.passengerEditDraft.set({ ...member });
-
+    this.editingPax.set(member);
   }
-
-
 
   protected cancelPassengerEdit(): void {
-
-    this.editingPassengerId.set(null);
-
-    this.passengerEditDraft.set(null);
-
+    this.editingPax.set(null);
   }
 
-
-
-  protected savePassengerEdit(): void {
-
-    const draft = this.passengerEditDraft();
-
-    const id = this.editingPassengerId();
-
-    if (!draft || !id) return;
-
-    this.passengers.updatePassenger(id, this.passengerProfilePatch(draft), 'silent');
-
+  protected onPassengerSave(draft: PassengerMember): void {
+    const p = this.editingPax();
+    if (!p) return;
+    this.passengers.updatePassenger(p.id, this.passengerProfilePatch(draft), 'silent');
     this.cancelPassengerEdit();
-
     this.toast.showSaved();
-
   }
 
 
@@ -383,13 +296,13 @@ export class HomeComponent {
 
   protected archive(id: string): void {
     this.crew.archiveFromCrewList(id, this.crewListKind());
-    if (this.editingId() === id) this.cancelEdit();
+    if (this.editingCrew()?.id === id) this.cancelEdit();
     this.toast.showArchived();
   }
 
   protected archivePassenger(id: string): void {
     this.passengers.archiveFromPassengerList(id, this.paxListKind());
-    if (this.editingPassengerId() === id) this.cancelPassengerEdit();
+    if (this.editingPax()?.id === id) this.cancelPassengerEdit();
     this.toast.showArchived();
   }
 
@@ -552,13 +465,6 @@ export class HomeComponent {
     );
   }
 
-  protected onCrewSignatureChanged(): void {
-    const id = this.editingId();
-    if (!id) return;
-    const updated = this.storage.allCrew().find((m) => m.id === id);
-    if (updated) this.editDraft.set({ ...updated });
-  }
-
 
 
   protected async removePassenger(id: string): Promise<void> {
@@ -605,40 +511,6 @@ export class HomeComponent {
 
 
 
-  protected updateDraft(field: keyof CrewMember, value: string | boolean): void {
-
-    const draft = this.editDraft();
-
-    if (!draft) return;
-
-    this.editDraft.set({ ...draft, [field]: value });
-
-  }
-
-  protected setYellowFeverExpiryIsText(checked: boolean): void {
-    const draft = this.editDraft();
-    if (!draft) return;
-    this.editDraft.set({
-      ...draft,
-      yellowFeverExpiryIsText: checked,
-      yellowFeverExpiryText:
-        checked && !draft.yellowFeverExpiryText.trim()
-          ? 'VALIDITY FOR LIFE OF PERSON'
-          : draft.yellowFeverExpiryText,
-    });
-  }
-
-
-
-  protected updatePassengerDraft(field: keyof PassengerMember, value: string | boolean): void {
-
-    const draft = this.passengerEditDraft();
-
-    if (!draft) return;
-
-    this.passengerEditDraft.set({ ...draft, [field]: value });
-
-  }
 
   /** Persist only profile fields — list flags stay in storage unchanged. */
   private passengerProfilePatch(draft: PassengerMember): Partial<PassengerMember> {
