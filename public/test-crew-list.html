@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CREW LIST – IMO FAL Form 5</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+      background: #d0d0d0;
+      padding: 16px;
+      color: #000;
+    }
+
+    /* ── A4 portrait ── */
+    .a4-page {
+      background: #fff;
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 6mm 10mm 6mm 0;
+      /* left=0: side label sits outside table but inside page. Right padding 10mm ensures main-content is exactly 194mm wide */
+      border: 1px solid #999;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .25);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── TITLE ── */
+    h1 {
+      text-align: center;
+      font-size: 11pt;
+      font-weight: 700;
+      letter-spacing: .22em;
+      margin: 0 0 4mm 14mm;
+      /* indent same as content area */
+    }
+
+    /* ═══════════════════════════════════════════════════
+   LAYOUT: side-label (outside) + main content
+═══════════════════════════════════════════════════ */
+    .body-row {
+      display: flex;
+      align-items: stretch;
+      flex: 1;
+    }
+
+    /* Side label OUTSIDE the border */
+    .side-lbl {
+      width: 6mm;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      /* align to top of body-row, offset to hit first crew row */
+      justify-content: flex-start;
+      padding: 35.5mm 0.5mm 0 0;
+      gap: 10mm;
+    }
+
+    .side-lbl span {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font-size: 4.8pt;
+      line-height: 1;
+      letter-spacing: .03em;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .side-top {
+      align-self: flex-end;
+    }
+
+    .side-bot {
+      align-self: flex-end;
+      font-size: 4.2pt !important;
+    }
+
+    /* Main content area */
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      width: 100%;
+    }
+
+    /* ── HEADER BLOCK ── */
+    .header-block {
+      border: 1px solid #000;
+      border-bottom: none;
+      flex-shrink: 0;
+    }
+
+    .hrow {
+      display: grid;
+      border-bottom: 1px solid #000;
+    }
+
+    .hrow:last-child {
+      border-bottom: none;
+    }
+
+    /* Row 1: AGENCY + checkboxes */
+    .hrow-top {
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      padding: 1.2mm 2mm;
+      gap: 4mm;
+      min-height: 6.5mm;
+    }
+
+    .agency-wrap {
+      display: flex;
+      align-items: center;
+      gap: 2mm;
+    }
+
+    .lbl-agency {
+      font-size: 7pt;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .cb-group {
+      display: flex;
+      align-items: center;
+      gap: 5mm;
+      white-space: nowrap;
+    }
+
+    .cb-item {
+      display: flex;
+      align-items: center;
+      gap: 1.5mm;
+      font-size: 7pt;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cb-box {
+      width: 3.5mm;
+      height: 3.5mm;
+      border: 1px solid #000;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7pt;
+      line-height: 1;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Rows 2 & 3 */
+    .hrow-3col {
+      display: flex;
+      min-height: 6.5mm;
+    }
+
+    /* Header column widths (similar to c1, c2, etc) */
+    .hc1 {
+      width: 82mm;
+    }
+
+    .hc2 {
+      width: 92mm;
+    }
+
+    .hc3 {
+      width: 45mm;
+    }
+
+    .hcell {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 1mm 2mm;
+      border-right: 1px solid #000;
+    }
+
+    .hcell:last-child {
+      border-right: none;
+    }
+
+    .lbl-row {
+      display: flex;
+      align-items: baseline;
+      gap: 1mm;
+      margin-bottom: auto;
+    }
+
+    .fn {
+      font-size: 5.8pt;
+      color: #333;
+      line-height: 1.2;
+    }
+
+    .flbl {
+      font-size: 6pt;
+      color: #000;
+      line-height: 1.2;
+    }
+
+    .fi {
+      border: none;
+      border-bottom: 1px solid #666;
+      outline: none;
+      font-family: Arial, sans-serif;
+      font-size: 7pt;
+      padding: .4mm 0;
+      width: 100%;
+      background: transparent;
+      color: #000;
+      margin-top: auto;
+    }
+
+    .fi:focus {
+      border-bottom-color: #1a56db;
+      background: #ebf1ff;
+    }
+
+    .fi[type="date"] {
+      font-size: 6pt;
+    }
+
+    /* ── CREW TABLE (no extra wrapper, fills main-content) ── */
+    .crew-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 6pt;
+      border: 1px solid #000;
+    }
+
+    /* All cells */
+    .crew-tbl th,
+    .crew-tbl td {
+      border: 1px solid #000;
+      padding: 0;
+      vertical-align: top;
+    }
+
+    /* Remove double left border: table left edge IS column 7 left edge */
+    .crew-tbl th:first-child,
+    .crew-tbl td:first-child {
+      border-left: none;
+      /* outer table border serves as left edge */
+    }
+
+    /* Header rows */
+    .crew-tbl thead tr:first-child th {
+      /* top header row */
+      font-size: 5.6pt;
+      font-weight: 600;
+      padding: .8mm 1mm .5mm;
+      line-height: 1.25;
+      vertical-align: bottom;
+      word-break: break-word;
+      background: #fff;
+    }
+
+    .crew-tbl thead tr:last-child th {
+      /* sub-header row for DOB split */
+      font-size: 5.4pt;
+      font-weight: 600;
+      padding: .5mm 1mm;
+      line-height: 1.2;
+      vertical-align: bottom;
+      background: #fff;
+    }
+
+    /* Data cells */
+    .crew-tbl td {
+      height: 5mm;
+      padding: 0;
+      vertical-align: middle;
+    }
+
+    .crew-tbl tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    /* ── Column widths ──
+   Total usable ≈ 194mm (210 - 10 side - 6 right pad)
+   No border-left on col-0 saves 0.5mm → use it for content
+*/
+    .c0 {
+      width: 6mm;
+    }
+
+    /* No.        */
+    .c1 {
+      /* width: 20mm; (Убрал жесткую ширину, чтобы эта колонка работала как "пружина" и забирала всё оставшееся место) */
+    }
+
+    /* Name       */
+    .c2 {
+      width: 20mm;
+    }
+
+    /* Rank       */
+    .c3 {
+      width: 21mm;
+    }
+
+    /* Nationality*/
+    /* col 11 header spans c4+c5 */
+    .c4 {
+      width: 17mm;
+    }
+
+    /* DOB date   */
+    .c5 {
+      width: 23mm;
+    }
+
+    /* DOB place  */
+    .c6 {
+      width: 20mm;
+    }
+
+    /* Book No.   */
+    .c7 {
+      width: 20mm;
+    }
+
+    /* Book Expiry*/
+    /* Total: 7+40+18+15+22+52+20+20 = 194mm ✓ */
+
+    .rno {
+      display: block;
+      text-align: center;
+      font-size: 5.8pt;
+      color: #444;
+    }
+
+    .ci {
+      border: none;
+      outline: none;
+      font-family: Arial, sans-serif;
+      font-size: 6pt;
+      padding: .2mm 1mm;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      color: #000;
+      display: block;
+    }
+
+    .ci:focus {
+      background: #ebf1ff;
+      outline: 1px solid #1a56db;
+      outline-offset: -1px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .ci::placeholder {
+      color: transparent; /* hide placeholder text */
+      font-size: 5pt;
+    }
+
+    .ci[type="date"] {
+      font-size: 5.5pt;
+      padding: .2mm .5mm;
+    }
+
+    /* ── FOOTER ── */
+    .form-footer {
+      margin-top: 2mm;
+      padding: 0 0 0 0;
+      flex-shrink: 0;
+    }
+
+    .foot-note {
+      font-size: 6pt;
+      color: #222;
+      margin-bottom: 3mm;
+    }
+
+    .sig-block {
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      gap: 6mm;
+    }
+
+    .sig-lbl {
+      font-size: 8pt;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .sig-line {
+      flex: 0 0 50mm;
+      height: 0;
+      border-bottom: 1px solid #000;
+    }
+
+    /* ── Actions ── */
+    .actions {
+      margin-top: auto;
+      display: flex;
+      gap: 3mm;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      font-family: Arial, sans-serif;
+      font-size: 8pt;
+      padding: 2mm 4mm;
+      cursor: pointer;
+      border: 1px solid #1a3a5c;
+      border-radius: 2px;
+    }
+
+    .btn-p {
+      background: #1a3a5c;
+      color: #fff;
+    }
+
+    .btn-p:hover {
+      background: #0d2440;
+    }
+
+    .btn-s {
+      background: #fff;
+      color: #1a3a5c;
+    }
+
+    .btn-s:hover {
+      background: #eef2ff;
+    }
+
+    /* ── Print ── */
+    @media print {
+      body {
+        background: #fff;
+        padding: 0;
+      }
+
+      .a4-page {
+        box-shadow: none;
+        border: none;
+        width: 100%;
+        min-height: unset;
+        padding: 0;
+      }
+
+      .actions {
+        display: none;
+      }
+
+      @page {
+        size: A4 portrait;
+        margin: 8mm 6mm;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="a4-page">
+    <h1>CREW&nbsp;&nbsp;LIST</h1>
+
+    <div class="body-row">
+
+      <!-- ══ SIDE LABEL — outside the border ══ -->
+      <div class="side-lbl">
+        <span class="side-top">IMO Convention on Facilitation of International Maritime Traffic</span>
+        <span class="side-bot">II-1969 IMO FAL Form 5</span>
+      </div>
+
+      <!-- ══ MAIN CONTENT ══ -->
+      <div class="main-content">
+
+        <!-- HEADER -->
+        <div class="header-block">
+
+          <!-- Row 1 -->
+          <div class="hrow hrow-top">
+            <div class="agency-wrap">
+              <span class="lbl-agency">AGENCY:</span>
+              <input type="text" class="fi" style="flex:1" value="ALGIERS SHIPPING AGENCY S.P.A." />
+            </div>
+            <div class="cb-group">
+              <label class="cb-item" onclick="setAD('arrival')">
+                <span class="cb-box" id="cb-arr">✓</span> Arrival
+              </label>
+              <label class="cb-item" onclick="setAD('departure')">
+                <span class="cb-box" id="cb-dep"></span> Departure
+              </label>
+            </div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="hrow hrow-3col">
+            <div class="hcell hc1">
+              <div class="lbl-row"><span class="fn">1.</span> <span class="flbl">Name of ship</span></div>
+              <input type="text" class="fi" value="MV JUDITH" />
+            </div>
+            <div class="hcell hc2">
+              <div class="lbl-row"><span class="fn">2.</span> <span class="flbl">Port of arrival / departure</span>
+              </div>
+              <input type="text" class="fi" value="ALGIERS" />
+            </div>
+            <div class="hcell hc3">
+              <div class="lbl-row"><span class="fn">3.</span> <span class="flbl">Date of arrival / departure</span>
+              </div>
+              <input type="text" class="fi" value="2025-06-23" />
+            </div>
+          </div>
+
+          <!-- Row 3 -->
+          <div class="hrow hrow-3col">
+            <div class="hcell hc1">
+              <div class="lbl-row"><span class="fn">4.</span> <span class="flbl">Nationality of ship</span></div>
+              <input type="text" class="fi" value="MALTA" />
+            </div>
+            <div class="hcell hc2">
+              <div class="lbl-row"><span class="fn">5.</span> <span class="flbl">Port arrived from / Port of
+                  destination</span></div>
+              <input type="text" class="fi" value="GENOA / ALGIERS" />
+            </div>
+            <div class="hcell hc3" style="justify-content:space-between;padding-top:1mm">
+              <div class="lbl-row"><span class="fn">6.</span> <span class="flbl">Nature and No. of identity
+                  document</span></div>
+            </div>
+          </div>
+
+        </div><!-- /header-block -->
+
+        <!-- CREW TABLE -->
+        <table class="crew-tbl">
+          <colgroup>
+            <col class="c0">
+            <col class="c1">
+            <col class="c2">
+            <col class="c3">
+            <col class="c4">
+            <col class="c5">
+            <col class="c6">
+            <col class="c7">
+          </colgroup>
+          <thead>
+            <!-- Main header row -->
+            <tr>
+              <th class="c0" rowspan="2">7. No.</th>
+              <th class="c1" rowspan="2">8. Family name, given names</th>
+              <th class="c2" rowspan="2">9. Rank or rating</th>
+              <th class="c3" rowspan="2">10. Nationality</th>
+              <!-- colspan=2 for the split DOB column -->
+              <th colspan="2" style="text-align:center">11. Date and place of birth</th>
+              <th class="c6" rowspan="2">Seamans Book No.</th>
+              <th class="c7" rowspan="2">Seamans Book Expiry</th>
+            </tr>
+            <!-- Sub-header: DOB split -->
+            <tr>
+              <th class="c4" style="font-weight:500">Date of birth</th>
+              <th class="c5" style="font-weight:500">Place of birth</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+
+        <!-- FOOTER -->
+        <div class="form-footer">
+          <p class="foot-note">12. Date and signature by master, authorized agent or officer</p>
+          <div class="sig-block">
+            <span class="sig-lbl">Master</span>
+            <div class="sig-line"></div>
+          </div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="actions">
+          <button class="btn btn-s" onclick="addRow()">+ Add row</button>
+          <button class="btn btn-s" onclick="removeRow()">− Remove last</button>
+          <button class="btn btn-p" onclick="window.print()">🖨 Print / PDF</button>
+        </div>
+
+      </div><!-- /main-content -->
+    </div><!-- /body-row -->
+  </div>
+
+  <datalist id="ranks">
+    <option value="Master">
+    <option value="Chief Officer">
+    <option value="2nd Officer">
+    <option value="3rd Officer">
+    <option value="Chief Engineer">
+    <option value="2nd Engineer">
+    <option value="3rd Engineer">
+    <option value="4th Engineer">
+    <option value="Bosun">
+    <option value="AB Seaman">
+    <option value="OS Seaman">
+    <option value="Cook">
+    <option value="Steward">
+    <option value="Electrician">
+    <option value="Motorman">
+    <option value="Fitter">
+    <option value="Cadet">
+    <option value="Other">
+  </datalist>
+
+  <script>
+    const DEMO = [
+      { name: 'PETROV Ivan Sergeyevich', rank: 'Master', nat: 'RUS', dob: '15.03.1975', pob: 'Moscow', bno: 'RUS12345678', bexp: '2027-08-10' },
+      { name: 'KIM Jong-su', rank: 'Chief Officer', nat: 'KOR', dob: '22.07.1980', pob: 'Busan', bno: 'KOR98765432', bexp: '2026-03-15' },
+      { name: 'HASSAN Ahmed Mohammed', rank: 'Chief Engineer', nat: 'EGY', dob: '05.11.1978', pob: 'Alexandria', bno: 'EGY11223344', bexp: '2028-01-20' },
+      { name: 'SILVA Carlos Eduardo', rank: '2nd Officer', nat: 'BRA', dob: '30.09.1985', pob: 'Santos', bno: 'BRA55667788', bexp: '2026-11-30' },
+      { name: 'IVANOVA Marina Ivanovna', rank: 'Cook', nat: 'UKR', dob: '14.02.1990', pob: 'Odessa', bno: 'UKR33445566', bexp: '2025-09-05' },
+    ];
+    const tbody = document.getElementById('tbody');
+    let cnt = 0;
+
+    function addRow(d = {}) {
+      cnt++;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+    <td class="c0"><span class="rno">${cnt}</span></td>
+    <td class="c1"><input class="ci" type="text" value="${d.name || ''}"></td>
+    <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" list="ranks"></td>
+    <td class="c3"><input class="ci" type="text" value="${d.nat || ''}"></td>
+    <td class="c4"><input class="ci" type="text" value="${d.dob || ''}" placeholder="DD.MM.YYYY"></td>
+    <td class="c5"><input class="ci" type="text" value="${d.pob || ''}" placeholder="City"></td>
+    <td class="c6"><input class="ci" type="text" value="${d.bno || ''}"></td>
+    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}" placeholder="DD.MM.YYYY"></td>`;
+      tbody.appendChild(tr);
+    }
+    function removeRow() { if (tbody.lastChild) { tbody.removeChild(tbody.lastChild); cnt--; } }
+    function setAD(v) {
+      document.getElementById('cb-arr').textContent = v === 'arrival' ? '✓' : '';
+      document.getElementById('cb-dep').textContent = v === 'departure' ? '✓' : '';
+    }
+
+    DEMO.forEach(d => addRow(d));
+    for (let i = DEMO.length; i < 18; i++) addRow();
+  </script>
+</body>
+
+</html>
