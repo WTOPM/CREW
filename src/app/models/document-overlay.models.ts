@@ -62,13 +62,23 @@ export function documentPageUsesOverlay(
 
 /** Active crew list variant (only one at a time). */
 export type CrewListTypeId =
-  | 'type1Passport'
-  | 'type1SeamansBook'
-  | 'type2Alger'
-  | 'type3V2'
-  | 'type4V3Sbk'
-  | 'type5V3SbkP'
-  | 'type6V3SbkP2';
+  | 'type1Passport'      // 01 - IMO CREW LIST - P
+  | 'type1SeamansBook'   // 02 - IMO CREW LIST - SBK
+  | 'type2Alger'         // 03 - IMO CREW LIST - P SBK J T
+  | 'type3V2'            // 04 - CREW LIST - P E PI G
+  | 'type4V3Sbk'         // 05 - CREW LIST - SBK E          ← HTML form (test-crew-list.html)
+  | 'type5V3SbkP'        // 06 - CREW LIST - SBK PI E P J
+  | 'type6V3SbkP2';      // 07 - CREW LIST - SBK PI E P PI E
+
+/** Named constants for crew list form numbers (for readable code). */
+export const CREW_FORM_01 = 'type1Passport'    as const satisfies CrewListTypeId;
+export const CREW_FORM_02 = 'type1SeamansBook' as const satisfies CrewListTypeId;
+export const CREW_FORM_03 = 'type2Alger'       as const satisfies CrewListTypeId;
+export const CREW_FORM_04 = 'type3V2'          as const satisfies CrewListTypeId;
+/** Form 05 - CREW LIST [SBK][E] — HTML form (test-crew-list.html), arrival/departure */
+export const CREW_FORM_05 = 'type4V3Sbk'       as const satisfies CrewListTypeId;
+export const CREW_FORM_06 = 'type5V3SbkP'      as const satisfies CrewListTypeId;
+export const CREW_FORM_07 = 'type6V3SbkP2'     as const satisfies CrewListTypeId;
 
 /** Stamp/signature placement bucket (Type 1 passport & seaman's book share one layout). */
 export type CrewListPlacementKey =

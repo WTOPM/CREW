@@ -17,7 +17,12 @@ import {
   ShipStoresDocId,
   portCountry,
 } from '../../models/crew.models';
-import { crewListIdentityPdfFileName } from '../../utils/pdf-filename.util';
+import {
+  crewListIdentityPdfFileName,
+} from '../../utils/pdf-filename.util';
+import {
+  CREW_FORM_05,
+} from '../../models/document-overlay.models';
 import { PartialDateInputComponent } from '../partial-date-input/partial-date-input.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
@@ -105,7 +110,6 @@ export class DocumentsNavComponent {
   private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
-  private readonly crewListV3SbkPdf = inject(PdfCrewListV3SbkService);
   private readonly crewListV3SbkPPdf = inject(PdfCrewListV3SbkPService);
   private readonly crewListV3SbkP2Pdf = inject(PdfCrewListV3SbkP2Service);
   private readonly mdhPdf = inject(PdfMdhService);
@@ -193,8 +197,8 @@ export class DocumentsNavComponent {
       void this.openCrewListV2(isArrival);
       return;
     }
-    if (listType === 'type4V3Sbk') {
-      void this.openCrewListV3Sbk(isArrival);
+    if (listType === 'type4V3Sbk') { // Form 05 - CREW LIST [SBK][E] — generate PDF from HTML form
+      this.openCrewListForm05Html(isArrival, true);
       return;
     }
     if (listType === 'type5V3SbkP') {
@@ -227,18 +231,28 @@ export class DocumentsNavComponent {
     }
   }
 
+  /** Form 04 - CREW LIST [P][E][PI][G] */
   private async openCrewListV2(isArrival: boolean): Promise<void> {
     await this.openCrewListTemplatePdf(isArrival, this.crewListV2Pdf);
   }
 
-  private async openCrewListV3Sbk(isArrival: boolean): Promise<void> {
-    await this.openCrewListTemplatePdf(isArrival, this.crewListV3SbkPdf);
+  /** Form 05 - CREW LIST [SBK][E] — opens the HTML form (test-crew-list.html).
+   *  `print` → auto-print on load (= generate PDF); otherwise just open for editing. */
+  private openCrewListForm05Html(isArrival: boolean, print: boolean): void {
+    const mode = isArrival ? 'arrival' : 'departure';
+    const url = `/test-crew-list.html?mode=${mode}${print ? '&print=1' : ''}`;
+    const opened = window.open(url, '_blank');
+    if (!opened) {
+      this.toast.showError('Allow pop-ups to open Crew List');
+    }
   }
 
+  /** Form 06 - CREW LIST [SBK][PI][E][P][J] */
   private async openCrewListV3SbkP(isArrival: boolean): Promise<void> {
     await this.openCrewListTemplatePdf(isArrival, this.crewListV3SbkPPdf);
   }
 
+  /** Form 07 - CREW LIST [SBK][PI][E][P][PI][E] */
   private async openCrewListV3SbkP2(isArrival: boolean): Promise<void> {
     await this.openCrewListTemplatePdf(isArrival, this.crewListV3SbkP2Pdf);
   }

@@ -24,7 +24,7 @@
       background: #fff;
       width: 210mm;
       min-height: 297mm;
-      margin: 0 auto;
+      margin: 0;
       padding: 6mm 10mm 6mm 0;
       /* left=0: side label sits outside table but inside page. Right padding 10mm ensures main-content is exactly 194mm wide */
       border: 1px solid #999;
@@ -90,6 +90,70 @@
       flex-direction: column;
       min-width: 0;
       width: 100%;
+      position: relative; /* anchor for draggable overlays */
+    }
+
+    /* ── DRAGGABLE OVERLAYS (stamp / signature) ── */
+    .overlay-marker {
+      position: absolute;
+      display: none;
+      cursor: move;
+      mix-blend-mode: multiply;
+      z-index: 100;
+      user-select: none;
+      touch-action: none;
+      pointer-events: auto;
+    }
+
+    .overlay-marker.visible {
+      display: block;
+    }
+
+    /* dashed border only when NOT printing */
+    @media screen {
+      .overlay-marker.visible {
+        outline: 1.5px dashed #1a56db;
+        outline-offset: 2px;
+      }
+      .overlay-marker.visible:hover {
+        outline-color: #c026d3;
+      }
+    }
+
+    .overlay-marker img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    /* resize handle — bottom-right corner (proportional) */
+    .overlay-resize {
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      width: 10px;
+      height: 10px;
+      background: #1a56db;
+      border-radius: 2px;
+      cursor: nwse-resize;
+      z-index: 51;
+    }
+
+    /* edge handles — single-axis resize (transparent grab strips) */
+    .overlay-h {
+      position: absolute;
+      z-index: 50;
+      background: transparent;
+    }
+    .overlay-h--e { top: 12%; bottom: 12%; right: -3px; width: 8px; cursor: ew-resize; }
+    .overlay-h--w { top: 12%; bottom: 12%; left: -3px; width: 8px; cursor: ew-resize; }
+    .overlay-h--n { left: 12%; right: 12%; top: -3px; height: 8px; cursor: ns-resize; }
+    .overlay-h--s { left: 12%; right: 12%; bottom: -3px; height: 8px; cursor: ns-resize; }
+
+    @media print {
+      .overlay-resize, .overlay-h { display: none; }
     }
 
     /* ── HEADER BLOCK ── */
@@ -175,7 +239,7 @@
     }
 
     .hc3 {
-      width: 45mm;
+      width: 47mm;
     }
 
     .hcell {
@@ -220,6 +284,10 @@
       background: transparent;
       color: #000;
       margin-top: auto;
+    }
+
+    .hcell .fi {
+      padding-left: 4.5mm;
     }
 
     .fi:focus {
@@ -342,6 +410,33 @@
       color: #444;
     }
 
+    body {
+      margin: 0;
+      background: #dfdfdf;
+      font-family: Arial, sans-serif;
+      color: #000;
+      padding: 5mm;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 5mm;
+    }
+
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 2mm;
+      position: sticky;
+      top: 5mm;
+      width: 30mm;
+    }
+
+    .side-panel select,
+    .side-panel button {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
     .ci {
       border: none;
       outline: none;
@@ -363,8 +458,17 @@
       z-index: 1;
     }
 
+    .ci.selected {
+      background: #e6f0ff !important;
+      outline: 2px solid #1a56db !important;
+      outline-offset: -2px;
+      position: relative;
+      z-index: 2;
+    }
+
     .ci::placeholder {
-      color: transparent; /* hide placeholder text */
+      color: transparent;
+      /* hide placeholder text */
       font-size: 5pt;
     }
 
@@ -407,7 +511,7 @@
 
     /* ── Actions ── */
     .actions {
-      margin-top: auto;
+      margin-top: 5mm;
       display: flex;
       gap: 3mm;
       justify-content: flex-end;
@@ -457,7 +561,8 @@
         padding: 0;
       }
 
-      .actions {
+      .actions,
+      .side-panel {
         display: none;
       }
 
@@ -470,6 +575,30 @@
 </head>
 
 <body>
+
+  <!-- LEFT TOOLBAR (Formatting) -->
+  <div class="side-panel">
+    <div style="font-size:7pt; font-weight:bold; margin-bottom:1mm; text-align:center;">Format</div>
+    <select id="tb-font" onchange="applyFormat('fontFamily', this.value)" style="padding: 1mm;">
+      <option value="Arial">Arial</option>
+      <option value="Calibri">Calibri</option>
+      <option value="Times New Roman">Times New Roman</option>
+      <option value="Courier New">Courier New</option>
+    </select>
+    <select id="tb-size" onchange="applyFormat('fontSize', this.value + 'pt')" style="padding: 1mm;">
+      <option value="5">5</option>
+      <option value="6" selected>6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+      <option value="11">11</option>
+      <option value="12">12</option>
+    </select>
+    <button class="btn btn-s" onclick="applyFormat('textAlign', 'left')">≡ Left</button>
+    <button class="btn btn-s" onclick="applyFormat('textAlign', 'center')">≡ Center</button>
+    <button class="btn btn-s" onclick="applyFormat('textAlign', 'right')">≡ Right</button>
+  </div>
 
   <div class="a4-page">
     <h1>CREW&nbsp;&nbsp;LIST</h1>
@@ -492,7 +621,7 @@
           <div class="hrow hrow-top">
             <div class="agency-wrap">
               <span class="lbl-agency">AGENCY:</span>
-              <input type="text" class="fi" style="flex:1" value="ALGIERS SHIPPING AGENCY S.P.A." />
+              <input type="text" class="fi" id="h-agency" style="flex:1" value="ALGIERS SHIPPING AGENCY S.P.A." />
             </div>
             <div class="cb-group">
               <label class="cb-item" onclick="setAD('arrival')">
@@ -508,17 +637,17 @@
           <div class="hrow hrow-3col">
             <div class="hcell hc1">
               <div class="lbl-row"><span class="fn">1.</span> <span class="flbl">Name of ship</span></div>
-              <input type="text" class="fi" value="MV JUDITH" />
+              <input type="text" class="fi" id="h-ship-name" value="MV JUDITH" />
             </div>
             <div class="hcell hc2">
               <div class="lbl-row"><span class="fn">2.</span> <span class="flbl">Port of arrival / departure</span>
               </div>
-              <input type="text" class="fi" value="ALGIERS" />
+              <input type="text" class="fi" id="h-port" value="ALGIERS" />
             </div>
             <div class="hcell hc3">
               <div class="lbl-row"><span class="fn">3.</span> <span class="flbl">Date of arrival / departure</span>
               </div>
-              <input type="text" class="fi" value="2025-06-23" />
+              <input type="text" class="fi" id="h-date" value="2025-06-23" />
             </div>
           </div>
 
@@ -526,12 +655,12 @@
           <div class="hrow hrow-3col">
             <div class="hcell hc1">
               <div class="lbl-row"><span class="fn">4.</span> <span class="flbl">Nationality of ship</span></div>
-              <input type="text" class="fi" value="MALTA" />
+              <input type="text" class="fi" id="h-nat" value="MALTA" />
             </div>
             <div class="hcell hc2">
               <div class="lbl-row"><span class="fn">5.</span> <span class="flbl">Port arrived from / Port of
                   destination</span></div>
-              <input type="text" class="fi" value="GENOA / ALGIERS" />
+              <input type="text" class="fi" id="h-from" value="GENOA / ALGIERS" />
             </div>
             <div class="hcell hc3" style="justify-content:space-between;padding-top:1mm">
               <div class="lbl-row"><span class="fn">6.</span> <span class="flbl">Nature and No. of identity
@@ -574,24 +703,38 @@
           <tbody id="tbody"></tbody>
         </table>
 
-        <!-- FOOTER -->
         <div class="form-footer">
           <p class="foot-note">12. Date and signature by master, authorized agent or officer</p>
           <div class="sig-block">
             <span class="sig-lbl">Master</span>
-            <div class="sig-line"></div>
+            <input type="text" id="f-master-name" class="fi"
+              style="width: 50mm; text-align: center; font-size: 8pt; border-bottom-color: #000;" readonly />
           </div>
         </div>
 
-        <!-- ACTIONS -->
-        <div class="actions">
-          <button class="btn btn-s" onclick="addRow()">+ Add row</button>
-          <button class="btn btn-s" onclick="removeRow()">− Remove last</button>
-          <button class="btn btn-p" onclick="window.print()">🖨 Print / PDF</button>
-        </div>
+        <!-- DRAGGABLE OVERLAYS — positioned inside main-content -->
+        <div id="stamp-container" class="overlay-marker"></div>
+        <div id="sig-container" class="overlay-marker"></div>
 
       </div><!-- /main-content -->
     </div><!-- /body-row -->
+  </div><!-- /a4-page -->
+
+  <!-- RIGHT TOOLBAR (Rows) -->
+  <div class="side-panel">
+    <div style="font-size:7pt; font-weight:bold; margin-bottom:1mm; text-align:center;">Rows</div>
+    <button class="btn btn-s" onclick="addRow()">+ Add row</button>
+    <button class="btn btn-s" onclick="removeRow()">− Remove last</button>
+
+    <div style="font-size:7pt; font-weight:bold; margin-top:3mm; margin-bottom:1mm; text-align:center;">Print</div>
+    <label style="display:flex; align-items:center; gap:2mm; cursor:pointer; font-size:7pt;">
+      <input type="checkbox" id="chk-stamp" onchange="toggleStamp(this.checked)" style="width:auto;">
+      Stamp
+    </label>
+    <label style="display:flex; align-items:center; gap:2mm; cursor:pointer; font-size:7pt;">
+      <input type="checkbox" id="chk-sig" onchange="toggleSignature(this.checked)" style="width:auto;">
+      Signature
+    </label>
   </div>
 
   <datalist id="ranks">
@@ -631,23 +774,372 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
     <td class="c0"><span class="rno">${cnt}</span></td>
-    <td class="c1"><input class="ci" type="text" value="${d.name || ''}"></td>
-    <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" list="ranks"></td>
-    <td class="c3"><input class="ci" type="text" value="${d.nat || ''}"></td>
-    <td class="c4"><input class="ci" type="text" value="${d.dob || ''}" placeholder="DD.MM.YYYY"></td>
-    <td class="c5"><input class="ci" type="text" value="${d.pob || ''}" placeholder="City"></td>
-    <td class="c6"><input class="ci" type="text" value="${d.bno || ''}"></td>
-    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}" placeholder="DD.MM.YYYY"></td>`;
+    <td class="c1"><input class="ci" type="text" value="${d.name || ''}" readonly></td>
+    <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly></td>
+    <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly></td>
+    <td class="c4"><input class="ci" type="text" value="${d.dob || ''}" placeholder="DD.MM.YYYY" readonly></td>
+    <td class="c5"><input class="ci" type="text" value="${d.pob || ''}" placeholder="City" readonly></td>
+    <td class="c6"><input class="ci" type="text" value="${d.bno || ''}" readonly></td>
+    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}" placeholder="DD.MM.YYYY" readonly></td>`;
       tbody.appendChild(tr);
     }
     function removeRow() { if (tbody.lastChild) { tbody.removeChild(tbody.lastChild); cnt--; } }
     function setAD(v) {
-      document.getElementById('cb-arr').textContent = v === 'arrival' ? '✓' : '';
-      document.getElementById('cb-dep').textContent = v === 'departure' ? '✓' : '';
+      document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
+      document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
+      // Change date when toggling
+      if (window._shipData) {
+        const ship = window._shipData;
+        const dateEl = document.getElementById('h-date');
+        if (dateEl) {
+          dateEl.value = v === 'arrival' ? fmtDate(ship.dateOfArrival) : fmtDate(ship.dateOfDeparture);
+        }
+      }
     }
 
-    DEMO.forEach(d => addRow(d));
-    for (let i = DEMO.length; i < 18; i++) addRow();
+    let selectedCells = [];
+    let isDragging = false;
+
+    function clearSelection() {
+      selectedCells.forEach(c => c.classList.remove('selected'));
+      selectedCells = [];
+    }
+
+    function selectCell(cell) {
+      if (!selectedCells.includes(cell)) {
+        selectedCells.push(cell);
+        cell.classList.add('selected');
+      }
+    }
+
+    tbody.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('ci')) {
+        e.preventDefault(); // Prevents native text selection/dragging
+        isDragging = true;
+        clearSelection();
+        selectCell(e.target);
+
+        // Sync toolbar values with the first selected cell
+        const font = e.target.style.fontFamily || 'Arial';
+        const size = e.target.style.fontSize ? parseInt(e.target.style.fontSize) : 6;
+        document.getElementById('tb-font').value = font;
+        document.getElementById('tb-size').value = size;
+      }
+    });
+
+    tbody.addEventListener('mouseover', (e) => {
+      if (isDragging && e.target.classList.contains('ci')) {
+        selectCell(e.target);
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    function applyFormat(prop, val) {
+      selectedCells.forEach(cell => {
+        cell.style[prop] = val;
+      });
+    }
+
+    let stampImgUrl = null;
+    let sigImgUrl = null;
+
+    const POS_KEY = 'crew05-overlay-pos';
+
+    function savePositions() {
+      const stamp = document.getElementById('stamp-container');
+      const sig = document.getElementById('sig-container');
+      const stampOn = document.getElementById('chk-stamp').checked;
+      const sigOn = document.getElementById('chk-sig').checked;
+      const pos = {
+        stamp: { visible: stampOn, left: stamp.style.left, top: stamp.style.top, width: stamp.style.width, height: stamp.style.height },
+        sig:   { visible: sigOn,   left: sig.style.left,   top: sig.style.top,   width: sig.style.width,   height: sig.style.height }
+      };
+      localStorage.setItem(POS_KEY, JSON.stringify(pos));
+    }
+
+    function loadPositions() {
+      try { return JSON.parse(localStorage.getItem(POS_KEY)) || {}; } catch { return {}; }
+    }
+
+    function makeDraggable(el) {
+      let mode = null; // 'drag' | 'resize'
+      let resizeDir = null; // 'se' (corner, proportional) | 'e' | 'w' | 'n' | 's'
+      let startX, startY, startL, startT, startW, startH;
+
+      function resizeDirFor(target) {
+        if (target.classList.contains('overlay-resize')) return 'se';
+        if (target.classList.contains('overlay-h--e')) return 'e';
+        if (target.classList.contains('overlay-h--w')) return 'w';
+        if (target.classList.contains('overlay-h--n')) return 'n';
+        if (target.classList.contains('overlay-h--s')) return 's';
+        return null;
+      }
+
+      function onDown(e) {
+        resizeDir = resizeDirFor(e.target);
+        mode = resizeDir ? 'resize' : 'drag';
+        startX = e.clientX;
+        startY = e.clientY;
+
+        // Get actual pixel position relative to the positioned parent
+        const parent = el.offsetParent || el.parentElement;
+        const parentRect = parent.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        startL = elRect.left - parentRect.left + parent.scrollLeft;
+        startT = elRect.top  - parentRect.top  + parent.scrollTop;
+
+        // Replace calc() with resolved px value so drag math works
+        el.style.left = startL + 'px';
+        el.style.top  = startT + 'px';
+
+        startW = el.offsetWidth;
+        startH = el.offsetHeight;
+        e.preventDefault();
+        e.stopPropagation();
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
+      }
+
+      function onMove(e) {
+        if (!mode) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (mode === 'drag') {
+          el.style.left = (startL + dx) + 'px';
+          el.style.top  = (startT + dy) + 'px';
+        } else if (resizeDir === 'se') {
+          // corner — proportional (keep aspect ratio), driven by horizontal drag
+          const aspect = startW / startH;
+          const newW = Math.max(20, startW + dx);
+          el.style.width  = newW + 'px';
+          el.style.height = (newW / aspect) + 'px';
+        } else if (resizeDir === 'e') {
+          el.style.width = Math.max(20, startW + dx) + 'px';
+        } else if (resizeDir === 'w') {
+          const newW = Math.max(20, startW - dx);
+          el.style.width = newW + 'px';
+          el.style.left  = (startL + (startW - newW)) + 'px';
+        } else if (resizeDir === 's') {
+          el.style.height = Math.max(20, startH + dy) + 'px';
+        } else if (resizeDir === 'n') {
+          const newH = Math.max(20, startH - dy);
+          el.style.height = newH + 'px';
+          el.style.top    = (startT + (startH - newH)) + 'px';
+        }
+      }
+
+      function onUp() {
+        if (mode) savePositions();
+        mode = null;
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onUp);
+      }
+
+      el.addEventListener('pointerdown', onDown);
+    }
+
+    function showOverlay(el, imgUrl, defaultPos) {
+      if (!el.querySelector('img')) {
+        el.innerHTML =
+          `<img src="${imgUrl}" />` +
+          `<span class="overlay-h overlay-h--e"></span>` +
+          `<span class="overlay-h overlay-h--w"></span>` +
+          `<span class="overlay-h overlay-h--n"></span>` +
+          `<span class="overlay-h overlay-h--s"></span>` +
+          `<span class="overlay-resize" title="Resize (proportional)"></span>`;
+        makeDraggable(el);
+      }
+      // Restore saved position or apply default
+      const saved = loadPositions()[el.id === 'stamp-container' ? 'stamp' : 'sig'];
+      if (saved && saved.left) {
+        el.style.left   = saved.left;
+        el.style.top    = saved.top;
+        el.style.width  = saved.width  || defaultPos.width;
+        el.style.height = saved.height || defaultPos.height;
+      } else {
+        el.style.left   = defaultPos.left;
+        el.style.top    = defaultPos.top;
+        el.style.width  = defaultPos.width;
+        el.style.height = defaultPos.height;
+      }
+      el.classList.add('visible');
+    }
+
+    async function toggleStamp(checked) {
+      const el = document.getElementById('stamp-container');
+      if (!checked) { el.classList.remove('visible'); savePositions(); return; }
+      if (!stampImgUrl) stampImgUrl = await loadAsset('stamp');
+      if (stampImgUrl) {
+        showOverlay(el, stampImgUrl, { left: 'calc(100% - 50mm)', top: 'calc(100% - 50mm)', width: '38mm', height: '38mm' });
+        savePositions();
+      } else {
+        document.getElementById('chk-stamp').checked = false;
+        alert('Stamp not found. Please upload it in Settings.');
+      }
+    }
+
+    async function toggleSignature(checked) {
+      const el = document.getElementById('sig-container');
+      if (!checked) { el.classList.remove('visible'); savePositions(); return; }
+      if (!sigImgUrl) sigImgUrl = await loadAsset('signature');
+      if (sigImgUrl) {
+        showOverlay(el, sigImgUrl, { left: 'calc(100% - 60mm)', top: 'calc(100% - 28mm)', width: '50mm', height: '20mm' });
+        savePositions();
+      } else {
+        document.getElementById('chk-sig').checked = false;
+        alert('Signature not found. Please upload it in Settings.');
+      }
+    }
+
+    /** Restore saved stamp/signature visibility on load (positions restored by showOverlay). */
+    async function restoreOverlaySettings() {
+      const saved = loadPositions();
+      if (saved.stamp && saved.stamp.visible) {
+        document.getElementById('chk-stamp').checked = true;
+        await toggleStamp(true);
+      }
+      if (saved.sig && saved.sig.visible) {
+        document.getElementById('chk-sig').checked = true;
+        await toggleSignature(true);
+      }
+    }
+
+    async function loadAsset(kind) {
+      // 1. Try Electron API (desktop app)
+      if (window.electronAPI) {
+        try {
+          const b64 = await window.electronAPI.readShipAsset(kind);
+          if (b64) return b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`;
+        } catch (e) { }
+      }
+      // 2. Fallback: read from IndexedDB (browser mode — same DB as the Angular app)
+      try {
+        const buf = await idbGetAsset(kind);
+        if (buf) {
+          const bytes = new Uint8Array(buf);
+          let binary = '';
+          const chunk = 0x8000;
+          for (let i = 0; i < bytes.length; i += chunk) {
+            binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+          }
+          return `data:image/png;base64,${btoa(binary)}`;
+        }
+      } catch (e) { }
+      return null;
+    }
+
+    function idbGetAsset(key) {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('crew-ship-assets', 1);
+        req.onerror = () => resolve(null);
+        req.onsuccess = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains('assets')) { resolve(null); return; }
+          const tx = db.transaction('assets', 'readonly');
+          const get = tx.objectStore('assets').get(key);
+          get.onsuccess = () => resolve(get.result ?? null);
+          get.onerror = () => resolve(null);
+        };
+        req.onupgradeneeded = () => { /* don't create store, just read */ };
+      });
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '';
+      const parts = iso.split('-');
+      if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
+      return iso;
+    }
+
+    async function loadAppData() {
+      let appData = null;
+      if (window.electronAPI) {
+        try { appData = await window.electronAPI.readData(); } catch (e) { }
+      }
+      if (!appData) {
+        try { appData = JSON.parse(localStorage.getItem('crew-app-data')); } catch (e) { }
+      }
+
+      if (appData) {
+        const ship = appData.ship || {};
+        window._shipData = ship; // Save for setAD date switching
+
+        const agencyEl = document.getElementById('h-agency');
+        if (agencyEl) agencyEl.value = ship.charterer || '';
+
+        document.getElementById('h-ship-name').value = ship.name || '';
+        document.getElementById('h-port').value = ship.portOfCall || '';
+        document.getElementById('h-nat').value = ship.nationality || '';
+
+        const ports = appData.ports || [];
+        function getPortFull(portName) {
+          if (!portName) return '';
+          const found = ports.find(p => p.name && p.name.toLowerCase() === portName.toLowerCase());
+          return found && found.country ? `${portName} / ${found.country}` : portName;
+        }
+
+        const fromFull = getPortFull(ship.lastPortOfCall);
+        const toFull = getPortFull(ship.nextPortOfCall);
+        const fromTo = [fromFull, toFull].filter(Boolean).join('   ');
+        document.getElementById('h-from').value = fromTo;
+
+        // Read ?mode=arrival|departure from URL
+        const urlMode = new URLSearchParams(window.location.search).get('mode');
+        const isArrival = urlMode === 'departure' ? false : (urlMode === 'arrival' ? true : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
+
+        if (isArrival) {
+          setAD('arrival');
+          document.getElementById('h-date').value = fmtDate(ship.dateOfArrival) || '';
+        } else {
+          setAD('departure');
+          document.getElementById('h-date').value = fmtDate(ship.dateOfDeparture) || '';
+        }
+
+        let crewList = [];
+        if (Array.isArray(appData.crew)) {
+          crewList = appData.crew.filter(c => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false));
+        }
+
+        let masterName = '';
+        if (crewList.length > 0) {
+          const master = crewList.find(c => c.rank && c.rank.toLowerCase().includes('master')) || crewList[0];
+          masterName = [master.familyName, master.givenNames].filter(Boolean).join(' ');
+        }
+        const masterEl = document.getElementById('f-master-name');
+        if (masterEl) masterEl.value = masterName;
+
+        crewList.forEach(c => {
+          const fullName = [c.familyName, c.givenNames].filter(Boolean).join(' ');
+          addRow({
+            name: fullName,
+            rank: c.rank || '',
+            nat: c.nationality || '',
+            dob: fmtDate(c.dateOfBirth),
+            pob: c.placeOfBirth || '',
+            bno: c.seamansBook || '',
+            bexp: fmtDate(c.sbookExpiryDate)
+          });
+        });
+      } else {
+        DEMO.forEach(d => addRow(d));
+      }
+
+      for (let i = cnt; i < 18; i++) addRow();
+    }
+
+    (async () => {
+      await loadAppData();
+      await restoreOverlaySettings();
+      // ?print=1 → generate PDF: open the browser print dialog once everything is rendered.
+      if (new URLSearchParams(location.search).get('print') === '1') {
+        setTimeout(() => window.print(), 500);
+      }
+    })();
   </script>
 </body>
 

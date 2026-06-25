@@ -6,6 +6,7 @@ import {
   CREW_LIST_TYPE_OPTION_LABELS,
   crewListTypeOrderNo,
   CrewListTypeId,
+  CREW_FORM_05,
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
 import { DocumentSettingsStore } from '../../services/document-settings.store';
@@ -45,7 +46,15 @@ import { DocumentExportSettingsComponent } from '../document-export-settings/doc
         }
       </div>
     </fieldset>
-    <app-document-export-settings documentId="crewList" />
+    @if (listType() === crewForm05) {
+      <div style="padding: 0.25rem 0 0.5rem;">
+        <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openTestForm()">
+          ⚙ Settings
+        </button>
+      </div>
+    } @else {
+      <app-document-export-settings documentId="crewList" />
+    }
   `,
   styles: `
     .crew-list-type-list {
@@ -140,6 +149,8 @@ export class CrewListSettingsComponent {
   private readonly docSettings = inject(DocumentSettingsStore);
   private readonly toast = inject(ToastService);
 
+  /** Form 05 type constant exposed to template */
+  protected readonly crewForm05 = CREW_FORM_05;
   protected readonly typeIds = CREW_LIST_TYPE_IDS;
 
   protected listType(): CrewListTypeId {
@@ -158,5 +169,9 @@ export class CrewListSettingsComponent {
     if (value === this.listType()) return;
     this.docSettings.updateDocumentOverlay('crewList', { listType: value }, 'silent');
     this.toast.showSelected(CREW_LIST_TYPE_LABELS[value]);
+  }
+
+  protected openTestForm(mode: 'arrival' | 'departure' = 'arrival'): void {
+    window.open(`/test-crew-list.html?mode=${mode}`, '_blank');
   }
 }
