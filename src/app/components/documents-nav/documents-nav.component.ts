@@ -31,6 +31,7 @@ import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfCrewListType2Service } from '../../services/pdf-crew-list-type2.service';
 import { PdfCrewListV2Service } from '../../services/pdf-crew-list-v2.service';
 import { PdfCrewListV3SbkService } from '../../services/pdf-crew-list-v3-sbk.service';
+import { PdfCrewListForm05Service } from '../../services/pdf-crew-list-form05.service';
 import { PdfCrewListV3SbkPService } from '../../services/pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from '../../services/pdf-crew-list-v3-sbk-p2.service';
 import { PdfMdhService } from '../../services/pdf-mdh.service';
@@ -110,6 +111,7 @@ export class DocumentsNavComponent {
   private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
   private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
+  private readonly crewListForm05Pdf = inject(PdfCrewListForm05Service);
   private readonly crewListV3SbkPPdf = inject(PdfCrewListV3SbkPService);
   private readonly crewListV3SbkP2Pdf = inject(PdfCrewListV3SbkP2Service);
   private readonly mdhPdf = inject(PdfMdhService);
@@ -198,7 +200,7 @@ export class DocumentsNavComponent {
       return;
     }
     if (listType === 'type4V3Sbk') { // Form 05 - CREW LIST [SBK][E] — generate PDF from HTML form
-      this.openCrewListForm05Html(isArrival, true);
+      void this.openCrewListForm05Pdf(isArrival);
       return;
     }
     if (listType === 'type5V3SbkP') {
@@ -236,14 +238,22 @@ export class DocumentsNavComponent {
     await this.openCrewListTemplatePdf(isArrival, this.crewListV2Pdf);
   }
 
-  /** Form 05 - CREW LIST [SBK][E] — opens the HTML form (test-crew-list.html).
-   *  `print` → auto-print on load (= generate PDF); otherwise just open for editing. */
-  private openCrewListForm05Html(isArrival: boolean, print: boolean): void {
-    const mode = isArrival ? 'arrival' : 'departure';
-    const url = `/test-crew-list.html?mode=${mode}${print ? '&print=1' : ''}`;
-    const opened = window.open(url, '_blank');
-    if (!opened) {
-      this.toast.showError('Allow pop-ups to open Crew List');
+  /** Form 05 - CREW LIST [SBK][E] — renders the HTML form (test-crew-list.html) to a PDF
+   *  and opens it in its own window, same as every other crew-list form. */
+  private async openCrewListForm05Pdf(isArrival: boolean): Promise<void> {
+    this.storage.updateCrewArr({ isArrival }, 'silent');
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
+    const data: AppData = {
+      ...this.appData(isArrival),
+      crewArr: { ...this.appData(isArrival).crewArr, isArrival },
+    };
+    try {
+      const ok = await this.crewListForm05Pdf.openPreview(data, crew, isArrival);
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Crew List preview');
+      }
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Crew list preview failed');
     }
   }
 

@@ -578,6 +578,7 @@
 
   <!-- LEFT TOOLBAR (Formatting) -->
   <div class="side-panel">
+    <button class="btn btn-p" onclick="location.href='/'">⌂ Home</button>
     <div style="font-size:7pt; font-weight:bold; margin-bottom:1mm; text-align:center;">Format</div>
     <select id="tb-font" onchange="applyFormat('fontFamily', this.value)" style="padding: 1mm;">
       <option value="Arial">Arial</option>
@@ -1057,11 +1058,19 @@
     }
 
     async function loadAppData() {
-      let appData = null;
-      if (window.electronAPI) {
+      // Snapshot mode: an exact AppData slice (ship/ports/crew) passed by the Angular app
+      // for PDF generation — already filtered/ordered, used as-is (no re-fetch, no re-filter).
+      let snapshot = null;
+      const snapshotRaw = new URLSearchParams(window.location.search).get('data');
+      if (snapshotRaw) {
+        try { snapshot = JSON.parse(snapshotRaw); } catch (e) { }
+      }
+
+      let appData = snapshot;
+      if (!appData && window.electronAPI) {
         try { appData = await window.electronAPI.readData(); } catch (e) { }
       }
-      if (!appData) {
+      if (!appData && !snapshot) {
         try { appData = JSON.parse(localStorage.getItem('crew-app-data')); } catch (e) { }
       }
 
@@ -1102,7 +1111,10 @@
 
         let crewList = [];
         if (Array.isArray(appData.crew)) {
-          crewList = appData.crew.filter(c => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false));
+          // Snapshot mode already carries the exact filtered/ordered list — use as-is.
+          crewList = snapshot
+            ? appData.crew
+            : appData.crew.filter(c => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false));
         }
 
         let masterName = '';
@@ -1135,6 +1147,8 @@
     (async () => {
       await loadAppData();
       await restoreOverlaySettings();
+      // Signal to a headless renderer (Electron printToPDF) that the page is fully populated.
+      window.__pdfReady = true;
       // ?print=1 → generate PDF: open the browser print dialog once everything is rendered.
       if (new URLSearchParams(location.search).get('print') === '1') {
         setTimeout(() => window.print(), 500);

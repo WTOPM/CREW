@@ -172,6 +172,6 @@ export class CrewListSettingsComponent {
   }
 
   protected openTestForm(mode: 'arrival' | 'departure' = 'arrival'): void {
-    window.open(`/test-crew-list.html?mode=${mode}`, '_blank');
+    window.location.href = `/test-crew-list.html?mode=${mode}`;
   }
 }
