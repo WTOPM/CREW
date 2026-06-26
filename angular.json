@@ -29,6 +29,16 @@
                 "glob": "pdf.worker*.mjs",
                 "input": "node_modules/pdfjs-dist/build",
                 "output": ""
+              },
+              {
+                "glob": "html2canvas.min.js",
+                "input": "node_modules/html2canvas/dist",
+                "output": "forms/vendor"
+              },
+              {
+                "glob": "exceljs.min.js",
+                "input": "node_modules/exceljs/dist",
+                "output": "forms/vendor"
               }
             ],
             "styles": ["src/styles.css"]
@@ -46,6 +56,16 @@
                   "glob": "pdf.worker*.mjs",
                   "input": "node_modules/pdfjs-dist/build",
                   "output": ""
+                },
+                {
+                  "glob": "html2canvas.min.js",
+                  "input": "node_modules/html2canvas/dist",
+                  "output": "forms/vendor"
+                },
+                {
+                  "glob": "exceljs.min.js",
+                  "input": "node_modules/exceljs/dist",
+                  "output": "forms/vendor"
                 }
               ],
               "outputHashing": "all"

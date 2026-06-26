@@ -288,9 +288,6 @@
       <h3>Crew list settings</h3>
       <app-crew-list-settings />
       <div class="modal-actions">
-        @if (crewListXlsVisible()) {
-          <app-xls-export-button (export)="exportCrewListXls()" />
-        }
         <button type="button" class="btn btn-primary" (click)="closeCrewListSettings()">
           Done
         </button>

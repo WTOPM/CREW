@@ -8,6 +8,11 @@ import { CREW_LIST_FORM_05_MAX_ROWS } from '../models/crew-list-form-05.paths';
 import { CREW_LIST_V3_SBK_P_MAX_ROWS } from '../services/crew-list-v3-sbk-p-coordinates';
 import {
   CrewListFormColumn,
+  CREW_FORM_04_HEADER_BANDS,
+  CREW_FORM_04_WIDTH_PARTS,
+  CREW_FORM_05_HEADER_BANDS,
+  CREW_FORM_05_WIDTH_PARTS,
+  HeaderBands,
   buildLandscapeCrewListForm,
   buildPortraitCrewListForm,
   chunkCrewPages,
@@ -22,6 +27,7 @@ import {
   formatCrewListV2Name,
   formatGender,
   formatPlaceOfIssue,
+  proportionalExcelWidths,
 } from './crew-list-form-excel.util';
 
 type VariantListType = 'type3V2' | 'type4V3Sbk' | 'type5V3SbkP' | 'type6V3SbkP2';
@@ -31,8 +37,12 @@ interface CrewListExcelVariantConfig {
   orientation: 'portrait' | 'landscape';
   maxRows: number;
   charterer: boolean;
+  headerBands?: HeaderBands;
   columns: CrewListFormColumn[];
 }
+
+const FORM04_W = proportionalExcelWidths(CREW_FORM_04_WIDTH_PARTS);
+const FORM05_W = proportionalExcelWidths(CREW_FORM_05_WIDTH_PARTS);
 
 const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConfig> = {
   type3V2: {
@@ -40,29 +50,30 @@ const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConf
     orientation: 'portrait',
     maxRows: CREW_LIST_FORM_04_MAX_ROWS,
     charterer: false,
+    headerBands: CREW_FORM_04_HEADER_BANDS,
     columns: [
-      { header: 'No.', width: 4.5, align: 'center', value: (_m, _d, n) => n },
+      { header: 'No.', width: FORM04_W[0], align: 'center', value: (_m, _d, n) => n },
       {
         header: 'Family name and given names',
-        width: 24,
+        width: FORM04_W[1],
         value: (m) => formatCrewListV2Name(m),
       },
-      { header: 'Rank', width: 10, value: (m) => m.rank },
-      { header: 'Nationality', width: 10, value: (m) => m.nationality },
-      { header: 'Date of birth', width: 9, value: (m) => formatBirthDate(m.dateOfBirth) },
-      { header: 'Place of birth', width: 14, value: (m) => m.placeOfBirth },
-      { header: 'Passport No.', width: 11, value: (m) => m.passport },
+      { header: 'Rank', width: FORM04_W[2], value: (m) => m.rank },
+      { header: 'Nationality', width: FORM04_W[3], value: (m) => m.nationality },
+      { header: 'Date of birth', width: FORM04_W[4], value: (m) => formatBirthDate(m.dateOfBirth) },
+      { header: 'Place of birth', width: FORM04_W[5], value: (m) => m.placeOfBirth },
+      { header: 'Passport No.', width: FORM04_W[6], value: (m) => m.passport },
       {
         header: 'Passport expiry',
-        width: 10,
+        width: FORM04_W[7],
         value: (m) => formatDisplayDate(m.passportExpiryDate),
       },
       {
         header: 'Place of issue',
-        width: 11,
+        width: FORM04_W[8],
         value: (m) => formatPlaceOfIssue(m.passportPlaceOfIssue),
       },
-      { header: 'Gender', width: 6, align: 'center', value: (m) => formatGender(m.gender) },
+      { header: 'Gender', width: FORM04_W[9], align: 'center', value: (m) => formatGender(m.gender) },
     ],
   },
   type4V3Sbk: {
@@ -70,21 +81,22 @@ const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConf
     orientation: 'portrait',
     maxRows: CREW_LIST_FORM_05_MAX_ROWS,
     charterer: true,
+    headerBands: CREW_FORM_05_HEADER_BANDS,
     columns: [
-      { header: 'No.', width: 5, align: 'center', value: (_m, _d, n) => n },
+      { header: 'No.', width: FORM05_W[0], align: 'center', value: (_m, _d, n) => n },
       {
         header: 'Family name and given names',
-        width: 26,
+        width: FORM05_W[1],
         value: (m) => formatCrewListV2Name(m),
       },
-      { header: 'Rank', width: 11, value: (m) => m.rank },
-      { header: 'Nationality', width: 12, value: (m) => m.nationality },
-      { header: 'Date of birth', width: 10, value: (m) => formatBirthDate(m.dateOfBirth) },
-      { header: 'Place of birth', width: 18, value: (m) => m.placeOfBirth },
-      { header: "Seaman's book No.", width: 13, value: (m) => m.seamansBook },
+      { header: 'Rank', width: FORM05_W[2], value: (m) => m.rank },
+      { header: 'Nationality', width: FORM05_W[3], value: (m) => m.nationality },
+      { header: 'Date of birth', width: FORM05_W[4], value: (m) => formatBirthDate(m.dateOfBirth) },
+      { header: 'Place of birth', width: FORM05_W[5], value: (m) => m.placeOfBirth },
+      { header: "Seaman's book No.", width: FORM05_W[6], value: (m) => m.seamansBook },
       {
         header: "Seaman's book expiry",
-        width: 13,
+        width: FORM05_W[7],
         value: (m) => formatDisplayDate(m.sbookExpiryDate),
       },
     ],
@@ -183,6 +195,7 @@ function addFormSheet(
       : buildPortraitCrewListForm(ws, title, config.columns, {
           charterer: config.charterer,
           maxRows: config.maxRows,
+          headerBands: config.headerBands,
         });
 
   const headerInput = {

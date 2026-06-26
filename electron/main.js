@@ -24,18 +24,37 @@ function getRendererDir() {
 }
 
 function registerAppProtocol() {
-  const root = getRendererDir();
+  const root = path.normalize(getRendererDir());
+  const rootWithSep = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+
   protocol.handle(APP_SCHEME, (request) => {
-    let rel = decodeURIComponent(new URL(request.url).pathname);
-    if (!rel || rel === '/') rel = '/index.html';
-    const filePath = path.normalize(path.join(root, rel));
-    // Block path traversal outside the renderer dir; SPA fallback to index.html.
-    if (!filePath.startsWith(root)) {
+    const url = new URL(request.url);
+    let rel = decodeURIComponent(url.pathname);
+    if (!rel || rel === '/') {
+      rel = 'index.html';
+    } else {
+      rel = rel.replace(/^\/+/, '');
+      if (rel.endsWith('/')) rel += 'index.html';
+    }
+
+    let filePath = path.normalize(path.join(root, rel));
+    const underRoot = filePath === root || filePath.startsWith(rootWithSep);
+    if (!underRoot) {
       return new Response('Not found', { status: 404 });
     }
+
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+      filePath = path.join(filePath, 'index.html');
+    }
+
     if (!fs.existsSync(filePath)) {
+      // Do not SPA-fallback for static HTML forms or missing assets — only Angular routes.
+      if (rel.startsWith('forms/') || /\.[a-z0-9]+$/i.test(rel)) {
+        return new Response('Not found', { status: 404 });
+      }
       return net.fetch(pathToFileURL(path.join(root, 'index.html')).toString());
     }
+
     return net.fetch(pathToFileURL(filePath).toString());
   });
 }

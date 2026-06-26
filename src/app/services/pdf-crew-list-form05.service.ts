@@ -3,6 +3,7 @@ import { AppData, CrewMember } from '../models/crew.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewListForm05EditorUrl } from '../models/crew-list-form-05.paths';
 import { crewListForm05PdfFileName } from '../utils/pdf-filename.util';
+import { captureHtmlFormFromUrl } from '../utils/html-form-pdf-capture.util';
 
 /**
  * Form 05 - CREW LIST [SBK][E] — HTML editor at `public/forms/crew-list-form-05/`, not a
@@ -31,56 +32,19 @@ export class PdfCrewListForm05Service {
       data: JSON.stringify(snapshot),
     });
 
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.left = '-10000px';
-    iframe.style.top = '0';
-    iframe.style.width = '210mm';
-    iframe.style.height = '297mm';
-    iframe.style.border = '0';
-    document.body.appendChild(iframe);
+    const canvas = await captureHtmlFormFromUrl({
+      url,
+      iframeWidth: '210mm',
+      iframeHeight: '297mm',
+      pageSelector: '.a4-page',
+    });
 
-    try {
-      await new Promise<void>((resolve, reject) => {
-        iframe.addEventListener('load', () => resolve(), { once: true });
-        iframe.addEventListener('error', () => reject(new Error('Failed to load Crew List form')), {
-          once: true,
-        });
-        iframe.src = url;
-      });
-
-      const frameWindow = iframe.contentWindow as (Window & { __pdfReady?: boolean }) | null;
-      const deadline = Date.now() + 8000;
-      while (!frameWindow?.__pdfReady && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 80));
-      }
-
-      const frameDoc = iframe.contentDocument;
-      if (!frameDoc?.querySelector('.a4-page')) {
-        throw new Error('Crew List form failed to render');
-      }
-
-      const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas'),
-      ]);
-
-      const canvas = await html2canvas(frameDoc.body, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        foreignObjectRendering: true,
-      });
-
-      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const imgHeight = (canvas.height * pageWidth) / canvas.width;
-      doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidth, imgHeight);
-
-      return new Uint8Array(doc.output('arraybuffer'));
-    } finally {
-      iframe.remove();
-    }
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidth, pageHeight);
+    return new Uint8Array(doc.output('arraybuffer'));
   }
 
   fileName(data: AppData, isArrival: boolean): string {

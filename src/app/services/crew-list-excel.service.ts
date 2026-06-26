@@ -21,11 +21,10 @@ import {
 } from '../utils/imo-crew-list-excel-layout.util';
 import { openExcelBytes } from '../utils/excel-open.util';
 import {
-  buildAlgerCrewListExcel,
   buildCrewListVariantExcel,
 } from '../utils/crew-list-variant-excel.util';
 import {
-  crewListV2PdfFileName,
+  crewListForm04PdfFileName,
   crewListType2PdfFileName,
   crewListForm05PdfFileName,
   crewListV3SbkP2PdfFileName,
@@ -35,22 +34,24 @@ import {
 } from '../utils/pdf-filename.util';
 import { StorageService } from './storage.service';
 import { CREW_LIST_ROW_COUNT } from './crew-list-coordinates';
+import { CrewListHtmlFormExcelService } from './crew-list-html-form-excel.service';
 
 @Injectable({ providedIn: 'root' })
 export class CrewListExcelService {
   private readonly storage = inject(StorageService);
+  private readonly htmlFormExcel = inject(CrewListHtmlFormExcelService);
 
   async openForListType(listType: CrewListTypeId): Promise<boolean> {
+    if (this.htmlFormExcel.isHtmlFormType(listType)) {
+      return this.htmlFormExcel.openForListType(listType);
+    }
+
     const base = this.appData();
     const isArrival = base.crewArr.isArrival;
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
 
     let bytes: Uint8Array;
-    if (listType === 'type2Alger') {
-      bytes = await buildAlgerCrewListExcel(base, crew);
-    } else if (
-      listType === 'type3V2' ||
-      listType === 'type4V3Sbk' ||
+    if (
       listType === 'type5V3SbkP' ||
       listType === 'type6V3SbkP2'
     ) {
@@ -125,7 +126,7 @@ export class CrewListExcelService {
         case 'type2Alger':
           return crewListType2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type3V2':
-          return crewListV2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
+          return crewListForm04PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type4V3Sbk':
           return crewListForm05PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type5V3SbkP':

@@ -1,5 +1,11 @@
 const MAX_ROWS = 15;
     const tableBody = document.getElementById('table-body');
+    const EDITOR_DIRTY_OPTS = {
+      getTableRoot: () => tableBody,
+      beforeSnapshot: savePositions,
+      loadPositions,
+      footerDateId: 'f-footer-date',
+    };
 
     function escAttr(val) {
       return String(val || '')
@@ -703,6 +709,10 @@ const MAX_ROWS = 15;
     }
 
     function showConfirmModal() {
+      if (window.CrewHtmlFormEditorDirty && !CrewHtmlFormEditorDirty.isDirty(EDITOR_DIRTY_OPTS)) {
+        navigateBack('cancelled');
+        return;
+      }
       document.getElementById('confirm-modal').style.display = 'flex';
     }
 
@@ -851,18 +861,20 @@ const MAX_ROWS = 15;
     /** Restore saved stamp/signature visibility on load (positions restored by showOverlay). */
     async function restoreOverlaySettings() {
       const saved = loadPositions();
+      const stampVisible = !!(saved.stamp && saved.stamp.visible);
+      const sigVisible = !!(saved.sig && saved.sig.visible);
       if (window.CrewOverlayToolbar) {
-        CrewOverlayToolbar.setStampOn(!!(saved.stamp && saved.stamp.visible));
-        CrewOverlayToolbar.setSigOn(!!(saved.sig && saved.sig.visible));
+        CrewOverlayToolbar.setStampOn(stampVisible);
+        CrewOverlayToolbar.setSigOn(sigVisible);
       }
-      if (CrewOverlayToolbar?.isStampOn()) {
+      if (stampVisible) {
         try {
           await toggleStamp(true);
         } catch (e) {
           console.error('Failed to restore stamp', e);
         }
       }
-      if (CrewOverlayToolbar?.isSigOn()) {
+      if (sigVisible) {
         try {
           await toggleSignature(true);
         } catch (e) {
@@ -1048,6 +1060,24 @@ const MAX_ROWS = 15;
       });
     }
 
+    function exportToExcel() {
+      const btn = document.getElementById('btn-export-excel');
+      if (btn) btn.disabled = true;
+      try {
+        if (!window.CrewHtmlFormExcel) throw new Error('Excel export is not available');
+        window.CrewHtmlFormExcel.export({
+          listType: 'type2Alger',
+          beforeExport: savePositions,
+          loadPositions,
+        });
+      } catch (e) {
+        console.error('Excel export failed', e);
+        alert(e?.message || 'Excel export failed');
+        if (btn) btn.disabled = false;
+      }
+    }
+    window.exportToExcel = exportToExcel;
+
     (async () => {
       const isPdfExport = new URLSearchParams(location.search).get('pdfExport') === '1';
       if (isPdfExport) {
@@ -1072,6 +1102,9 @@ const MAX_ROWS = 15;
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {
           CrewCellAlignToolbar.init({ getSelectedCells: () => selectedCells });
+        }
+        if (window.CrewHtmlFormEditorDirty) {
+          CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);
         }
       }
       // Signal to a headless capture (iframe + html2canvas) that the page is fully populated.

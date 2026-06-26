@@ -92,18 +92,19 @@
       position: relative; /* anchor for draggable overlays */
       /* Column width ratios — Form 04 passport layout (total 192 parts) */
       --form-w: 192;
-      --w-h1: 64;
-      --w-h2: 64;
-      --w-h3: 64;
       --w-c0: 8;
       --w-c1: 45;
-      --w-c2: 17;
-      --w-c3: 17;
-      --w-c4: 27;
-      --w-c5: 21;
-      --w-c6: 17;
-      --w-c7: 21;
-      --w-c8: 19;
+      --w-c2: 19;  /* 9. Rank — wider (fields 2 & 5) */
+      --w-c3: 18;  /* 10. Nationality */
+      --w-c4: 36;  /* 11. Date and place of birth — main gain */
+      --w-c5: 18;  /* passport block — shrunk ~15% (fields 3 & 6) */
+      --w-c6: 14;
+      --w-c7: 18;
+      --w-c8: 16;
+      /* Header tracks align with table column groups */
+      --w-h1: calc(var(--w-c0) + var(--w-c1)); /* fields 1 & 4 ↔ cols 7–8 */
+      --w-h2: calc(var(--w-c2) + var(--w-c3) + var(--w-c4)); /* fields 2 & 5 ↔ cols 9–11 */
+      --w-h3: calc(var(--w-c5) + var(--w-c6) + var(--w-c7) + var(--w-c8)); /* fields 3 & 6 ↔ passport cols */
     }
 
     /* ── DRAGGABLE OVERLAYS (stamp / signature) ── */
@@ -275,7 +276,7 @@
     }
 
     .hcell-split-append {
-      width: 8mm;
+      width: 7mm;
       border-left: 1px solid #000;
       flex-shrink: 0;
     }
@@ -495,7 +496,7 @@
       width: calc(var(--w-c8) / var(--form-w) * 100%);
     }
 
-    /* Ratios: equal header thirds | c0..c8 passport columns */
+    /* Ratios: header groups h1..h3 match table column groups | c0..c8 */
 
     .rno,
     .ci-rno {
@@ -835,7 +836,7 @@
         width: 100%;
         height: auto;
         min-height: unset;
-        overflow: visible;
+        overflow: hidden;
         padding: 0;
       }
 
@@ -850,23 +851,19 @@
       }
     }
 
-    /* ── PDF export (headless capture) — same visual stripping as @media print,
-       but applied unconditionally so html2canvas captures a clean page.
-       Side toolbars are removed from the DOM in export mode (see flattenInputsForExport),
-       so the body collapses to exactly the page content — no sub-element crop math needed,
-       which avoids a html2canvas/foreignObjectRendering bug that mis-crops at scale > 1. ── */
+    /* ── PDF export (headless capture) — fixed A4 page; overlays clipped at page edge. ── */
     body.is-pdf-export {
       display: block;
       background: #fff;
       margin: 0;
       padding: 0;
-      height: auto;
-      overflow: visible;
+      width: 210mm;
+      overflow: hidden;
     }
 
     body.is-pdf-export .doc-zoom-viewport {
       max-height: none;
-      overflow: visible;
+      overflow: hidden;
       padding: 0;
       display: block;
     }
@@ -876,17 +873,18 @@
     }
 
     body.is-pdf-export .doc-zoom-pad {
-      width: auto !important;
-      height: auto !important;
+      width: 210mm !important;
+      height: 297mm !important;
+      overflow: hidden;
     }
 
     body.is-pdf-export .a4-page {
       box-shadow: none;
       border: none;
       width: 210mm;
-      height: auto;
+      height: 297mm;
       min-height: unset;
-      overflow: visible;
+      overflow: hidden;
       padding: 6mm 10mm 6mm 0;
     }
 

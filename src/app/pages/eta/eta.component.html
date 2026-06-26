@@ -288,12 +288,12 @@
                   <td class="eta-col-num" [title]="etaTips.legSpeed">
                     @if (isSpeedEditable()) {
                       <input
-                        type="number"
+                        type="text"
                         class="eta-input eta-input--num"
-                        min="0"
-                        step="0.1"
-                        [ngModel]="leg.speedKnots || ''"
-                        (ngModelChange)="onLegSpeed(leg.id, $event)"
+                        inputmode="decimal"
+                        [ngModel]="legSpeedInput(leg.id, i)"
+                        (ngModelChange)="onLegSpeedChange(leg.id, $event)"
+                        (blur)="onLegSpeedBlur(leg.id)"
                       />
                     } @else {
                       <span class="eta-computed-inline">{{ legSpeedDisplay(i) || '—' }}</span>
@@ -359,7 +359,7 @@
         @if (calculation().requiredSpeedKnots != null) {
           <div class="eta-summary-row eta-summary-row--highlight">
             <dt>Required speed</dt>
-            <dd>{{ calculation().requiredSpeedKnots | number: '1.1-2' }} kn</dd>
+            <dd>{{ calculation().requiredSpeedKnots | number: '1.0-1' }} kn</dd>
           </div>
         }
         <div class="eta-summary-row">

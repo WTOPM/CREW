@@ -23,6 +23,8 @@
       box-shadow: 0 2px 12px rgba(0, 0, 0, .25);
       display: flex;
       flex-direction: column;
+      position: relative;
+      overflow: hidden;
     }
 
     /* ── TITLE ── */
@@ -753,23 +755,19 @@
       }
     }
 
-    /* ── PDF export (headless capture) — same visual stripping as @media print,
-       but applied unconditionally so html2canvas captures a clean page.
-       Side toolbars are removed from the DOM in export mode (see flattenInputsForExport),
-       so the body collapses to exactly the page content — no sub-element crop math needed,
-       which avoids a html2canvas/foreignObjectRendering bug that mis-crops at scale > 1. ── */
+    /* ── PDF export (headless capture) — fixed A4 page; overlays clipped at page edge. ── */
     body.is-pdf-export {
       display: block;
       background: #fff;
       margin: 0;
       padding: 0;
-      height: auto;
-      overflow: visible;
+      width: 210mm;
+      overflow: hidden;
     }
 
     body.is-pdf-export .doc-zoom-viewport {
       max-height: none;
-      overflow: visible;
+      overflow: hidden;
       padding: 0;
       display: block;
     }
@@ -778,11 +776,19 @@
       transform: none !important;
     }
 
+    body.is-pdf-export .doc-zoom-pad {
+      width: 210mm !important;
+      height: 297mm !important;
+      overflow: hidden;
+    }
+
     body.is-pdf-export .a4-page {
       box-shadow: none;
       border: none;
       width: 210mm;
+      height: 297mm;
       min-height: unset;
+      overflow: hidden;
       padding: 6mm 10mm 6mm 0;
     }
 

@@ -4393,3 +4393,13 @@ th {
     position: static;
   }
 }
+
+/* Hidden iframe Excel export — no visible UI flash while Angular builds the file. */
+html.html-form-excel-embed,
+html.html-form-excel-embed body {
+  background: transparent;
+}
+
+html.html-form-excel-embed app-root {
+  visibility: hidden;
+}

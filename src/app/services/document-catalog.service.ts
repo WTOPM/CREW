@@ -104,10 +104,10 @@ export class DocumentCatalogService {
         return this.crewAlgerBytes(base, true);
       case 'crewListDepartureAlger':
         return this.crewAlgerBytes(base, false);
-      case 'crewListArrivalV2':
-        return this.crewV2Bytes(base, true);
-      case 'crewListDepartureV2':
-        return this.crewV2Bytes(base, false);
+      case 'crewListArrivalV2': // Form 04 HTML
+        return this.crewForm04Bytes(base, true);
+      case 'crewListDepartureV2': // Form 04 HTML
+        return this.crewForm04Bytes(base, false);
       case 'crewListArrivalV3Sbk':
         return this.crewForm05Bytes(base, true);
       case 'crewListDepartureV3Sbk':
@@ -289,8 +289,8 @@ export class DocumentCatalogService {
     };
   }
 
-  /** Form 04 — CREW LIST [P][E][PI][G]. */
-  private async crewV2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+  /** Form 04 — CREW LIST [P][E][PI][G] (HTML editor). */
+  private async crewForm04Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,

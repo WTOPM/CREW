@@ -21,12 +21,23 @@
     };
   }
 
-  function clampDragPosition(left, top, width, height, parent) {
-    const maxLeft = Math.max(0, parent.clientWidth - width);
-    const maxTop = Math.max(0, parent.clientHeight - height);
+  /** How much of the overlay may extend past the parent edge (1 = fully outside). */
+  const OVERHANG = 1;
+
+  function dragBounds(width, height, parent) {
     return {
-      left: Math.max(0, Math.min(left, maxLeft)),
-      top: Math.max(0, Math.min(top, maxTop)),
+      minLeft: -width * OVERHANG,
+      maxLeft: parent.clientWidth - width * (1 - OVERHANG),
+      minTop: -height * OVERHANG,
+      maxTop: parent.clientHeight - height * (1 - OVERHANG),
+    };
+  }
+
+  function clampDragPosition(left, top, width, height, parent) {
+    const b = dragBounds(width, height, parent);
+    return {
+      left: Math.min(b.maxLeft, Math.max(b.minLeft, left)),
+      top: Math.min(b.maxTop, Math.max(b.minTop, top)),
     };
   }
 
@@ -106,8 +117,8 @@
       } else if (resizeDir === 'se') {
         let aspect = startW / startH;
         if (isNaN(aspect) || !isFinite(aspect) || aspect <= 0) aspect = 1;
-        const maxW = parent.clientWidth - el.offsetLeft;
-        const maxH = parent.clientHeight - el.offsetTop;
+        const maxW = parent.clientWidth - startL + startW * OVERHANG;
+        const maxH = parent.clientHeight - startT + startH * OVERHANG;
         const proposedW = Math.max(20, startW + dx);
         const proposedH = proposedW / aspect;
         let finalW = proposedW;
@@ -117,30 +128,30 @@
         el.style.width = `${finalW}px`;
         el.style.height = `${finalW / aspect}px`;
       } else if (resizeDir === 'e') {
-        const maxW = parent.clientWidth - el.offsetLeft;
+        const maxW = parent.clientWidth - startL + startW * OVERHANG;
         el.style.width = `${Math.max(20, Math.min(startW + dx, maxW))}px`;
       } else if (resizeDir === 'w') {
         const proposedW = startW - dx;
         let finalW = Math.max(20, proposedW);
-        const proposedLeft = startL + (startW - finalW);
-        let finalLeft = proposedLeft;
-        if (proposedLeft < 0) {
-          finalLeft = 0;
-          finalW = startL + startW;
+        let finalLeft = startL + (startW - finalW);
+        const minLeft = -finalW * OVERHANG;
+        if (finalLeft < minLeft) {
+          finalLeft = minLeft;
+          finalW = startL + startW - finalLeft;
         }
         el.style.width = `${finalW}px`;
         el.style.left = `${finalLeft}px`;
       } else if (resizeDir === 's') {
-        const maxH = parent.clientHeight - el.offsetTop;
+        const maxH = parent.clientHeight - startT + startH * OVERHANG;
         el.style.height = `${Math.max(20, Math.min(startH + dy, maxH))}px`;
       } else if (resizeDir === 'n') {
         const proposedH = startH - dy;
         let finalH = Math.max(20, proposedH);
-        const proposedTop = startT + (startH - finalH);
-        let finalTop = proposedTop;
-        if (proposedTop < 0) {
-          finalTop = 0;
-          finalH = startT + startH;
+        let finalTop = startT + (startH - finalH);
+        const minTop = -finalH * OVERHANG;
+        if (finalTop < minTop) {
+          finalTop = minTop;
+          finalH = startT + startH - finalTop;
         }
         el.style.height = `${finalH}px`;
         el.style.top = `${finalTop}px`;

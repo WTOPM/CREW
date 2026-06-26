@@ -52,10 +52,14 @@
   window.CrewOverlayToolbar = {
     init,
     isStampOn() {
-      return stampBtn()?.getAttribute('aria-pressed') === 'true';
+      const btn = stampBtn();
+      if (btn) return btn.getAttribute('aria-pressed') === 'true';
+      return document.getElementById('stamp-container')?.classList.contains('visible') ?? false;
     },
     isSigOn() {
-      return sigBtn()?.getAttribute('aria-pressed') === 'true';
+      const btn = sigBtn();
+      if (btn) return btn.getAttribute('aria-pressed') === 'true';
+      return document.getElementById('sig-container')?.classList.contains('visible') ?? false;
     },
     setStampOn(on) {
       stampBtn()?.setAttribute('aria-pressed', on ? 'true' : 'false');

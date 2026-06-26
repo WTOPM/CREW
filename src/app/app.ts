@@ -14,6 +14,8 @@ import { TitleTooltipService } from './services/title-tooltip.service';
 import { DgPageArchiveService } from './services/dg-page-archive.service';
 import { ReeferPageArchiveService } from './services/reefer-page-archive.service';
 import { AppSnapshotArchiveService } from './services/app-snapshot-archive.service';
+import { CrewListHtmlFormExcelService } from './services/crew-list-html-form-excel.service';
+import { uint8ToBase64 } from './utils/base64.util';
 
 interface FolderOption {
   id: string;
@@ -46,6 +48,7 @@ export class App implements OnInit {
   private readonly dgPageArchive = inject(DgPageArchiveService);
   private readonly reeferPageArchive = inject(ReeferPageArchiveService);
   private readonly appSnapshotArchive = inject(AppSnapshotArchiveService);
+  private readonly htmlFormExcel = inject(CrewListHtmlFormExcelService);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
   private folderHoldTriggered = false;
 
@@ -79,13 +82,58 @@ export class App implements OnInit {
   );
 
   ngOnInit(): void {
+    const params = new URLSearchParams(window.location.search);
+    const embeddedExcel = params.get('embed') === '1' && !!params.get('htmlFormExcel');
+    if (embeddedExcel) {
+      document.documentElement.classList.add('html-form-excel-embed');
+    }
+
     this.titleTooltips.install();
-    void this.storage.init().then(() => {
+    void this.storage.init().then(async () => {
+      if (embeddedExcel) {
+        await this.runEmbeddedHtmlFormExcelExport();
+        return;
+      }
       this.dgPageArchive.restoreSession();
       this.reeferPageArchive.restoreSession();
       this.appSnapshotArchive.restoreSession();
     });
     void this.folderAccess.restore();
+  }
+
+  /** Hidden iframe from an HTML form editor — build Excel and post bytes to the parent page. */
+  private async runEmbeddedHtmlFormExcelExport(): Promise<void> {
+    let ok = false;
+    let error: string | undefined;
+    let fileName: string | undefined;
+    let bytesBase64: string | undefined;
+    try {
+      const built = await this.htmlFormExcel.buildFromSessionStorage();
+      if (!built) {
+        error = 'Could not export Excel — form data missing or invalid';
+      } else {
+        ok = true;
+        fileName = built.fileName;
+        bytesBase64 = uint8ToBase64(built.bytes);
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Excel export failed';
+      console.error('Embedded HTML form Excel export failed', err);
+    }
+    try {
+      window.parent.postMessage(
+        {
+          type: 'crewHtmlFormExcelDone',
+          ok,
+          error,
+          fileName,
+          bytesBase64,
+        },
+        window.location.origin,
+      );
+    } catch {
+      /* parent may be gone */
+    }
   }
 
   protected toggleSaveToFolder(saveToFolder: boolean): void {

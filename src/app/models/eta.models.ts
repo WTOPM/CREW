@@ -44,11 +44,13 @@ export interface EtaLibrarySettings {
   activePlanId: string | null;
 }
 
+import { truncateSpeedKnotsTenths } from '../utils/eta-speed-input.util';
+
 export function createEtaLeg(partial: Partial<EtaLeg> = {}): EtaLeg {
   return {
     id: partial.id?.trim() || crypto.randomUUID(),
     distanceNm: clampPositive(partial.distanceNm, 0),
-    speedKnots: clampPositive(partial.speedKnots, 0),
+    speedKnots: truncateSpeedKnotsTenths(clampPositive(partial.speedKnots, 0)),
     toLabel: (partial.toLabel ?? '').trim(),
   };
 }

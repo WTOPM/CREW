@@ -56,13 +56,13 @@ import { PdfCrewVaccineService } from '../../services/pdf-crew-vaccine.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { PdfShipStores02Service } from '../../services/pdf-ship-stores-02.service';
 import { PdfShipStores03Service } from '../../services/pdf-ship-stores-03.service';
-import { CrewListExcelService } from '../../services/crew-list-excel.service';
 import { PortOfCallExcelService } from '../../services/port-of-call-excel.service';
 import {
   POC_MAX_ROW_COUNT,
   POC_MIN_ROW_COUNT,
   POC_TEMPLATE_ROW_COUNT,
 } from '../../services/port-of-call-coordinates';
+import { CrewListHtmlFormExcelService } from '../../services/crew-list-html-form-excel.service';
 import { StorageService } from '../../services/storage.service';
 import { FormsStore } from '../../services/forms.store';
 import { ToastService } from '../../services/toast.service';
@@ -111,6 +111,7 @@ type MoneyDocId = (typeof MONEY_DOC_IDS)[number];
 })
 export class DocumentsNavComponent implements OnInit {
   private readonly storage = inject(StorageService);
+  private readonly htmlFormExcel = inject(CrewListHtmlFormExcelService);
   private readonly forms = inject(FormsStore);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
@@ -136,7 +137,6 @@ export class DocumentsNavComponent implements OnInit {
   private readonly narcoticListPdf = inject(PdfNarcoticListService);
   private readonly sso0108PortCallsPdf = inject(PdfSso0108PortCallsService);
   private readonly portOfCallExcel = inject(PortOfCallExcelService);
-  private readonly crewListExcel = inject(CrewListExcelService);
   private readonly toast = inject(ToastService);
 
   protected readonly pocMinPorts = POC_MIN_ROW_COUNT;
@@ -146,8 +146,6 @@ export class DocumentsNavComponent implements OnInit {
   protected readonly ports = this.storage.ports;
   protected readonly portCallHistory = this.storage.portCallHistory;
   protected readonly portOfCall = this.storage.portOfCall;
-
-  protected readonly crewListXlsVisible = computed(() => true);
 
   protected showPortOfCallSettings = signal(false);
   /** Which port document the unified Port Settings modal is editing. */
@@ -327,6 +325,13 @@ export class DocumentsNavComponent implements OnInit {
 
   ngOnInit(): void {
     const params = new URLSearchParams(window.location.search);
+    const htmlFormExcel = params.get('htmlFormExcel');
+    const returnUrl = params.get('return');
+    if (htmlFormExcel && params.get('embed') !== '1') {
+      void this.runHtmlFormExcelExport(returnUrl);
+      return;
+    }
+
     const reopen = params.get('crewListSettings') === '1';
     const feedback03 = params.get(CREW_LIST_FORM_03_FEEDBACK_PARAM);
     const feedback04 = params.get(CREW_LIST_FORM_04_FEEDBACK_PARAM);
@@ -362,6 +367,24 @@ export class DocumentsNavComponent implements OnInit {
       const query = params.toString();
       const path = window.location.pathname || '/';
       window.history.replaceState({}, '', query ? `${path}?${query}` : path);
+    }
+  }
+
+  private async runHtmlFormExcelExport(returnUrl: string | null): Promise<void> {
+    try {
+      await this.storage.init();
+      const ok = await this.htmlFormExcel.openFromSessionStorage();
+      if (!ok) {
+        this.toast.showError('Could not export Excel — form data missing or invalid');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    } catch (err) {
+      console.error('HTML form Excel export failed', err);
+      this.toast.showError('Excel export failed');
+    } finally {
+      const fallback = window.location.pathname || '/';
+      const target = returnUrl ? decodeURIComponent(returnUrl) : fallback;
+      window.location.replace(target);
     }
   }
 
@@ -465,15 +488,6 @@ export class DocumentsNavComponent implements OnInit {
 
   protected exportPortOfCallXls(): void {
     void this.portOfCallExcel.openForDoc(this.portSettingsDoc()).then((ok) => {
-      if (!ok) {
-        this.toast.showError('Could not open Excel file');
-      }
-    });
-  }
-
-  protected exportCrewListXls(): void {
-    const listType = this.storage.documentOverlay().crewList.listType;
-    void this.crewListExcel.openForListType(listType).then((ok) => {
       if (!ok) {
         this.toast.showError('Could not open Excel file');
       }

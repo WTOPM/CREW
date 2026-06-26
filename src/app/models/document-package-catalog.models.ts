@@ -81,11 +81,11 @@ export const PACKAGE_CATALOG_ENTRIES: readonly PackageCatalogEntry[] = [
     label: crewListPackageLabel('type2Alger', 'Departure'),
   },
   {
-    id: 'crewListArrivalV2',
+    id: 'crewListArrivalV2', // Form 04 (HTML); id kept for saved print packages
     label: crewListPackageLabel('type3V2', 'Arrival'),
   },
   {
-    id: 'crewListDepartureV2',
+    id: 'crewListDepartureV2', // Form 04 (HTML)
     label: crewListPackageLabel('type3V2', 'Departure'),
   },
   {

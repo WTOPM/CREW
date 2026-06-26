@@ -74,7 +74,7 @@ body {
   min-height: 0;
   height: 100%;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
 }
 
 /* Full-page overlay layer for stamp/signature (landscape editor). */
@@ -960,19 +960,19 @@ input.ci.ci-temp:focus {
   }
 }
 
-/* ── PDF export ── */
+/* ── PDF export — fixed landscape A4; overlays clipped at page edge. ── */
 body.is-pdf-export {
   display: block;
   background: #fff;
   margin: 0;
   padding: 0;
-  height: auto;
-  overflow: visible;
+  width: 297mm;
+  overflow: hidden;
 }
 
 body.is-pdf-export .doc-zoom-viewport {
   max-height: none;
-  overflow: visible;
+  overflow: hidden;
   padding: 0;
   display: block;
 }
@@ -981,11 +981,18 @@ body.is-pdf-export .doc-zoom-stage {
   transform: none !important;
 }
 
+body.is-pdf-export .doc-zoom-pad {
+  width: 297mm !important;
+  height: 210mm !important;
+  overflow: hidden;
+}
+
 body.is-pdf-export .a4-landscape-page {
   box-shadow: none;
   border: none;
   width: 297mm;
   height: 210mm;
+  overflow: hidden;
   padding: 10mm 10mm 10mm 5mm;
 }
 

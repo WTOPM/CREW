@@ -34,6 +34,7 @@ export interface CrewListFormExcelLayout {
   signatureRow: number;
   lastRow: number;
   colCount: number;
+  headerBands: HeaderBands;
 }
 
 export interface CrewListFormHeaderInput {
@@ -79,7 +80,7 @@ export function styleFormLabel(
 
 export function styleFormHeaderValue(cell: ExcelJS.Cell, align: 'left' | 'center' = 'left'): void {
   cell.font = { name: FORM_DATA_FONT, size: 10, bold: true, italic: true };
-  cell.alignment = { horizontal: align, vertical: 'bottom', wrapText: true };
+  cell.alignment = { horizontal: align, vertical: 'top', wrapText: true };
   setBorder(cell, FORM_THIN_BORDER);
 }
 
@@ -109,11 +110,73 @@ function applyOuterBorder(ws: ExcelJS.Worksheet, top: number, bottom: number, co
   }
 }
 
-/** Split column count into three bands (left / middle / right). */
+/** Three header bands aligned with HTML form column groups (inclusive Excel columns). */
+export type HeaderBand = readonly [number, number];
+export type HeaderBands = readonly [HeaderBand, HeaderBand, HeaderBand];
+
+/** Form 05 — `crew-list-form-05.css` ratios (194 parts). */
+export const CREW_FORM_05_WIDTH_PARTS = [6, 61, 20, 21, 17, 27, 21, 21] as const;
+export const CREW_FORM_05_HEADER_BANDS: HeaderBands = [[1, 2], [3, 6], [7, 8]];
+
+/** Form 04 — `crew-list-form-04.css` ratios (+ gender column in Excel). */
+export const CREW_FORM_04_WIDTH_PARTS = [8, 45, 19, 18, 36, 18, 14, 18, 16, 16] as const;
+export const CREW_FORM_04_HEADER_BANDS: HeaderBands = [[1, 2], [3, 5], [6, 10]];
+
+export function proportionalExcelWidths(parts: readonly number[], targetSum = 108): number[] {
+  const sum = parts.reduce((a, b) => a + b, 0);
+  return parts.map((p) => Math.max(3, Math.round(((p / sum) * targetSum) * 10) / 10));
+}
+
+export function defaultHeaderBands(colCount: number): HeaderBands {
+  const [l1, l2, m1, m2, r1, r2] = colThirds(colCount);
+  return [[l1, l2], [m1, m2], [r1, r2]];
+}
+
+function pageSlotsInBand(band: HeaderBand): {
+  pageLabelStart: number | null;
+  pageLabelEnd: number | null;
+  pageValStart: number;
+  pageValEnd: number;
+} {
+  const [start, end] = band;
+  const bandCols = end - start + 1;
+  if (bandCols <= 1) {
+    return { pageLabelStart: null, pageLabelEnd: null, pageValStart: start, pageValEnd: end };
+  }
+  const valCols = Math.min(2, Math.max(1, bandCols - 1));
+  const pageValEnd = end;
+  const pageValStart = pageValEnd - valCols + 1;
+  const pageLabelEnd = pageValStart - 1;
+  const pageLabelStart = pageLabelEnd >= start ? pageLabelEnd : null;
+  return { pageLabelStart, pageLabelEnd, pageValStart, pageValEnd };
+}
+/** Split column count into three equal-ish bands (fallback when no HTML ratios). */
 function colThirds(colCount: number): [number, number, number, number, number, number] {
   const a = Math.max(1, Math.floor(colCount / 3));
   const b = Math.max(a + 1, Math.floor((colCount * 2) / 3));
   return [1, a, a + 1, b, b + 1, colCount];
+}
+
+/** Portrait header bands + page-no slots that do not overlap the middle third. */
+export function portraitHeaderColumns(colCount: number): {
+  l1: number;
+  l2: number;
+  m1: number;
+  m2: number;
+  r1: number;
+  r2: number;
+  pageLabelStart: number | null;
+  pageLabelEnd: number | null;
+  pageValStart: number;
+  pageValEnd: number;
+} {
+  const [l1, l2, m1, m2, r1, r2] = colThirds(colCount);
+  const pageValCols = Math.min(2, Math.max(1, r2 - m2));
+  const pageValEnd = r2;
+  const pageValStart = pageValEnd - pageValCols + 1;
+  const pageLabelEnd = pageValStart - 1;
+  const pageLabelStart = pageLabelEnd >= r1 && pageLabelEnd > m2 ? pageLabelEnd : null;
+  return { l1, l2, m1, m2, r1, r2, pageLabelStart, pageLabelEnd, pageValStart, pageValEnd };
 }
 
 export function formatPortWithCountry(portName: string, ports: AppData['ports']): string {
@@ -162,18 +225,19 @@ export function buildPortraitCrewListForm(
   ws: ExcelJS.Worksheet,
   title: string,
   columns: CrewListFormColumn[],
-  opts: { charterer?: boolean; maxRows: number },
+  opts: { charterer?: boolean; maxRows: number; headerBands?: HeaderBands },
 ): CrewListFormExcelLayout {
   const colCount = columns.length;
   columns.forEach((col, i) => {
     ws.getColumn(i + 1).width = col.width;
   });
 
-  const [l1, l2, m1, m2, r1, r2] = colThirds(colCount);
-  const pageCols = Math.min(2, colCount);
-  const pageLabelStart = colCount - pageCols - (pageCols > 1 ? 1 : 0);
-  const pageLabelEnd = colCount - pageCols;
-  const pageValStart = pageLabelEnd + 1;
+  const headerBands = opts.headerBands ?? defaultHeaderBands(colCount);
+  const [b1, b2, b3] = headerBands;
+  const [b1s, b1e] = b1;
+  const [b2s, b2e] = b2;
+  const [b3s, b3e] = b3;
+  const page = pageSlotsInBand(b3);
 
   const titleRow = 2;
   let formTop = 3;
@@ -188,11 +252,11 @@ export function buildPortraitCrewListForm(
   ws.getRow(titleRow).height = 20;
 
   if (opts.charterer) {
-    mergeCells(ws, formTop, 1, formTop, 2);
-    ws.getCell(formTop, 1).value = 'Charterer';
-    styleFormLabel(ws.getCell(formTop, 1));
-    mergeCells(ws, formTop, 3, formTop, colCount);
-    styleFormHeaderValue(ws.getCell(formTop, 3));
+    mergeCells(ws, formTop, b1s, formTop, b1e);
+    ws.getCell(formTop, b1s).value = 'Charterer';
+    styleFormLabel(ws.getCell(formTop, b1s));
+    mergeCells(ws, formTop, b2s, formTop, b3e);
+    styleFormHeaderValue(ws.getCell(formTop, b2s));
     ws.getRow(formTop).height = 16;
     formTop++;
   }
@@ -204,49 +268,51 @@ export function buildPortraitCrewListForm(
   const dataEnd = dataStart + opts.maxRows - 1;
   const signatureRow = dataEnd + 1;
 
-  mergeCells(ws, formTop, l1, formTop, l2);
-  styleFormLabel(ws.getCell(formTop, l1));
-  mergeCells(ws, formTop, m1, formTop, m2);
-  styleFormLabel(ws.getCell(formTop, m1));
-  if (pageLabelStart >= 1 && pageValStart <= colCount) {
-    mergeCells(ws, formTop, pageLabelStart, formTop, pageLabelEnd);
-    ws.getCell(formTop, pageLabelStart).value = 'Page No.';
-    styleFormLabel(ws.getCell(formTop, pageLabelStart), 'right');
-    mergeCells(ws, formTop, pageValStart, formTop, r2);
-    styleFormHeaderValue(ws.getCell(formTop, pageValStart), 'center');
+  mergeCells(ws, formTop, b1s, formTop, b1e);
+  styleFormLabel(ws.getCell(formTop, b1s));
+  mergeCells(ws, formTop, b2s, formTop, b2e);
+  styleFormLabel(ws.getCell(formTop, b2s));
+  if (page.pageLabelStart != null && page.pageLabelEnd != null) {
+    mergeCells(ws, formTop, page.pageLabelStart, formTop, page.pageLabelEnd);
+    ws.getCell(formTop, page.pageLabelStart).value = 'Page No.';
+    styleFormLabel(ws.getCell(formTop, page.pageLabelStart), 'right');
+  }
+  if (page.pageValStart <= page.pageValEnd) {
+    mergeCells(ws, formTop, page.pageValStart, formTop, page.pageValEnd);
+    styleFormHeaderValue(ws.getCell(formTop, page.pageValStart), 'center');
   }
   ws.getRow(formTop).height = 16;
 
-  mergeCells(ws, formTop + 1, l1, formTop + 1, l2);
-  ws.getCell(formTop + 1, l1).value = '1.   Name of ship';
-  styleFormLabel(ws.getCell(formTop + 1, l1));
-  mergeCells(ws, formTop + 1, m1, formTop + 1, m2);
-  ws.getCell(formTop + 1, m1).value = '2.   Port of arrival / departure';
-  styleFormLabel(ws.getCell(formTop + 1, m1));
-  mergeCells(ws, formTop + 1, r1, formTop + 1, r2);
-  ws.getCell(formTop + 1, r1).value = '3.   Date of arrival / departure';
-  styleFormLabel(ws.getCell(formTop + 1, r1));
+  mergeCells(ws, formTop + 1, b1s, formTop + 1, b1e);
+  ws.getCell(formTop + 1, b1s).value = '1.   Name of ship';
+  styleFormLabel(ws.getCell(formTop + 1, b1s));
+  mergeCells(ws, formTop + 1, b2s, formTop + 1, b2e);
+  ws.getCell(formTop + 1, b2s).value = '2.   Port of arrival / departure';
+  styleFormLabel(ws.getCell(formTop + 1, b2s));
+  mergeCells(ws, formTop + 1, b3s, formTop + 1, b3e);
+  ws.getCell(formTop + 1, b3s).value = '3.   Date of arrival / departure';
+  styleFormLabel(ws.getCell(formTop + 1, b3s));
 
   blankStyledRow(ws, headerValue1, colCount);
-  mergeCells(ws, headerValue1, l1, headerValue1, l2);
-  mergeCells(ws, headerValue1, m1, headerValue1, m2);
-  mergeCells(ws, headerValue1, r1, headerValue1, r2);
+  mergeCells(ws, headerValue1, b1s, headerValue1, b1e);
+  mergeCells(ws, headerValue1, b2s, headerValue1, b2e);
+  mergeCells(ws, headerValue1, b3s, headerValue1, b3e);
 
-  mergeCells(ws, formTop + 3, l1, formTop + 3, l2);
-  ws.getCell(formTop + 3, l1).value = '4.   Nationality of Ship';
-  styleFormLabel(ws.getCell(formTop + 3, l1));
-  mergeCells(ws, formTop + 3, m1, formTop + 3, r2);
-  ws.getCell(formTop + 3, m1).value = '5.   Port arrived from / Sailing to';
-  styleFormLabel(ws.getCell(formTop + 3, m1));
+  mergeCells(ws, formTop + 3, b1s, formTop + 3, b1e);
+  ws.getCell(formTop + 3, b1s).value = '4.   Nationality of Ship';
+  styleFormLabel(ws.getCell(formTop + 3, b1s));
+  mergeCells(ws, formTop + 3, b2s, formTop + 3, b2e);
+  ws.getCell(formTop + 3, b2s).value = '5.   Port arrived from / Sailing to';
+  styleFormLabel(ws.getCell(formTop + 3, b2s));
 
   blankStyledRow(ws, headerValue2, colCount);
-  mergeCells(ws, headerValue2, l1, headerValue2, l2);
-  mergeCells(ws, headerValue2, m1, headerValue2, r2);
+  mergeCells(ws, headerValue2, b1s, headerValue2, b1e);
+  mergeCells(ws, headerValue2, b2s, headerValue2, b2e);
 
   ws.getRow(formTop + 1).height = 14;
-  ws.getRow(headerValue1).height = 18;
+  ws.getRow(headerValue1).height = 20;
   ws.getRow(formTop + 3).height = 14;
-  ws.getRow(headerValue2).height = 18;
+  ws.getRow(headerValue2).height = 26;
 
   columns.forEach((col, i) => {
     const cell = ws.getCell(tableHeadRow, i + 1);
@@ -286,7 +352,15 @@ export function buildPortraitCrewListForm(
 
   ws.views = [{ showGridLines: false }];
 
-  return { formTop, dataStart, dataEnd, signatureRow, lastRow: signatureRow, colCount };
+  return {
+    formTop,
+    dataStart,
+    dataEnd,
+    signatureRow,
+    lastRow: signatureRow,
+    colCount,
+    headerBands,
+  };
 }
 
 export function fillPortraitCrewListHeader(
@@ -295,38 +369,38 @@ export function fillPortraitCrewListHeader(
   input: CrewListFormHeaderInput,
 ): void {
   const { ship, ports, isArrival, voyageDate, pageNo, charterer } = input;
-  const [l1, l2, m1, m2, r1, r2] = colThirds(layout.colCount);
-  const pageCols = Math.min(2, layout.colCount);
-  const pageValStart = layout.colCount - pageCols + 1;
+  const [b1, b2, b3] = layout.headerBands;
+  const [b1s, b2s, b3s] = [b1[0], b2[0], b3[0]];
+  const page = pageSlotsInBand(b3);
   let formTop = layout.formTop;
 
   if (charterer !== undefined) {
-    ws.getCell(formTop, 3).value = charterer;
+    ws.getCell(formTop, b2s).value = charterer;
     formTop++;
   }
 
-  const arrivalCell = ws.getCell(formTop, l1);
+  const arrivalCell = ws.getCell(formTop, b1s);
   arrivalCell.value = `${isArrival ? 'X' : ' '}   ${CREW_LIST_STATIC_LABELS.arrival}`;
   arrivalCell.font = { name: FORM_FONT, size: 7, bold: isArrival };
   arrivalCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
-  const depCell = ws.getCell(formTop, m1);
+  const depCell = ws.getCell(formTop, b2s);
   depCell.value = `${isArrival ? ' ' : 'X'}   ${CREW_LIST_STATIC_LABELS.departure}`;
   depCell.font = { name: FORM_FONT, size: 7, bold: !isArrival };
   depCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
-  if (pageValStart <= layout.colCount) {
-    ws.getCell(formTop, pageValStart).value = String(pageNo);
+  if (page.pageValStart <= page.pageValEnd) {
+    ws.getCell(formTop, page.pageValStart).value = String(pageNo);
   }
 
   const headerValue1 = formTop + 2;
   const headerValue2 = formTop + 4;
 
-  ws.getCell(headerValue1, l1).value = formatPortCallPortName(ship.name);
-  ws.getCell(headerValue1, m1).value = formatPortWithCountry(ship.portOfCall, ports);
-  ws.getCell(headerValue1, r1).value = voyageDate;
-  ws.getCell(headerValue2, l1).value = formatPortCallPortName(ship.nationality);
-  ws.getCell(headerValue2, m1).value = portsFromToText({ ship, ports } as AppData);
+  ws.getCell(headerValue1, b1s).value = formatPortCallPortName(ship.name);
+  ws.getCell(headerValue1, b2s).value = formatPortWithCountry(ship.portOfCall, ports);
+  ws.getCell(headerValue1, b3s).value = voyageDate;
+  ws.getCell(headerValue2, b1s).value = formatPortCallPortName(ship.nationality);
+  ws.getCell(headerValue2, b2s).value = portsFromToText({ ship, ports } as AppData);
 }
 
 /**
@@ -463,7 +537,15 @@ export function buildLandscapeCrewListForm(
 
   ws.views = [{ showGridLines: false }];
 
-  return { formTop, dataStart, dataEnd, signatureRow, lastRow: signatureRow, colCount };
+  return {
+    formTop,
+    dataStart,
+    dataEnd,
+    signatureRow,
+    lastRow: signatureRow,
+    colCount,
+    headerBands: defaultHeaderBands(colCount),
+  };
 }
 
 export function fillLandscapeCrewListHeader(

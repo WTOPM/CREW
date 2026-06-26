@@ -11,6 +11,10 @@ import { EtaStore } from '../../services/eta.store';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import {
+  formatSpeedKnotsDisplay,
+  sanitizeSpeedKnotsInput,
+} from '../../utils/eta-speed-input.util';
+import {
   calculateEta,
   durationPartsFromHours,
   ETA_FIELD_TOOLTIPS,
@@ -51,6 +55,7 @@ export class EtaComponent {
     field: 'departureUtcOffsetHours' | 'arrivalUtcOffsetHours';
     text: string;
   } | null>(null);
+  private readonly legSpeedEdit = signal<{ legId: string; text: string } | null>(null);
 
   protected readonly etaTips = ETA_FIELD_TOOLTIPS;
 
@@ -216,10 +221,27 @@ export class EtaComponent {
     const leg = this.calculation().legs[legIndex];
     if (!this.isSpeedEditable()) {
       const speed = leg?.effectiveSpeedKnots ?? this.calculation().requiredSpeedKnots;
-      return speed != null && speed > 0 ? speed.toFixed(2) : '';
+      return speed != null && speed > 0 ? formatSpeedKnotsDisplay(speed) : '';
     }
-    const input = this.draft().legs[legIndex]?.speedKnots;
-    return input ? String(input) : '';
+    return this.legSpeedInput(this.draft().legs[legIndex]?.id ?? '', legIndex);
+  }
+
+  protected legSpeedInput(legId: string, legIndex: number): string {
+    const edit = this.legSpeedEdit();
+    if (edit?.legId === legId) return edit.text;
+    return formatSpeedKnotsDisplay(this.draft().legs[legIndex]?.speedKnots ?? 0);
+  }
+
+  protected onLegSpeedChange(legId: string, raw: string): void {
+    const { text, value } = sanitizeSpeedKnotsInput(raw);
+    this.legSpeedEdit.set({ legId, text });
+    this.etaStore.updateLeg(legId, { speedKnots: value ?? 0 });
+  }
+
+  protected onLegSpeedBlur(legId: string): void {
+    if (this.legSpeedEdit()?.legId === legId) {
+      this.legSpeedEdit.set(null);
+    }
   }
 
   protected addLeg(): void {
@@ -233,11 +255,6 @@ export class EtaComponent {
   protected onLegDistance(legId: string, raw: string): void {
     const distanceNm = parseFloat(raw);
     this.etaStore.updateLeg(legId, { distanceNm: isFinite(distanceNm) ? distanceNm : 0 });
-  }
-
-  protected onLegSpeed(legId: string, raw: string): void {
-    const speedKnots = parseFloat(raw);
-    this.etaStore.updateLeg(legId, { speedKnots: isFinite(speedKnots) ? speedKnots : 0 });
   }
 
   protected onLegToLabel(legId: string, value: string): void {
