@@ -22,10 +22,12 @@ import {
 } from '../../utils/pdf-filename.util';
 import {
   CREW_FORM_03,
+  CREW_FORM_04,
   CREW_FORM_05,
   CREW_LIST_TYPE_LABELS,
 } from '../../models/document-overlay.models';
 import { CREW_LIST_FORM_03_FEEDBACK_PARAM } from '../../models/crew-list-form-03.paths';
+import { CREW_LIST_FORM_04_FEEDBACK_PARAM } from '../../models/crew-list-form-04.paths';
 import { CREW_LIST_FORM_05_FEEDBACK_PARAM } from '../../models/crew-list-form-05.paths';
 import { PartialDateInputComponent } from '../partial-date-input/partial-date-input.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
@@ -33,7 +35,7 @@ import { TimeInputComponent } from '../time-input/time-input.component';
 import { defaultIsoDateInCurrentMonth } from '../../utils/partial-date.util';
 import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfCrewListForm03Service } from '../../services/pdf-crew-list-form03.service';
-import { PdfCrewListV2Service } from '../../services/pdf-crew-list-v2.service';
+import { PdfCrewListForm04Service } from '../../services/pdf-crew-list-form04.service';
 import { PdfCrewListForm05Service } from '../../services/pdf-crew-list-form05.service';
 import { PdfCrewListV3SbkPService } from '../../services/pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from '../../services/pdf-crew-list-v3-sbk-p2.service';
@@ -113,7 +115,7 @@ export class DocumentsNavComponent implements OnInit {
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
   private readonly crewListForm03Pdf = inject(PdfCrewListForm03Service);
-  private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
+  private readonly crewListForm04Pdf = inject(PdfCrewListForm04Service);
   private readonly crewListForm05Pdf = inject(PdfCrewListForm05Service);
   private readonly crewListV3SbkPPdf = inject(PdfCrewListV3SbkPService);
   private readonly crewListV3SbkP2Pdf = inject(PdfCrewListV3SbkP2Service);
@@ -193,7 +195,7 @@ export class DocumentsNavComponent implements OnInit {
       return;
     }
     if (listType === 'type3V2') {
-      void this.openCrewListV2(isArrival);
+      void this.openCrewListForm04Pdf(isArrival);
       return;
     }
     if (listType === 'type4V3Sbk') { // Form 05 - CREW LIST [SBK][E] — generate PDF from HTML form
@@ -231,9 +233,22 @@ export class DocumentsNavComponent implements OnInit {
     }
   }
 
-  /** Form 04 - CREW LIST [P][E][PI][G] */
-  private async openCrewListV2(isArrival: boolean): Promise<void> {
-    await this.openCrewListTemplatePdf(isArrival, this.crewListV2Pdf);
+  /** Form 04 - CREW LIST [P][E][PI][G] — HTML editor → PDF via html2canvas. */
+  private async openCrewListForm04Pdf(isArrival: boolean): Promise<void> {
+    this.storage.updateCrewArr({ isArrival }, 'silent');
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
+    const data: AppData = {
+      ...this.appData(isArrival),
+      crewArr: { ...this.appData(isArrival).crewArr, isArrival },
+    };
+    try {
+      const ok = await this.crewListForm04Pdf.openPreview(data, crew, isArrival);
+      if (!ok) {
+        this.toast.showError('Allow pop-ups to open Crew List preview');
+      }
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'Crew list preview failed');
+    }
   }
 
   /** Form 05 - CREW LIST [SBK][E] — HTML editor → PDF via html2canvas. */
@@ -267,7 +282,6 @@ export class DocumentsNavComponent implements OnInit {
   private async openCrewListTemplatePdf(
     isArrival: boolean,
     pdf:
-      | PdfCrewListV2Service
       | PdfCrewListV3SbkPService
       | PdfCrewListV3SbkP2Service,
   ): Promise<void> {
@@ -315,8 +329,10 @@ export class DocumentsNavComponent implements OnInit {
     const params = new URLSearchParams(window.location.search);
     const reopen = params.get('crewListSettings') === '1';
     const feedback03 = params.get(CREW_LIST_FORM_03_FEEDBACK_PARAM);
+    const feedback04 = params.get(CREW_LIST_FORM_04_FEEDBACK_PARAM);
     const feedback05 = params.get(CREW_LIST_FORM_05_FEEDBACK_PARAM);
     const form03Label = CREW_LIST_TYPE_LABELS[CREW_FORM_03];
+    const form04Label = CREW_LIST_TYPE_LABELS[CREW_FORM_04];
     const form05Label = CREW_LIST_TYPE_LABELS[CREW_FORM_05];
 
     if (reopen) {
@@ -332,10 +348,16 @@ export class DocumentsNavComponent implements OnInit {
     } else if (feedback05 === 'cancelled') {
       this.toast.show(`Cancelled: ${form05Label}`, 'info');
     }
+    if (feedback04 === 'saved') {
+      this.toast.show(`Saved: ${form04Label}`, 'success');
+    } else if (feedback04 === 'cancelled') {
+      this.toast.show(`Cancelled: ${form04Label}`, 'info');
+    }
 
-    if (reopen || feedback03 || feedback05) {
+    if (reopen || feedback03 || feedback04 || feedback05) {
       params.delete('crewListSettings');
       params.delete(CREW_LIST_FORM_03_FEEDBACK_PARAM);
+      params.delete(CREW_LIST_FORM_04_FEEDBACK_PARAM);
       params.delete(CREW_LIST_FORM_05_FEEDBACK_PARAM);
       const query = params.toString();
       const path = window.location.pathname || '/';

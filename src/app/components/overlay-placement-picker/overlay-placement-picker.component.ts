@@ -492,8 +492,35 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
 
     this.markerDragging.set(target);
     this.pointerDidMove = false;
-    this.lastPointerClient = { x: event.clientX, y: event.clientY };
     this.initDragBoxForTarget(target);
+    this.centerDragBoxUnderPointer(target, event);
+    this.lastPointerClient = { x: event.clientX, y: event.clientY };
+  }
+
+  /** Place marker center under the pointer when a drag starts. */
+  private centerDragBoxUnderPointer(target: MarkerDragTarget, event: PointerEvent): void {
+    const canvas = this.pdfCanvas()?.nativeElement;
+    const view = this.pageView;
+    if (!canvas || !view) return;
+    const ptr = clientToViewportCss(event.clientX, event.clientY, canvas, view);
+    if (!ptr) return;
+    const ptrPt = view.convertToPdfPoint(ptr.x, ptr.y);
+    const box = this.dragBoxForTarget(target);
+    if (!box) return;
+    const { widthPt, heightPt } = this.pageSizePt();
+    this.setDragBoxForTarget(
+      target,
+      clampStampBox(
+        {
+          x: ptrPt.x - box.width / 2,
+          y: ptrPt.y - box.height / 2,
+          width: box.width,
+          height: box.height,
+        },
+        widthPt,
+        heightPt,
+      ),
+    );
   }
 
   private moveMarkerDrag(event: PointerEvent): void {

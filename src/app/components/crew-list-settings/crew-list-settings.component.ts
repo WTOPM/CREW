@@ -7,6 +7,7 @@ import {
   crewListTypeOrderNo,
   CrewListTypeId,
   CREW_FORM_03,
+  CREW_FORM_04,
   CREW_FORM_05,
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
@@ -15,6 +16,7 @@ import { ToastService } from '../../services/toast.service';
 import { CrewAbbrChipComponent } from '../crew-abbr-chip/crew-abbr-chip.component';
 import { DocumentExportSettingsComponent } from '../document-export-settings/document-export-settings.component';
 import { crewListForm03EditorUrl } from '../../models/crew-list-form-03.paths';
+import { crewListForm04EditorUrl } from '../../models/crew-list-form-04.paths';
 import { crewListForm05EditorUrl } from '../../models/crew-list-form-05.paths';
 
 @Component({
@@ -49,7 +51,7 @@ import { crewListForm05EditorUrl } from '../../models/crew-list-form-05.paths';
         }
       </div>
     </fieldset>
-    @if (listType() === crewForm03 || listType() === crewForm05) {
+    @if (listType() === crewForm03 || listType() === crewForm04 || listType() === crewForm05) {
       <div style="padding: 0.25rem 0 0.5rem;">
         <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openHtmlFormSettings()">
           ⚙ Settings
@@ -154,6 +156,7 @@ export class CrewListSettingsComponent {
 
   /** HTML form types exposed to template */
   protected readonly crewForm03 = CREW_FORM_03;
+  protected readonly crewForm04 = CREW_FORM_04;
   protected readonly crewForm05 = CREW_FORM_05;
   protected readonly typeIds = CREW_LIST_TYPE_IDS;
 
@@ -180,6 +183,11 @@ export class CrewListSettingsComponent {
     if (this.listType() === CREW_FORM_03) {
       const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
       window.location.href = crewListForm03EditorUrl({ mode, return: returnTo });
+      return;
+    }
+    if (this.listType() === CREW_FORM_04) {
+      const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
+      window.location.href = crewListForm04EditorUrl({ mode, return: returnTo });
       return;
     }
     const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';

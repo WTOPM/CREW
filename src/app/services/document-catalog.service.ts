@@ -6,7 +6,7 @@ import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { base64ToUint8 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
 import { IMO_PASSENGER_LIST_TITLE, PdfCrewArrService } from './pdf-crew-arr.service';
-import { PdfCrewListV2Service } from './pdf-crew-list-v2.service';
+import { PdfCrewListForm04Service } from './pdf-crew-list-form04.service';
 import { PdfCrewListForm03Service } from './pdf-crew-list-form03.service';
 import { PdfCrewListForm05Service } from './pdf-crew-list-form05.service';
 import { PdfCrewListV3SbkPService } from './pdf-crew-list-v3-sbk-p.service';
@@ -50,7 +50,7 @@ export class DocumentCatalogService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly passengerListV2 = inject(PdfPassengerListV2Service);
-  private readonly crewListV2 = inject(PdfCrewListV2Service);
+  private readonly crewListForm04 = inject(PdfCrewListForm04Service);
   private readonly crewListForm03 = inject(PdfCrewListForm03Service);
   private readonly crewListForm05 = inject(PdfCrewListForm05Service);
   private readonly crewListV3SbkP = inject(PdfCrewListV3SbkPService);
@@ -289,7 +289,7 @@ export class DocumentCatalogService {
     };
   }
 
-  /** Crew List v2. */
+  /** Form 04 — CREW LIST [P][E][PI][G]. */
   private async crewV2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
@@ -301,8 +301,8 @@ export class DocumentCatalogService {
       },
     };
     return {
-      bytes: await this.crewListV2.buildPreviewBytes(data, crew),
-      fileName: this.crewListV2.fileName(data),
+      bytes: await this.crewListForm04.buildPdfBytes(data, crew, isArrival),
+      fileName: this.crewListForm04.fileName(data, isArrival),
     };
   }
 

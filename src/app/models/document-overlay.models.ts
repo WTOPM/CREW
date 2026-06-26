@@ -65,8 +65,8 @@ export function documentPageUsesOverlay(
 export type CrewListTypeId =
   | 'type1Passport'      // 01 - IMO CREW LIST - P
   | 'type1SeamansBook'   // 02 - IMO CREW LIST - SBK
-  | 'type2Alger'         // 03 - IMO CREW LIST - P SBK J T
-  | 'type3V2'            // 04 - CREW LIST - P E PI G
+  | 'type2Alger'         // 03 - IMO CREW LIST - P SBK J T   ← HTML form (forms/crew-list-form-03/)
+  | 'type3V2'            // 04 - CREW LIST - P E PI G   ← HTML form (forms/crew-list-form-04/)
   | 'type4V3Sbk'         // 05 - CREW LIST - SBK E          ← HTML form (forms/crew-list-form-05/)
   | 'type5V3SbkP'        // 06 - CREW LIST - SBK PI E P J
   | 'type6V3SbkP2';      // 07 - CREW LIST - SBK PI E P PI E

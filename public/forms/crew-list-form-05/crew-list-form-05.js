@@ -12,7 +12,10 @@ const DEMO = [
     }
 
     function rowHasData(tr) {
-      return Array.from(tr.querySelectorAll('input.ci')).some((inp) => inp.value.trim());
+      return Array.from(tr.querySelectorAll('.ci')).some((cell) => {
+        if (cell.classList.contains('ci-rno')) return false;
+        return cellText(cell).trim();
+      });
     }
 
     function refreshRowNumbers() {
@@ -29,11 +32,18 @@ const DEMO = [
       });
     }
 
+    function escAttr(val) {
+      return String(val || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+    }
+
     function addRow(d = {}) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
     <td class="c0"><div class="ci ci-rno" tabindex="-1"></div></td>
-    <td class="c1"><input class="ci" type="text" value="${d.name || ''}" readonly tabindex="-1"></td>
+    <td class="c1"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></td>
     <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly tabindex="-1"></td>
     <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly tabindex="-1"></td>
     <td class="c4"><input class="ci" type="text" value="${d.dob || ''}" placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>
@@ -141,6 +151,12 @@ const DEMO = [
       selectedCells = [];
     }
 
+    function dismissSelection() {
+      clearSelection();
+      isDragging = false;
+      selectionAnchor = null;
+    }
+
     function addSelectedCell(cell) {
       if (!cell || selectedCells.includes(cell)) return;
       selectedCells.push(cell);
@@ -218,16 +234,51 @@ const DEMO = [
     });
 
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        dismissSelection();
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && selectedCells.length) {
         e.preventDefault();
         document.execCommand('copy');
       }
     });
 
+    document.body.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.a4-page')) return;
+      if (e.target.closest('.confirm-backdrop')) return;
+      dismissSelection();
+    });
+
+    function syncCellFlexAlignment(cell) {
+      const ta = cell.style.textAlign || '';
+      const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
+      if (cell.style.display === 'flex' || cell.classList.contains('ci-name')) {
+        cell.style.justifyContent = jc;
+      }
+    }
+
+    function applyVerticalAlignToCell(cell, val) {
+      const alignItems = val === 'top' ? 'flex-start' : val === 'bottom' ? 'flex-end' : 'center';
+      cell.style.display = 'flex';
+      cell.style.height = '100%';
+      cell.style.alignItems = alignItems;
+      cell.dataset.verticalAlign = val;
+      syncCellFlexAlignment(cell);
+    }
+
+    function applyVerticalAlign(val) {
+      selectedCells.forEach((cell) => {
+        if (cell.classList.contains('ci-rno')) return;
+        applyVerticalAlignToCell(cell, val);
+      });
+    }
+
     function applyFormat(prop, val) {
       selectedCells.forEach((cell) => {
         if (cell.classList.contains('ci-rno')) return;
         cell.style[prop] = val;
+        if (prop === 'textAlign') syncCellFlexAlignment(cell);
       });
     }
 
@@ -403,8 +454,8 @@ const DEMO = [
     function savePositions() {
       const stamp = document.getElementById('stamp-container');
       const sig = document.getElementById('sig-container');
-      const stampOn = document.getElementById('chk-stamp').checked;
-      const sigOn = document.getElementById('chk-sig').checked;
+      const stampOn = window.CrewOverlayToolbar?.isStampOn() ?? false;
+      const sigOn = window.CrewOverlayToolbar?.isSigOn() ?? false;
       
       // Update in-memory positions
       if (!window._currentPositions) {
@@ -438,8 +489,19 @@ const DEMO = [
             if (style.fontFamily) input.style.fontFamily = style.fontFamily;
             if (style.fontSize) input.style.fontSize = style.fontSize;
             if (style.textAlign) input.style.textAlign = style.textAlign;
+            if (style.verticalAlign) applyVerticalAlignToCell(input, style.verticalAlign);
+            else if (style.textAlign) syncCellFlexAlignment(input);
           }
         });
+        const nameCell = tr.querySelector('.ci-name');
+        const nameStyle = cellStyles[`${rowIndex}-name`];
+        if (nameCell && nameStyle) {
+          if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
+          if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
+          if (nameStyle.textAlign) nameCell.style.textAlign = nameStyle.textAlign;
+          if (nameStyle.verticalAlign) applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
+          else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
+        }
       });
     }
 
@@ -456,10 +518,22 @@ const DEMO = [
           if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
           if (input.style.fontSize) style.fontSize = input.style.fontSize;
           if (input.style.textAlign) style.textAlign = input.style.textAlign;
+          if (input.dataset.verticalAlign) style.verticalAlign = input.dataset.verticalAlign;
           if (Object.keys(style).length > 0) {
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
+        const nameCell = tr.querySelector('.ci-name');
+        if (nameCell) {
+          const nameStyle = {};
+          if (nameCell.style.fontFamily) nameStyle.fontFamily = nameCell.style.fontFamily;
+          if (nameCell.style.fontSize) nameStyle.fontSize = nameCell.style.fontSize;
+          if (nameCell.style.textAlign) nameStyle.textAlign = nameCell.style.textAlign;
+          if (nameCell.dataset.verticalAlign) nameStyle.verticalAlign = nameCell.dataset.verticalAlign;
+          if (Object.keys(nameStyle).length > 0) {
+            cellStyles[`${rowIndex}-name`] = nameStyle;
+          }
+        }
       });
       
       if (!window._currentPositions) {
@@ -536,115 +610,12 @@ const DEMO = [
       navigateBack('cancelled');
     }
 
+    function editorScaleFactor() {
+      return editorZoomPct / 100;
+    }
+
     function makeDraggable(el) {
-      let mode = null; // 'drag' | 'resize'
-      let resizeDir = null; // 'se' (corner, proportional) | 'e' | 'w' | 'n' | 's'
-      let startX, startY, startL, startT, startW, startH;
-
-      function resizeDirFor(target) {
-        if (target.classList.contains('overlay-resize')) return 'se';
-        if (target.classList.contains('overlay-h--e')) return 'e';
-        if (target.classList.contains('overlay-h--w')) return 'w';
-        if (target.classList.contains('overlay-h--n')) return 'n';
-        if (target.classList.contains('overlay-h--s')) return 's';
-        return null;
-      }
-
-      function onDown(e) {
-        resizeDir = resizeDirFor(e.target);
-        mode = resizeDir ? 'resize' : 'drag';
-        startX = e.clientX;
-        startY = e.clientY;
-
-        // Get actual pixel position relative to the positioned parent
-        const parent = el.offsetParent || el.parentElement;
-        const parentRect = parent.getBoundingClientRect();
-        const elRect = el.getBoundingClientRect();
-        startL = elRect.left - parentRect.left + parent.scrollLeft;
-        startT = elRect.top  - parentRect.top  + parent.scrollTop;
-
-        // Replace calc() with resolved px value so drag math works
-        el.style.left = startL + 'px';
-        el.style.top  = startT + 'px';
-
-        startW = el.offsetWidth;
-        startH = el.offsetHeight;
-        e.preventDefault();
-        e.stopPropagation();
-        document.addEventListener('pointermove', onMove);
-        document.addEventListener('pointerup', onUp);
-        document.addEventListener('pointercancel', onUp);
-      }
-
-      function onMove(e) {
-        if (!mode) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        const parent = el.offsetParent || el.parentElement;
-
-        if (mode === 'drag') {
-          const maxLeft = parent.clientWidth - el.offsetWidth;
-          const maxTop = parent.clientHeight - el.offsetHeight;
-          const newLeft = Math.max(0, Math.min(startL + dx, maxLeft));
-          const newTop = Math.max(0, Math.min(startT + dy, maxTop));
-          el.style.left = newLeft + 'px';
-          el.style.top  = newTop + 'px';
-        } else if (resizeDir === 'se') {
-          let aspect = startW / startH;
-          if (isNaN(aspect) || !isFinite(aspect) || aspect <= 0) {
-            aspect = 1;
-          }
-          const maxW = parent.clientWidth - el.offsetLeft;
-          const maxH = parent.clientHeight - el.offsetTop;
-          const proposedW = Math.max(20, startW + dx);
-          const proposedH = proposedW / aspect;
-          
-          let finalW = proposedW;
-          if (proposedW > maxW || proposedH > maxH) {
-            finalW = Math.min(maxW, maxH * aspect);
-          }
-          el.style.width  = finalW + 'px';
-          el.style.height = (finalW / aspect) + 'px';
-        } else if (resizeDir === 'e') {
-          const maxW = parent.clientWidth - el.offsetLeft;
-          el.style.width = Math.max(20, Math.min(startW + dx, maxW)) + 'px';
-        } else if (resizeDir === 'w') {
-          const proposedW = startW - dx;
-          let finalW = Math.max(20, proposedW);
-          const proposedLeft = startL + (startW - finalW);
-          let finalLeft = proposedLeft;
-          if (proposedLeft < 0) {
-            finalLeft = 0;
-            finalW = startL + startW;
-          }
-          el.style.width = finalW + 'px';
-          el.style.left  = finalLeft + 'px';
-        } else if (resizeDir === 's') {
-          const maxH = parent.clientHeight - el.offsetTop;
-          el.style.height = Math.max(20, Math.min(startH + dy, maxH)) + 'px';
-        } else if (resizeDir === 'n') {
-          const proposedH = startH - dy;
-          let finalH = Math.max(20, proposedH);
-          const proposedTop = startT + (startH - finalH);
-          let finalTop = proposedTop;
-          if (proposedTop < 0) {
-            finalTop = 0;
-            finalH = startT + startH;
-          }
-          el.style.height = finalH + 'px';
-          el.style.top    = finalTop + 'px';
-        }
-      }
-
-      function onUp() {
-        if (mode) savePositions();
-        mode = null;
-        document.removeEventListener('pointermove', onMove);
-        document.removeEventListener('pointerup', onUp);
-        document.removeEventListener('pointercancel', onUp);
-      }
-
-      el.addEventListener('pointerdown', onDown);
+      CrewOverlayDrag.attach(el, editorScaleFactor, savePositions);
     }
 
     function isValidCoordinate(val) {
@@ -657,11 +628,19 @@ const DEMO = [
     }
 
     function resetCellStyles() {
-      tbody.querySelectorAll('input.ci').forEach((input) => {
-        input.style.removeProperty('font-family');
-        input.style.removeProperty('font-size');
-        input.style.removeProperty('text-align');
-      });
+      if (window.CrewCellFormat) CrewCellFormat.resetAllCells(tbody);
+      else {
+        tbody.querySelectorAll('.ci:not(.ci-rno)').forEach((cell) => {
+          cell.style.removeProperty('font-family');
+          cell.style.removeProperty('font-size');
+          cell.style.removeProperty('text-align');
+          cell.style.removeProperty('display');
+          cell.style.removeProperty('align-items');
+          cell.style.removeProperty('height');
+          cell.style.removeProperty('justify-content');
+          delete cell.dataset.verticalAlign;
+        });
+      }
       clearSelection();
       const fontSel = document.getElementById('tb-font');
       const sizeSel = document.getElementById('tb-size');
@@ -741,7 +720,7 @@ const DEMO = [
         showOverlay(el, stampImgUrl, { left: 'calc(100% - 50mm)', top: 'calc(100% - 50mm)', width: '38mm', height: '38mm' });
         savePositions();
       } else {
-        document.getElementById('chk-stamp').checked = false;
+        if (window.CrewOverlayToolbar) CrewOverlayToolbar.setStampOn(false);
         const isPdfExport = new URLSearchParams(location.search).get('pdfExport') === '1';
         if (!isPdfExport) {
           alert('Stamp not found. Please upload it in Settings.');
@@ -757,7 +736,7 @@ const DEMO = [
         showOverlay(el, sigImgUrl, { left: 'calc(100% - 60mm)', top: 'calc(100% - 28mm)', width: '50mm', height: '20mm' });
         savePositions();
       } else {
-        document.getElementById('chk-sig').checked = false;
+        if (window.CrewOverlayToolbar) CrewOverlayToolbar.setSigOn(false);
         const isPdfExport = new URLSearchParams(location.search).get('pdfExport') === '1';
         if (!isPdfExport) {
           alert('Signature not found. Please upload it in Settings.');
@@ -768,18 +747,18 @@ const DEMO = [
     /** Restore saved stamp/signature visibility on load (positions restored by showOverlay). */
     async function restoreOverlaySettings() {
       const saved = loadPositions();
-      const stampChk = document.getElementById('chk-stamp');
-      const sigChk = document.getElementById('chk-sig');
-      stampChk.checked = !!(saved.stamp && saved.stamp.visible);
-      sigChk.checked = !!(saved.sig && saved.sig.visible);
-      if (stampChk.checked) {
+      if (window.CrewOverlayToolbar) {
+        CrewOverlayToolbar.setStampOn(!!(saved.stamp && saved.stamp.visible));
+        CrewOverlayToolbar.setSigOn(!!(saved.sig && saved.sig.visible));
+      }
+      if (CrewOverlayToolbar?.isStampOn()) {
         try {
           await toggleStamp(true);
         } catch (e) {
           console.error('Failed to restore stamp', e);
         }
       }
-      if (sigChk.checked) {
+      if (CrewOverlayToolbar?.isSigOn()) {
         try {
           await toggleSignature(true);
         } catch (e) {
@@ -867,16 +846,11 @@ const DEMO = [
         document.getElementById('h-nat').value = ship.nationality || '';
 
         const ports = appData.ports || [];
-        function getPortFull(portName) {
-          if (!portName) return '';
-          const found = ports.find(p => p.name && p.name.toLowerCase() === portName.toLowerCase());
-          return found && found.country ? `${portName} / ${found.country}` : portName;
-        }
-
-        const fromFull = getPortFull(ship.lastPortOfCall);
-        const toFull = getPortFull(ship.nextPortOfCall);
-        const fromTo = [fromFull, toFull].filter(Boolean).join('   ');
-        document.getElementById('h-from').value = fromTo;
+        document.getElementById('h-from').value = CrewPortFormat.formatPortsFromTo(
+          ship.lastPortOfCall,
+          ship.nextPortOfCall,
+          ports,
+        );
 
         // Read ?mode=arrival|departure from URL
         const urlMode = new URLSearchParams(window.location.search).get('mode');
@@ -902,18 +876,21 @@ const DEMO = [
             : appData.crew.filter(c => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false));
         }
 
-        let masterName = '';
+        let master = null;
         if (crewList.length > 0) {
-          const master = crewList.find(c => c.rank && c.rank.toLowerCase().includes('master')) || crewList[0];
-          masterName = [master.familyName, master.givenNames].filter(Boolean).join(' ');
+          master = crewList.find(c => c.rank && c.rank.toLowerCase().includes('master')) || crewList[0];
         }
         const masterEl = document.getElementById('f-master-name');
-        if (masterEl) masterEl.value = masterName;
+        if (masterEl && master) {
+          masterEl.textContent = CrewNameFormat.formatCrewListName(master);
+        } else if (masterEl) {
+          masterEl.textContent = '';
+        }
 
         crewList.forEach(c => {
-          const fullName = [c.familyName, c.givenNames].filter(Boolean).join(' ');
+          const name = CrewNameFormat.formatCrewListName(c);
           addRow({
-            name: fullName,
+            name,
             rank: c.rank || '',
             nat: c.nationality || '',
             dob: fmtDate(c.dateOfBirth),
@@ -950,7 +927,7 @@ const DEMO = [
           // Native <input> vertically centers its value via the UA stylesheet — replicate
           // that for the plain div so table-cell text lines up with the grid, not below it.
           replacement.style.display = 'flex';
-          replacement.style.alignItems = 'center';
+          replacement.style.alignItems = input.style.alignItems || 'center';
           replacement.style.justifyContent =
             replacement.style.textAlign === 'center'
               ? 'center'
@@ -970,6 +947,12 @@ const DEMO = [
         document.body.classList.add('is-pdf-export');
       }
       await loadAppData();
+      if (!isPdfExport && window.CrewOverlayToolbar) {
+        CrewOverlayToolbar.init({
+          onStampChange: (on) => void toggleStamp(on),
+          onSigChange: (on) => void toggleSignature(on),
+        });
+      }
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       if (isPdfExport) {
@@ -980,6 +963,9 @@ const DEMO = [
         flattenInputsForExport();
       } else {
         initEditorZoom();
+        if (window.CrewCellAlignToolbar) {
+          CrewCellAlignToolbar.init({ getSelectedCells: () => selectedCells });
+        }
       }
       // Signal to a headless capture (iframe + html2canvas) that the page is fully populated.
       window.__pdfReady = true;

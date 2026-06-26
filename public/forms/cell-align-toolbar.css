@@ -1,0 +1,143 @@
+/* Shared cell-alignment toolbar for crew-list HTML form editors */
+
+.cell-align-toolbar {
+  --align-btn: clamp(1.65rem, 4.5vw, 2rem);
+  --align-gap: 0.28rem;
+  --align-radius: 8px;
+  --align-border: #cbd5e1;
+  --align-bg: #f8fafc;
+  --align-accent: #2563eb;
+  --align-accent-soft: #eff6ff;
+  --align-text: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: var(--align-gap);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.4rem;
+  margin: 0.15rem 0 0.25rem;
+  background: var(--align-bg);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--align-radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.cell-align-toolbar__row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--align-gap);
+}
+
+.cell-align-toolbar__btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  min-height: var(--align-btn);
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--align-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--align-text);
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.1s ease;
+}
+
+.cell-align-toolbar__btn svg {
+  width: clamp(14px, 3.2vw, 17px);
+  height: clamp(14px, 3.2vw, 17px);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.cell-align-toolbar__btn:hover,
+.cell-align-toolbar__btn:focus-visible {
+  background: var(--align-accent-soft);
+  border-color: #93c5fd;
+  color: var(--align-accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+  outline: none;
+}
+
+.cell-align-toolbar__btn:active {
+  transform: scale(0.94);
+}
+
+.cell-align-toolbar__btn--preview {
+  background: var(--align-accent-soft);
+  border-color: var(--align-accent);
+  color: var(--align-accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+/* Tooltip — opens to the right (side panel is on the left) */
+.cell-align-toolbar__btn[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  z-index: 40;
+  transform: translateY(-50%) translateX(4px);
+  padding: 0.28rem 0.55rem;
+  font-family: Arial, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #f8fafc;
+  background: #1e293b;
+  border-radius: 5px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s ease;
+}
+
+.cell-align-toolbar__btn[data-tip]::before {
+  content: '';
+  position: absolute;
+  left: calc(100% + 4px);
+  top: 50%;
+  z-index: 41;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-right-color: #1e293b;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    visibility 0.16s ease;
+}
+
+.cell-align-toolbar__btn:hover::after,
+.cell-align-toolbar__btn:focus-visible::after,
+.cell-align-toolbar__btn:hover::before,
+.cell-align-toolbar__btn:focus-visible::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cell-align-toolbar__btn:hover::after,
+.cell-align-toolbar__btn:focus-visible::after {
+  transform: translateY(-50%) translateX(0);
+}
+
+@media (max-width: 900px) {
+  .cell-align-toolbar__btn[data-tip]::after,
+  .cell-align-toolbar__btn[data-tip]::before {
+    display: none;
+  }
+}

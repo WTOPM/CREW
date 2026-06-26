@@ -15,7 +15,7 @@
     .a4-page {
       background: #fff;
       width: 210mm;
-      min-height: 297mm;
+      height: 297mm;
       margin: 0;
       padding: 6mm 10mm 6mm 0;
       /* left=0: side label sits outside table but inside page. Right padding 10mm ensures main-content is exactly 194mm wide */
@@ -23,6 +23,10 @@
       box-shadow: 0 2px 12px rgba(0, 0, 0, .25);
       display: flex;
       flex-direction: column;
+      position: relative;
+      flex-shrink: 0;
+      overflow: hidden;
+      box-sizing: border-box;
     }
 
     /* ── TITLE ── */
@@ -42,6 +46,7 @@
       display: flex;
       align-items: stretch;
       flex: 1;
+      min-height: 0;
     }
 
     /* Side label OUTSIDE the border */
@@ -80,22 +85,25 @@
     .main-content {
       display: flex;
       flex-direction: column;
+      flex: 1;
       min-width: 0;
+      min-height: 0;
       width: 100%;
       position: relative; /* anchor for draggable overlays */
-      /* Column width ratios — single source of truth (total 194 parts) */
-      --form-w: 194;
-      --w-h1: 67;  /* c0+c1 */
-      --w-h2: 85;  /* c2+c3+c4+c5 */
-      --w-h3: 42;  /* c6+c7 */
-      --w-c0: 6;
-      --w-c1: 61;
-      --w-c2: 20;
-      --w-c3: 21;
-      --w-c4: 17;
-      --w-c5: 27;
-      --w-c6: 21;
+      /* Column width ratios — Form 04 passport layout (total 192 parts) */
+      --form-w: 192;
+      --w-h1: 64;
+      --w-h2: 64;
+      --w-h3: 64;
+      --w-c0: 8;
+      --w-c1: 45;
+      --w-c2: 17;
+      --w-c3: 17;
+      --w-c4: 27;
+      --w-c5: 21;
+      --w-c6: 17;
       --w-c7: 21;
+      --w-c8: 19;
     }
 
     /* ── DRAGGABLE OVERLAYS (stamp / signature) ── */
@@ -169,6 +177,44 @@
       flex-shrink: 0;
     }
 
+    /* Arrival / Departure + page no. — above the table, not inside its side borders */
+    .sheet-meta {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      min-height: 6.5mm;
+      padding: 0;
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+
+    .sheet-meta .cb-group {
+      justify-content: center;
+      padding-bottom: 0.8mm;
+    }
+
+    .page-no-corner {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5mm;
+      font-size: 5.6pt;
+      font-weight: 700;
+      z-index: 2;
+      min-width: 22mm;
+      padding: 0.8mm 2mm;
+      box-sizing: border-box;
+      background: #fff;
+      border-top: 1px solid #000;
+      border-left: 1px solid #000;
+      border-right: 1px solid #000;
+      border-bottom: none;
+    }
+
     /* ── HEADER BLOCK ── */
     .header-block {
       border: none;
@@ -186,25 +232,52 @@
       border-bottom: none;
     }
 
-    /* Row 1: AGENCY + checkboxes */
-    .hrow-top {
-      grid-template-columns: 1fr auto;
-      align-items: center;
-      padding: 1.2mm 2mm;
-      gap: 4mm;
-      min-height: 6.5mm;
-    }
-
-    .agency-wrap {
-      display: flex;
-      align-items: center;
-      gap: 2mm;
-    }
-
-    .lbl-agency {
-      font-size: 7pt;
-      font-weight: 600;
+    .page-no-label {
       white-space: nowrap;
+      line-height: 1.1;
+    }
+
+    .page-no-input {
+      width: 5mm;
+      text-align: center;
+      font-size: 6.5pt;
+      font-weight: 700;
+      border: none !important;
+      border-bottom: none !important;
+      outline: none;
+      background: transparent;
+      padding: 0;
+      color: #000;
+      flex-shrink: 0;
+    }
+
+    .hcell--split {
+      display: flex;
+      padding: 0 !important;
+    }
+
+    .hcell-split-main {
+      flex: 1;
+      padding: 1mm 1.5mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 11mm;
+    }
+
+    .hcell-split-main--label-only {
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .hcell-split-main--label-only .lbl-row {
+      margin-bottom: 0;
+    }
+
+    .hcell-split-append {
+      width: 8mm;
+      border-left: 1px solid #000;
+      flex-shrink: 0;
     }
 
     .cb-group {
@@ -249,7 +322,7 @@
         calc(var(--w-h2) / var(--form-w) * 100%)
         calc(var(--w-h3) / var(--form-w) * 100%);
       width: 100%;
-      min-height: 6.5mm;
+      min-height: 11mm;
     }
 
     /* Header column groups (width comes from grid track) */
@@ -262,9 +335,10 @@
     .hcell {
       display: flex;
       flex-direction: column;
-      justify-content: flex-end;
-      padding: 1mm 2mm;
+      justify-content: flex-start;
+      padding: 1mm 1.5mm;
       border-right: 1px solid #000;
+      min-height: 11mm;
     }
 
     .hcell:last-child {
@@ -300,11 +374,14 @@
       width: 100%;
       background: transparent;
       color: #000;
-      margin-top: auto;
     }
 
     .hcell .fi {
-      padding-left: 4.5mm;
+      margin-top: auto;
+      margin-bottom: 0;
+      padding-left: 0;
+      padding-right: 0;
+      text-align: center;
     }
 
     .fi:focus {
@@ -414,7 +491,11 @@
       width: calc(var(--w-c7) / var(--form-w) * 100%);
     }
 
-    /* Ratios: h1=67 h2=85 h3=42 | c0..c7 = 6+61+20+21+17+27+21+21 = 194 */
+    .c8 {
+      width: calc(var(--w-c8) / var(--form-w) * 100%);
+    }
+
+    /* Ratios: equal header thirds | c0..c8 passport columns */
 
     .rno,
     .ci-rno {
@@ -433,6 +514,7 @@
       align-items: flex-start;
       gap: 5mm;
       height: 100vh;
+      min-height: 0;
       overflow: hidden;
       box-sizing: border-box;
     }
@@ -440,17 +522,23 @@
     .doc-zoom-viewport {
       flex: 1 1 auto;
       min-width: 0;
+      min-height: 0;
       max-height: 100%;
       overflow: auto;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
+      display: block;
       padding: 0 2mm 5mm;
     }
 
-    .doc-zoom-stage {
-      transform-origin: top center;
+    .doc-zoom-pad {
+      margin: 0 auto;
+      position: relative;
       flex-shrink: 0;
+    }
+
+    .doc-zoom-stage {
+      transform-origin: top left;
+      flex-shrink: 0;
+      width: max-content;
     }
 
     .zoom-controls {
@@ -669,6 +757,13 @@
       outline: none;
     }
 
+    .form-footer__master {
+      width: 50mm;
+      text-align: center;
+      font-size: 8pt;
+      border-bottom-color: #000;
+    }
+
     .sig-block {
       display: flex;
       align-items: baseline;
@@ -738,7 +833,9 @@
         box-shadow: none;
         border: none;
         width: 100%;
+        height: auto;
         min-height: unset;
+        overflow: visible;
         padding: 0;
       }
 
@@ -778,11 +875,18 @@
       transform: none !important;
     }
 
+    body.is-pdf-export .doc-zoom-pad {
+      width: auto !important;
+      height: auto !important;
+    }
+
     body.is-pdf-export .a4-page {
       box-shadow: none;
       border: none;
       width: 210mm;
+      height: auto;
       min-height: unset;
+      overflow: visible;
       padding: 6mm 10mm 6mm 0;
     }
 
@@ -808,10 +912,10 @@
     .header-block input.fi {
       pointer-events: none;
     }
-    .header-block .cb-group {
+    .sheet-meta .cb-group {
       cursor: default;
     }
-    .header-block .cb-item {
+    .sheet-meta .cb-item {
       cursor: pointer;
     }
 

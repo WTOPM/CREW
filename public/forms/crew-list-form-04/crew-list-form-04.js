@@ -1,74 +1,22 @@
-const MAX_ROWS = 15;
-    const tableBody = document.getElementById('table-body');
+const tbody = document.getElementById('tbody');
 
-    function escAttr(val) {
-      return String(val || '')
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/</g, '&lt;');
+    function rowCells(tr) {
+      return tr.querySelectorAll('.ci');
     }
 
-    function rowCells(row) {
-      return row.querySelectorAll('.ci');
-    }
-
-    const CREW_TEMPS = ['36.5 C', '36.6 C', '36.7 C'];
-
-    function randomCrewTemperature() {
-      return CREW_TEMPS[Math.floor(Math.random() * CREW_TEMPS.length)];
-    }
-
-    function parseTempNumber(raw) {
-      const m = String(raw || '').trim().match(/^(\d+(?:[.,]\d+)?)/);
-      return m ? m[1].replace(',', '.') : '';
-    }
-
-    function formatTempNumber(numStr) {
-      const raw = parseTempNumber(numStr);
-      if (!raw) return '';
-      const n = parseFloat(raw);
-      if (Number.isNaN(n)) return '';
-      return n.toFixed(1);
-    }
-
-    function tempStoredValue(raw) {
-      const num = formatTempNumber(raw);
-      return num ? `${num} C` : '';
-    }
-
-    function temperatureInput(row) {
-      return row ? row.querySelector('input.ci-temp') : null;
-    }
-
-    function fillTemperatureForRow(row, force = false) {
-      const inp = temperatureInput(row);
-      if (!inp) return;
-      if (!rowHasData(row)) {
-        inp.value = '';
-        return;
-      }
-      if (force || !inp.value.trim()) {
-        inp.value = randomCrewTemperature();
-      }
-    }
-
-    function fillAllTemperatures(force = false) {
-      Array.from(tableBody.children).forEach((row) => fillTemperatureForRow(row, force));
-    }
-
-    function rowHasData(row) {
-      return Array.from(row.querySelectorAll('.ci')).some((cell) => {
-        if (cell.classList.contains('ci-rno') || cell.classList.contains('ci-temp')) return false;
+    function rowHasData(tr) {
+      return Array.from(tr.querySelectorAll('.ci')).some((cell) => {
+        if (cell.classList.contains('ci-rno')) return false;
         return cellText(cell).trim();
       });
     }
 
     function refreshRowNumbers() {
       let n = 0;
-      Array.from(tableBody.children).forEach((row) => {
-        const rno = row.querySelector('.ci-rno');
+      Array.from(tbody.children).forEach((tr) => {
+        const rno = tr.querySelector('.ci-rno');
         if (!rno) return;
-        if (rowHasData(row)) {
+        if (rowHasData(tr)) {
           n += 1;
           rno.textContent = String(n);
         } else {
@@ -77,36 +25,34 @@ const MAX_ROWS = 15;
       });
     }
 
+    function escAttr(val) {
+      return String(val || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+    }
+
     function addRow(d = {}) {
-      const row = document.createElement('div');
-      row.className = 'table-row';
-      row.innerHTML = `
-    <div class="td-cell ch-no"><div class="ci ci-rno" tabindex="-1"></div></div>
-    <div class="td-cell ch-name"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></div>
-    <div class="td-cell ch-rank"><input class="ci" type="text" value="${escAttr(d.rank)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-nat"><input class="ci" type="text" value="${escAttr(d.nat)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-birth"><input class="ci" type="text" value="${escAttr(d.birth)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc1)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc2)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinDate)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinPlace)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-vertical border-right-none"><input class="ci ci-temp" type="text" value="${escAttr(tempStoredValue(d.temperature || ''))}" inputmode="decimal" tabindex="0"></div>`;
-      tableBody.appendChild(row);
-      fillTemperatureForRow(row);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+    <td class="c0"><div class="ci ci-rno" tabindex="-1"></div></td>
+    <td class="c1"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></td>
+    <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly tabindex="-1"></td>
+    <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly tabindex="-1"></td>
+    <td class="c4"><input class="ci" type="text" value="${d.birth || ''}" readonly tabindex="-1"></td>
+    <td class="c5"><input class="ci" type="text" value="${d.passport || ''}" readonly tabindex="-1"></td>
+    <td class="c6"><input class="ci" type="text" value="${d.expiry || ''}" placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>
+    <td class="c7"><input class="ci" type="text" value="${d.issue || ''}" readonly tabindex="-1"></td>
+    <td class="c8"><input class="ci" type="text" value="${d.gender || ''}" readonly tabindex="-1"></td>`;
+      tbody.appendChild(tr);
       refreshRowNumbers();
     }
     function removeRow() {
-      if (tableBody.lastChild) {
-        tableBody.removeChild(tableBody.lastChild);
-        fillAllTemperatures(true);
+      if (tbody.lastChild) {
+        tbody.removeChild(tbody.lastChild);
         refreshRowNumbers();
       }
     }
-    function addRowFromPanel() {
-      addRow();
-      fillAllTemperatures(true);
-    }
-
     function setAD(v) {
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
@@ -128,16 +74,16 @@ const MAX_ROWS = 15;
     let selectionAnchor = null;
 
     function cellCoords(el) {
-      const rowEl = el.closest('.table-row');
-      const row = Array.from(tableBody.children).indexOf(rowEl);
-      const col = Array.from(rowCells(rowEl)).indexOf(el);
+      const tr = el.closest('tr');
+      const row = Array.from(tbody.children).indexOf(tr);
+      const col = Array.from(rowCells(tr)).indexOf(el);
       return { row, col };
     }
 
     function cellAt(row, col) {
-      const rowEl = tableBody.children[row];
-      if (!rowEl) return null;
-      const cells = rowCells(rowEl);
+      const tr = tbody.children[row];
+      if (!tr) return null;
+      const cells = rowCells(tr);
       return cells[col] || null;
     }
 
@@ -194,39 +140,15 @@ const MAX_ROWS = 15;
       return `<table><tbody>${rows.join('')}</tbody></table>`;
     }
 
-    function isTempInput(el) {
-      return el && el.classList?.contains('ci-temp') && el.tagName === 'INPUT';
-    }
-
     function clearSelection() {
       selectedCells.forEach(c => c.classList.remove('selected'));
       selectedCells = [];
     }
 
-    function exitCellEdit() {
+    function dismissSelection() {
       clearSelection();
-      const active = document.activeElement;
-      if (isTempInput(active)) active.blur();
-    }
-
-    function normalizeTempInput(inp) {
-      if (!isTempInput(inp)) return;
-      inp.value = tempStoredValue(inp.value);
-    }
-
-    function beginTempEdit(inp) {
-      if (!isTempInput(inp)) return;
-      inp.value = formatTempNumber(inp.value) || parseTempNumber(inp.value);
-      requestAnimationFrame(() => {
-        if (document.activeElement !== inp) return;
-        inp.setSelectionRange(0, inp.value.length);
-      });
-    }
-
-    function commitTempInput(inp) {
-      if (!isTempInput(inp)) return;
-      normalizeTempInput(inp);
-      exitCellEdit();
+      isDragging = false;
+      selectionAnchor = null;
     }
 
     function addSelectedCell(cell) {
@@ -271,26 +193,14 @@ const MAX_ROWS = 15;
       let target = returnUrl();
       if (feedback) {
         const sep = target.includes('?') ? '&' : '?';
-        target += `${sep}form03Feedback=${feedback}`;
+        target += `${sep}form04Feedback=${feedback}`;
       }
       location.href = target;
     }
 
-    tableBody.addEventListener('mousedown', (e) => {
-      const tempInp = e.target.closest('input.ci-temp');
-      if (tempInp && tableBody.contains(tempInp)) {
-        clearSelection();
-        return;
-      }
+    tbody.addEventListener('mousedown', (e) => {
       const cell = e.target.closest('.ci');
-      if (!cell || !tableBody.contains(cell)) return;
-      if (isTempInput(cell)) {
-        clearSelection();
-        return;
-      }
-      if (isTempInput(document.activeElement)) {
-        document.activeElement.blur();
-      }
+      if (!cell || !tbody.contains(cell)) return;
       e.preventDefault();
       isDragging = true;
       selectionAnchor = cellCoords(cell);
@@ -298,20 +208,10 @@ const MAX_ROWS = 15;
       syncToolbarFromCell(cell);
     });
 
-    tableBody.addEventListener('focusin', (e) => {
-      if (!isTempInput(e.target)) return;
-      beginTempEdit(e.target);
-    });
-
-    tableBody.addEventListener('focusout', (e) => {
-      if (!isTempInput(e.target)) return;
-      normalizeTempInput(e.target);
-    });
-
-    tableBody.addEventListener('mouseover', (e) => {
+    tbody.addEventListener('mouseover', (e) => {
       if (!isDragging || !selectionAnchor) return;
       const cell = e.target.closest('.ci');
-      if (!cell || !tableBody.contains(cell)) return;
+      if (!cell || !tbody.contains(cell)) return;
       const current = cellCoords(cell);
       selectRange(selectionAnchor.row, selectionAnchor.col, current.row, current.col);
     });
@@ -328,13 +228,8 @@ const MAX_ROWS = 15;
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && isTempInput(e.target)) {
-        e.preventDefault();
-        commitTempInput(e.target);
-        return;
-      }
       if (e.key === 'Escape') {
-        exitCellEdit();
+        dismissSelection();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && selectedCells.length) {
@@ -344,9 +239,9 @@ const MAX_ROWS = 15;
     });
 
     document.body.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.a4-landscape-page')) return;
+      if (e.target.closest('.a4-page')) return;
       if (e.target.closest('.confirm-backdrop')) return;
-      exitCellEdit();
+      dismissSelection();
     });
 
     function syncCellFlexAlignment(cell) {
@@ -384,22 +279,7 @@ const MAX_ROWS = 15;
     let stampImgUrl = null;
     let sigImgUrl = null;
 
-    const ZOOM_STORAGE_KEY = 'crew03-editor-zoom';
-    /** Landscape Form 03 — stamp/signature defaults over field 12 (footer). */
-    const FORM03_OVERLAY_DEFAULTS = {
-      stamp: {
-        left: 'calc(100% - 58mm)',
-        top: 'calc(100% - 50mm)',
-        width: '34mm',
-        height: '34mm',
-      },
-      sig: {
-        left: 'calc(100% - 78mm)',
-        top: 'calc(100% - 23mm)',
-        width: '46mm',
-        height: '17mm',
-      },
-    };
+    const ZOOM_STORAGE_KEY = 'crew04-editor-zoom';
     const ZOOM_MIN = 50;
     const ZOOM_MAX = 200;
     const ZOOM_STEP = 10;
@@ -414,7 +294,7 @@ const MAX_ROWS = 15;
     function applyEditorZoom() {
       const stage = document.getElementById('doc-zoom-stage');
       const pad = document.getElementById('doc-zoom-pad');
-      const page = stage?.querySelector('.a4-landscape-page');
+      const page = stage?.querySelector('.a4-page');
       const label = document.getElementById('zoom-label');
       const scale = editorZoomPct / 100;
       if (stage) {
@@ -469,7 +349,7 @@ const MAX_ROWS = 15;
       }, { passive: false });
     }
 
-    const CREW_FORM_03_TYPE = 'type2Alger';
+    const CREW_FORM_04_TYPE = 'type3V2';
     const APP_DATA_SCHEMA_VERSION = 16;
     window._currentPositions = null;
 
@@ -529,7 +409,7 @@ const MAX_ROWS = 15;
       try {
         const appData = window._appData;
         if (appData && appData.documentOverlay && appData.documentOverlay.crewList && appData.documentOverlay.crewList.byType) {
-          const variant = appData.documentOverlay.crewList.byType[CREW_FORM_03_TYPE];
+          const variant = appData.documentOverlay.crewList.byType[CREW_FORM_04_TYPE];
           if (variant) {
             const stampCss = cssBoxFromVariant(variant.stampBox);
             const sigCss = cssBoxFromVariant(variant.signatureBox);
@@ -591,9 +471,9 @@ const MAX_ROWS = 15;
     function restoreCellStyles() {
       const saved = loadPositions();
       const cellStyles = saved.cellStyles || {};
-      const rows = tableBody.querySelectorAll('.table-row');
-      rows.forEach((rowEl, rowIndex) => {
-        const inputs = rowEl.querySelectorAll('input.ci');
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach((tr, rowIndex) => {
+        const inputs = tr.querySelectorAll('input.ci');
         inputs.forEach((input, colIndex) => {
           const style = cellStyles[`${rowIndex}-${colIndex}`];
           if (style) {
@@ -604,7 +484,7 @@ const MAX_ROWS = 15;
             else if (style.textAlign) syncCellFlexAlignment(input);
           }
         });
-        const nameCell = rowEl.querySelector('.ci-name');
+        const nameCell = tr.querySelector('.ci-name');
         const nameStyle = cellStyles[`${rowIndex}-name`];
         if (nameCell && nameStyle) {
           if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
@@ -621,9 +501,9 @@ const MAX_ROWS = 15;
       
       // Extract cell styles
       const cellStyles = {};
-      const rows = tableBody.querySelectorAll('.table-row');
-      rows.forEach((rowEl, rowIndex) => {
-        const inputs = rowEl.querySelectorAll('input.ci');
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach((tr, rowIndex) => {
+        const inputs = tr.querySelectorAll('input.ci');
         inputs.forEach((input, colIndex) => {
           const style = {};
           if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
@@ -634,7 +514,7 @@ const MAX_ROWS = 15;
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
-        const nameCell = rowEl.querySelector('.ci-name');
+        const nameCell = tr.querySelector('.ci-name');
         if (nameCell) {
           const nameStyle = {};
           if (nameCell.style.fontFamily) nameStyle.fontFamily = nameCell.style.fontFamily;
@@ -660,20 +540,20 @@ const MAX_ROWS = 15;
 
       if (!appData.documentOverlay) appData.documentOverlay = {};
       if (!appData.documentOverlay.crewList) {
-        appData.documentOverlay.crewList = { listType: CREW_FORM_03_TYPE, byType: {} };
+        appData.documentOverlay.crewList = { listType: CREW_FORM_04_TYPE, byType: {} };
       }
       if (!appData.documentOverlay.crewList.byType) {
         appData.documentOverlay.crewList.byType = {};
       }
 
-      const prev = appData.documentOverlay.crewList.byType[CREW_FORM_03_TYPE] || {};
+      const prev = appData.documentOverlay.crewList.byType[CREW_FORM_04_TYPE] || {};
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
       const footerSignatureDate = document.getElementById('f-footer-date')?.value?.trim() || undefined;
 
-      appData.documentOverlay.crewList.listType = CREW_FORM_03_TYPE;
-      appData.documentOverlay.crewList.byType[CREW_FORM_03_TYPE] = {
+      appData.documentOverlay.crewList.listType = CREW_FORM_04_TYPE;
+      appData.documentOverlay.crewList.byType[CREW_FORM_04_TYPE] = {
         ...prev,
         useStamp: !!window._currentPositions.stamp.visible,
         useSignature: !!window._currentPositions.sig.visible,
@@ -732,9 +612,9 @@ const MAX_ROWS = 15;
     }
 
     function resetCellStyles() {
-      if (window.CrewCellFormat) CrewCellFormat.resetAllCells(tableBody);
+      if (window.CrewCellFormat) CrewCellFormat.resetAllCells(tbody);
       else {
-        tableBody.querySelectorAll('.ci:not(.ci-rno)').forEach((cell) => {
+        tbody.querySelectorAll('.ci:not(.ci-rno)').forEach((cell) => {
           cell.style.removeProperty('font-family');
           cell.style.removeProperty('font-size');
           cell.style.removeProperty('text-align');
@@ -765,8 +645,8 @@ const MAX_ROWS = 15;
       const stamp = document.getElementById('stamp-container');
       const sig = document.getElementById('sig-container');
       
-      const stampDefault = FORM03_OVERLAY_DEFAULTS.stamp;
-      const sigDefault = FORM03_OVERLAY_DEFAULTS.sig;
+      const stampDefault = { left: 'calc(100% - 50mm)', top: 'calc(100% - 50mm)', width: '38mm', height: '38mm' };
+      const sigDefault = { left: 'calc(100% - 60mm)', top: 'calc(100% - 28mm)', width: '50mm', height: '20mm' };
       
       // Always reset the style coordinates to correct defaults unconditionally
       stamp.style.left = stampDefault.left;
@@ -821,7 +701,7 @@ const MAX_ROWS = 15;
       if (!checked) { el.classList.remove('visible'); savePositions(); return; }
       if (!stampImgUrl) stampImgUrl = await loadAsset('stamp');
       if (stampImgUrl) {
-        showOverlay(el, stampImgUrl, FORM03_OVERLAY_DEFAULTS.stamp);
+        showOverlay(el, stampImgUrl, { left: 'calc(100% - 50mm)', top: 'calc(100% - 50mm)', width: '38mm', height: '38mm' });
         savePositions();
       } else {
         if (window.CrewOverlayToolbar) CrewOverlayToolbar.setStampOn(false);
@@ -837,7 +717,7 @@ const MAX_ROWS = 15;
       if (!checked) { el.classList.remove('visible'); savePositions(); return; }
       if (!sigImgUrl) sigImgUrl = await loadAsset('signature');
       if (sigImgUrl) {
-        showOverlay(el, sigImgUrl, FORM03_OVERLAY_DEFAULTS.sig);
+        showOverlay(el, sigImgUrl, { left: 'calc(100% - 60mm)', top: 'calc(100% - 28mm)', width: '50mm', height: '20mm' });
         savePositions();
       } else {
         if (window.CrewOverlayToolbar) CrewOverlayToolbar.setSigOn(false);
@@ -941,7 +821,6 @@ const MAX_ROWS = 15;
       if (appData) {
         const ship = appData.ship || {};
         window._shipData = ship; // Save for setAD date switching
-
         document.getElementById('h-ship-name').value = ship.name || '';
         document.getElementById('h-port').value = ship.portOfCall || '';
         document.getElementById('h-nat').value = ship.nationality || '';
@@ -953,12 +832,9 @@ const MAX_ROWS = 15;
           ports,
         );
 
+        // Read ?mode=arrival|departure from URL
         const urlMode = new URLSearchParams(window.location.search).get('mode');
-        const isArrival = urlMode === 'departure'
-          ? false
-          : (urlMode === 'arrival'
-            ? true
-            : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
+        const isArrival = urlMode === 'departure' ? false : (urlMode === 'arrival' ? true : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
 
         if (isArrival) {
           setAD('arrival');
@@ -966,14 +842,15 @@ const MAX_ROWS = 15;
           setAD('departure');
         }
 
-        const savedForm03 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_03_TYPE];
+        const savedForm04 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_04_TYPE];
         const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl && savedForm03?.footerSignatureDate) {
-          footerDateEl.value = savedForm03.footerSignatureDate;
+        if (footerDateEl && savedForm04?.footerSignatureDate) {
+          footerDateEl.value = savedForm04.footerSignatureDate;
         }
 
         let crewList = [];
         if (Array.isArray(appData.crew)) {
+          // Snapshot mode already carries the exact filtered/ordered list — use as-is.
           crewList = snapshot
             ? appData.crew
             : appData.crew.filter(c => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false));
@@ -985,33 +862,30 @@ const MAX_ROWS = 15;
         }
         const masterEl = document.getElementById('f-master-name');
         if (masterEl && master) {
-          masterEl.textContent = CrewNameFormat.formatCrewListName(master);
+          masterEl.textContent = CrewNameFormat.formatCrewListName(master, { upper: true });
         } else if (masterEl) {
           masterEl.textContent = '';
         }
 
         crewList.forEach(c => {
-          const name = CrewNameFormat.formatCrewListName(c);
+          const name = CrewNameFormat.formatCrewListName(c, { upper: true });
           const birth = [fmtDate(c.dateOfBirth), c.placeOfBirth].filter(Boolean).join(' ');
+          const gender = c.gender === 'MALE' || c.gender === 'FEMALE' ? c.gender : '';
           addRow({
             name,
             rank: c.rank || '',
             nat: c.nationality || '',
             birth,
-            doc1: c.passport || '',
-            doc2: c.seamansBook || '',
-            joinDate: fmtDate(c.joiningDate),
-            joinPlace: c.joiningPort || '',
+            passport: c.passport || '',
+            expiry: fmtDate(c.passportExpiryDate),
+            issue: (c.passportPlaceOfIssue || '').toUpperCase(),
+            gender,
           });
         });
-      } else {
-        // No crew in snapshot — empty rows only
       }
 
-      for (let i = tableBody.children.length; i < MAX_ROWS; i++) addRow();
+      for (let i = tbody.children.length; i < 20; i++) addRow();
       refreshRowNumbers();
-      fillAllTemperatures(true);
-      applyEditorZoom();
     }
 
     /** html2canvas mis-renders <input> text (vertical baseline drifts below the box).
@@ -1026,7 +900,7 @@ const MAX_ROWS = 15;
         // overrides, ...) — copying only a few properties dropped things like the
         // master-name field's fixed width, stretching its underline across the page.
         replacement.style.cssText = input.style.cssText;
-        if (input.closest('.imo-table') && !input.closest('.doc-footer')) {
+        if (input.closest('.header-block')) {
           replacement.style.border = 'none';
           replacement.style.borderBottom = 'none';
         }

@@ -535,6 +535,15 @@ body {
   color: #444;
 }
 
+.ci.ci-name {
+  display: flex;
+  align-items: center;
+  min-height: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 input.ci.ci-temp {
   cursor: text;
   caret-color: auto;
