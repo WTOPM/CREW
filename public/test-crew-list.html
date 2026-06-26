@@ -1173,12 +1173,46 @@
       for (let i = cnt; i < 18; i++) addRow();
     }
 
+    /** html2canvas mis-renders <input> text (vertical baseline drifts below the box).
+     *  For a clean capture, swap every input for a plain text element with the same
+     *  class (so the existing CSS — font, padding, alignment — applies unchanged). */
+    function flattenInputsForExport() {
+      document.querySelectorAll('input.ci, input.fi').forEach((input) => {
+        const replacement = document.createElement('div');
+        replacement.className = input.className;
+        replacement.textContent = input.value || '';
+        // Carry over ALL inline styles (width, border-bottom-color, toolbar font/align
+        // overrides, ...) — copying only a few properties dropped things like the
+        // master-name field's fixed width, stretching its underline across the page.
+        replacement.style.cssText = input.style.cssText;
+        if (input.classList.contains('ci')) {
+          // Native <input> vertically centers its value via the UA stylesheet — replicate
+          // that for the plain div so table-cell text lines up with the grid, not below it.
+          replacement.style.display = 'flex';
+          replacement.style.alignItems = 'center';
+          replacement.style.justifyContent =
+            replacement.style.textAlign === 'center'
+              ? 'center'
+              : replacement.style.textAlign === 'right'
+                ? 'flex-end'
+                : 'flex-start';
+          replacement.style.whiteSpace = 'nowrap';
+          replacement.style.overflow = 'hidden';
+        }
+        input.replaceWith(replacement);
+      });
+    }
+
     (async () => {
-      if (new URLSearchParams(location.search).get('pdfExport') === '1') {
+      const isPdfExport = new URLSearchParams(location.search).get('pdfExport') === '1';
+      if (isPdfExport) {
         document.body.classList.add('is-pdf-export');
       }
       await loadAppData();
       await restoreOverlaySettings();
+      if (isPdfExport) {
+        flattenInputsForExport();
+      }
       // Signal to a headless capture (iframe + html2canvas) that the page is fully populated.
       window.__pdfReady = true;
       // ?print=1 → generate PDF: open the browser print dialog once everything is rendered.

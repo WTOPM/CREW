@@ -48,15 +48,27 @@ export class PdfCrewListForm05Service {
         throw new Error('Crew List form failed to render');
       }
 
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-      await doc.html(pageEl, {
-        x: 0,
-        y: 0,
-        width: 210,
-        windowWidth: pageEl.scrollWidth,
-        html2canvas: { scale: 3, backgroundColor: '#ffffff' },
+      const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ]);
+      // foreignObjectRendering hands painting to the browser engine itself rather than
+      // html2canvas's manual canvas-painting path, which: mangles `writing-mode: vertical-rl`
+      // text (the side label) into garbage glyphs, doubles up collapsed table borders, and
+      // drops `mix-blend-mode` overlays (the stamp/signature) entirely.
+      const canvas = await html2canvas(pageEl, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        foreignObjectRendering: true,
       });
+
+      // Fit the captured page as a single full-bleed image on one A4 page — avoids
+      // jsPDF's doc.html() autopaging, which mis-scales text into dozens of pages.
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
+      doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidth, imgHeight);
 
       const bytes = new Uint8Array(doc.output('arraybuffer'));
       return this.delivery.deliver(bytes, this.fileName(data, isArrival));
