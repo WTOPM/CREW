@@ -23,8 +23,10 @@ export class PdfCrewListForm05Service {
     iframe.style.position = 'fixed';
     iframe.style.left = '-10000px';
     iframe.style.top = '0';
-    iframe.style.width = '900px';
-    iframe.style.height = '1300px';
+    // Match the form's own A4 width exactly — a wider iframe leaves blank space beside
+    // the content, which then gets squeezed into the PDF page and shifts everything left.
+    iframe.style.width = '210mm';
+    iframe.style.height = '297mm';
     iframe.style.border = '0';
     document.body.appendChild(iframe);
 
@@ -43,8 +45,8 @@ export class PdfCrewListForm05Service {
         await new Promise((resolve) => setTimeout(resolve, 80));
       }
 
-      const pageEl = iframe.contentDocument?.querySelector<HTMLElement>('.a4-page');
-      if (!pageEl) {
+      const frameDoc = iframe.contentDocument;
+      if (!frameDoc?.querySelector('.a4-page')) {
         throw new Error('Crew List form failed to render');
       }
 
@@ -56,7 +58,10 @@ export class PdfCrewListForm05Service {
       // html2canvas's manual canvas-painting path, which: mangles `writing-mode: vertical-rl`
       // text (the side label) into garbage glyphs, doubles up collapsed table borders, and
       // drops `mix-blend-mode` overlays (the stamp/signature) entirely.
-      const canvas = await html2canvas(pageEl, {
+      // Capturing the whole body (not the .a4-page sub-element) sidesteps a separate
+      // foreignObjectRendering bug that mis-crops sub-elements at scale > 1 — the page's own
+      // script removes the side toolbars in export mode, so body == exactly the page content.
+      const canvas = await html2canvas(frameDoc.body, {
         scale: 2,
         backgroundColor: '#ffffff',
         useCORS: true,

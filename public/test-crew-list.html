@@ -573,9 +573,14 @@
     }
 
     /* ── PDF export (headless capture) — same visual stripping as @media print,
-       but applied unconditionally so html2canvas captures a clean page. ── */
+       but applied unconditionally so html2canvas captures a clean page.
+       Side toolbars are removed from the DOM in export mode (see flattenInputsForExport),
+       so the body collapses to exactly the page content — no sub-element crop math needed,
+       which avoids a html2canvas/foreignObjectRendering bug that mis-crops at scale > 1. ── */
     body.is-pdf-export {
+      display: block;
       background: #fff;
+      margin: 0;
       padding: 0;
     }
 
@@ -1211,6 +1216,9 @@
       await loadAppData();
       await restoreOverlaySettings();
       if (isPdfExport) {
+        // Drop the toolbars from the DOM (not just hide them) so the body shrinks to
+        // exactly the page content — capture target == document.body, no cropping needed.
+        document.querySelectorAll('.side-panel').forEach((el) => el.remove());
         flattenInputsForExport();
       }
       // Signal to a headless capture (iframe + html2canvas) that the page is fully populated.
