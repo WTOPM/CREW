@@ -571,6 +571,35 @@
         margin: 8mm 6mm;
       }
     }
+
+    /* ── PDF export (headless capture) — same visual stripping as @media print,
+       but applied unconditionally so html2canvas captures a clean page. ── */
+    body.is-pdf-export {
+      background: #fff;
+      padding: 0;
+    }
+
+    body.is-pdf-export .a4-page {
+      box-shadow: none;
+      border: none;
+      width: 210mm;
+      min-height: unset;
+      padding: 6mm 10mm 6mm 0;
+    }
+
+    body.is-pdf-export .actions,
+    body.is-pdf-export .side-panel {
+      display: none;
+    }
+
+    body.is-pdf-export .overlay-marker.visible {
+      outline: none;
+    }
+
+    body.is-pdf-export .overlay-resize,
+    body.is-pdf-export .overlay-h {
+      display: none;
+    }
   </style>
 </head>
 
@@ -1145,9 +1174,12 @@
     }
 
     (async () => {
+      if (new URLSearchParams(location.search).get('pdfExport') === '1') {
+        document.body.classList.add('is-pdf-export');
+      }
       await loadAppData();
       await restoreOverlaySettings();
-      // Signal to a headless renderer (Electron printToPDF) that the page is fully populated.
+      // Signal to a headless capture (iframe + html2canvas) that the page is fully populated.
       window.__pdfReady = true;
       // ?print=1 → generate PDF: open the browser print dialog once everything is rendered.
       if (new URLSearchParams(location.search).get('print') === '1') {

@@ -15,7 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listPrinters: () => ipcRenderer.invoke('list-printers'),
   printPdf: (base64, copies, deviceName) =>
     ipcRenderer.invoke('print-pdf', base64, copies, deviceName),
-  renderHtmlToPdf: (relativeUrl) => ipcRenderer.invoke('render-html-to-pdf', relativeUrl),
   saveCrewPdf: (crewId, docType, sourcePath) =>
     ipcRenderer.invoke('save-crew-pdf', crewId, docType, sourcePath),
   saveCrewPdfBytes: (crewId, docType, base64) =>

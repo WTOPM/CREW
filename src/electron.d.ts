@@ -30,7 +30,6 @@ declare global {
         copies: number,
         deviceName: string,
       ) => Promise<{ ok: boolean; error?: string }>;
-      renderHtmlToPdf: (relativeUrl: string) => Promise<string>;
       saveCrewPdf: (
         crewId: string,
         docType: CrewDocumentType,

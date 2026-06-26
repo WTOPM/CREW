@@ -345,49 +345,6 @@ ipcMain.handle('print-pdf', (_event, base64, copies, deviceName) => {
   });
 });
 
-ipcMain.handle('render-html-to-pdf', async (_event, relativeUrl) => {
-  const renderWin = new BrowserWindow({
-    show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  });
-  const cleanup = () => {
-    try {
-      if (!renderWin.isDestroyed()) renderWin.destroy();
-    } catch {}
-  };
-  try {
-    const base = app.isPackaged ? APP_ORIGIN : 'http://localhost:4200';
-    await renderWin.webContents.loadURL(`${base}${relativeUrl}`);
-
-    // Wait until the page signals it has finished populating ship/crew data and overlays.
-    const deadline = Date.now() + 8000;
-    let ready = false;
-    while (Date.now() < deadline) {
-      ready = await renderWin.webContents
-        .executeJavaScript('window.__pdfReady === true')
-        .catch(() => false);
-      if (ready) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-
-    const pdfBuffer = await renderWin.webContents.printToPDF({
-      printBackground: true,
-      preferCSSPageSize: true,
-    });
-    const base64 = pdfBuffer.toString('base64');
-    cleanup();
-    return base64;
-  } catch (err) {
-    cleanup();
-    throw err;
-  }
-});
-
 ipcMain.handle('pdf-exists', (_event, dirPath, fileName) => {
   try {
     const safeName = path.basename(String(fileName || ''));

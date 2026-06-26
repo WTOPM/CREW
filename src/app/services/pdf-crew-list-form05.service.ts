@@ -1,14 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { AppData, CrewMember } from '../models/crew.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
-import { base64ToUint8 } from '../utils/base64.util';
 import { crewListForm05PdfFileName } from '../utils/pdf-filename.util';
 
 /**
  * Form 05 - CREW LIST [SBK][E] is authored as an HTML page (test-crew-list.html), not a
- * pdf-lib template. To match the other crew-list forms' UX (PDF generated and opened in its
- * own window), this renders that HTML headlessly in Electron (printToPDF) and delivers the
- * resulting bytes through the same PdfDeliveryService as every other form.
+ * pdf-lib template. To match every other crew-list form's UX — a PDF generated and opened
+ * in its own window, no print dialog — this renders that page in a hidden iframe and
+ * captures it to a real PDF with jsPDF/html2canvas (already app dependencies), then delivers
+ * the bytes through the same PdfDeliveryService as every other form.
  */
 @Injectable({ providedIn: 'root' })
 export class PdfCrewListForm05Service {
@@ -16,20 +16,53 @@ export class PdfCrewListForm05Service {
 
   async openPreview(data: AppData, crew: CrewMember[], isArrival: boolean): Promise<boolean> {
     const mode = isArrival ? 'arrival' : 'departure';
-    const electron = window.electronAPI;
-
-    if (!electron) {
-      // Browser/dev fallback (no native PDF render available): open the printable HTML form
-      // and let the browser's own print-to-PDF dialog produce the document.
-      const win = window.open(`/test-crew-list.html?mode=${mode}&print=1`, '_blank');
-      return !!win;
-    }
-
     const snapshot = this.buildSnapshot(data, crew);
-    const url = `/test-crew-list.html?mode=${mode}&data=${encodeURIComponent(JSON.stringify(snapshot))}`;
-    const base64 = await electron.renderHtmlToPdf(url);
-    const bytes = base64ToUint8(base64);
-    return this.delivery.deliver(bytes, this.fileName(data, isArrival));
+    const url = `/test-crew-list.html?mode=${mode}&pdfExport=1&data=${encodeURIComponent(JSON.stringify(snapshot))}`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-10000px';
+    iframe.style.top = '0';
+    iframe.style.width = '900px';
+    iframe.style.height = '1300px';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        iframe.addEventListener('load', () => resolve(), { once: true });
+        iframe.addEventListener('error', () => reject(new Error('Failed to load Crew List form')), {
+          once: true,
+        });
+        iframe.src = url;
+      });
+
+      const frameWindow = iframe.contentWindow as (Window & { __pdfReady?: boolean }) | null;
+      const deadline = Date.now() + 8000;
+      while (!frameWindow?.__pdfReady && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      }
+
+      const pageEl = iframe.contentDocument?.querySelector<HTMLElement>('.a4-page');
+      if (!pageEl) {
+        throw new Error('Crew List form failed to render');
+      }
+
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      await doc.html(pageEl, {
+        x: 0,
+        y: 0,
+        width: 210,
+        windowWidth: pageEl.scrollWidth,
+        html2canvas: { scale: 3, backgroundColor: '#ffffff' },
+      });
+
+      const bytes = new Uint8Array(doc.output('arraybuffer'));
+      return this.delivery.deliver(bytes, this.fileName(data, isArrival));
+    } finally {
+      iframe.remove();
+    }
   }
 
   fileName(data: AppData, isArrival: boolean): string {
