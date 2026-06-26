@@ -83,6 +83,19 @@
       min-width: 0;
       width: 100%;
       position: relative; /* anchor for draggable overlays */
+      /* Column width ratios — single source of truth (total 194 parts) */
+      --form-w: 194;
+      --w-h1: 67;  /* c0+c1 */
+      --w-h2: 85;  /* c2+c3+c4+c5 */
+      --w-h3: 42;  /* c6+c7 */
+      --w-c0: 6;
+      --w-c1: 61;
+      --w-c2: 20;
+      --w-c3: 21;
+      --w-c4: 17;
+      --w-c5: 27;
+      --w-c6: 21;
+      --w-c7: 21;
     }
 
     /* ── DRAGGABLE OVERLAYS (stamp / signature) ── */
@@ -148,11 +161,20 @@
       .overlay-resize, .overlay-h { display: none; }
     }
 
+    /* ── FORM SHEET (one outer border for header + table) ── */
+    .form-sheet {
+      width: 100%;
+      border: 1px solid #000;
+      box-sizing: border-box;
+      flex-shrink: 0;
+    }
+
     /* ── HEADER BLOCK ── */
     .header-block {
-      border: 1px solid #000;
-      border-bottom: none;
+      border: none;
       flex-shrink: 0;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .hrow {
@@ -215,23 +237,26 @@
       flex-shrink: 0;
     }
 
-    /* Rows 2 & 3 */
+    .ad-lbl--active {
+      font-weight: 700;
+    }
+
+    /* Rows 2 & 3 — same width fractions as table column groups */
     .hrow-3col {
-      display: flex;
+      display: grid;
+      grid-template-columns:
+        calc(var(--w-h1) / var(--form-w) * 100%)
+        calc(var(--w-h2) / var(--form-w) * 100%)
+        calc(var(--w-h3) / var(--form-w) * 100%);
+      width: 100%;
       min-height: 6.5mm;
     }
 
-    /* Header column widths (similar to c1, c2, etc) */
-    .hc1 {
-      width: 82mm;
-    }
-
-    .hc2 {
-      width: 92mm;
-    }
-
+    /* Header column groups (width comes from grid track) */
+    .hc1,
+    .hc2,
     .hc3 {
-      width: 47mm;
+      min-width: 0;
     }
 
     .hcell {
@@ -291,15 +316,17 @@
       font-size: 6pt;
     }
 
-    /* ── CREW TABLE (no extra wrapper, fills main-content) ── */
+    /* ── CREW TABLE (no extra wrapper, fills form-sheet) ── */
     .crew-tbl {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
       font-size: 6pt;
-      border: 1px solid #000;
+      border: none;
+      border-top: 1px solid #000;
       cursor: default;
       user-select: none;
+      box-sizing: border-box;
     }
 
     /* All cells */
@@ -310,11 +337,15 @@
       vertical-align: top;
     }
 
-    /* Remove double left border: table left edge IS column 7 left edge */
+    /* Outer frame from .form-sheet — drop duplicate left/right on table edge cells */
     .crew-tbl th:first-child,
     .crew-tbl td:first-child {
       border-left: none;
-      /* outer table border serves as left edge */
+    }
+
+    .crew-tbl th:last-child,
+    .crew-tbl td:last-child {
+      border-right: none;
     }
 
     /* Header rows */
@@ -350,61 +381,45 @@
       background: #fafafa;
     }
 
-    /* ── Column widths ──
-   Total usable ≈ 194mm (210 - 10 side - 6 right pad)
-   No border-left on col-0 saves 0.5mm → use it for content
-*/
+    /* ── Column widths (% of table = same fractions as header groups) ── */
     .c0 {
-      width: 6mm;
+      width: calc(var(--w-c0) / var(--form-w) * 100%);
     }
 
-    /* No.        */
     .c1 {
-      /* width: 20mm; (Убрал жесткую ширину, чтобы эта колонка работала как "пружина" и забирала всё оставшееся место) */
+      width: calc(var(--w-c1) / var(--form-w) * 100%);
     }
 
-    /* Name       */
     .c2 {
-      width: 20mm;
+      width: calc(var(--w-c2) / var(--form-w) * 100%);
     }
 
-    /* Rank       */
     .c3 {
-      width: 21mm;
+      width: calc(var(--w-c3) / var(--form-w) * 100%);
     }
 
-    /* Nationality*/
-    /* col 11 header spans c4+c5 */
     .c4 {
-      width: 17mm;
+      width: calc(var(--w-c4) / var(--form-w) * 100%);
     }
 
-    /* DOB date   */
     .c5 {
-      width: 23mm;
+      width: calc(var(--w-c5) / var(--form-w) * 100%);
     }
 
-    /* DOB place  */
     .c6 {
-      width: 20mm;
+      width: calc(var(--w-c6) / var(--form-w) * 100%);
     }
 
-    /* Book No.   */
     .c7 {
-      width: 20mm;
+      width: calc(var(--w-c7) / var(--form-w) * 100%);
     }
 
-    /* Book Expiry*/
-    /* Total: 7+40+18+15+22+52+20+20 = 194mm ✓ */
+    /* Ratios: h1=67 h2=85 h3=42 | c0..c7 = 6+61+20+21+17+27+21+21 = 194 */
 
     .rno,
     .ci-rno {
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-size: 5.8pt;
       color: #444;
-      height: 100%;
     }
 
     body {
@@ -439,52 +454,110 @@
     }
 
     .zoom-controls {
-      margin-top: 3mm;
-      padding-top: 2mm;
-      border-top: 1px solid #bbb;
-    }
-
-    .zoom-controls__label {
-      font-size: 7pt;
-      font-weight: bold;
-      text-align: center;
-      margin-bottom: 1mm;
+      margin-top: 0.35rem;
+      padding-top: 0.35rem;
+      border-top: 1px solid #c5c5c5;
     }
 
     .zoom-controls__row {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(1.85rem, auto) 1fr minmax(1.85rem, auto);
       align-items: center;
-      gap: 1mm;
+      gap: 0.25rem;
     }
 
-    .zoom-controls__btn {
-      flex: 0 0 auto;
-      width: 8mm;
-      min-width: 8mm;
-      padding: 1mm 0;
+    .side-panel .zoom-controls__btn {
+      width: 1.85rem;
+      min-width: 1.85rem;
+      max-width: 1.85rem;
+      height: 1.85rem;
+      padding: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .zoom-controls__pct {
-      flex: 1;
       text-align: center;
-      font-size: 7pt;
+      font-size: var(--side-font);
       font-weight: 600;
       font-variant-numeric: tabular-nums;
+      min-width: 0;
     }
 
     .side-panel {
+      --side-panel-w: clamp(7.75rem, 10vw, 9.5rem);
+      --side-font: 0.8rem;
+      --side-font-sm: 0.75rem;
       display: flex;
       flex-direction: column;
-      gap: 2mm;
+      gap: 0.35rem;
       position: sticky;
       top: 5mm;
-      width: 30mm;
+      width: var(--side-panel-w);
+      flex: 0 0 var(--side-panel-w);
+      min-width: 0;
     }
 
-    .side-panel select,
-    .side-panel button {
+    .side-panel__title {
+      font-size: var(--side-font);
+      font-weight: 700;
+      text-align: center;
+      margin: 0.1rem 0 0.05rem;
+      color: #1e293b;
+    }
+
+    .side-panel__title--spaced {
+      margin-top: 0.45rem;
+    }
+
+    .side-panel__select {
       width: 100%;
       box-sizing: border-box;
+      font-family: Arial, sans-serif;
+      font-size: var(--side-font);
+      padding: 0.3rem 0.4rem;
+      border: 1px solid #94a3b8;
+      border-radius: 3px;
+      background: #fff;
+      color: #0f172a;
+    }
+
+    .side-panel__chk {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: var(--side-font);
+      cursor: pointer;
+      user-select: none;
+      padding: 0.08rem 0.15rem;
+    }
+
+    .side-panel__chk input {
+      width: auto;
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .side-panel .btn {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: var(--side-font);
+      padding: 0.35rem 0.5rem;
+      line-height: 1.25;
+      border-radius: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .side-panel .btn--compact {
+      margin-top: 0.2rem;
+      font-size: var(--side-font-sm);
+      padding: 0.3rem 0.4rem;
     }
 
     .ci {
@@ -526,6 +599,24 @@
       padding: .2mm .5mm;
     }
 
+    /* Row numbers — must override .ci { display:block } */
+    .ci.ci-rno {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 5mm;
+      box-sizing: border-box;
+    }
+
+    .crew-tbl tbody td.c0 {
+      padding: 0;
+      vertical-align: middle;
+      text-align: center;
+    }
+
     /* ── FOOTER ── */
     .form-footer {
       margin-top: 2mm;
@@ -536,12 +627,42 @@
     .foot-note {
       font-size: 6pt;
       color: #222;
-      margin-bottom: 3mm;
+      margin-bottom: 2mm;
+    }
+
+    .form-footer__sig-row {
+      display: grid;
+      grid-template-columns:
+        calc(var(--w-h1) / var(--form-w) * 100%)
+        calc(var(--w-c2) / var(--form-w) * 100%)
+        1fr;
+      align-items: baseline;
+      margin-top: 1mm;
+    }
+
+    .form-footer__sig-rest {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+    }
+
+    .form-footer__date {
+      width: 100%;
+      border: none !important;
+      border-bottom: none !important;
+      font-size: 8pt;
+      padding: 0 1mm;
+      text-align: left;
+    }
+
+    .form-footer__date:focus {
+      background: #ebf1ff;
+      outline: none;
     }
 
     .sig-block {
       display: flex;
-      align-items: flex-end;
+      align-items: baseline;
       justify-content: flex-end;
       gap: 6mm;
     }
@@ -570,11 +691,13 @@
 
     .btn {
       font-family: Arial, sans-serif;
-      font-size: 8pt;
-      padding: 2mm 4mm;
+      font-size: 0.65rem;
+      padding: 0.28rem 0.45rem;
+      line-height: 1.25;
       cursor: pointer;
       border: 1px solid #1a3a5c;
-      border-radius: 2px;
+      border-radius: 3px;
+      transition: background-color 0.12s ease, border-color 0.12s ease;
     }
 
     .btn-p {
@@ -669,8 +792,11 @@
     }
 
     /* Header ship fields are read-only; arrival/departure toggles stay clickable */
-    .header-block input.fi {
+    .header-block .fi {
       border-bottom: none !important;
+    }
+
+    .header-block input.fi {
       pointer-events: none;
     }
     .header-block .cb-group {

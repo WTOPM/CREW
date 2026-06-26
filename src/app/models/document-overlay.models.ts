@@ -125,6 +125,8 @@ export interface CrewListVariantSettings {
   stampBox?: PdfStampBox | CrewListForm05CssBox;
   signatureBox?: PdfStampBox | CrewListForm05CssBox;
   cellStyles?: Record<string, { fontFamily?: string; fontSize?: string; textAlign?: string }>;
+  /** Form 05 — editable date under table (field 12), aligned with column c2. */
+  footerSignatureDate?: string;
 }
 
 export function isCrewListForm05CssBox(box: unknown): box is CrewListForm05CssBox {
@@ -252,6 +254,7 @@ const CREW_LIST_VARIANT_FIELD_NAMES = [
   'stampBox',
   'signatureBox',
   'cellStyles',
+  'footerSignatureDate',
 ] as const satisfies readonly (keyof CrewListVariantSettings)[];
 
 function mergeCrewListVariantPlacement(

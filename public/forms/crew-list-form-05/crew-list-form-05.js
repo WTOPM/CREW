@@ -52,13 +52,16 @@ const DEMO = [
     function setAD(v) {
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
-      // Change date when toggling
+      document.querySelectorAll('.ad-lbl').forEach((el) => {
+        el.classList.toggle('ad-lbl--active', el.dataset.ad === v);
+      });
       if (window._shipData) {
         const ship = window._shipData;
+        const dateVal = v === 'arrival' ? fmtDate(ship.dateOfArrival) : fmtDate(ship.dateOfDeparture);
         const dateEl = document.getElementById('h-date');
-        if (dateEl) {
-          dateEl.value = v === 'arrival' ? fmtDate(ship.dateOfArrival) : fmtDate(ship.dateOfDeparture);
-        }
+        if (dateEl) dateEl.value = dateVal;
+        const footerDateEl = document.getElementById('f-footer-date');
+        if (footerDateEl) footerDateEl.value = dateVal;
       }
     }
 
@@ -482,6 +485,8 @@ const DEMO = [
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
+      const footerSignatureDate = document.getElementById('f-footer-date')?.value?.trim() || undefined;
+
       appData.documentOverlay.crewList.listType = CREW_FORM_05_TYPE;
       appData.documentOverlay.crewList.byType[CREW_FORM_05_TYPE] = {
         ...prev,
@@ -490,6 +495,7 @@ const DEMO = [
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
+        footerSignatureDate,
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       window._appData = appData;
@@ -650,10 +656,27 @@ const DEMO = [
       return true;
     }
 
+    function resetCellStyles() {
+      tbody.querySelectorAll('input.ci').forEach((input) => {
+        input.style.removeProperty('font-family');
+        input.style.removeProperty('font-size');
+        input.style.removeProperty('text-align');
+      });
+      clearSelection();
+      const fontSel = document.getElementById('tb-font');
+      const sizeSel = document.getElementById('tb-size');
+      if (fontSel) fontSel.value = 'Arial';
+      if (sizeSel) sizeSel.value = '6';
+      if (window._currentPositions) {
+        window._currentPositions.cellStyles = {};
+      }
+    }
+
     function resetPositions() {
       if (window._currentPositions) {
         window._currentPositions.stamp = {};
         window._currentPositions.sig = {};
+        window._currentPositions.cellStyles = {};
       }
       
       const stamp = document.getElementById('stamp-container');
@@ -672,7 +695,8 @@ const DEMO = [
       sig.style.top = sigDefault.top;
       sig.style.width = sigDefault.width;
       sig.style.height = sigDefault.height;
-      
+
+      resetCellStyles();
       savePositions();
     }
 
@@ -860,10 +884,14 @@ const DEMO = [
 
         if (isArrival) {
           setAD('arrival');
-          document.getElementById('h-date').value = fmtDate(ship.dateOfArrival) || '';
         } else {
           setAD('departure');
-          document.getElementById('h-date').value = fmtDate(ship.dateOfDeparture) || '';
+        }
+
+        const savedForm05 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_05_TYPE];
+        const footerDateEl = document.getElementById('f-footer-date');
+        if (footerDateEl && savedForm05?.footerSignatureDate) {
+          footerDateEl.value = savedForm05.footerSignatureDate;
         }
 
         let crewList = [];
@@ -914,6 +942,10 @@ const DEMO = [
         // overrides, ...) — copying only a few properties dropped things like the
         // master-name field's fixed width, stretching its underline across the page.
         replacement.style.cssText = input.style.cssText;
+        if (input.closest('.header-block')) {
+          replacement.style.border = 'none';
+          replacement.style.borderBottom = 'none';
+        }
         if (input.classList.contains('ci')) {
           // Native <input> vertically centers its value via the UA stylesheet — replicate
           // that for the plain div so table-cell text lines up with the grid, not below it.
