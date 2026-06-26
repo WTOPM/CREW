@@ -12,7 +12,7 @@ export const IMO_CREW_LIST_SHEET = 'IMO CREW LIST';
 export const IMO_CREW_LIST_COLS = 7;
 
 const FONT = 'Arial';
-const DATA_FONT = 'Times New Roman';
+const DATA_FONT = 'Arial';
 const BORDER_COLOR = 'FF000000';
 
 const thin = { style: 'thin' as const, color: { argb: BORDER_COLOR } };

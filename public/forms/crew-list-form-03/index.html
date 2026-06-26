@@ -55,70 +55,86 @@
         <div class="main-content">
           <header class="doc-header">
             <h1>IMO CREW LIST</h1>
-            <div class="header-top-meta">
-              <div class="cb-group">
-                <label class="cb-item" onclick="setAD('arrival')">
-                  <span class="cb-box" id="cb-arr">✓</span> <span class="ad-lbl" data-ad="arrival">Arrival</span>
-                </label>
-                <label class="cb-item" onclick="setAD('departure')">
-                  <span class="cb-box" id="cb-dep"></span> <span class="ad-lbl" data-ad="departure">Departure</span>
-                </label>
-              </div>
-              <div class="page-number-box">
-                <div class="label">Page No.</div>
-                <div class="value" id="h-page-no">1</div>
-              </div>
-            </div>
           </header>
 
           <div class="imo-table">
-            <div class="grid-row row-1">
-              <div class="cell col-6 field-box">
-                <div class="lbl-row"><span class="field-num">1.</span> <span class="field-label">Name of ship</span></div>
-                <input type="text" class="fi cell-input" id="h-ship-name" readonly />
-              </div>
-              <div class="cell col-3 field-box">
-                <div class="lbl-row"><span class="field-num">2.</span> <span class="field-label">Port of <span class="ad-lbl" data-ad="arrival">arrival</span> / <span class="ad-lbl" data-ad="departure">departure</span></span></div>
-                <input type="text" class="fi cell-input" id="h-port" readonly />
-              </div>
-              <div class="cell col-3 field-box">
-                <div class="lbl-row"><span class="field-num">3.</span> <span class="field-label">Date of <span class="ad-lbl" data-ad="arrival">arrival</span> / <span class="ad-lbl" data-ad="departure">departure</span></span></div>
-                <input type="text" class="fi cell-input" id="h-date" readonly />
-              </div>
-            </div>
+            <div class="imo-top">
+              <div class="fieldhead">
+                  <div class="fh-cell fh-name field-box">
+                    <div class="lbl-row"><span class="field-num">1.</span> <span class="field-label">Name of ship</span></div>
+                    <input type="text" class="fi cell-input" id="h-ship-name" readonly />
+                  </div>
+                  <div class="fh-cell fh-meta">
+                    <div class="cb-group">
+                      <label class="cb-item" onclick="setAD('arrival')">
+                        <span class="cb-box" id="cb-arr">✓</span> <span class="ad-lbl" data-ad="arrival">Arrival</span>
+                      </label>
+                      <label class="cb-item" onclick="setAD('departure')">
+                        <span class="cb-box" id="cb-dep"></span> <span class="ad-lbl" data-ad="departure">Departure</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="fh-cell fh-pageno">
+                    <div class="pageno-label">Page No.</div>
+                    <div class="pageno-value" id="h-page-no">1</div>
+                  </div>
+                  <div class="fh-cell fh-metaempty"></div>
 
-            <div class="grid-row row-2">
-              <div class="cell col-4 field-box">
-                <div class="lbl-row"><span class="field-num">4.</span> <span class="field-label">Nationality of Ship</span></div>
-                <input type="text" class="fi cell-input" id="h-nat" readonly />
-              </div>
-              <div class="cell col-5 field-box">
-                <div class="lbl-row"><span class="field-num">5.</span> <span class="field-label">Port arrived from / Sailing to</span></div>
-                <input type="text" class="fi cell-input" id="h-from" readonly />
-              </div>
-              <div class="cell col-3 field-box split-header-container">
-                <div class="split-sub-cell">
-                  <span class="field-num">6.</span>
-                  <span class="field-label mini-label">Nature and No. of identity documents</span>
-                </div>
-                <div class="split-sub-cell border-left">
-                  <span class="field-num">6.</span>
-                  <span class="field-label mini-label">Nature and No. of identity documents</span>
-                </div>
-              </div>
-            </div>
+                  <div class="fh-cell fh-port field-box">
+                    <div class="lbl-row"><span class="field-num">2.</span> <span class="field-label">Port of <span class="ad-lbl" data-ad="arrival">arrival</span> / <span class="ad-lbl" data-ad="departure">departure</span></span></div>
+                    <input type="text" class="fi cell-input" id="h-port" readonly />
+                  </div>
+                  <div class="fh-cell fh-date field-box">
+                    <div class="lbl-row"><span class="field-num">3.</span> <span class="field-label">Date of <span class="ad-lbl" data-ad="arrival">arrival</span> / <span class="ad-lbl" data-ad="departure">departure</span></span></div>
+                    <input type="text" class="fi cell-input" id="h-date" readonly />
+                  </div>
+                  <div class="fh-cell fh-doc1">
+                    <span class="field-num">6.</span> <span class="field-label mini-label">Nature und No.<br>of identity documents</span>
+                  </div>
+                  <div class="fh-cell fh-doc2">
+                    <span class="field-num">6.</span> <span class="field-label mini-label">Nature und No.<br>of identity documents</span>
+                  </div>
 
-            <div class="table-headers">
-              <div class="th-cell ch-no"><span class="field-num">7.</span> No.</div>
-              <div class="th-cell ch-name"><span class="field-num">8.</span> Family names, given names</div>
-              <div class="th-cell ch-rank"><span class="field-num">9.</span> Rank or rating</div>
-              <div class="th-cell ch-nat"><span class="field-num">10.</span> Nationality</div>
-              <div class="th-cell ch-birth"><span class="field-num">11.</span> Date and place of birth</div>
-              <div class="th-cell ch-doc"></div>
-              <div class="th-cell ch-doc"></div>
-              <div class="th-cell ch-vertical"><div class="vertical-text">Date of joining the vessel</div></div>
-              <div class="th-cell ch-vertical"><div class="vertical-text">Place of joining the vessel</div></div>
-              <div class="th-cell ch-vertical border-right-none"><div class="vertical-text">Temperature of each crew member</div></div>
+                  <div class="fh-cell fh-nat field-box">
+                    <div class="lbl-row"><span class="field-num">4.</span> <span class="field-label">Nationality of Ship</span></div>
+                    <input type="text" class="fi cell-input" id="h-nat" readonly />
+                  </div>
+                  <div class="fh-cell fh-portfrom field-box">
+                    <div class="lbl-row"><span class="field-num">5.</span> <span class="field-label">Port arrived from / Sailing to</span></div>
+                    <input type="text" class="fi cell-input" id="h-from" readonly />
+                  </div>
+                </div>
+
+              <div class="imo-top-right">
+                <div class="th-cell ch-vertical">
+                  <div class="vertical-text-pair">
+                    <span class="vertical-text-line">Date of joining</span>
+                    <span class="vertical-text-line">the vessel</span>
+                  </div>
+                </div>
+                <div class="th-cell ch-vertical">
+                  <div class="vertical-text-pair">
+                    <span class="vertical-text-line">Place of joining</span>
+                    <span class="vertical-text-line">the vessel</span>
+                  </div>
+                </div>
+                <div class="th-cell ch-vertical border-right-none">
+                  <div class="vertical-text-pair">
+                    <span class="vertical-text-line">Temperature of</span>
+                    <span class="vertical-text-line">each crew member</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="table-headers">
+                  <div class="th-cell ch-no"><span class="field-num">7.</span> No.</div>
+                  <div class="th-cell ch-name"><span class="field-num">8.</span> Family names, given names</div>
+                  <div class="th-cell ch-rank"><span class="field-num">9.</span> Rank or rating</div>
+                  <div class="th-cell ch-nat"><span class="field-num">10.</span> Nationality</div>
+                  <div class="th-cell ch-birth"><span class="field-num">11.</span> Date and place of birth</div>
+                  <div class="th-cell ch-doc"><span class="doc-col-label">Passport</span></div>
+                  <div class="th-cell ch-doc"><span class="doc-col-label">Seaman's Book</span></div>
+                </div>
             </div>
 
             <div class="table-body" id="table-body"></div>
@@ -127,19 +143,18 @@
           <footer class="doc-footer">
             <span class="field-num">12.</span> Date and signature by master, authorised agent or officer
             <div class="form-footer__sig-row">
-              <div class="form-footer__pad-h1" aria-hidden="true"></div>
-              <input type="text" id="f-footer-date" class="fi form-footer__date" placeholder="DD.MM.YYYY" />
-              <div class="form-footer__sig-rest">
-                <div class="sig-block">
-                  <span class="sig-lbl">Master</span>
-                  <input type="text" id="f-master-name" class="fi sig-name" readonly />
-                </div>
+              <input type="text" id="f-footer-date" class="fi form-footer__date ch-rank" placeholder="DD.MM.YYYY" />
+              <div class="sig-block ch-birth">
+                <span class="sig-lbl">Master</span>
+                <input type="text" id="f-master-name" class="fi sig-name" readonly />
               </div>
             </div>
           </footer>
 
-          <div id="stamp-container" class="overlay-marker"></div>
-          <div id="sig-container" class="overlay-marker"></div>
+          <div class="doc-overlay-layer" aria-hidden="false">
+            <div id="stamp-container" class="overlay-marker"></div>
+            <div id="sig-container" class="overlay-marker"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -169,7 +184,7 @@
 
   <div class="side-panel side-panel--right">
     <div class="side-panel__title">Rows</div>
-    <button type="button" class="btn btn-s" onclick="addRow()">+ Add row</button>
+    <button type="button" class="btn btn-s" onclick="addRowFromPanel()">+ Add row</button>
     <button type="button" class="btn btn-s" onclick="removeRow()">− Remove last</button>
     <div class="side-panel__title side-panel__title--spaced">Print</div>
     <label class="side-panel__chk">

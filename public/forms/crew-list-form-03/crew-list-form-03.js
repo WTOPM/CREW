@@ -16,8 +16,55 @@ const DEMO = [
       return row.querySelectorAll('.ci');
     }
 
+    const CREW_TEMPS = ['36.5 C', '36.6 C', '36.7 C'];
+
+    function randomCrewTemperature() {
+      return CREW_TEMPS[Math.floor(Math.random() * CREW_TEMPS.length)];
+    }
+
+    function parseTempNumber(raw) {
+      const m = String(raw || '').trim().match(/^(\d+(?:[.,]\d+)?)/);
+      return m ? m[1].replace(',', '.') : '';
+    }
+
+    function formatTempNumber(numStr) {
+      const raw = parseTempNumber(numStr);
+      if (!raw) return '';
+      const n = parseFloat(raw);
+      if (Number.isNaN(n)) return '';
+      return n.toFixed(1);
+    }
+
+    function tempStoredValue(raw) {
+      const num = formatTempNumber(raw);
+      return num ? `${num} C` : '';
+    }
+
+    function temperatureInput(row) {
+      return row ? row.querySelector('input.ci-temp') : null;
+    }
+
+    function fillTemperatureForRow(row, force = false) {
+      const inp = temperatureInput(row);
+      if (!inp) return;
+      if (!rowHasData(row)) {
+        inp.value = '';
+        return;
+      }
+      if (force || !inp.value.trim()) {
+        inp.value = randomCrewTemperature();
+      }
+    }
+
+    function fillAllTemperatures(force = false) {
+      Array.from(tableBody.children).forEach((row) => fillTemperatureForRow(row, force));
+    }
+
     function rowHasData(row) {
-      return Array.from(row.querySelectorAll('input.ci')).some((inp) => inp.value.trim());
+      return Array.from(row.querySelectorAll('input.ci')).some((inp) => {
+        if (inp.classList.contains('ci-temp')) return false;
+        return inp.value.trim();
+      });
     }
 
     function refreshRowNumbers() {
@@ -47,16 +94,23 @@ const DEMO = [
     <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc2)}" readonly tabindex="-1"></div>
     <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinDate)}" readonly tabindex="-1"></div>
     <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinPlace)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-vertical border-right-none"><input class="ci" type="text" value="${escAttr(d.temperature)}" readonly tabindex="-1"></div>`;
+    <div class="td-cell ch-vertical border-right-none"><input class="ci ci-temp" type="text" value="${escAttr(tempStoredValue(d.temperature || ''))}" inputmode="decimal" tabindex="0"></div>`;
       tableBody.appendChild(row);
+      fillTemperatureForRow(row);
       refreshRowNumbers();
     }
     function removeRow() {
       if (tableBody.lastChild) {
         tableBody.removeChild(tableBody.lastChild);
+        fillAllTemperatures(true);
         refreshRowNumbers();
       }
     }
+    function addRowFromPanel() {
+      addRow();
+      fillAllTemperatures(true);
+    }
+
     function setAD(v) {
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
@@ -144,9 +198,39 @@ const DEMO = [
       return `<table><tbody>${rows.join('')}</tbody></table>`;
     }
 
+    function isTempInput(el) {
+      return el && el.classList?.contains('ci-temp') && el.tagName === 'INPUT';
+    }
+
     function clearSelection() {
       selectedCells.forEach(c => c.classList.remove('selected'));
       selectedCells = [];
+    }
+
+    function exitCellEdit() {
+      clearSelection();
+      const active = document.activeElement;
+      if (isTempInput(active)) active.blur();
+    }
+
+    function normalizeTempInput(inp) {
+      if (!isTempInput(inp)) return;
+      inp.value = tempStoredValue(inp.value);
+    }
+
+    function beginTempEdit(inp) {
+      if (!isTempInput(inp)) return;
+      inp.value = formatTempNumber(inp.value) || parseTempNumber(inp.value);
+      requestAnimationFrame(() => {
+        if (document.activeElement !== inp) return;
+        inp.setSelectionRange(0, inp.value.length);
+      });
+    }
+
+    function commitTempInput(inp) {
+      if (!isTempInput(inp)) return;
+      normalizeTempInput(inp);
+      exitCellEdit();
     }
 
     function addSelectedCell(cell) {
@@ -197,13 +281,35 @@ const DEMO = [
     }
 
     tableBody.addEventListener('mousedown', (e) => {
+      const tempInp = e.target.closest('input.ci-temp');
+      if (tempInp && tableBody.contains(tempInp)) {
+        clearSelection();
+        return;
+      }
       const cell = e.target.closest('.ci');
       if (!cell || !tableBody.contains(cell)) return;
+      if (isTempInput(cell)) {
+        clearSelection();
+        return;
+      }
+      if (isTempInput(document.activeElement)) {
+        document.activeElement.blur();
+      }
       e.preventDefault();
       isDragging = true;
       selectionAnchor = cellCoords(cell);
       selectRange(selectionAnchor.row, selectionAnchor.col, selectionAnchor.row, selectionAnchor.col);
       syncToolbarFromCell(cell);
+    });
+
+    tableBody.addEventListener('focusin', (e) => {
+      if (!isTempInput(e.target)) return;
+      beginTempEdit(e.target);
+    });
+
+    tableBody.addEventListener('focusout', (e) => {
+      if (!isTempInput(e.target)) return;
+      normalizeTempInput(e.target);
     });
 
     tableBody.addEventListener('mouseover', (e) => {
@@ -226,10 +332,26 @@ const DEMO = [
     });
 
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && isTempInput(e.target)) {
+        e.preventDefault();
+        commitTempInput(e.target);
+        return;
+      }
+      if (e.key === 'Escape') {
+        exitCellEdit();
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && selectedCells.length) {
         e.preventDefault();
         document.execCommand('copy');
       }
+    });
+
+    document.body.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.a4-landscape-page')) return;
+      if (e.target.closest('.side-panel')) return;
+      if (e.target.closest('.confirm-backdrop')) return;
+      exitCellEdit();
     });
 
     function applyFormat(prop, val) {
@@ -244,6 +366,21 @@ const DEMO = [
 
     const POS_KEY = 'crew03-overlay-pos';
     const ZOOM_STORAGE_KEY = 'crew03-editor-zoom';
+    /** Landscape Form 03 — stamp/signature defaults over field 12 (footer). */
+    const FORM03_OVERLAY_DEFAULTS = {
+      stamp: {
+        left: 'calc(100% - 58mm)',
+        top: 'calc(100% - 50mm)',
+        width: '34mm',
+        height: '34mm',
+      },
+      sig: {
+        left: 'calc(100% - 78mm)',
+        top: 'calc(100% - 23mm)',
+        width: '46mm',
+        height: '17mm',
+      },
+    };
     const ZOOM_MIN = 50;
     const ZOOM_MAX = 200;
     const ZOOM_STEP = 10;
@@ -556,10 +693,25 @@ const DEMO = [
       navigateBack('cancelled');
     }
 
+    function editorScaleFactor() {
+      return editorZoomPct / 100;
+    }
+
+    function overlayParent(el) {
+      return el.offsetParent || el.closest('.doc-overlay-layer') || el.parentElement;
+    }
+
+    function pinOverlayPosition(el) {
+      el.style.left = `${el.offsetLeft}px`;
+      el.style.top = `${el.offsetTop}px`;
+      return { left: el.offsetLeft, top: el.offsetTop };
+    }
+
     function makeDraggable(el) {
       let mode = null; // 'drag' | 'resize'
       let resizeDir = null; // 'se' (corner, proportional) | 'e' | 'w' | 'n' | 's'
       let startX, startY, startL, startT, startW, startH;
+      let pointerId = null;
 
       function resizeDirFor(target) {
         if (target.classList.contains('overlay-resize')) return 'se';
@@ -575,40 +727,38 @@ const DEMO = [
         mode = resizeDir ? 'resize' : 'drag';
         startX = e.clientX;
         startY = e.clientY;
+        pointerId = e.pointerId;
 
-        // Get actual pixel position relative to the positioned parent
-        const parent = el.offsetParent || el.parentElement;
-        const parentRect = parent.getBoundingClientRect();
-        const elRect = el.getBoundingClientRect();
-        startL = elRect.left - parentRect.left + parent.scrollLeft;
-        startT = elRect.top  - parentRect.top  + parent.scrollTop;
-
-        // Replace calc() with resolved px value so drag math works
-        el.style.left = startL + 'px';
-        el.style.top  = startT + 'px';
-
+        const pinned = pinOverlayPosition(el);
+        startL = pinned.left;
+        startT = pinned.top;
         startW = el.offsetWidth;
         startH = el.offsetHeight;
+
         e.preventDefault();
         e.stopPropagation();
-        document.addEventListener('pointermove', onMove);
-        document.addEventListener('pointerup', onUp);
-        document.addEventListener('pointercancel', onUp);
+        try {
+          el.setPointerCapture(pointerId);
+        } catch (err) { }
+        el.addEventListener('pointermove', onMove);
+        el.addEventListener('pointerup', onUp);
+        el.addEventListener('pointercancel', onUp);
       }
 
       function onMove(e) {
-        if (!mode) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        const parent = el.offsetParent || el.parentElement;
+        if (!mode || e.pointerId !== pointerId) return;
+        const scale = editorScaleFactor();
+        const dx = (e.clientX - startX) / scale;
+        const dy = (e.clientY - startY) / scale;
+        const parent = overlayParent(el);
 
         if (mode === 'drag') {
-          const maxLeft = parent.clientWidth - el.offsetWidth;
-          const maxTop = parent.clientHeight - el.offsetHeight;
+          const maxLeft = Math.max(0, parent.clientWidth - el.offsetWidth);
+          const maxTop = Math.max(0, parent.clientHeight - el.offsetHeight);
           const newLeft = Math.max(0, Math.min(startL + dx, maxLeft));
           const newTop = Math.max(0, Math.min(startT + dy, maxTop));
-          el.style.left = newLeft + 'px';
-          el.style.top  = newTop + 'px';
+          el.style.left = `${newLeft}px`;
+          el.style.top = `${newTop}px`;
         } else if (resizeDir === 'se') {
           let aspect = startW / startH;
           if (isNaN(aspect) || !isFinite(aspect) || aspect <= 0) {
@@ -618,16 +768,16 @@ const DEMO = [
           const maxH = parent.clientHeight - el.offsetTop;
           const proposedW = Math.max(20, startW + dx);
           const proposedH = proposedW / aspect;
-          
+
           let finalW = proposedW;
           if (proposedW > maxW || proposedH > maxH) {
             finalW = Math.min(maxW, maxH * aspect);
           }
-          el.style.width  = finalW + 'px';
-          el.style.height = (finalW / aspect) + 'px';
+          el.style.width = `${finalW}px`;
+          el.style.height = `${finalW / aspect}px`;
         } else if (resizeDir === 'e') {
           const maxW = parent.clientWidth - el.offsetLeft;
-          el.style.width = Math.max(20, Math.min(startW + dx, maxW)) + 'px';
+          el.style.width = `${Math.max(20, Math.min(startW + dx, maxW))}px`;
         } else if (resizeDir === 'w') {
           const proposedW = startW - dx;
           let finalW = Math.max(20, proposedW);
@@ -637,11 +787,11 @@ const DEMO = [
             finalLeft = 0;
             finalW = startL + startW;
           }
-          el.style.width = finalW + 'px';
-          el.style.left  = finalLeft + 'px';
+          el.style.width = `${finalW}px`;
+          el.style.left = `${finalLeft}px`;
         } else if (resizeDir === 's') {
           const maxH = parent.clientHeight - el.offsetTop;
-          el.style.height = Math.max(20, Math.min(startH + dy, maxH)) + 'px';
+          el.style.height = `${Math.max(20, Math.min(startH + dy, maxH))}px`;
         } else if (resizeDir === 'n') {
           const proposedH = startH - dy;
           let finalH = Math.max(20, proposedH);
@@ -651,17 +801,25 @@ const DEMO = [
             finalTop = 0;
             finalH = startT + startH;
           }
-          el.style.height = finalH + 'px';
-          el.style.top    = finalTop + 'px';
+          el.style.height = `${finalH}px`;
+          el.style.top = `${finalTop}px`;
         }
       }
 
-      function onUp() {
+      function onUp(e) {
+        if (pointerId != null && e && e.pointerId !== pointerId) return;
         if (mode) savePositions();
         mode = null;
-        document.removeEventListener('pointermove', onMove);
-        document.removeEventListener('pointerup', onUp);
-        document.removeEventListener('pointercancel', onUp);
+        const capturedId = pointerId;
+        pointerId = null;
+        el.removeEventListener('pointermove', onMove);
+        el.removeEventListener('pointerup', onUp);
+        el.removeEventListener('pointercancel', onUp);
+        if (capturedId != null) {
+          try {
+            el.releasePointerCapture(capturedId);
+          } catch (err) { }
+        }
       }
 
       el.addEventListener('pointerdown', onDown);
@@ -702,8 +860,8 @@ const DEMO = [
       const stamp = document.getElementById('stamp-container');
       const sig = document.getElementById('sig-container');
       
-      const stampDefault = { left: 'calc(100% - 50mm)', top: 'calc(100% - 50mm)', width: '38mm', height: '38mm' };
-      const sigDefault = { left: 'calc(100% - 60mm)', top: 'calc(100% - 28mm)', width: '50mm', height: '20mm' };
+      const stampDefault = FORM03_OVERLAY_DEFAULTS.stamp;
+      const sigDefault = FORM03_OVERLAY_DEFAULTS.sig;
       
       // Always reset the style coordinates to correct defaults unconditionally
       stamp.style.left = stampDefault.left;
@@ -758,7 +916,7 @@ const DEMO = [
       if (!checked) { el.classList.remove('visible'); savePositions(); return; }
       if (!stampImgUrl) stampImgUrl = await loadAsset('stamp');
       if (stampImgUrl) {
-        showOverlay(el, stampImgUrl, { left: 'calc(100% - 50mm)', top: 'calc(100% - 50mm)', width: '38mm', height: '38mm' });
+        showOverlay(el, stampImgUrl, FORM03_OVERLAY_DEFAULTS.stamp);
         savePositions();
       } else {
         document.getElementById('chk-stamp').checked = false;
@@ -774,7 +932,7 @@ const DEMO = [
       if (!checked) { el.classList.remove('visible'); savePositions(); return; }
       if (!sigImgUrl) sigImgUrl = await loadAsset('signature');
       if (sigImgUrl) {
-        showOverlay(el, sigImgUrl, { left: 'calc(100% - 60mm)', top: 'calc(100% - 28mm)', width: '50mm', height: '20mm' });
+        showOverlay(el, sigImgUrl, FORM03_OVERLAY_DEFAULTS.sig);
         savePositions();
       } else {
         document.getElementById('chk-sig').checked = false;
@@ -941,7 +1099,6 @@ const DEMO = [
             doc2: c.seamansBook || '',
             joinDate: fmtDate(c.joiningDate),
             joinPlace: c.joiningPort || '',
-            temperature: '',
           });
         });
       } else {
@@ -950,6 +1107,7 @@ const DEMO = [
 
       for (let i = tableBody.children.length; i < MAX_ROWS; i++) addRow();
       refreshRowNumbers();
+      fillAllTemperatures(true);
       applyEditorZoom();
     }
 

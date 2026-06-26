@@ -64,7 +64,7 @@ export class PdfCrewArrService {
     this.drawTitle(doc, scale, options?.title);
     this.drawCoordinateGrid(doc, scale);
     this.drawStaticExtras(doc, scale, data.crewArr.identityDocumentType, data.crewArr.isArrival);
-    this.fillDynamicData(doc, scale, data, crew);
+    this.fillDynamicData(doc, scale, data, crew, options);
     if (crew.length === 0) {
       this.drawBodyNil(doc, scale);
     }
@@ -279,7 +279,21 @@ export class PdfCrewArrService {
     doc.text('X', box.x + box.w / 2, box.y + box.h / 2, { align: 'center', baseline: 'middle' });
   }
 
-  private fillDynamicData(doc: jsPDF, s: CoordScale, data: AppData, crew: CrewMember[]): void {
+  private setFormDataFont(doc: jsPDF, options?: CrewListPdfOptions): void {
+    if ((options?.overlayId ?? 'crewList') === 'crewList') {
+      doc.setFont('helvetica', 'bold');
+    } else {
+      doc.setFont('times', 'bolditalic');
+    }
+  }
+
+  private fillDynamicData(
+    doc: jsPDF,
+    s: CoordScale,
+    data: AppData,
+    crew: CrewMember[],
+    options?: CrewListPdfOptions,
+  ): void {
     const { ship, crewArr, ports } = data;
     const voyageDate = formatDisplayDate(
       crewArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
@@ -287,8 +301,8 @@ export class PdfCrewArrService {
     const portFromTo = this.portsFromTo(ship.lastPortOfCall, ship.nextPortOfCall, ports);
     const docType = crewArr.identityDocumentType.trim() || 'Passport';
 
-    this.valueInBox(doc, s, 152, 192, 1101, 278, ship.name);
-    this.valueInBox(doc, s, 152, 277, 1101, 380, ship.nationality);
+    this.valueInBox(doc, s, 152, 192, 1101, 278, ship.name, 'left', options);
+    this.valueInBox(doc, s, 152, 277, 1101, 380, ship.nationality, 'left', options);
     this.valueInBox(
       doc,
       s,
@@ -297,12 +311,14 @@ export class PdfCrewArrService {
       1491,
       278,
       this.formatPortWithCountry(ship.portOfCall, ports),
+      'left',
+      options,
     );
-    this.valueInBox(doc, s, 1490, 192, 2169, 278, voyageDate);
-    this.valueInBox(doc, s, 1100, 277, 1872, 380, portFromTo);
-    this.valueInBox(doc, s, 1871, 117, 2169, 192, String(CREW_LIST_PAGE_NO), 'center');
+    this.valueInBox(doc, s, 1490, 192, 2169, 278, voyageDate, 'left', options);
+    this.valueInBox(doc, s, 1100, 277, 1872, 380, portFromTo, 'left', options);
+    this.valueInBox(doc, s, 1871, 117, 2169, 192, String(CREW_LIST_PAGE_NO), 'center', options);
 
-    this.fillCrewRows(doc, s, crew, docType);
+    this.fillCrewRows(doc, s, crew, docType, options);
   }
 
   /** Large NIL centered over the table body when there are no rows (crew or passengers). */
@@ -332,6 +348,7 @@ export class PdfCrewArrService {
     s: CoordScale,
     crew: CrewMember[],
     identityDocumentType: string,
+    options?: CrewListPdfOptions,
   ): void {
     const rowH = (BODY_BOTTOM_Y - BODY_TOP_Y) / CREW_LIST_ROW_COUNT;
     const bodyFont = this.bodyFontSize(s);
@@ -342,12 +359,12 @@ export class PdfCrewArrService {
 
       const cy = s.sy(BODY_TOP_Y + rowH * i + rowH * 0.62);
 
-      this.dataAt(doc, s, 152, 237, cy, String(i + 1), bodyFont, 'center');
-      this.dataAt(doc, s, 236, 882, cy, formatCrewListName(member), bodyFont);
-      this.dataAt(doc, s, 881, 1101, cy, member.rank, bodyFont);
-      this.dataAt(doc, s, 1100, 1305, cy, member.nationality, bodyFont);
-      this.dataAt(doc, s, 1304, 1491, cy, formatBirthDate(member.dateOfBirth), bodyFont);
-      this.dataAt(doc, s, 1490, 1872, cy, member.placeOfBirth, bodyFont);
+      this.dataAt(doc, s, 152, 237, cy, String(i + 1), bodyFont, 'center', options);
+      this.dataAt(doc, s, 236, 882, cy, formatCrewListName(member), bodyFont, undefined, options);
+      this.dataAt(doc, s, 881, 1101, cy, member.rank, bodyFont, undefined, options);
+      this.dataAt(doc, s, 1100, 1305, cy, member.nationality, bodyFont, undefined, options);
+      this.dataAt(doc, s, 1304, 1491, cy, formatBirthDate(member.dateOfBirth), bodyFont, undefined, options);
+      this.dataAt(doc, s, 1490, 1872, cy, member.placeOfBirth, bodyFont, undefined, options);
       this.dataAt(
         doc,
         s,
@@ -356,6 +373,8 @@ export class PdfCrewArrService {
         cy,
         this.identityNumber(member, identityDocumentType),
         bodyFont,
+        undefined,
+        options,
       );
     }
   }
@@ -398,11 +417,12 @@ export class PdfCrewArrService {
     y2: number,
     text: string,
     align: 'left' | 'center' = 'left',
+    options?: CrewListPdfOptions,
   ): void {
     if (!text) return;
 
     const r = s.rect(x1, y1, x2, y2);
-    doc.setFont('times', 'bolditalic');
+    this.setFormDataFont(doc, options);
     doc.setFontSize(this.headerFontSize(s));
 
     const x = align === 'center' ? r.x + r.w / 2 : r.x + 3;
@@ -422,12 +442,13 @@ export class PdfCrewArrService {
     text: string,
     fontSize: number,
     align: 'left' | 'center' = 'left',
+    options?: CrewListPdfOptions,
   ): void {
     if (!text) return;
 
     const x = s.sx(x1);
     const w = s.sx(x2) - x;
-    doc.setFont('times', 'bolditalic');
+    this.setFormDataFont(doc, options);
     doc.setFontSize(fontSize);
     const lines = doc.splitTextToSize(text, w - 4);
     const line = lines[0] ?? text;
