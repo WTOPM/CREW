@@ -61,6 +61,7 @@ import { normalizeCrewMoneyListForm } from '../models/crew-money-list.models';
 import { normalizeNarcoticListForm } from '../models/narcotic-list.models';
 import { normalizeDgLibrary } from '../models/dg-manifest.models';
 import { normalizeReeferLibrary } from '../models/reefer.models';
+import { normalizeEtaLibrary } from '../models/eta.models';
 import { normalizeCrewListDocumentPrefs } from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 import { normalizeCrewSignatureByRow } from '../utils/crew-effect-signature.util';
@@ -144,6 +145,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     ship,
   );
   const reeferLibrary = normalizeReeferLibrary(raw.reeferLibrary, ports, ship);
+  const etaLibrary = normalizeEtaLibrary(raw.etaLibrary);
   const documentOverlay = normalizeDocumentOverlay(raw.documentOverlay, raw);
   const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
   const outputSettings = normalizeOutputSettings(raw.outputSettings);
@@ -179,6 +181,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     narcoticListForm,
     dgLibrary,
     reeferLibrary,
+    etaLibrary,
     documentOverlay,
     shipAssets,
     outputSettings,

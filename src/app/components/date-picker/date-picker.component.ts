@@ -507,22 +507,52 @@ export class DatePickerComponent implements OnDestroy {
     }, 550);
   }
 
+  private popupWidth(): number {
+    switch (this.size()) {
+      case 'lg':
+        return 352;
+      case 'sm':
+        return 272;
+      default:
+        return 320;
+    }
+  }
+
   private positionPopup(): void {
     const row = this.host.nativeElement.querySelector('.date-picker-row');
     if (!row) return;
     const rect = row.getBoundingClientRect();
-    const minW = this.size() === 'lg' ? 352 : this.size() === 'sm' ? 280 : 320;
-    const width = Math.max(rect.width, minW);
-    const left = Math.min(rect.left, window.innerWidth - width - 8);
-    const estimatedHeight = this.size() === 'lg' ? 360 : 330;
+    const width = this.popupWidth();
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) {
+      left = Math.max(8, rect.right - width);
+    }
+    left = Math.max(8, left);
+
+    const popup = this.host.nativeElement.querySelector('.date-picker-popup') as HTMLElement | null;
+    const height =
+      popup?.offsetHeight ??
+      (this.size() === 'lg' ? 360 : this.size() === 'sm' ? 268 : 330);
+
+    const gap = 6;
+    const margin = 8;
     const below = window.innerHeight - rect.bottom;
-    const top =
-      below >= estimatedHeight + 8 ? rect.bottom + 6 : Math.max(8, rect.top - estimatedHeight - 6);
+    let top: number;
+    if (below >= height + gap) {
+      top = rect.bottom + gap;
+    } else if (rect.top >= height + gap) {
+      top = rect.top - height - gap;
+    } else {
+      top = Math.max(margin, Math.min(rect.bottom + gap, window.innerHeight - height - margin));
+    }
+
     this.popupStyle.set({
       position: 'fixed',
       top: `${top}px`,
-      left: `${Math.max(8, left)}px`,
+      left: `${left}px`,
       width: `${width}px`,
+      maxHeight: `calc(100dvh - ${top + margin}px)`,
+      overflowY: 'auto',
     });
   }
 

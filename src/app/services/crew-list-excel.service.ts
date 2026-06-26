@@ -171,6 +171,7 @@ export class CrewListExcelService {
       narcoticListForm: this.storage.narcoticListForm(),
       dgLibrary: this.storage.dgLibrary(),
       reeferLibrary: this.storage.reeferLibrary(),
+      etaLibrary: this.storage.etaLibrary(),
       documentOverlay: this.storage.documentOverlay(),
       shipAssets: this.storage.shipAssets(),
       outputSettings: this.storage.outputSettings(),

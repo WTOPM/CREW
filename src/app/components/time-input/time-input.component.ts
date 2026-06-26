@@ -14,6 +14,9 @@ import {
 @Component({
   selector: 'app-time-input',
   imports: [FormsModule],
+  host: {
+    '[class.time-input-host--lg]': 'size() === "lg"',
+  },
   template: `
     <input
       #field
@@ -47,10 +50,27 @@ import {
       outline: 2px solid var(--accent-soft);
       border-color: var(--accent);
     }
+
+    :host(.time-input-host--lg) .time-input {
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      font-size: 1.05rem;
+      font-weight: 500;
+    }
+
+    :host(.eta-sched-time) .time-input {
+      color: #047857;
+      font-weight: 600;
+    }
+
+    :host(.eta-sched-time.time-input-host--lg) .time-input {
+      font-weight: 600;
+    }
   `,
 })
 export class TimeInputComponent {
   readonly value = input('');
+  readonly size = input<'md' | 'lg'>('md');
   readonly valueChange = output<string>();
 
   private readonly fieldRef = viewChild<ElementRef<HTMLInputElement>>('field');

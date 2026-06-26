@@ -46,6 +46,7 @@ export class StorageService {
   readonly narcoticListForm = computed(() => this.data().narcoticListForm);
   readonly dgLibrary = computed(() => this.data().dgLibrary);
   readonly reeferLibrary = computed(() => this.data().reeferLibrary);
+  readonly etaLibrary = computed(() => this.data().etaLibrary);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly outputSettings = computed(() => this.data().outputSettings);

@@ -24,6 +24,7 @@ import { createDefaultCrewMoneyListForm } from '../models/crew-money-list.models
 import { createDefaultNarcoticListForm } from '../models/narcotic-list.models';
 import { createDefaultDgLibrary } from '../models/dg-manifest.models';
 import { createDefaultReeferLibrary } from '../models/reefer.models';
+import { createDefaultEtaLibrary } from '../models/eta.models';
 import {
   createDefaultShipStoresForm,
   createDefaultShipStoresForm02,
@@ -31,7 +32,7 @@ import {
 } from '../models/ship-stores.models';
 
 /** Bump when saved JSON shape migrations are required (no bundled sample data). */
-export const APP_DATA_SCHEMA_VERSION = 16;
+export const APP_DATA_SCHEMA_VERSION = 17;
 
 /** Fresh install — no ship, crew, ports, or forms pre-filled. */
 export function createEmptyAppData(): AppData {
@@ -59,6 +60,7 @@ export function createEmptyAppData(): AppData {
     narcoticListForm: createDefaultNarcoticListForm(),
     dgLibrary: createDefaultDgLibrary(),
     reeferLibrary: createDefaultReeferLibrary(),
+    etaLibrary: createDefaultEtaLibrary(),
     documentOverlay: createDefaultDocumentOverlayPrefs(),
     shipAssets: createEmptyShipAssetsMeta(),
     outputSettings: createDefaultOutputSettings(),

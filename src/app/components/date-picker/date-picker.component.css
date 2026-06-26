@@ -63,6 +63,54 @@
   height: 16px;
 }
 
+.date-picker--sm .date-picker-popup {
+  min-width: 0;
+  padding: 0.55rem 0.6rem;
+  border-radius: 8px;
+}
+
+.date-picker--sm .cal-head {
+  margin-bottom: 0.4rem;
+}
+
+.date-picker--sm .cal-title {
+  font-size: 0.875rem;
+}
+
+.date-picker--sm .cal-nav {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 1.1rem;
+  border-radius: 6px;
+}
+
+.date-picker--sm .cal-weekdays {
+  font-size: 0.65rem;
+  margin-bottom: 0.25rem;
+  gap: 0.12rem;
+}
+
+.date-picker--sm .cal-grid {
+  gap: 0.12rem;
+}
+
+.date-picker--sm .cal-day {
+  min-height: 1.5rem;
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+.date-picker--sm .cal-foot {
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+}
+
+.date-picker--sm .cal-foot-btn {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
 .date-picker--lg .date-picker-input {
   min-height: 2.65rem;
   padding: 0.6rem 0.75rem;
@@ -78,6 +126,11 @@
 .date-picker--lg .date-picker-btn svg {
   width: 22px;
   height: 22px;
+}
+
+:host(.eta-sched-date) .date-picker-input {
+  color: #1d4ed8;
+  font-weight: 600;
 }
 
 .date-picker-popup {

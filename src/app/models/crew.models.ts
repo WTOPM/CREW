@@ -526,6 +526,8 @@ export interface AppData {
   dgLibrary: DgLibrarySettings;
   /** Reefer containers — monitoring log inventory. */
   reeferLibrary: import('./reefer.models').ReeferLibrarySettings;
+  /** ETA voyage calculator — saved plans and working draft. */
+  etaLibrary: import('./eta.models').EtaLibrarySettings;
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
   /** Where generated PDFs are written when "save to folder" is enabled. */

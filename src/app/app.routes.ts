@@ -4,12 +4,14 @@ import { CrewArrComponent } from './pages/crew-arr/crew-arr.component';
 import { SettingsComponent } from './pages/settings/settings.component';
 import { DgComponent } from './pages/dg/dg.component';
 import { ReeferComponent } from './pages/reefer/reefer.component';
+import { EtaComponent } from './pages/eta/eta.component';
 import { DgReferenceComponent } from './pages/dg-reference/dg-reference.component';
 export const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'dg', component: DgComponent },
   { path: 'dg/reference', component: DgReferenceComponent },
   { path: 'reefer', component: ReeferComponent },
+  { path: 'eta', component: EtaComponent },
   { path: 'crew-arr', component: CrewArrComponent },
   { path: 'settings', component: SettingsComponent },
   { path: '**', redirectTo: '' },

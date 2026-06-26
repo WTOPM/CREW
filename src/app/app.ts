@@ -175,6 +175,6 @@ export class App implements OnInit {
 
   private isStandaloneInventoryRoute(): boolean {
     const path = this.router.url.split('?')[0].split('#')[0];
-    return path === '/dg' || path === '/reefer';
+    return path === '/dg' || path === '/reefer' || path === '/eta';
   }
 }
