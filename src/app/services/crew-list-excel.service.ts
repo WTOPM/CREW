@@ -28,7 +28,7 @@ import {
   crewListType2PdfFileName,
   crewListForm05PdfFileName,
   crewListV3SbkP2PdfFileName,
-  crewListV3SbkPPdfFileName,
+  crewListForm06PdfFileName,
   pdfFileDate,
   pdfFileToken,
 } from '../utils/pdf-filename.util';
@@ -51,10 +51,7 @@ export class CrewListExcelService {
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
 
     let bytes: Uint8Array;
-    if (
-      listType === 'type5V3SbkP' ||
-      listType === 'type6V3SbkP2'
-    ) {
+    if (listType === 'type6V3SbkP2') {
       bytes = await buildCrewListVariantExcel(listType, base, crew);
     } else {
       bytes = await this.buildType1(base, listType);
@@ -130,7 +127,7 @@ export class CrewListExcelService {
         case 'type4V3Sbk':
           return crewListForm05PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type5V3SbkP':
-          return crewListV3SbkPPdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
+          return crewListForm06PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type6V3SbkP2':
           return crewListV3SbkP2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
       }

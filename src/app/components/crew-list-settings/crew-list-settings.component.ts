@@ -9,6 +9,7 @@ import {
   CREW_FORM_03,
   CREW_FORM_04,
   CREW_FORM_05,
+  CREW_FORM_06,
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
 import { DocumentSettingsStore } from '../../services/document-settings.store';
@@ -18,6 +19,7 @@ import { DocumentExportSettingsComponent } from '../document-export-settings/doc
 import { crewListForm03EditorUrl } from '../../models/crew-list-form-03.paths';
 import { crewListForm04EditorUrl } from '../../models/crew-list-form-04.paths';
 import { crewListForm05EditorUrl } from '../../models/crew-list-form-05.paths';
+import { crewListForm06EditorUrl } from '../../models/crew-list-form-06.paths';
 
 @Component({
   selector: 'app-crew-list-settings',
@@ -51,7 +53,7 @@ import { crewListForm05EditorUrl } from '../../models/crew-list-form-05.paths';
         }
       </div>
     </fieldset>
-    @if (listType() === crewForm03 || listType() === crewForm04 || listType() === crewForm05) {
+    @if (listType() === crewForm03 || listType() === crewForm04 || listType() === crewForm05 || listType() === crewForm06) {
       <div style="padding: 0.25rem 0 0.5rem;">
         <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openHtmlFormSettings()">
           ⚙ Settings
@@ -158,6 +160,7 @@ export class CrewListSettingsComponent {
   protected readonly crewForm03 = CREW_FORM_03;
   protected readonly crewForm04 = CREW_FORM_04;
   protected readonly crewForm05 = CREW_FORM_05;
+  protected readonly crewForm06 = CREW_FORM_06;
   protected readonly typeIds = CREW_LIST_TYPE_IDS;
 
   protected listType(): CrewListTypeId {
@@ -190,7 +193,12 @@ export class CrewListSettingsComponent {
       window.location.href = crewListForm04EditorUrl({ mode, return: returnTo });
       return;
     }
+    if (this.listType() === CREW_FORM_05) {
+      const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
+      window.location.href = crewListForm05EditorUrl({ mode, return: returnTo });
+      return;
+    }
     const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
-    window.location.href = crewListForm05EditorUrl({ mode, return: returnTo });
+    window.location.href = crewListForm06EditorUrl({ mode, return: returnTo });
   }
 }

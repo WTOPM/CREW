@@ -9,7 +9,7 @@ import { IMO_PASSENGER_LIST_TITLE, PdfCrewArrService } from './pdf-crew-arr.serv
 import { PdfCrewListForm04Service } from './pdf-crew-list-form04.service';
 import { PdfCrewListForm03Service } from './pdf-crew-list-form03.service';
 import { PdfCrewListForm05Service } from './pdf-crew-list-form05.service';
-import { PdfCrewListV3SbkPService } from './pdf-crew-list-v3-sbk-p.service';
+import { PdfCrewListForm06Service } from './pdf-crew-list-form06.service';
 import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
 import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
@@ -53,7 +53,7 @@ export class DocumentCatalogService {
   private readonly crewListForm04 = inject(PdfCrewListForm04Service);
   private readonly crewListForm03 = inject(PdfCrewListForm03Service);
   private readonly crewListForm05 = inject(PdfCrewListForm05Service);
-  private readonly crewListV3SbkP = inject(PdfCrewListV3SbkPService);
+  private readonly crewListForm06 = inject(PdfCrewListForm06Service);
   private readonly crewListV3SbkP2 = inject(PdfCrewListV3SbkP2Service);
   private readonly poc = inject(PdfPortOfCallService);
   private readonly pocTemplate = inject(PdfPortOfCallTemplateService);
@@ -113,9 +113,9 @@ export class DocumentCatalogService {
       case 'crewListDepartureV3Sbk':
         return this.crewForm05Bytes(base, false);
       case 'crewListArrivalV3SbkP':
-        return this.crewV3SbkPBytes(base, true);
+        return this.crewForm06Bytes(base, true);
       case 'crewListDepartureV3SbkP':
-        return this.crewV3SbkPBytes(base, false);
+        return this.crewForm06Bytes(base, false);
       case 'crewListArrivalV3SbkP2':
         return this.crewV3SbkP2Bytes(base, true);
       case 'crewListDepartureV3SbkP2':
@@ -257,7 +257,7 @@ export class DocumentCatalogService {
     };
   }
 
-  private async crewV3SbkPBytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+  private async crewForm06Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,
@@ -268,8 +268,8 @@ export class DocumentCatalogService {
       },
     };
     return {
-      bytes: await this.crewListV3SbkP.buildPreviewBytes(data, crew),
-      fileName: this.crewListV3SbkP.fileName(data),
+      bytes: await this.crewListForm06.buildPdfBytes(data, crew, isArrival),
+      fileName: this.crewListForm06.fileName(data, isArrival),
     };
   }
 

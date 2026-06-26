@@ -68,7 +68,7 @@ export type CrewListTypeId =
   | 'type2Alger'         // 03 - IMO CREW LIST - P SBK J T   ← HTML form (forms/crew-list-form-03/)
   | 'type3V2'            // 04 - CREW LIST - P E PI G   ← HTML form (forms/crew-list-form-04/)
   | 'type4V3Sbk'         // 05 - CREW LIST - SBK E          ← HTML form (forms/crew-list-form-05/)
-  | 'type5V3SbkP'        // 06 - CREW LIST - SBK PI E P J
+  | 'type5V3SbkP'        // 06 - CREW LIST - SBK PI E P J   ← HTML form (forms/crew-list-form-06/)
   | 'type6V3SbkP2';      // 07 - CREW LIST - SBK PI E P PI E
 
 /** Named constants for crew list form numbers (for readable code). */

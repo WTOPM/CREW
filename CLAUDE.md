@@ -102,26 +102,37 @@ public/forms/crew-list-form-05/
   index.html              ← markup only; links CSS + JS
   crew-list-form-05.css   ← screen + print + PDF-export styles
   crew-list-form-05.js    ← data load, editor UI, overlay placement, PDF-ready signal
+
+public/forms/crew-list-form-06/
+  index.html
+  crew-list-form-06.css   ← landscape A4
+  crew-list-form-06.js
 ```
 
-**Angular integration:**
+**Angular integration (Form 05 portrait / Form 06 landscape):**
 
-- URL helper: `crewListForm05EditorUrl()` in `src/app/models/crew-list-form-05.paths.ts`
-- PDF capture: `PdfCrewListForm05Service` — hidden iframe → `html2canvas` + jsPDF →
-  `PdfDeliveryService` (same UX as pdf-lib forms)
-- Settings overlay prefs: `documentOverlay.crewList.byType.type4V3Sbk` (stamp/signature,
-  CSS placement boxes, cell styles)
-- Editor opens from Crew list settings (Form 05); `return=/?crewListSettings=1` restores
-  the settings modal after Save/Cancel
+| | Form 05 | Form 06 |
+|---|---------|---------|
+| Type id | `type4V3Sbk` | `type5V3SbkP` |
+| Paths | `crew-list-form-05.paths.ts` | `crew-list-form-06.paths.ts` |
+| PDF service | `PdfCrewListForm05Service` | `PdfCrewListForm06Service` |
+| Page class | `.a4-page` (210×297 mm) | `.a4-landscape-page` (297×210 mm) |
+| Feedback param | `form05Feedback` | `form06Feedback` |
+| Overlay bucket | `byType.type4V3Sbk` | `byType.type5V3SbkP` |
+
+- PDF capture: hidden iframe → `html2canvas` + jsPDF → `PdfDeliveryService` (same UX as pdf-lib forms)
+- Editor opens from Crew list settings; `return=/?crewListSettings=1` restores the settings modal after Save/Cancel
+- Excel: `html-form-excel-export.js` snapshot → `CrewListHtmlFormExcelService`
 
 **PDF export contract (required on every HTML form):**
 
 - `?pdfExport=1` — hide toolbars, flatten inputs, set `window.__pdfReady = true`
 - Optional `?data=<json>` — snapshot from Angular (crew already filtered); skip re-fetch
-- Use `foreignObjectRendering: true` in html2canvas (see Form 05 service comments)
+- Use `foreignObjectRendering: true` in html2canvas (see Form 05/06 service comments)
 
 Do **not** name production forms `test-*`. Use `forms/<kebab-name>/` and wire paths through
-`*.paths.ts` constants, not hard-coded strings.
+`*.paths.ts` constants, not hard-coded strings. Row counts: `CREW_LIST_FORM_0X_MAX_ROWS` in paths.ts
+(keep the matching `MAX_ROWS` in the form’s `.js` in sync).
 
 ## Build commands
 

@@ -488,13 +488,13 @@ export function buildLandscapeCrewListForm(
   mergeCells(ws, valueRow2, m1, valueRow2, r2);
 
   mergeCells(ws, labelRow3, l1, labelRow3, l2);
-  ws.getCell(labelRow3, l1).value = 'IMO No.';
+  ws.getCell(labelRow3, l1).value = '1.2   IMO number';
   styleFormLabel(ws.getCell(labelRow3, l1));
   mergeCells(ws, labelRow3, m1, labelRow3, m2);
-  ws.getCell(labelRow3, m1).value = 'Call sign';
+  ws.getCell(labelRow3, m1).value = '1.3   Call sign';
   styleFormLabel(ws.getCell(labelRow3, m1));
   mergeCells(ws, labelRow3, r1, labelRow3, r2);
-  ws.getCell(labelRow3, r1).value = 'Voyage number';
+  ws.getCell(labelRow3, r1).value = '1.4   Voyage number';
   styleFormLabel(ws.getCell(labelRow3, r1));
   blankStyledRow(ws, valueRow3, colCount);
   mergeCells(ws, valueRow3, l1, valueRow3, l2);

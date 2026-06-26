@@ -12,6 +12,7 @@ export interface HtmlFormExcelCrewRow {
   passportPlaceOfIssue?: string;
   gender?: string;
   seamansBook?: string;
+  seamansBookPlaceOfIssue?: string;
   sbookExpiryDate?: string;
   joiningDate?: string;
   joiningPort?: string;

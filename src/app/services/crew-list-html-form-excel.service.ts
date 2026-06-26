@@ -4,6 +4,7 @@ import {
   CREW_FORM_03,
   CREW_FORM_04,
   CREW_FORM_05,
+  CREW_FORM_06,
   CrewListTypeId,
   CrewListVariantSettings,
 } from '../models/document-overlay.models';
@@ -20,12 +21,13 @@ import {
 import {
   crewListForm04PdfFileName,
   crewListForm05PdfFileName,
+  crewListForm06PdfFileName,
   crewListType2PdfFileName,
 } from '../utils/pdf-filename.util';
 import { StorageService } from './storage.service';
 
-type HtmlCrewFormType = typeof CREW_FORM_03 | typeof CREW_FORM_04 | typeof CREW_FORM_05;
-type VariantListType = 'type3V2' | 'type4V3Sbk';
+type HtmlCrewFormType = typeof CREW_FORM_03 | typeof CREW_FORM_04 | typeof CREW_FORM_05 | typeof CREW_FORM_06;
+type VariantListType = 'type3V2' | 'type4V3Sbk' | 'type5V3SbkP';
 
 export interface HtmlFormExcelBuildResult {
   fileName: string;
@@ -37,7 +39,7 @@ export class CrewListHtmlFormExcelService {
   private readonly storage = inject(StorageService);
 
   isHtmlFormType(listType: CrewListTypeId): listType is HtmlCrewFormType {
-    return listType === CREW_FORM_03 || listType === CREW_FORM_04 || listType === CREW_FORM_05;
+    return listType === CREW_FORM_03 || listType === CREW_FORM_04 || listType === CREW_FORM_05 || listType === CREW_FORM_06;
   }
 
   /** Build .xlsx bytes from a sessionStorage snapshot written by an HTML form editor. */
@@ -101,7 +103,10 @@ export class CrewListHtmlFormExcelService {
     if (listType === CREW_FORM_04) {
       return buildCrewListVariantExcel('type3V2' satisfies VariantListType, data, crew);
     }
-    return buildCrewListVariantExcel('type4V3Sbk' satisfies VariantListType, data, crew);
+    if (listType === CREW_FORM_05) {
+      return buildCrewListVariantExcel('type4V3Sbk' satisfies VariantListType, data, crew);
+    }
+    return buildCrewListVariantExcel('type5V3SbkP' satisfies VariantListType, data, crew);
   }
 
   private mergeOverlaySnapshot(data: AppData, snapshot: HtmlFormExcelSnapshot): void {
@@ -159,6 +164,7 @@ export class CrewListHtmlFormExcelService {
       passportPlaceOfIssue: row.passportPlaceOfIssue ?? '',
       gender: row.gender === 'MALE' || row.gender === 'FEMALE' ? row.gender : '',
       seamansBook: row.seamansBook ?? '',
+      seamansBookPlaceOfIssue: row.seamansBookPlaceOfIssue ?? '',
       sbookExpiryDate: row.sbookExpiryDate ?? '',
       joiningDate: row.joiningDate ?? '',
       joiningPort: row.joiningPort ?? '',
@@ -176,6 +182,8 @@ export class CrewListHtmlFormExcelService {
           return crewListForm04PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case CREW_FORM_05:
           return crewListForm05PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
+        case CREW_FORM_06:
+          return crewListForm06PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
       }
     })();
     return pdfName.replace(/\.pdf$/i, '.xlsx');

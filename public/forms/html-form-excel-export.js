@@ -1,5 +1,5 @@
 /**
- * HTML form editors (03/04/05) → structured Excel via the Angular app.
+ * HTML form editors (03/04/05/06) → structured Excel via the Angular app.
  * Builds a snapshot from the live DOM, loads a hidden iframe (no page navigation),
  * receives .xlsx bytes back, and opens/downloads in this window.
  */
@@ -182,7 +182,44 @@
     };
   }
 
+  function snapshotForm06(loadPositions) {
+    const tbody = document.getElementById('tbody');
+    const crew = [];
+    if (tbody) {
+      Array.from(tbody.children).forEach((tr) => {
+        if (!rowHasData(tr, '.ci')) return;
+        const inputs = tr.querySelectorAll('input.ci');
+        const name = cellText(tr.querySelector('.ci-name'));
+        const birth = cellText(inputs[2]);
+        const birthParts = birth.split(/\s{2,}|\s+/);
+        crew.push({
+          ...splitName(name),
+          rank: cellText(inputs[0]),
+          nationality: cellText(inputs[1]),
+          dateOfBirth: birthParts[0] || birth,
+          placeOfBirth: birthParts.slice(1).join(' '),
+          seamansBook: cellText(inputs[3]),
+          seamansBookPlaceOfIssue: cellText(inputs[4]),
+          sbookExpiryDate: cellText(inputs[5]),
+          passport: cellText(inputs[6]),
+          joiningPort: cellText(inputs[7]),
+          joiningDate: cellText(inputs[8]),
+        });
+      });
+    }
+    return {
+      listType: 'type5V3SbkP',
+      isArrival: isArrivalMode(),
+      footerDate: cellText(document.getElementById('f-footer-date')),
+      masterName: cellText(document.getElementById('f-master-name')),
+      crew,
+      overlay: readOverlayState(loadPositions),
+      fileName: defaultExcelFileName(),
+    };
+  }
+
   const SNAPSHOT_BUILDERS = {
+    type5V3SbkP: snapshotForm06,
     type4V3Sbk: snapshotForm05,
     type3V2: snapshotForm04,
     type2Alger: snapshotForm03,
@@ -240,7 +277,7 @@
 
   /**
    * @param {object} options
-   * @param {'type4V3Sbk'|'type3V2'|'type2Alger'} options.listType
+   * @param {'type5V3SbkP'|'type4V3Sbk'|'type3V2'|'type2Alger'} options.listType
    * @param {() => void} [options.beforeExport] e.g. savePositions
    * @param {() => object} [options.loadPositions]
    */
