@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>03 - IMO CREW LIST - P SBK J T</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="crew-list-form-03.css" />
+</head>
+<body>
+  <div class="side-panel side-panel--left">
+    <button type="button" class="btn btn-save" onclick="persistAllChanges()">✓ Save</button>
+    <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">✗ Cancel</button>
+    <div class="side-panel__title">Format</div>
+    <select id="tb-font" class="side-panel__select" onchange="applyFormat('fontFamily', this.value)">
+      <option value="Arial">Arial</option>
+      <option value="Calibri">Calibri</option>
+      <option value="Times New Roman">Times New Roman</option>
+      <option value="Courier New">Courier New</option>
+    </select>
+    <select id="tb-size" class="side-panel__select" onchange="applyFormat('fontSize', this.value + 'pt')">
+      <option value="5">5</option>
+      <option value="6" selected>6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+      <option value="11">11</option>
+      <option value="12">12</option>
+    </select>
+    <button type="button" class="btn btn-s" onclick="applyFormat('textAlign', 'left')">≡ Left</button>
+    <button type="button" class="btn btn-s" onclick="applyFormat('textAlign', 'center')">≡ Center</button>
+    <button type="button" class="btn btn-s" onclick="applyFormat('textAlign', 'right')">≡ Right</button>
+    <div class="zoom-controls">
+      <div class="side-panel__title">Zoom</div>
+      <div class="zoom-controls__row">
+        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">−</button>
+        <span id="zoom-label" class="zoom-controls__pct">100%</span>
+        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-zoom-viewport" id="doc-zoom-viewport">
+    <div class="doc-zoom-pad" id="doc-zoom-pad">
+      <div class="doc-zoom-stage" id="doc-zoom-stage">
+      <div class="a4-landscape-page">
+
+        <div class="sidebar-text">
+          <span class="side-top">IMO Convention on Facilitation of International Maritime Traffic</span>
+          <span class="side-bot">II-1969 IMO FAL Form 5</span>
+        </div>
+
+        <div class="main-content">
+          <header class="doc-header">
+            <h1>IMO CREW LIST</h1>
+            <div class="header-top-meta">
+              <div class="cb-group">
+                <label class="cb-item" onclick="setAD('arrival')">
+                  <span class="cb-box" id="cb-arr">✓</span> <span class="ad-lbl" data-ad="arrival">Arrival</span>
+                </label>
+                <label class="cb-item" onclick="setAD('departure')">
+                  <span class="cb-box" id="cb-dep"></span> <span class="ad-lbl" data-ad="departure">Departure</span>
+                </label>
+              </div>
+              <div class="page-number-box">
+                <div class="label">Page No.</div>
+                <div class="value" id="h-page-no">1</div>
+              </div>
+            </div>
+          </header>
+
+          <div class="imo-table">
+            <div class="grid-row row-1">
+              <div class="cell col-6 field-box">
+                <div class="lbl-row"><span class="field-num">1.</span> <span class="field-label">Name of ship</span></div>
+                <input type="text" class="fi cell-input" id="h-ship-name" readonly />
+              </div>
+              <div class="cell col-3 field-box">
+                <div class="lbl-row"><span class="field-num">2.</span> <span class="field-label">Port of <span class="ad-lbl" data-ad="arrival">arrival</span> / <span class="ad-lbl" data-ad="departure">departure</span></span></div>
+                <input type="text" class="fi cell-input" id="h-port" readonly />
+              </div>
+              <div class="cell col-3 field-box">
+                <div class="lbl-row"><span class="field-num">3.</span> <span class="field-label">Date of <span class="ad-lbl" data-ad="arrival">arrival</span> / <span class="ad-lbl" data-ad="departure">departure</span></span></div>
+                <input type="text" class="fi cell-input" id="h-date" readonly />
+              </div>
+            </div>
+
+            <div class="grid-row row-2">
+              <div class="cell col-4 field-box">
+                <div class="lbl-row"><span class="field-num">4.</span> <span class="field-label">Nationality of Ship</span></div>
+                <input type="text" class="fi cell-input" id="h-nat" readonly />
+              </div>
+              <div class="cell col-5 field-box">
+                <div class="lbl-row"><span class="field-num">5.</span> <span class="field-label">Port arrived from / Sailing to</span></div>
+                <input type="text" class="fi cell-input" id="h-from" readonly />
+              </div>
+              <div class="cell col-3 field-box split-header-container">
+                <div class="split-sub-cell">
+                  <span class="field-num">6.</span>
+                  <span class="field-label mini-label">Nature and No. of identity documents</span>
+                </div>
+                <div class="split-sub-cell border-left">
+                  <span class="field-num">6.</span>
+                  <span class="field-label mini-label">Nature and No. of identity documents</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-headers">
+              <div class="th-cell ch-no"><span class="field-num">7.</span> No.</div>
+              <div class="th-cell ch-name"><span class="field-num">8.</span> Family names, given names</div>
+              <div class="th-cell ch-rank"><span class="field-num">9.</span> Rank or rating</div>
+              <div class="th-cell ch-nat"><span class="field-num">10.</span> Nationality</div>
+              <div class="th-cell ch-birth"><span class="field-num">11.</span> Date and place of birth</div>
+              <div class="th-cell ch-doc"></div>
+              <div class="th-cell ch-doc"></div>
+              <div class="th-cell ch-vertical"><div class="vertical-text">Date of joining the vessel</div></div>
+              <div class="th-cell ch-vertical"><div class="vertical-text">Place of joining the vessel</div></div>
+              <div class="th-cell ch-vertical border-right-none"><div class="vertical-text">Temperature of each crew member</div></div>
+            </div>
+
+            <div class="table-body" id="table-body"></div>
+          </div>
+
+          <footer class="doc-footer">
+            <span class="field-num">12.</span> Date and signature by master, authorised agent or officer
+            <div class="form-footer__sig-row">
+              <div class="form-footer__pad-h1" aria-hidden="true"></div>
+              <input type="text" id="f-footer-date" class="fi form-footer__date" placeholder="DD.MM.YYYY" />
+              <div class="form-footer__sig-rest">
+                <div class="sig-block">
+                  <span class="sig-lbl">Master</span>
+                  <input type="text" id="f-master-name" class="fi sig-name" readonly />
+                </div>
+              </div>
+            </div>
+          </footer>
+
+          <div id="stamp-container" class="overlay-marker"></div>
+          <div id="sig-container" class="overlay-marker"></div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
+    <div class="dg-archive-modal confirm-dialog confirm-dialog--danger" role="alertdialog" aria-modal="true"
+      aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" onclick="event.stopPropagation()">
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon confirm-dialog__icon confirm-dialog__icon--danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path fill="currentColor" d="M12 2 1 21h22L12 2zm0 4.2L19.5 19H4.5L12 6.2zM11 10v5h2v-5h-2zm0 7v2h2v-2h-2z"/>
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="confirm-dialog-title">Cancel changes</h3>
+          <p id="confirm-dialog-message" class="confirm-dialog__message">Are you sure you want to cancel? All unsaved changes will be lost.</p>
+        </div>
+      </header>
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmCancel()">Discard changes</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="side-panel side-panel--right">
+    <div class="side-panel__title">Rows</div>
+    <button type="button" class="btn btn-s" onclick="addRow()">+ Add row</button>
+    <button type="button" class="btn btn-s" onclick="removeRow()">− Remove last</button>
+    <div class="side-panel__title side-panel__title--spaced">Print</div>
+    <label class="side-panel__chk">
+      <input type="checkbox" id="chk-stamp" onchange="toggleStamp(this.checked)">
+      Stamp
+    </label>
+    <label class="side-panel__chk">
+      <input type="checkbox" id="chk-sig" onchange="toggleSignature(this.checked)">
+      Signature
+    </label>
+    <button type="button" class="btn btn-cancel btn--compact" onclick="resetPositions()">Reset positions</button>
+  </div>
+
+  <script src="crew-list-form-03.js"></script>
+</body>
+</html>

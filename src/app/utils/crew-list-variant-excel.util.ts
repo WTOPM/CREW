@@ -242,8 +242,9 @@ export async function buildAlgerCrewListExcel(
   data: AppData,
   crew: CrewMember[],
 ): Promise<Uint8Array> {
-  const { ship, ports } = data;
-  const voyageDate = formatDisplayDate(ship.dateOfArrival);
+  const { ship, ports, crewArr } = data;
+  const isArrival = crewArr.isArrival;
+  const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
   const title = CREW_LIST_TYPE_LABELS.type2Alger;
   const maxRows = 30;
 
@@ -274,7 +275,7 @@ export async function buildAlgerCrewListExcel(
   fillPortraitCrewListHeader(ws, layout, {
     ship,
     ports,
-    isArrival: true,
+    isArrival,
     voyageDate,
     pageNo: 1,
   });

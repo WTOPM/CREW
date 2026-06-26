@@ -6,8 +6,8 @@ import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { base64ToUint8 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
 import { IMO_PASSENGER_LIST_TITLE, PdfCrewArrService } from './pdf-crew-arr.service';
-import { PdfCrewListType2Service } from './pdf-crew-list-type2.service';
 import { PdfCrewListV2Service } from './pdf-crew-list-v2.service';
+import { PdfCrewListForm03Service } from './pdf-crew-list-form03.service';
 import { PdfCrewListForm05Service } from './pdf-crew-list-form05.service';
 import { PdfCrewListV3SbkPService } from './pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
@@ -50,8 +50,8 @@ export class DocumentCatalogService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly passengerListV2 = inject(PdfPassengerListV2Service);
-  private readonly type2 = inject(PdfCrewListType2Service);
   private readonly crewListV2 = inject(PdfCrewListV2Service);
+  private readonly crewListForm03 = inject(PdfCrewListForm03Service);
   private readonly crewListForm05 = inject(PdfCrewListForm05Service);
   private readonly crewListV3SbkP = inject(PdfCrewListV3SbkPService);
   private readonly crewListV3SbkP2 = inject(PdfCrewListV3SbkP2Service);
@@ -101,7 +101,9 @@ export class DocumentCatalogService {
       case 'crewListDepartureSeaman':
         return this.crewType1Bytes(base, false, CREW_IDENTITY_SEAMANS_BOOK);
       case 'crewListArrivalAlger':
-        return this.crewAlgerBytes(base);
+        return this.crewAlgerBytes(base, true);
+      case 'crewListDepartureAlger':
+        return this.crewAlgerBytes(base, false);
       case 'crewListArrivalV2':
         return this.crewV2Bytes(base, true);
       case 'crewListDepartureV2':
@@ -304,20 +306,20 @@ export class DocumentCatalogService {
     };
   }
 
-  /** Type 2 — Alger crew list (arrival only). */
-  private async crewAlgerBytes(base: AppData): Promise<BuiltPdf> {
-    const crew = this.storage.activeCrewArrival();
+  /** Form 03 — IMO CREW LIST [P][SBK][J][T]. */
+  private async crewAlgerBytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,
-      crewArr: { ...base.crewArr, isArrival: true },
+      crewArr: { ...base.crewArr, isArrival },
       documentOverlay: {
         ...base.documentOverlay,
         crewList: { ...base.documentOverlay.crewList, listType: 'type2Alger' },
       },
     };
     return {
-      bytes: await this.type2.buildPreviewBytes(data, crew),
-      fileName: this.type2.fileName(data),
+      bytes: await this.crewListForm03.buildPdfBytes(data, crew, isArrival),
+      fileName: this.crewListForm03.fileName(data, isArrival),
     };
   }
 

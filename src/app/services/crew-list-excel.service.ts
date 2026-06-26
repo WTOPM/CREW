@@ -26,6 +26,7 @@ import {
 } from '../utils/crew-list-variant-excel.util';
 import {
   crewListV2PdfFileName,
+  crewListType2PdfFileName,
   crewListForm05PdfFileName,
   crewListV3SbkP2PdfFileName,
   crewListV3SbkPPdfFileName,
@@ -41,7 +42,7 @@ export class CrewListExcelService {
 
   async openForListType(listType: CrewListTypeId): Promise<boolean> {
     const base = this.appData();
-    const isArrival = listType === 'type2Alger' ? true : base.crewArr.isArrival;
+    const isArrival = base.crewArr.isArrival;
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
 
     let bytes: Uint8Array;
@@ -114,7 +115,7 @@ export class CrewListExcelService {
 
   private fileName(base: AppData, listType: CrewListTypeId): string {
     const { ship, crewArr } = base;
-    const isArrival = listType === 'type2Alger' ? true : crewArr.isArrival;
+    const isArrival = crewArr.isArrival;
     const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
     const pdfName = (() => {
       switch (listType) {
@@ -122,7 +123,7 @@ export class CrewListExcelService {
         case 'type1SeamansBook':
           return this.type1PdfFileName(base, listType);
         case 'type2Alger':
-          return `Crew_List_Type2_Alger_Arrival_${pdfFileToken(ship.name)}_${pdfFileToken(ship.portOfCall)}_${pdfFileDate(voyageDate)}.pdf`;
+          return crewListType2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type3V2':
           return crewListV2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type4V3Sbk':

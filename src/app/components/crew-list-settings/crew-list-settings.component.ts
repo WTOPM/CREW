@@ -6,6 +6,7 @@ import {
   CREW_LIST_TYPE_OPTION_LABELS,
   crewListTypeOrderNo,
   CrewListTypeId,
+  CREW_FORM_03,
   CREW_FORM_05,
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
@@ -13,6 +14,7 @@ import { DocumentSettingsStore } from '../../services/document-settings.store';
 import { ToastService } from '../../services/toast.service';
 import { CrewAbbrChipComponent } from '../crew-abbr-chip/crew-abbr-chip.component';
 import { DocumentExportSettingsComponent } from '../document-export-settings/document-export-settings.component';
+import { crewListForm03EditorUrl } from '../../models/crew-list-form-03.paths';
 import { crewListForm05EditorUrl } from '../../models/crew-list-form-05.paths';
 
 @Component({
@@ -47,9 +49,9 @@ import { crewListForm05EditorUrl } from '../../models/crew-list-form-05.paths';
         }
       </div>
     </fieldset>
-    @if (listType() === crewForm05) {
+    @if (listType() === crewForm03 || listType() === crewForm05) {
       <div style="padding: 0.25rem 0 0.5rem;">
-        <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openForm05Settings()">
+        <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openHtmlFormSettings()">
           ⚙ Settings
         </button>
       </div>
@@ -150,7 +152,8 @@ export class CrewListSettingsComponent {
   private readonly docSettings = inject(DocumentSettingsStore);
   private readonly toast = inject(ToastService);
 
-  /** Form 05 type constant exposed to template */
+  /** HTML form types exposed to template */
+  protected readonly crewForm03 = CREW_FORM_03;
   protected readonly crewForm05 = CREW_FORM_05;
   protected readonly typeIds = CREW_LIST_TYPE_IDS;
 
@@ -172,9 +175,14 @@ export class CrewListSettingsComponent {
     this.toast.showSelected(CREW_LIST_TYPE_LABELS[value]);
   }
 
-  protected openForm05Settings(): void {
-    const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
+  protected openHtmlFormSettings(): void {
     const returnTo = encodeURIComponent('/?crewListSettings=1');
+    if (this.listType() === CREW_FORM_03) {
+      const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
+      window.location.href = crewListForm03EditorUrl({ mode, return: returnTo });
+      return;
+    }
+    const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
     window.location.href = crewListForm05EditorUrl({ mode, return: returnTo });
   }
 }

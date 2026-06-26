@@ -4,8 +4,8 @@ import { DocumentOverlayId } from '../models/document-overlay.models';
 import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { PdfCrewArrService } from './pdf-crew-arr.service';
-import { PdfCrewListType2Service } from './pdf-crew-list-type2.service';
 import { PdfCrewListV2Service } from './pdf-crew-list-v2.service';
+import { PdfCrewListForm03Service } from './pdf-crew-list-form03.service';
 import { PdfCrewListForm05Service } from './pdf-crew-list-form05.service';
 import { PdfCrewListV3SbkPService } from './pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
@@ -36,8 +36,8 @@ export class DocumentOverlayPreviewService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
-  private readonly crewListType2Pdf = inject(PdfCrewListType2Service);
   private readonly crewListV2Pdf = inject(PdfCrewListV2Service);
+  private readonly crewListForm03Pdf = inject(PdfCrewListForm03Service);
   private readonly crewListForm05Pdf = inject(PdfCrewListForm05Service);
   private readonly crewListV3SbkPPdf = inject(PdfCrewListV3SbkPService);
   private readonly crewListV3SbkP2Pdf = inject(PdfCrewListV3SbkP2Service);
@@ -120,14 +120,12 @@ export class DocumentOverlayPreviewService {
 
   private async buildCrewList(data: AppData): Promise<Uint8Array> {
     const listType = data.documentOverlay.crewList.listType;
-    const crew = this.storage.activeCrewArrival();
 
     if (listType === 'type2Alger') {
-      const arrivalData: AppData = {
-        ...data,
-        crewArr: { ...data.crewArr, isArrival: true },
-      };
-      return this.crewListType2Pdf.build(arrivalData, crew);
+      const crew = data.crewArr.isArrival
+        ? this.storage.activeCrewArrival()
+        : this.storage.activeCrewDeparture();
+      return this.crewListForm03Pdf.buildPdfBytes(data, crew, data.crewArr.isArrival);
     }
 
     if (listType === 'type3V2') {
@@ -160,6 +158,9 @@ export class DocumentOverlayPreviewService {
 
     const identityDocumentType =
       listType === 'type1SeamansBook' ? CREW_IDENTITY_SEAMANS_BOOK : CREW_IDENTITY_PASSPORT;
+    const crew = data.crewArr.isArrival
+      ? this.storage.activeCrewArrival()
+      : this.storage.activeCrewDeparture();
     const pdfData: AppData = {
       ...data,
       crewArr: { ...data.crewArr, isArrival: true, identityDocumentType },
