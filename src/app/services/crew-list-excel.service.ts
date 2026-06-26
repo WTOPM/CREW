@@ -26,7 +26,7 @@ import {
 } from '../utils/crew-list-variant-excel.util';
 import {
   crewListV2PdfFileName,
-  crewListV3SbkPdfFileName,
+  crewListForm05PdfFileName,
   crewListV3SbkP2PdfFileName,
   crewListV3SbkPPdfFileName,
   pdfFileDate,
@@ -126,7 +126,7 @@ export class CrewListExcelService {
         case 'type3V2':
           return crewListV2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type4V3Sbk':
-          return crewListV3SbkPdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
+          return crewListForm05PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type5V3SbkP':
           return crewListV3SbkPPdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type6V3SbkP2':

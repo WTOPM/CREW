@@ -4,7 +4,7 @@ import { CREW_LIST_TYPE_LABELS } from '../models/document-overlay.models';
 import { formatBirthDate, formatDisplayDate } from './date.util';
 import { workbookToBytes } from './crew-list-excel-layout.util';
 import { CREW_LIST_V2_MAX_ROWS } from '../services/crew-list-v2-coordinates';
-import { CREW_LIST_V3_SBK_MAX_ROWS } from '../services/crew-list-v3-sbk-coordinates';
+import { CREW_LIST_FORM_05_MAX_ROWS } from '../models/crew-list-form-05.paths';
 import { CREW_LIST_V3_SBK_P_MAX_ROWS } from '../services/crew-list-v3-sbk-p-coordinates';
 import {
   CrewListFormColumn,
@@ -68,7 +68,7 @@ const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConf
   type4V3Sbk: {
     listType: 'type4V3Sbk',
     orientation: 'portrait',
-    maxRows: CREW_LIST_V3_SBK_MAX_ROWS,
+    maxRows: CREW_LIST_FORM_05_MAX_ROWS,
     charterer: true,
     columns: [
       { header: 'No.', width: 5, align: 'center', value: (_m, _d, n) => n },

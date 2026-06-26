@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   AppData,
@@ -22,7 +22,9 @@ import {
 } from '../../utils/pdf-filename.util';
 import {
   CREW_FORM_05,
+  CREW_LIST_TYPE_LABELS,
 } from '../../models/document-overlay.models';
+import { CREW_LIST_FORM_05_FEEDBACK_PARAM } from '../../models/crew-list-form-05.paths';
 import { PartialDateInputComponent } from '../partial-date-input/partial-date-input.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
@@ -30,7 +32,6 @@ import { defaultIsoDateInCurrentMonth } from '../../utils/partial-date.util';
 import { PdfCrewArrService } from '../../services/pdf-crew-arr.service';
 import { PdfCrewListType2Service } from '../../services/pdf-crew-list-type2.service';
 import { PdfCrewListV2Service } from '../../services/pdf-crew-list-v2.service';
-import { PdfCrewListV3SbkService } from '../../services/pdf-crew-list-v3-sbk.service';
 import { PdfCrewListForm05Service } from '../../services/pdf-crew-list-form05.service';
 import { PdfCrewListV3SbkPService } from '../../services/pdf-crew-list-v3-sbk-p.service';
 import { PdfCrewListV3SbkP2Service } from '../../services/pdf-crew-list-v3-sbk-p2.service';
@@ -104,7 +105,7 @@ type MoneyDocId = (typeof MONEY_DOC_IDS)[number];
   templateUrl: './documents-nav.component.html',
   styleUrl: './documents-nav.component.css',
 })
-export class DocumentsNavComponent {
+export class DocumentsNavComponent implements OnInit {
   private readonly storage = inject(StorageService);
   private readonly forms = inject(FormsStore);
   private readonly crewPdf = inject(PdfCrewArrService);
@@ -238,8 +239,7 @@ export class DocumentsNavComponent {
     await this.openCrewListTemplatePdf(isArrival, this.crewListV2Pdf);
   }
 
-  /** Form 05 - CREW LIST [SBK][E] — renders the HTML form (test-crew-list.html) to a PDF
-   *  and opens it in its own window, same as every other crew-list form. */
+  /** Form 05 - CREW LIST [SBK][E] — HTML editor → PDF via html2canvas. */
   private async openCrewListForm05Pdf(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -271,7 +271,6 @@ export class DocumentsNavComponent {
     isArrival: boolean,
     pdf:
       | PdfCrewListV2Service
-      | PdfCrewListV3SbkService
       | PdfCrewListV3SbkPService
       | PdfCrewListV3SbkP2Service,
   ): Promise<void> {
@@ -312,6 +311,30 @@ export class DocumentsNavComponent {
     });
     if (!ok) {
       this.toast.showError('Allow pop-ups to open Crew List preview');
+    }
+  }
+
+  ngOnInit(): void {
+    const params = new URLSearchParams(window.location.search);
+    const reopen = params.get('crewListSettings') === '1';
+    const feedback = params.get(CREW_LIST_FORM_05_FEEDBACK_PARAM);
+    const form05Label = CREW_LIST_TYPE_LABELS[CREW_FORM_05];
+
+    if (reopen) {
+      this.showCrewListSettings.set(true);
+    }
+    if (feedback === 'saved') {
+      this.toast.show(`Saved: ${form05Label}`, 'success');
+    } else if (feedback === 'cancelled') {
+      this.toast.show(`Cancelled: ${form05Label}`, 'info');
+    }
+
+    if (reopen || feedback) {
+      params.delete('crewListSettings');
+      params.delete(CREW_LIST_FORM_05_FEEDBACK_PARAM);
+      const query = params.toString();
+      const path = window.location.pathname || '/';
+      window.history.replaceState({}, '', query ? `${path}?${query}` : path);
     }
   }
 

@@ -1,4 +1,5 @@
 import type { PdfStampBox } from '../utils/overlay-stamp-box.util';
+import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 
 /** Per-row size/position tweak for Crew Effect crew signatures (relative to base box). */
 export interface CrewSignatureRowTweak {
@@ -66,7 +67,7 @@ export type CrewListTypeId =
   | 'type1SeamansBook'   // 02 - IMO CREW LIST - SBK
   | 'type2Alger'         // 03 - IMO CREW LIST - P SBK J T
   | 'type3V2'            // 04 - CREW LIST - P E PI G
-  | 'type4V3Sbk'         // 05 - CREW LIST - SBK E          ← HTML form (test-crew-list.html)
+  | 'type4V3Sbk'         // 05 - CREW LIST - SBK E          ← HTML form (forms/crew-list-form-05/)
   | 'type5V3SbkP'        // 06 - CREW LIST - SBK PI E P J
   | 'type6V3SbkP2';      // 07 - CREW LIST - SBK PI E P PI E
 
@@ -75,7 +76,7 @@ export const CREW_FORM_01 = 'type1Passport'    as const satisfies CrewListTypeId
 export const CREW_FORM_02 = 'type1SeamansBook' as const satisfies CrewListTypeId;
 export const CREW_FORM_03 = 'type2Alger'       as const satisfies CrewListTypeId;
 export const CREW_FORM_04 = 'type3V2'          as const satisfies CrewListTypeId;
-/** Form 05 - CREW LIST [SBK][E] — HTML form (test-crew-list.html), arrival/departure */
+/** Form 05 - CREW LIST [SBK][E] — HTML editor (`public/forms/crew-list-form-05/`), arrival/departure */
 export const CREW_FORM_05 = 'type4V3Sbk'       as const satisfies CrewListTypeId;
 export const CREW_FORM_06 = 'type5V3SbkP'      as const satisfies CrewListTypeId;
 export const CREW_FORM_07 = 'type6V3SbkP2'     as const satisfies CrewListTypeId;
@@ -107,13 +108,34 @@ export function crewListPlacementKey(listType: CrewListTypeId): CrewListPlacemen
   return 'type1';
 }
 
+/** Form 05 HTML editor overlay — CSS placement on `.main-content` (not pdf-lib pt). */
+export interface CrewListForm05CssBox {
+  left: string;
+  top: string;
+  width: string;
+  height: string;
+}
+
 /** Per crew-list document variant: stamp toggles + placement. */
 export interface CrewListVariantSettings {
   useStamp: boolean;
   useSignature: boolean;
   overlayRotation?: number;
-  stampBox?: PdfStampBox;
-  signatureBox?: PdfStampBox;
+  /** pdf-lib box for PDF templates; Form 05 uses {@link CrewListForm05CssBox}. */
+  stampBox?: PdfStampBox | CrewListForm05CssBox;
+  signatureBox?: PdfStampBox | CrewListForm05CssBox;
+  cellStyles?: Record<string, { fontFamily?: string; fontSize?: string; textAlign?: string }>;
+}
+
+export function isCrewListForm05CssBox(box: unknown): box is CrewListForm05CssBox {
+  if (!box || typeof box !== 'object') return false;
+  const b = box as CrewListForm05CssBox;
+  return (
+    typeof b.left === 'string' &&
+    typeof b.top === 'string' &&
+    typeof b.width === 'string' &&
+    typeof b.height === 'string'
+  );
 }
 
 /** Stamp/signature placement bucket (legacy — Type 1 passport & seaman's book shared one layout). */
@@ -229,6 +251,7 @@ const CREW_LIST_VARIANT_FIELD_NAMES = [
   'overlayRotation',
   'stampBox',
   'signatureBox',
+  'cellStyles',
 ] as const satisfies readonly (keyof CrewListVariantSettings)[];
 
 function mergeCrewListVariantPlacement(
@@ -272,8 +295,8 @@ export function resolveCrewListStampOptions(
     useStamp: variant.useStamp,
     useSignature: variant.useSignature,
     ...(variant.overlayRotation != null ? { overlayRotation: variant.overlayRotation } : {}),
-    ...(variant.stampBox ? { stampBox: { ...variant.stampBox } } : {}),
-    ...(variant.signatureBox ? { signatureBox: { ...variant.signatureBox } } : {}),
+    ...(isValidStampBox(variant.stampBox) ? { stampBox: { ...variant.stampBox } } : {}),
+    ...(isValidStampBox(variant.signatureBox) ? { signatureBox: { ...variant.signatureBox } } : {}),
   };
 }
 

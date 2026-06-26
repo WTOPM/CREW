@@ -90,6 +90,39 @@ component. Pure normalization/migration belongs in `app-data-normalizer.ts`, not
   empty, so interactive features can't be verified on a fresh dev instance — say so and
   ask the user to confirm on real data when visual verification matters.
 
+## HTML document forms (Form 05+)
+
+Some documents are authored as **static HTML** under `public/forms/<form-id>/` instead of
+pdf-lib templates. This is the preferred pattern for new complex layouts.
+
+**File layout (one folder per form):**
+
+```
+public/forms/crew-list-form-05/
+  index.html              ← markup only; links CSS + JS
+  crew-list-form-05.css   ← screen + print + PDF-export styles
+  crew-list-form-05.js    ← data load, editor UI, overlay placement, PDF-ready signal
+```
+
+**Angular integration:**
+
+- URL helper: `crewListForm05EditorUrl()` in `src/app/models/crew-list-form-05.paths.ts`
+- PDF capture: `PdfCrewListForm05Service` — hidden iframe → `html2canvas` + jsPDF →
+  `PdfDeliveryService` (same UX as pdf-lib forms)
+- Settings overlay prefs: `documentOverlay.crewList.byType.type4V3Sbk` (stamp/signature,
+  CSS placement boxes, cell styles)
+- Editor opens from Crew list settings (Form 05); `return=/?crewListSettings=1` restores
+  the settings modal after Save/Cancel
+
+**PDF export contract (required on every HTML form):**
+
+- `?pdfExport=1` — hide toolbars, flatten inputs, set `window.__pdfReady = true`
+- Optional `?data=<json>` — snapshot from Angular (crew already filtered); skip re-fetch
+- Use `foreignObjectRendering: true` in html2canvas (see Form 05 service comments)
+
+Do **not** name production forms `test-*`. Use `forms/<kebab-name>/` and wire paths through
+`*.paths.ts` constants, not hard-coded strings.
+
 ## Build commands
 
 - Web build: `npm run build`

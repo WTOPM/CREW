@@ -1,30 +1,40 @@
 import { Injectable, inject } from '@angular/core';
 import { AppData, CrewMember } from '../models/crew.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
+import { crewListForm05EditorUrl } from '../models/crew-list-form-05.paths';
 import { crewListForm05PdfFileName } from '../utils/pdf-filename.util';
 
 /**
- * Form 05 - CREW LIST [SBK][E] is authored as an HTML page (test-crew-list.html), not a
- * pdf-lib template. To match every other crew-list form's UX — a PDF generated and opened
- * in its own window, no print dialog — this renders that page in a hidden iframe and
- * captures it to a real PDF with jsPDF/html2canvas (already app dependencies), then delivers
- * the bytes through the same PdfDeliveryService as every other form.
+ * Form 05 - CREW LIST [SBK][E] — HTML editor at `public/forms/crew-list-form-05/`, not a
+ * pdf-lib template. Renders that page in a hidden iframe, captures with jsPDF/html2canvas,
+ * then delivers bytes through PdfDeliveryService like every other form.
  */
 @Injectable({ providedIn: 'root' })
 export class PdfCrewListForm05Service {
   private readonly delivery = inject(PdfDeliveryService);
 
   async openPreview(data: AppData, crew: CrewMember[], isArrival: boolean): Promise<boolean> {
+    const bytes = await this.buildPdfBytes(data, crew, isArrival);
+    return this.delivery.deliver(bytes, this.fileName(data, isArrival));
+  }
+
+  async buildPdfBytes(
+    data: AppData,
+    crew: CrewMember[],
+    isArrival: boolean,
+  ): Promise<Uint8Array> {
     const mode = isArrival ? 'arrival' : 'departure';
     const snapshot = this.buildSnapshot(data, crew);
-    const url = `/test-crew-list.html?mode=${mode}&pdfExport=1&data=${encodeURIComponent(JSON.stringify(snapshot))}`;
+    const url = crewListForm05EditorUrl({
+      mode,
+      pdfExport: '1',
+      data: JSON.stringify(snapshot),
+    });
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.left = '-10000px';
     iframe.style.top = '0';
-    // Match the form's own A4 width exactly — a wider iframe leaves blank space beside
-    // the content, which then gets squeezed into the PDF page and shifts everything left.
     iframe.style.width = '210mm';
     iframe.style.height = '297mm';
     iframe.style.border = '0';
@@ -54,13 +64,7 @@ export class PdfCrewListForm05Service {
         import('jspdf'),
         import('html2canvas'),
       ]);
-      // foreignObjectRendering hands painting to the browser engine itself rather than
-      // html2canvas's manual canvas-painting path, which: mangles `writing-mode: vertical-rl`
-      // text (the side label) into garbage glyphs, doubles up collapsed table borders, and
-      // drops `mix-blend-mode` overlays (the stamp/signature) entirely.
-      // Capturing the whole body (not the .a4-page sub-element) sidesteps a separate
-      // foreignObjectRendering bug that mis-crops sub-elements at scale > 1 — the page's own
-      // script removes the side toolbars in export mode, so body == exactly the page content.
+
       const canvas = await html2canvas(frameDoc.body, {
         scale: 2,
         backgroundColor: '#ffffff',
@@ -68,15 +72,12 @@ export class PdfCrewListForm05Service {
         foreignObjectRendering: true,
       });
 
-      // Fit the captured page as a single full-bleed image on one A4 page — avoids
-      // jsPDF's doc.html() autopaging, which mis-scales text into dozens of pages.
       const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
       const pageWidth = doc.internal.pageSize.getWidth();
       const imgHeight = (canvas.height * pageWidth) / canvas.width;
       doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidth, imgHeight);
 
-      const bytes = new Uint8Array(doc.output('arraybuffer'));
-      return this.delivery.deliver(bytes, this.fileName(data, isArrival));
+      return new Uint8Array(doc.output('arraybuffer'));
     } finally {
       iframe.remove();
     }
@@ -103,6 +104,7 @@ export class PdfCrewListForm05Service {
         seamansBook: c.seamansBook,
         sbookExpiryDate: c.sbookExpiryDate,
       })),
+      documentOverlay: data.documentOverlay,
     };
   }
 }

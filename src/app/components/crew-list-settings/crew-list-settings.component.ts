@@ -13,6 +13,7 @@ import { DocumentSettingsStore } from '../../services/document-settings.store';
 import { ToastService } from '../../services/toast.service';
 import { CrewAbbrChipComponent } from '../crew-abbr-chip/crew-abbr-chip.component';
 import { DocumentExportSettingsComponent } from '../document-export-settings/document-export-settings.component';
+import { crewListForm05EditorUrl } from '../../models/crew-list-form-05.paths';
 
 @Component({
   selector: 'app-crew-list-settings',
@@ -48,7 +49,7 @@ import { DocumentExportSettingsComponent } from '../document-export-settings/doc
     </fieldset>
     @if (listType() === crewForm05) {
       <div style="padding: 0.25rem 0 0.5rem;">
-        <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openTestForm()">
+        <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openForm05Settings()">
           ⚙ Settings
         </button>
       </div>
@@ -171,7 +172,9 @@ export class CrewListSettingsComponent {
     this.toast.showSelected(CREW_LIST_TYPE_LABELS[value]);
   }
 
-  protected openTestForm(mode: 'arrival' | 'departure' = 'arrival'): void {
-    window.location.href = `/test-crew-list.html?mode=${mode}`;
+  protected openForm05Settings(): void {
+    const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
+    const returnTo = encodeURIComponent('/?crewListSettings=1');
+    window.location.href = crewListForm05EditorUrl({ mode, return: returnTo });
   }
 }
