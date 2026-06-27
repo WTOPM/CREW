@@ -1,10 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { AppData, CrewMember, createEmptyCrewMember } from '../models/crew.models';
 import {
+  CREW_FORM_01,
+  CREW_FORM_02,
   CREW_FORM_03,
   CREW_FORM_04,
   CREW_FORM_05,
   CREW_FORM_06,
+  CREW_FORM_07,
   CrewListTypeId,
   CrewListVariantSettings,
 } from '../models/document-overlay.models';
@@ -18,16 +21,27 @@ import {
   buildAlgerCrewListExcel,
   buildCrewListVariantExcel,
 } from '../utils/crew-list-variant-excel.util';
+import { buildImoCrewListExcelBytes } from '../utils/imo-crew-list-excel-layout.util';
 import {
   crewListForm04PdfFileName,
   crewListForm05PdfFileName,
   crewListForm06PdfFileName,
+  crewListForm07PdfFileName,
+  crewListIdentityPdfFileName,
   crewListType2PdfFileName,
 } from '../utils/pdf-filename.util';
+import { CREW_IDENTITY_PASSPORT, CREW_IDENTITY_SEAMANS_BOOK } from '../models/crew.models';
 import { StorageService } from './storage.service';
 
-type HtmlCrewFormType = typeof CREW_FORM_03 | typeof CREW_FORM_04 | typeof CREW_FORM_05 | typeof CREW_FORM_06;
-type VariantListType = 'type3V2' | 'type4V3Sbk' | 'type5V3SbkP';
+type HtmlCrewFormType =
+  | typeof CREW_FORM_01
+  | typeof CREW_FORM_02
+  | typeof CREW_FORM_03
+  | typeof CREW_FORM_04
+  | typeof CREW_FORM_05
+  | typeof CREW_FORM_06
+  | typeof CREW_FORM_07;
+type VariantListType = 'type3V2' | 'type4V3Sbk' | 'type5V3SbkP' | 'type6V3SbkP2';
 
 export interface HtmlFormExcelBuildResult {
   fileName: string;
@@ -39,7 +53,15 @@ export class CrewListHtmlFormExcelService {
   private readonly storage = inject(StorageService);
 
   isHtmlFormType(listType: CrewListTypeId): listType is HtmlCrewFormType {
-    return listType === CREW_FORM_03 || listType === CREW_FORM_04 || listType === CREW_FORM_05 || listType === CREW_FORM_06;
+    return (
+      listType === CREW_FORM_01 ||
+      listType === CREW_FORM_02 ||
+      listType === CREW_FORM_03 ||
+      listType === CREW_FORM_04 ||
+      listType === CREW_FORM_05 ||
+      listType === CREW_FORM_06 ||
+      listType === CREW_FORM_07
+    );
   }
 
   /** Build .xlsx bytes from a sessionStorage snapshot written by an HTML form editor. */
@@ -97,6 +119,9 @@ export class CrewListHtmlFormExcelService {
     data: AppData,
     crew: CrewMember[],
   ): Promise<Uint8Array> {
+    if (listType === CREW_FORM_01 || listType === CREW_FORM_02) {
+      return buildImoCrewListExcelBytes(data, crew, listType);
+    }
     if (listType === CREW_FORM_03) {
       return buildAlgerCrewListExcel(data, crew);
     }
@@ -106,7 +131,10 @@ export class CrewListHtmlFormExcelService {
     if (listType === CREW_FORM_05) {
       return buildCrewListVariantExcel('type4V3Sbk' satisfies VariantListType, data, crew);
     }
-    return buildCrewListVariantExcel('type5V3SbkP' satisfies VariantListType, data, crew);
+    if (listType === CREW_FORM_06) {
+      return buildCrewListVariantExcel('type5V3SbkP' satisfies VariantListType, data, crew);
+    }
+    return buildCrewListVariantExcel('type6V3SbkP2' satisfies VariantListType, data, crew);
   }
 
   private mergeOverlaySnapshot(data: AppData, snapshot: HtmlFormExcelSnapshot): void {
@@ -176,6 +204,22 @@ export class CrewListHtmlFormExcelService {
     const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
     const pdfName = (() => {
       switch (listType) {
+        case CREW_FORM_01:
+          return crewListIdentityPdfFileName(
+            ship.name,
+            ship.portOfCall,
+            voyageDate,
+            isArrival,
+            CREW_IDENTITY_PASSPORT,
+          );
+        case CREW_FORM_02:
+          return crewListIdentityPdfFileName(
+            ship.name,
+            ship.portOfCall,
+            voyageDate,
+            isArrival,
+            CREW_IDENTITY_SEAMANS_BOOK,
+          );
         case CREW_FORM_03:
           return crewListType2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case CREW_FORM_04:
@@ -184,6 +228,8 @@ export class CrewListHtmlFormExcelService {
           return crewListForm05PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case CREW_FORM_06:
           return crewListForm06PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
+        case CREW_FORM_07:
+          return crewListForm07PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
       }
     })();
     return pdfName.replace(/\.pdf$/i, '.xlsx');

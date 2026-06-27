@@ -107,18 +107,23 @@ public/forms/crew-list-form-06/
   index.html
   crew-list-form-06.css   ← landscape A4
   crew-list-form-06.js
+
+public/forms/crew-list-form-07/
+  index.html
+  crew-list-form-07.css   ← landscape A4 (Passport block replaces Join port/date)
+  crew-list-form-07.js
 ```
 
-**Angular integration (Form 05 portrait / Form 06 landscape):**
+**Angular integration (Form 05 portrait / Form 06–07 landscape):**
 
-| | Form 05 | Form 06 |
-|---|---------|---------|
-| Type id | `type4V3Sbk` | `type5V3SbkP` |
-| Paths | `crew-list-form-05.paths.ts` | `crew-list-form-06.paths.ts` |
-| PDF service | `PdfCrewListForm05Service` | `PdfCrewListForm06Service` |
-| Page class | `.a4-page` (210×297 mm) | `.a4-landscape-page` (297×210 mm) |
-| Feedback param | `form05Feedback` | `form06Feedback` |
-| Overlay bucket | `byType.type4V3Sbk` | `byType.type5V3SbkP` |
+| | Form 05 | Form 06 | Form 07 |
+|---|---------|---------|---------|
+| Type id | `type4V3Sbk` | `type5V3SbkP` | `type6V3SbkP2` |
+| Paths | `crew-list-form-05.paths.ts` | `crew-list-form-06.paths.ts` | `crew-list-form-07.paths.ts` |
+| PDF service | `PdfCrewListForm05Service` | `PdfCrewListForm06Service` | `PdfCrewListForm07Service` |
+| Page class | `.a4-page` (210×297 mm) | `.a4-landscape-page` | `.a4-landscape-page` |
+| Feedback param | `form05Feedback` | `form06Feedback` | `form07Feedback` |
+| Overlay bucket | `byType.type4V3Sbk` | `byType.type5V3SbkP` | `byType.type6V3SbkP2` |
 
 - PDF capture: hidden iframe → `html2canvas` + jsPDF → `PdfDeliveryService` (same UX as pdf-lib forms)
 - Editor opens from Crew list settings; `return=/?crewListSettings=1` restores the settings modal after Save/Cancel

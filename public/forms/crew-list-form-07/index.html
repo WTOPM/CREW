@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>07 - CREW LIST - SBK PI E P PI E</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="crew-list-form-07.css" />
+  <link rel="stylesheet" href="../cell-align-toolbar.css" />
+  <link rel="stylesheet" href="../overlay-toolbar.css" />
+  <link rel="stylesheet" href="../html-form-excel-export.css" />
+</head>
+<body>
+  <div class="side-panel side-panel--left">
+    <button type="button" class="btn btn-save" onclick="persistAllChanges()">✓ Save</button>
+    <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">✗ Cancel</button>
+    <div class="side-panel__title">Format</div>
+    <select id="tb-font" class="side-panel__select" onchange="applyFormat('fontFamily', this.value)">
+      <option value="Arial">Arial</option>
+      <option value="Calibri">Calibri</option>
+      <option value="Times New Roman">Times New Roman</option>
+      <option value="Courier New">Courier New</option>
+    </select>
+    <select id="tb-size" class="side-panel__select" onchange="applyFormat('fontSize', this.value + 'pt')">
+      <option value="5">5</option>
+      <option value="6" selected>6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+    </select>
+    <div id="cell-align-toolbar" class="cell-align-toolbar" aria-label="Cell alignment"></div>
+    <div class="zoom-controls">
+      <div class="side-panel__title">Zoom</div>
+      <div class="zoom-controls__row">
+        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">−</button>
+        <span id="zoom-label" class="zoom-controls__pct">100%</span>
+        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">+</button>
+      </div>
+      <button type="button" class="btn btn-excel" id="btn-export-excel" onclick="exportToExcel()">Excel</button>
+    </div>
+  </div>
+
+  <div class="doc-zoom-viewport" id="doc-zoom-viewport">
+    <div class="doc-zoom-pad" id="doc-zoom-pad">
+      <div class="doc-zoom-stage" id="doc-zoom-stage">
+        <div class="a4-landscape-page">
+          <div class="sidebar-text">
+            <span class="side-top">IMO Convention on Facilitation of International Maritime Traffic</span>
+            <span class="side-bot">II-1969 IMO FAL Form 5</span>
+          </div>
+
+          <div class="main-content">
+            <header class="doc-header">
+              <h1>CREW LIST</h1>
+            </header>
+
+            <div class="top-meta-line">
+              <div class="agency-wrap">
+                <span class="lbl-agency">AGENCY:</span>
+                <input type="text" class="fi" id="h-agency" readonly />
+              </div>
+              <div class="cb-group">
+                <label class="cb-item" onclick="setAD('arrival')">
+                  <span class="cb-box" id="cb-arr">✓</span> <span class="ad-lbl" data-ad="arrival">Arrival</span>
+                </label>
+                <label class="cb-item" onclick="setAD('departure')">
+                  <span class="cb-box" id="cb-dep"></span> <span class="ad-lbl" data-ad="departure">Departure</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-sheet">
+              <div class="header-block">
+                <div class="header-grid">
+                  <div class="h-field h-ship-field">
+                    <div class="h-lbl h-ship-lbl"><span class="fn">1.</span>&nbsp;Name of ship</div>
+                    <div class="h-val h-ship-val"><input type="text" class="fi" id="h-ship-name" readonly /></div>
+                  </div>
+                  <div class="h-lbl h-port-lbl"><span class="fn">2.</span>&nbsp;Port of <span class="ad-lbl" data-ad="arrival">arrival</span>&nbsp;/&nbsp;<span class="ad-lbl" data-ad="departure">departure</span></div>
+                  <div class="h-lbl h-date-lbl"><span class="fn">3.</span>&nbsp;Date of <span class="ad-lbl" data-ad="arrival">arrival</span>&nbsp;/&nbsp;<span class="ad-lbl" data-ad="departure">departure</span></div>
+                  <div class="h-imo-call-voyage">
+                    <div class="h-lbl h-imo-lbl"><span class="fn">1.2</span>&nbsp;IMO number</div>
+                    <div class="h-lbl h-call-lbl"><span class="fn">1.3</span>&nbsp;Call sign</div>
+                    <div class="h-field h-voyage-field">
+                      <div class="h-lbl h-voyage-lbl"><span class="fn">1.4</span>&nbsp;Voyage number</div>
+                      <div class="h-val h-voyage-val"><input type="text" class="fi" id="h-voyage" readonly /></div>
+                    </div>
+                    <div class="h-val h-imo-val"><input type="text" class="fi" id="h-imo" readonly /></div>
+                    <div class="h-val h-call-val"><input type="text" class="fi" id="h-call" readonly /></div>
+                  </div>
+
+                  <div class="h-val h-port-val"><input type="text" class="fi" id="h-port" readonly /></div>
+                  <div class="h-val h-date-val"><input type="text" class="fi" id="h-date" readonly /></div>
+
+                  <div class="h-lbl h-nat-lbl"><span class="fn">4.</span>&nbsp;Nationality of ship</div>
+                  <div class="h-lbl h-from-lbl"><span class="fn">5.</span>&nbsp;Port arrived from&nbsp;/&nbsp;Port of destination</div>
+                  <div class="h-field h-sbk-field">
+                    <div class="h-lbl h-sbk-lbl"><span class="fn">6.</span>&nbsp;Seaman&apos;s book</div>
+                    <div class="h-val h-sbk-val" aria-hidden="true"></div>
+                  </div>
+                  <div class="h-field h-passport-field">
+                    <div class="h-lbl h-passport-lbl"><span class="fn">6.</span>&nbsp;Passport</div>
+                    <div class="h-val h-passport-val" aria-hidden="true"></div>
+                  </div>
+
+                  <div class="h-val h-nat-val"><input type="text" class="fi" id="h-nat" readonly /></div>
+                  <div class="h-val h-from-val"><input type="text" class="fi" id="h-from" readonly /></div>
+                </div>
+              </div>
+
+              <table class="crew-tbl">
+                <colgroup>
+                  <col class="c0"><col class="c1"><col class="c2"><col class="c3"><col class="c4">
+                  <col class="c5"><col class="c6"><col class="c7"><col class="c8"><col class="c9"><col class="c10">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th class="c0">7. No.</th>
+                    <th class="c1">8. Family name, given names</th>
+                    <th class="c2">9. Rank or rating</th>
+                    <th class="c3">10. Nationality</th>
+                    <th class="c4">11. Date and place of birth</th>
+                    <th class="c5">No. of seaman&apos;s book</th>
+                    <th class="c6">Place of issue</th>
+                    <th class="c7">Expiry Date</th>
+                    <th class="c8">National Passport No.</th>
+                    <th class="c9">Place of Issue</th>
+                    <th class="c10">Passport Expiry Date</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+              </table>
+            </div>
+
+            <div class="form-footer">
+              <p class="foot-note">12. Date and signature by master, authorized agent or officer</p>
+              <div class="form-footer__sig-row">
+                <input type="text" id="f-footer-date" class="fi form-footer__date" />
+                <div class="sig-block">
+                  <span class="sig-lbl">Master</span>
+                  <div id="f-master-name" class="fi sig-name" aria-readonly="true"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="doc-overlay-layer" aria-hidden="false">
+            <div id="stamp-container" class="overlay-marker"></div>
+            <div id="sig-container" class="overlay-marker"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
+    <div class="dg-archive-modal confirm-dialog confirm-dialog--danger" role="alertdialog" aria-modal="true"
+      aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" onclick="event.stopPropagation()">
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon confirm-dialog__icon confirm-dialog__icon--danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path fill="currentColor" d="M12 2 1 21h22L12 2zm0 4.2L19.5 19H4.5L12 6.2zM11 10v5h2v-5h-2zm0 7v2h2v-2h-2z"/>
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="confirm-dialog-title">Cancel changes</h3>
+          <p id="confirm-dialog-message" class="confirm-dialog__message">Are you sure you want to cancel? All unsaved changes will be lost.</p>
+        </div>
+      </header>
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmCancel()">Discard changes</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="side-panel side-panel--right">
+    <div class="side-panel__title">Rows</div>
+    <button type="button" class="btn btn-s" onclick="addRow()">+ Add row</button>
+    <button type="button" class="btn btn-s" onclick="removeRow()">− Remove last</button>
+    <div class="overlay-toolbar" aria-label="Stamp and signature">
+      <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
+      <button type="button" class="btn btn-cancel btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
+    </div>
+  </div>
+
+  <script src="../overlay-drag.js"></script>
+  <script src="../port-format.js"></script>
+  <script src="../crew-name-format.js"></script>
+  <script src="../overlay-toolbar.js"></script>
+  <script src="../cell-align-toolbar.js"></script>
+  <script src="../html-form-editor-dirty.js"></script>
+  <script src="../html-form-excel-export.js"></script>
+  <script src="crew-list-form-07.js"></script>
+</body>
+</html>

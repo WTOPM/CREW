@@ -1,14 +1,16 @@
 import { Injectable, inject } from '@angular/core';
-import { AppData, CREW_IDENTITY_PASSPORT, CREW_IDENTITY_SEAMANS_BOOK } from '../models/crew.models';
+import { AppData } from '../models/crew.models';
 import { DocumentOverlayId } from '../models/document-overlay.models';
 import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { PdfCrewArrService } from './pdf-crew-arr.service';
+import { PdfCrewListForm01Service } from './pdf-crew-list-form01.service';
+import { PdfCrewListForm02Service } from './pdf-crew-list-form02.service';
 import { PdfCrewListForm04Service } from './pdf-crew-list-form04.service';
 import { PdfCrewListForm03Service } from './pdf-crew-list-form03.service';
 import { PdfCrewListForm05Service } from './pdf-crew-list-form05.service';
 import { PdfCrewListForm06Service } from './pdf-crew-list-form06.service';
-import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
+import { PdfCrewListForm07Service } from './pdf-crew-list-form07.service';
 import { PdfMdhService } from './pdf-mdh.service';
 import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
@@ -36,11 +38,13 @@ export class DocumentOverlayPreviewService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
+  private readonly crewListForm01Pdf = inject(PdfCrewListForm01Service);
+  private readonly crewListForm02Pdf = inject(PdfCrewListForm02Service);
   private readonly crewListForm04Pdf = inject(PdfCrewListForm04Service);
   private readonly crewListForm03Pdf = inject(PdfCrewListForm03Service);
   private readonly crewListForm05Pdf = inject(PdfCrewListForm05Service);
   private readonly crewListForm06Pdf = inject(PdfCrewListForm06Service);
-  private readonly crewListV3SbkP2Pdf = inject(PdfCrewListV3SbkP2Service);
+  private readonly crewListForm07Pdf = inject(PdfCrewListForm07Service);
   private readonly pocPdf = inject(PdfPortOfCallService);
   private readonly pocTemplatePdf = inject(PdfPortOfCallTemplateService);
   private readonly mdhPdf = inject(PdfMdhService);
@@ -121,6 +125,20 @@ export class DocumentOverlayPreviewService {
   private async buildCrewList(data: AppData): Promise<Uint8Array> {
     const listType = data.documentOverlay.crewList.listType;
 
+    if (listType === 'type1Passport') {
+      const crew = data.crewArr.isArrival
+        ? this.storage.activeCrewArrival()
+        : this.storage.activeCrewDeparture();
+      return this.crewListForm01Pdf.buildPdfBytes(data, crew, data.crewArr.isArrival);
+    }
+
+    if (listType === 'type1SeamansBook') {
+      const crew = data.crewArr.isArrival
+        ? this.storage.activeCrewArrival()
+        : this.storage.activeCrewDeparture();
+      return this.crewListForm02Pdf.buildPdfBytes(data, crew, data.crewArr.isArrival);
+    }
+
     if (listType === 'type2Alger') {
       const crew = data.crewArr.isArrival
         ? this.storage.activeCrewArrival()
@@ -153,19 +171,10 @@ export class DocumentOverlayPreviewService {
       const crew = data.crewArr.isArrival
         ? this.storage.activeCrewArrival()
         : this.storage.activeCrewDeparture();
-      return this.crewListV3SbkP2Pdf.build(data, crew);
+      return this.crewListForm07Pdf.buildPdfBytes(data, crew, data.crewArr.isArrival);
     }
 
-    const identityDocumentType =
-      listType === 'type1SeamansBook' ? CREW_IDENTITY_SEAMANS_BOOK : CREW_IDENTITY_PASSPORT;
-    const crew = data.crewArr.isArrival
-      ? this.storage.activeCrewArrival()
-      : this.storage.activeCrewDeparture();
-    const pdfData: AppData = {
-      ...data,
-      crewArr: { ...data.crewArr, isArrival: true, identityDocumentType },
-    };
-    return this.crewPdf.buildPdfBytes(pdfData, crew);
+    throw new Error(`Unknown crew list type: ${listType}`);
   }
 
   private buildPassengerList(data: AppData): Promise<Uint8Array> {

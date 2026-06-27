@@ -1,16 +1,18 @@
 import { Injectable, inject } from '@angular/core';
 import { AppData, CREW_IDENTITY_PASSPORT, CREW_IDENTITY_SEAMANS_BOOK } from '../models/crew.models';
-import { crewListIdentityPdfFileName, passengerListPdfFileName } from '../utils/pdf-filename.util';
+import { passengerListPdfFileName } from '../utils/pdf-filename.util';
 import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { base64ToUint8 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
 import { IMO_PASSENGER_LIST_TITLE, PdfCrewArrService } from './pdf-crew-arr.service';
+import { PdfCrewListForm01Service } from './pdf-crew-list-form01.service';
+import { PdfCrewListForm02Service } from './pdf-crew-list-form02.service';
 import { PdfCrewListForm04Service } from './pdf-crew-list-form04.service';
 import { PdfCrewListForm03Service } from './pdf-crew-list-form03.service';
 import { PdfCrewListForm05Service } from './pdf-crew-list-form05.service';
 import { PdfCrewListForm06Service } from './pdf-crew-list-form06.service';
-import { PdfCrewListV3SbkP2Service } from './pdf-crew-list-v3-sbk-p2.service';
+import { PdfCrewListForm07Service } from './pdf-crew-list-form07.service';
 import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfPortOfCallTemplateService } from './pdf-port-of-call-template.service';
@@ -50,11 +52,13 @@ export class DocumentCatalogService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
   private readonly passengerListV2 = inject(PdfPassengerListV2Service);
+  private readonly crewListForm01 = inject(PdfCrewListForm01Service);
+  private readonly crewListForm02 = inject(PdfCrewListForm02Service);
   private readonly crewListForm04 = inject(PdfCrewListForm04Service);
   private readonly crewListForm03 = inject(PdfCrewListForm03Service);
   private readonly crewListForm05 = inject(PdfCrewListForm05Service);
   private readonly crewListForm06 = inject(PdfCrewListForm06Service);
-  private readonly crewListV3SbkP2 = inject(PdfCrewListV3SbkP2Service);
+  private readonly crewListForm07 = inject(PdfCrewListForm07Service);
   private readonly poc = inject(PdfPortOfCallService);
   private readonly pocTemplate = inject(PdfPortOfCallTemplateService);
   private readonly sso = inject(PdfSso0108PortCallsService);
@@ -93,13 +97,13 @@ export class DocumentCatalogService {
     const base = this.appData();
     switch (id) {
       case 'crewListArrivalPassport':
-        return this.crewType1Bytes(base, true, CREW_IDENTITY_PASSPORT);
+        return this.crewForm01Bytes(base, true);
       case 'crewListDeparturePassport':
-        return this.crewType1Bytes(base, false, CREW_IDENTITY_PASSPORT);
+        return this.crewForm01Bytes(base, false);
       case 'crewListArrivalSeaman':
-        return this.crewType1Bytes(base, true, CREW_IDENTITY_SEAMANS_BOOK);
+        return this.crewForm02Bytes(base, true);
       case 'crewListDepartureSeaman':
-        return this.crewType1Bytes(base, false, CREW_IDENTITY_SEAMANS_BOOK);
+        return this.crewForm02Bytes(base, false);
       case 'crewListArrivalAlger':
         return this.crewAlgerBytes(base, true);
       case 'crewListDepartureAlger':
@@ -117,9 +121,9 @@ export class DocumentCatalogService {
       case 'crewListDepartureV3SbkP':
         return this.crewForm06Bytes(base, false);
       case 'crewListArrivalV3SbkP2':
-        return this.crewV3SbkP2Bytes(base, true);
+        return this.crewForm07Bytes(base, true);
       case 'crewListDepartureV3SbkP2':
-        return this.crewV3SbkP2Bytes(base, false);
+        return this.crewForm07Bytes(base, false);
       case 'paxArrival':
         return this.paxBytes(base, true);
       case 'paxDeparture':
@@ -209,36 +213,38 @@ export class DocumentCatalogService {
     return { bytes: base64ToUint8(doc.dataBase64), fileName };
   }
 
-  /** Type 1 crew list (Passport or Seaman's Book), arrival or departure. */
-  private async crewType1Bytes(
-    base: AppData,
-    isArrival: boolean,
-    identity: string,
-  ): Promise<BuiltPdf> {
-    const listType: AppData['documentOverlay']['crewList']['listType'] =
-      identity === CREW_IDENTITY_SEAMANS_BOOK ? 'type1SeamansBook' : 'type1Passport';
+  /** Form 01 — IMO CREW LIST - P (Passport), arrival or departure. */
+  private async crewForm01Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
-    // Force the variant's type so rendering + per-type stamp placement match it,
-    // regardless of which type the main-screen radio currently has selected.
     const data: AppData = {
       ...base,
-      crewArr: { ...base.crewArr, isArrival, identityDocumentType: identity },
+      crewArr: { ...base.crewArr, isArrival, identityDocumentType: CREW_IDENTITY_PASSPORT },
       documentOverlay: {
         ...base.documentOverlay,
-        crewList: { ...base.documentOverlay.crewList, listType },
+        crewList: { ...base.documentOverlay.crewList, listType: 'type1Passport' },
       },
     };
-    const { ship } = base;
-    const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
-    const fileName = crewListIdentityPdfFileName(
-      ship.name,
-      ship.portOfCall,
-      voyageDate,
-      isArrival,
-      identity,
-    );
-    const bytes = await this.crewPdf.buildPdfBytes(data, crew, { overlayId: 'crewList', fileName });
-    return { bytes, fileName };
+    return {
+      bytes: await this.crewListForm01.buildPdfBytes(data, crew, isArrival),
+      fileName: this.crewListForm01.fileName(data, isArrival),
+    };
+  }
+
+  /** Form 02 — IMO CREW LIST - SBK (Seaman's Book), arrival or departure. */
+  private async crewForm02Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
+    const data: AppData = {
+      ...base,
+      crewArr: { ...base.crewArr, isArrival, identityDocumentType: CREW_IDENTITY_SEAMANS_BOOK },
+      documentOverlay: {
+        ...base.documentOverlay,
+        crewList: { ...base.documentOverlay.crewList, listType: 'type1SeamansBook' },
+      },
+    };
+    return {
+      bytes: await this.crewListForm02.buildPdfBytes(data, crew, isArrival),
+      fileName: this.crewListForm02.fileName(data, isArrival),
+    };
   }
 
   private async crewForm05Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
@@ -273,7 +279,7 @@ export class DocumentCatalogService {
     };
   }
 
-  private async crewV3SbkP2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
+  private async crewForm07Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...base,
@@ -284,8 +290,8 @@ export class DocumentCatalogService {
       },
     };
     return {
-      bytes: await this.crewListV3SbkP2.buildPreviewBytes(data, crew),
-      fileName: this.crewListV3SbkP2.fileName(data),
+      bytes: await this.crewListForm07.buildPdfBytes(data, crew, isArrival),
+      fileName: this.crewListForm07.fileName(data, isArrival),
     };
   }
 

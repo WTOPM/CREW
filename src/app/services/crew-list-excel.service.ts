@@ -21,14 +21,11 @@ import {
 } from '../utils/imo-crew-list-excel-layout.util';
 import { openExcelBytes } from '../utils/excel-open.util';
 import {
-  buildCrewListVariantExcel,
-} from '../utils/crew-list-variant-excel.util';
-import {
   crewListForm04PdfFileName,
   crewListType2PdfFileName,
   crewListForm05PdfFileName,
-  crewListV3SbkP2PdfFileName,
   crewListForm06PdfFileName,
+  crewListForm07PdfFileName,
   pdfFileDate,
   pdfFileToken,
 } from '../utils/pdf-filename.util';
@@ -47,15 +44,7 @@ export class CrewListExcelService {
     }
 
     const base = this.appData();
-    const isArrival = base.crewArr.isArrival;
-    const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
-
-    let bytes: Uint8Array;
-    if (listType === 'type6V3SbkP2') {
-      bytes = await buildCrewListVariantExcel(listType, base, crew);
-    } else {
-      bytes = await this.buildType1(base, listType);
-    }
+    const bytes = await this.buildType1(base, listType);
 
     const fileName = this.fileName(base, listType);
     return openExcelBytes(fileName, bytes);
@@ -129,7 +118,7 @@ export class CrewListExcelService {
         case 'type5V3SbkP':
           return crewListForm06PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
         case 'type6V3SbkP2':
-          return crewListV3SbkP2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
+          return crewListForm07PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
       }
     })();
     return pdfName.replace(/\.pdf$/i, '.xlsx');

@@ -6,7 +6,7 @@ import { workbookToBytes } from './crew-list-excel-layout.util';
 import { CREW_LIST_FORM_04_MAX_ROWS } from '../models/crew-list-form-04.paths';
 import { CREW_LIST_FORM_05_MAX_ROWS } from '../models/crew-list-form-05.paths';
 import { CREW_LIST_FORM_06_MAX_ROWS } from '../models/crew-list-form-06.paths';
-import { CREW_LIST_V3_SBK_P2_MAX_ROWS } from '../services/crew-list-v3-sbk-p2-coordinates';
+import { CREW_LIST_FORM_07_MAX_ROWS } from '../models/crew-list-form-07.paths';
 import {
   CrewListFormColumn,
   CREW_FORM_04_HEADER_BANDS,
@@ -137,7 +137,7 @@ const CREW_LIST_EXCEL_VARIANTS: Record<VariantListType, CrewListExcelVariantConf
   type6V3SbkP2: {
     listType: 'type6V3SbkP2',
     orientation: 'landscape',
-    maxRows: CREW_LIST_V3_SBK_P2_MAX_ROWS,
+    maxRows: CREW_LIST_FORM_07_MAX_ROWS,
     charterer: true,
     columns: [
       { header: 'No.', width: 4.5, align: 'center', value: (_m, _d, n) => n },

@@ -5,8 +5,17 @@ import {
   CREW_LIST_ROW_COUNT,
   CREW_LIST_STATIC_LABELS,
 } from '../services/crew-list-coordinates';
-import { CrewMember, ShipInfo, formatCrewListName } from '../models/crew.models';
-import { formatBirthDate } from './date.util';
+import {
+  AppData,
+  CREW_IDENTITY_PASSPORT,
+  CREW_IDENTITY_SEAMANS_BOOK,
+  CrewMember,
+  ShipInfo,
+  formatCrewListName,
+} from '../models/crew.models';
+import { CREW_FORM_01, CREW_FORM_02 } from '../models/document-overlay.models';
+import { formatBirthDate, formatDisplayDate } from './date.util';
+import { workbookToBytes } from './crew-list-excel-layout.util';
 
 export const IMO_CREW_LIST_SHEET = 'IMO CREW LIST';
 export const IMO_CREW_LIST_COLS = 7;
@@ -321,4 +330,51 @@ export function addImoFalFormNote(ws: ExcelJS.Worksheet, dataEnd: number): void 
   cell.value = `${CREW_LIST_FRAME_LABELS.falFormLine1}\n${CREW_LIST_FRAME_LABELS.falFormLine2}`;
   cell.font = { name: FONT, size: 7 };
   cell.alignment = { horizontal: 'left', vertical: 'bottom', wrapText: true };
+}
+
+/** Build .xlsx bytes for Form 01 (Passport) or Form 02 (Seaman's Book). */
+export async function buildImoCrewListExcelBytes(
+  data: AppData,
+  crew: CrewMember[],
+  listType: typeof CREW_FORM_01 | typeof CREW_FORM_02,
+): Promise<Uint8Array> {
+  const isArrival = data.crewArr.isArrival;
+  const identity =
+    listType === CREW_FORM_02 ? CREW_IDENTITY_SEAMANS_BOOK : CREW_IDENTITY_PASSPORT;
+  const { ship } = data;
+  const voyageDate = formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture);
+  const pages = chunkCrewForExcel(crew);
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'CREW Documents';
+
+  pages.forEach((pageCrew, pageIndex) => {
+    const sheetName =
+      pageIndex === 0 ? IMO_CREW_LIST_SHEET : `${IMO_CREW_LIST_SHEET} (${pageIndex + 1})`;
+    const ws = wb.addWorksheet(sheetName, {
+      pageSetup: { paperSize: 9, orientation: 'portrait' },
+    });
+
+    const layout = buildImoCrewListFormLayout(ws, identity);
+    fillImoCrewListHeader(ws, {
+      ship,
+      isArrival,
+      identityDocumentType: identity,
+      voyageDate,
+      pageNo: pageIndex + 1,
+    });
+
+    if (pageCrew.length === 0) {
+      drawImoCrewListNil(ws, layout);
+    } else {
+      fillImoCrewListRows(ws, pageCrew, identity, layout.dataStart, pageIndex * CREW_LIST_ROW_COUNT);
+    }
+
+    if (pageCrew.length < CREW_LIST_ROW_COUNT) {
+      addImoFalFormNote(ws, layout.dataEnd);
+    }
+    configureImoCrewListPrint(ws, layout.lastRow);
+  });
+
+  return workbookToBytes(wb);
 }

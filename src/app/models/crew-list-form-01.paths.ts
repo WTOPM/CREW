@@ -1,0 +1,28 @@
+/** Form 01 - IMO CREW LIST - P — static HTML editor (`public/forms/crew-list-form-01/`). */
+export const CREW_LIST_FORM_01_MAX_ROWS = 23;
+
+export const CREW_LIST_FORM_01_BASE_PATH = '/forms/crew-list-form-01/';
+
+/** Query param on return URL after Save/Cancel in the HTML editor. */
+export const CREW_LIST_FORM_01_FEEDBACK_PARAM = 'form01Feedback';
+
+export type CrewListForm01Feedback = 'saved' | 'cancelled';
+
+export interface CrewListForm01UrlParams {
+  mode?: 'arrival' | 'departure';
+  /** Encoded return URL (e.g. `/?crewListSettings=1`). */
+  return?: string;
+  pdfExport?: '1';
+  /** JSON snapshot for headless PDF capture. */
+  data?: string;
+}
+
+export function crewListForm01EditorUrl(params: CrewListForm01UrlParams = {}): string {
+  const q = new URLSearchParams();
+  if (params.mode) q.set('mode', params.mode);
+  if (params.return) q.set('return', params.return);
+  if (params.pdfExport) q.set('pdfExport', params.pdfExport);
+  if (params.data) q.set('data', params.data);
+  const qs = q.toString();
+  return qs ? `${CREW_LIST_FORM_01_BASE_PATH}?${qs}` : CREW_LIST_FORM_01_BASE_PATH;
+}

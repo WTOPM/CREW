@@ -6,20 +6,26 @@ import {
   CREW_LIST_TYPE_OPTION_LABELS,
   crewListTypeOrderNo,
   CrewListTypeId,
+  CREW_FORM_01,
+  CREW_FORM_02,
   CREW_FORM_03,
   CREW_FORM_04,
   CREW_FORM_05,
   CREW_FORM_06,
+  CREW_FORM_07,
 } from '../../models/document-overlay.models';
 import { StorageService } from '../../services/storage.service';
 import { DocumentSettingsStore } from '../../services/document-settings.store';
 import { ToastService } from '../../services/toast.service';
 import { CrewAbbrChipComponent } from '../crew-abbr-chip/crew-abbr-chip.component';
 import { DocumentExportSettingsComponent } from '../document-export-settings/document-export-settings.component';
+import { crewListForm01EditorUrl } from '../../models/crew-list-form-01.paths';
+import { crewListForm02EditorUrl } from '../../models/crew-list-form-02.paths';
 import { crewListForm03EditorUrl } from '../../models/crew-list-form-03.paths';
 import { crewListForm04EditorUrl } from '../../models/crew-list-form-04.paths';
 import { crewListForm05EditorUrl } from '../../models/crew-list-form-05.paths';
 import { crewListForm06EditorUrl } from '../../models/crew-list-form-06.paths';
+import { crewListForm07EditorUrl } from '../../models/crew-list-form-07.paths';
 
 @Component({
   selector: 'app-crew-list-settings',
@@ -53,7 +59,7 @@ import { crewListForm06EditorUrl } from '../../models/crew-list-form-06.paths';
         }
       </div>
     </fieldset>
-    @if (listType() === crewForm03 || listType() === crewForm04 || listType() === crewForm05 || listType() === crewForm06) {
+    @if (listType() === crewForm01 || listType() === crewForm02 || listType() === crewForm03 || listType() === crewForm04 || listType() === crewForm05 || listType() === crewForm06 || listType() === crewForm07) {
       <div style="padding: 0.25rem 0 0.5rem;">
         <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openHtmlFormSettings()">
           ⚙ Settings
@@ -157,10 +163,13 @@ export class CrewListSettingsComponent {
   private readonly toast = inject(ToastService);
 
   /** HTML form types exposed to template */
+  protected readonly crewForm01 = CREW_FORM_01;
+  protected readonly crewForm02 = CREW_FORM_02;
   protected readonly crewForm03 = CREW_FORM_03;
   protected readonly crewForm04 = CREW_FORM_04;
   protected readonly crewForm05 = CREW_FORM_05;
   protected readonly crewForm06 = CREW_FORM_06;
+  protected readonly crewForm07 = CREW_FORM_07;
   protected readonly typeIds = CREW_LIST_TYPE_IDS;
 
   protected listType(): CrewListTypeId {
@@ -183,22 +192,31 @@ export class CrewListSettingsComponent {
 
   protected openHtmlFormSettings(): void {
     const returnTo = encodeURIComponent('/?crewListSettings=1');
+    const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
+    if (this.listType() === CREW_FORM_01) {
+      window.location.href = crewListForm01EditorUrl({ mode, return: returnTo });
+      return;
+    }
+    if (this.listType() === CREW_FORM_02) {
+      window.location.href = crewListForm02EditorUrl({ mode, return: returnTo });
+      return;
+    }
     if (this.listType() === CREW_FORM_03) {
-      const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
       window.location.href = crewListForm03EditorUrl({ mode, return: returnTo });
       return;
     }
     if (this.listType() === CREW_FORM_04) {
-      const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
       window.location.href = crewListForm04EditorUrl({ mode, return: returnTo });
       return;
     }
     if (this.listType() === CREW_FORM_05) {
-      const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
       window.location.href = crewListForm05EditorUrl({ mode, return: returnTo });
       return;
     }
-    const mode = this.storage.crewArr().isArrival ? 'arrival' : 'departure';
-    window.location.href = crewListForm06EditorUrl({ mode, return: returnTo });
+    if (this.listType() === CREW_FORM_06) {
+      window.location.href = crewListForm06EditorUrl({ mode, return: returnTo });
+      return;
+    }
+    window.location.href = crewListForm07EditorUrl({ mode, return: returnTo });
   }
 }

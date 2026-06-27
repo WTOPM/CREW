@@ -69,7 +69,7 @@ export type CrewListTypeId =
   | 'type3V2'            // 04 - CREW LIST - P E PI G   ← HTML form (forms/crew-list-form-04/)
   | 'type4V3Sbk'         // 05 - CREW LIST - SBK E          ← HTML form (forms/crew-list-form-05/)
   | 'type5V3SbkP'        // 06 - CREW LIST - SBK PI E P J   ← HTML form (forms/crew-list-form-06/)
-  | 'type6V3SbkP2';      // 07 - CREW LIST - SBK PI E P PI E
+  | 'type6V3SbkP2';      // 07 - CREW LIST - SBK PI E P PI E   ← HTML form (forms/crew-list-form-07/)
 
 /** Named constants for crew list form numbers (for readable code). */
 export const CREW_FORM_01 = 'type1Passport'    as const satisfies CrewListTypeId;

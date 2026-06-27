@@ -90,14 +90,14 @@ export function crewListForm06PdfFileName(
   return `Crew_List_Form_06_${kind}_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
-export function crewListV3SbkP2PdfFileName(
+export function crewListForm07PdfFileName(
   shipName: string,
   portOfCall: string,
   voyageDate: string,
   isArrival: boolean,
 ): string {
   const kind = isArrival ? 'Arrival' : 'Departure';
-  return `Crew_List_V3_SBK_P2_${kind}_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
+  return `Crew_List_Form_07_${kind}_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
 export function crewListIdentityPdfFileName(

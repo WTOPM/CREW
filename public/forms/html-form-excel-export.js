@@ -86,6 +86,76 @@
     return { familyName: trimmed, givenNames: '' };
   }
 
+  function snapshotForm01(loadPositions) {
+    const tbody = document.getElementById('tbody');
+    const crew = [];
+    if (tbody) {
+      Array.from(tbody.children).forEach((tr) => {
+        if (!rowHasData(tr, '.ci')) return;
+        const inputs = tr.querySelectorAll('input.ci');
+        const name = cellText(tr.querySelector('.ci-name'));
+        crew.push({
+          ...splitName(name),
+          rank: cellText(inputs[0]),
+          nationality: cellText(inputs[1]),
+          dateOfBirth: cellText(inputs[2]),
+          placeOfBirth: cellText(inputs[3]),
+          passport: cellText(inputs[4]),
+        });
+      });
+    }
+    const ship = slugPart(document.getElementById('h-ship-name')?.value);
+    const port = slugPart(document.getElementById('h-port')?.value);
+    const dateRaw = document.getElementById('h-date')?.value || '';
+    const date = slugPart(dateRaw.replace(/\./g, '-'));
+    const dir = isArrivalMode() ? 'Arrival' : 'Departure';
+    const parts = ['Crew_List', 'Passport', dir, ship, port, date].filter(Boolean);
+    return {
+      listType: 'type1Passport',
+      isArrival: isArrivalMode(),
+      footerDate: cellText(document.getElementById('f-footer-date')),
+      masterName: cellText(document.getElementById('f-master-name')),
+      crew,
+      overlay: readOverlayState(loadPositions),
+      fileName: `${parts.join('_') || 'Crew_List'}.xlsx`,
+    };
+  }
+
+  function snapshotForm02(loadPositions) {
+    const tbody = document.getElementById('tbody');
+    const crew = [];
+    if (tbody) {
+      Array.from(tbody.children).forEach((tr) => {
+        if (!rowHasData(tr, '.ci')) return;
+        const inputs = tr.querySelectorAll('input.ci');
+        const name = cellText(tr.querySelector('.ci-name'));
+        crew.push({
+          ...splitName(name),
+          rank: cellText(inputs[0]),
+          nationality: cellText(inputs[1]),
+          dateOfBirth: cellText(inputs[2]),
+          placeOfBirth: cellText(inputs[3]),
+          seamansBook: cellText(inputs[4]),
+        });
+      });
+    }
+    const ship = slugPart(document.getElementById('h-ship-name')?.value);
+    const port = slugPart(document.getElementById('h-port')?.value);
+    const dateRaw = document.getElementById('h-date')?.value || '';
+    const date = slugPart(dateRaw.replace(/\./g, '-'));
+    const dir = isArrivalMode() ? 'Arrival' : 'Departure';
+    const parts = ['Crew_List', 'SeamansBook', dir, ship, port, date].filter(Boolean);
+    return {
+      listType: 'type1SeamansBook',
+      isArrival: isArrivalMode(),
+      footerDate: cellText(document.getElementById('f-footer-date')),
+      masterName: cellText(document.getElementById('f-master-name')),
+      crew,
+      overlay: readOverlayState(loadPositions),
+      fileName: `${parts.join('_') || 'Crew_List'}.xlsx`,
+    };
+  }
+
   function snapshotForm05(loadPositions) {
     const tbody = document.getElementById('tbody');
     const crew = [];
@@ -218,7 +288,46 @@
     };
   }
 
+  function snapshotForm07(loadPositions) {
+    const tbody = document.getElementById('tbody');
+    const crew = [];
+    if (tbody) {
+      Array.from(tbody.children).forEach((tr) => {
+        if (!rowHasData(tr, '.ci')) return;
+        const inputs = tr.querySelectorAll('input.ci');
+        const name = cellText(tr.querySelector('.ci-name'));
+        const birth = cellText(inputs[2]);
+        const birthParts = birth.split(/\s{2,}|\s+/);
+        crew.push({
+          ...splitName(name),
+          rank: cellText(inputs[0]),
+          nationality: cellText(inputs[1]),
+          dateOfBirth: birthParts[0] || birth,
+          placeOfBirth: birthParts.slice(1).join(' '),
+          seamansBook: cellText(inputs[3]),
+          seamansBookPlaceOfIssue: cellText(inputs[4]),
+          sbookExpiryDate: cellText(inputs[5]),
+          passport: cellText(inputs[6]),
+          passportPlaceOfIssue: cellText(inputs[7]),
+          passportExpiryDate: cellText(inputs[8]),
+        });
+      });
+    }
+    return {
+      listType: 'type6V3SbkP2',
+      isArrival: isArrivalMode(),
+      footerDate: cellText(document.getElementById('f-footer-date')),
+      masterName: cellText(document.getElementById('f-master-name')),
+      crew,
+      overlay: readOverlayState(loadPositions),
+      fileName: defaultExcelFileName(),
+    };
+  }
+
   const SNAPSHOT_BUILDERS = {
+    type1Passport: snapshotForm01,
+    type1SeamansBook: snapshotForm02,
+    type6V3SbkP2: snapshotForm07,
     type5V3SbkP: snapshotForm06,
     type4V3Sbk: snapshotForm05,
     type3V2: snapshotForm04,
