@@ -26,11 +26,11 @@ export class PdfCrewListForm04Service {
     const url = crewListForm04EditorUrl({
       mode: isArrival ? 'arrival' : 'departure',
       pdfExport: '1',
-      data: JSON.stringify(snapshot),
     });
 
     const canvas = await captureHtmlFormFromUrl({
       url,
+      snapshot,
       iframeWidth: '210mm',
       iframeHeight: '297mm',
       pageSelector: '.a4-page',

@@ -7,6 +7,7 @@ import {
   type EtaPlan,
 } from '../../models/eta.models';
 import { EtaStore } from '../../services/eta.store';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 
@@ -25,6 +26,7 @@ export class EtaArchiveModalsComponent {
   private readonly storage = inject(StorageService);
   private readonly etaStore = inject(EtaStore);
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   protected readonly saveLabel = signal('');
   protected readonly savedPlans = computed(() =>
@@ -59,14 +61,32 @@ export class EtaArchiveModalsComponent {
     this.closeSave.emit();
   }
 
-  protected confirmSave(): void {
+  protected async confirmSave(): Promise<void> {
     const name = this.saveLabel().trim();
     if (!name) {
       this.toast.showError('Enter a voyage name');
       return;
     }
-    this.etaStore.saveAs(name);
-    this.toast.show(`Saved "${etaPlanDisplayLabel({ ...this.storage.etaLibrary().draft, name })}"`, 'success');
+
+    const existing = this.etaStore.findPlanByName(name);
+    if (existing) {
+      const route = this.planRoute(existing);
+      const routeLine = route ? `\nSaved route: ${route}.` : '';
+      const ok = await this.confirmDialog.confirm({
+        title: 'Overwrite saved voyage',
+        message:
+          `A voyage named "${name}" already exists.${routeLine}\n\n` +
+          'Replace it with the current calculation? The previous data will be lost.',
+        confirmLabel: 'Overwrite',
+        variant: 'danger',
+      });
+      if (!ok) return;
+      this.etaStore.saveAs(name, { overwritePlanId: existing.id });
+      this.toast.show(`Updated "${etaPlanDisplayLabel({ ...this.storage.etaLibrary().draft, name })}"`, 'success');
+    } else {
+      this.etaStore.saveAs(name);
+      this.toast.show(`Saved "${etaPlanDisplayLabel({ ...this.storage.etaLibrary().draft, name })}"`, 'success');
+    }
     this.closeSave.emit();
   }
 
@@ -81,9 +101,17 @@ export class EtaArchiveModalsComponent {
     this.closeLoad.emit();
   }
 
-  protected deletePlan(plan: EtaPlan, event: MouseEvent): void {
+  protected async deletePlan(plan: EtaPlan, event: MouseEvent): Promise<void> {
     event.stopPropagation();
-    if (!confirm(`Delete "${etaPlanDisplayLabel(plan)}"?`)) return;
+    const label = etaPlanDisplayLabel(plan);
+    const ok = await this.confirmDialog.confirm({
+      title: 'Delete saved voyage',
+      message:
+        `Delete "${label}"?\nThe saved ETA calculation will be removed permanently. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
     this.etaStore.deletePlan(plan.id);
     this.toast.show(`Deleted "${plan.name}"`, 'success');
   }

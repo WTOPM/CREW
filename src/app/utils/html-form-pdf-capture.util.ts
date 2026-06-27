@@ -1,6 +1,20 @@
+import {
+  HTML_FORM_PDF_DATA_PARAM,
+  HTML_FORM_PDF_SNAPSHOT_STORAGE_KEY,
+} from '../models/html-form-pdf-snapshot.model';
+
 /** Resolve a root-absolute editor path (/forms/...) against the current page origin (app:// or http://). */
 export function resolveHtmlFormEditorUrl(relativePath: string): string {
   return new URL(relativePath, window.location.href).href;
+}
+
+/** Append ?pdfData=1 and store snapshot in sessionStorage (avoids HTTP 431 on large URLs). */
+export function resolvePdfCaptureUrl(relativePath: string, snapshot: unknown): string {
+  sessionStorage.setItem(HTML_FORM_PDF_SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshot));
+  const url = new URL(relativePath, window.location.href);
+  url.searchParams.set(HTML_FORM_PDF_DATA_PARAM, '1');
+  url.searchParams.delete('data');
+  return url.pathname + url.search;
 }
 
 /** Wait until the hidden iframe has rendered the form and set window.__pdfReady. */
@@ -62,6 +76,8 @@ export async function captureHtmlFormPageCanvas(
 /** Load an HTML form editor in a hidden iframe and capture its page (PDF / Excel export). */
 export async function captureHtmlFormFromUrl(options: {
   url: string;
+  /** When set, stored in sessionStorage — not placed in the query string. */
+  snapshot?: unknown;
   iframeWidth: string;
   iframeHeight: string;
   pageSelector: string;
@@ -75,13 +91,18 @@ export async function captureHtmlFormFromUrl(options: {
   iframe.style.border = '0';
   document.body.appendChild(iframe);
 
+  const iframeSrc =
+    options.snapshot !== undefined
+      ? resolvePdfCaptureUrl(options.url, options.snapshot)
+      : resolveHtmlFormEditorUrl(options.url);
+
   try {
     await new Promise<void>((resolve, reject) => {
       iframe.addEventListener('load', () => resolve(), { once: true });
       iframe.addEventListener('error', () => reject(new Error('Failed to load HTML form')), {
         once: true,
       });
-      iframe.src = resolveHtmlFormEditorUrl(options.url);
+      iframe.src = iframeSrc;
     });
 
     const frameDoc = await waitForHtmlFormPdfReady(iframe, options.pageSelector);

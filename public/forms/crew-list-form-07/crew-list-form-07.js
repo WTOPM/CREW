@@ -156,6 +156,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     function clearSelection() {
       selectedCells.forEach(c => c.classList.remove('selected'));
       selectedCells = [];
+      if (window.CrewCellAlignToolbar?.syncSelection) CrewCellAlignToolbar.syncSelection();
     }
 
     function dismissSelection() {
@@ -181,14 +182,19 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
           addSelectedCell(cellAt(r, c));
         }
       }
+      if (window.CrewCellAlignToolbar?.syncSelection) CrewCellAlignToolbar.syncSelection();
     }
 
     function syncToolbarFromCell(cell) {
       if (!cell || cell.classList.contains('ci-rno')) return;
-      const font = cell.style.fontFamily || 'Arial';
+      const fontSel = document.getElementById('tb-font');
+      const sizeSel = document.getElementById('tb-size');
+      const font = window.CrewCellFormat
+        ? CrewCellFormat.resolveFontSelectValue(cell.style.fontFamily, fontSel)
+        : (cell.style.fontFamily || 'Arial');
       const size = cell.style.fontSize ? parseInt(cell.style.fontSize, 10) : 6;
-      document.getElementById('tb-font').value = font;
-      document.getElementById('tb-size').value = String(size);
+      if (fontSel) fontSel.value = font;
+      if (sizeSel) sizeSel.value = String(size);
     }
 
     function returnUrl() {
@@ -253,6 +259,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
 
     document.body.addEventListener('mousedown', (e) => {
       if (e.target.closest('.a4-landscape-page')) return;
+      if (e.target.closest('.side-panel')) return;
       if (e.target.closest('.confirm-backdrop')) return;
       dismissSelection();
     });
@@ -843,10 +850,14 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     async function loadAppData() {
       // Snapshot mode: an exact AppData slice (ship/ports/crew) passed by the Angular app
       // for PDF generation — already filtered/ordered, used as-is (no re-fetch, no re-filter).
-      let snapshot = null;
-      const snapshotRaw = new URLSearchParams(window.location.search).get('data');
-      if (snapshotRaw) {
-        try { snapshot = JSON.parse(snapshotRaw); } catch (e) { }
+      let snapshot = window.CrewHtmlFormPdfSnapshot
+        ? CrewHtmlFormPdfSnapshot.read()
+        : null;
+      if (!snapshot) {
+        const snapshotRaw = new URLSearchParams(window.location.search).get('data');
+        if (snapshotRaw) {
+          try { snapshot = JSON.parse(snapshotRaw); } catch (e) { }
+        }
       }
 
       let appData = snapshot;

@@ -15,13 +15,12 @@ describe('crewListForm07EditorUrl', () => {
     expect(url).toContain('return');
   });
 
-  it('builds PDF capture URL with data snapshot', () => {
+  it('builds PDF capture URL without inline snapshot payload', () => {
     const url = crewListForm07EditorUrl({
       mode: 'departure',
       pdfExport: '1',
-      data: '{"ship":{}}',
     });
     expect(url).toContain('pdfExport=1');
-    expect(url).toContain('data=');
+    expect(url).not.toContain('data=');
   });
 });

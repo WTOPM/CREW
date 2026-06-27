@@ -69,9 +69,9 @@ export class PackageRunnerService {
     return { authorities, summary };
   });
 
-  /** Open all documents of the current port (every authority). */
+  /** Open all documents of the current port (authorities included in Print all). */
   openAll(): Promise<void> {
-    return this.openItems(this.currentItems());
+    return this.openItems(this.currentPrintItems());
   }
 
   /** Print all documents of the current port (every enabled authority). */

@@ -86,12 +86,31 @@ export class EtaStore {
     }), 'saved');
   }
 
-  /** Always saves current draft as a new library entry. */
-  saveAs(name: string): void {
+  /** Saves current draft as a new library entry, or overwrites an existing plan when overwritePlanId is set. */
+  saveAs(name: string, options?: { overwritePlanId?: string }): void {
     const trimmed = name.trim();
     if (!trimmed) return;
     this.updateLibrary((lib) => {
       const now = new Date().toISOString();
+      const existing = options?.overwritePlanId
+        ? lib.plans.find((p) => p.id === options.overwritePlanId)
+        : undefined;
+
+      if (existing) {
+        const saved: EtaPlan = {
+          ...cloneEtaPlan(lib.draft),
+          id: existing.id,
+          name: trimmed,
+          createdAt: existing.createdAt,
+          updatedAt: now,
+        };
+        return {
+          ...lib,
+          plans: lib.plans.map((p) => (p.id === existing.id ? saved : p)),
+          activePlanId: lib.activePlanId === existing.id ? null : lib.activePlanId,
+        };
+      }
+
       const saved: EtaPlan = {
         ...cloneEtaPlan(lib.draft),
         id: crypto.randomUUID(),
@@ -105,6 +124,14 @@ export class EtaStore {
         activePlanId: null,
       };
     }, 'saved');
+  }
+
+  findPlanByName(name: string): EtaPlan | undefined {
+    const key = name.trim().toLowerCase();
+    if (!key) return undefined;
+    return normalizeEtaLibrary(this.data().etaLibrary).plans.find(
+      (p) => p.name.trim().toLowerCase() === key,
+    );
   }
 
   /** Loads a saved plan into the editor (new draft id — edits won't overwrite the saved copy). */

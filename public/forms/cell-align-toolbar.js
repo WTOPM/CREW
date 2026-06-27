@@ -56,6 +56,62 @@
     });
   }
 
+  function readHorizontalAlign(cell) {
+    const ta = (cell.style.textAlign || 'left').toLowerCase();
+    if (ta === 'start') return 'left';
+    if (ta === 'end') return 'right';
+    if (ta === 'center' || ta === 'right' || ta === 'left') return ta;
+    return 'left';
+  }
+
+  function readVerticalAlign(cell) {
+    if (cell.dataset.verticalAlign) return cell.dataset.verticalAlign;
+    const ai = cell.style.alignItems;
+    if (ai === 'flex-start') return 'top';
+    if (ai === 'flex-end') return 'bottom';
+    if (ai === 'center') return 'middle';
+    return null;
+  }
+
+  function unanimous(values) {
+    if (!values.length) return undefined;
+    const first = values[0];
+    for (let i = 1; i < values.length; i += 1) {
+      if (values[i] !== first) return undefined;
+    }
+    return first;
+  }
+
+  function syncActiveButtons(mount, getSelectedCells) {
+    const cells = editableCells(getSelectedCells);
+    mount.querySelectorAll('.cell-align-toolbar__btn').forEach((btn) => {
+      btn.classList.remove('cell-align-toolbar__btn--active');
+      btn.removeAttribute('aria-pressed');
+    });
+    if (!cells.length) return;
+
+    const h = unanimous(cells.map(readHorizontalAlign));
+    const v = unanimous(cells.map(readVerticalAlign));
+
+    mount.querySelectorAll('.cell-align-toolbar__btn').forEach((btn) => {
+      const kind = btn.dataset.kind;
+      const value = btn.dataset.value;
+      const match = (kind === 'h' && h === value) || (kind === 'v' && v != null && v === value);
+      if (match) {
+        btn.classList.add('cell-align-toolbar__btn--active');
+        btn.setAttribute('aria-pressed', 'true');
+      }
+    });
+  }
+
+  let toolbarMount = null;
+  let toolbarGetSelectedCells = () => [];
+
+  function syncSelection() {
+    if (!toolbarMount) return;
+    syncActiveButtons(toolbarMount, toolbarGetSelectedCells);
+  }
+
   function applyHorizontal(value) {
     if (typeof applyFormat === 'function') applyFormat('textAlign', value);
   }
@@ -97,6 +153,8 @@
     mount.dataset.initialized = '1';
 
     const getSelectedCells = options?.getSelectedCells || (() => []);
+    toolbarMount = mount;
+    toolbarGetSelectedCells = getSelectedCells;
     renderToolbar(mount);
 
     let previewSnap = null;
@@ -112,6 +170,7 @@
         restoreCells(previewSnap);
         previewSnap = null;
       }
+      syncSelection();
     }
 
     function startPreview(btn) {
@@ -157,13 +216,33 @@
         const value = btn.dataset.value;
         if (kind === 'h') applyHorizontal(value);
         else applyVertical(value);
+        syncSelection();
       });
     });
+
+    syncSelection();
   }
 
-  window.CrewCellAlignToolbar = { init };
+  window.CrewCellAlignToolbar = { init, syncSelection };
 
   window.CrewCellFormat = {
+    normalizeFontFamily(raw) {
+      if (!raw) return 'Arial';
+      const first = raw.split(',')[0].trim().replace(/^['"]+|['"]+$/g, '');
+      return first || 'Arial';
+    },
+    resolveFontSelectValue(raw, selectEl) {
+      const name = this.normalizeFontFamily(raw);
+      if (!selectEl) return name;
+      for (const opt of selectEl.options) {
+        if (opt.value === name) return opt.value;
+      }
+      const lower = name.toLowerCase();
+      for (const opt of selectEl.options) {
+        if (opt.value.toLowerCase() === lower) return opt.value;
+      }
+      return selectEl.options[0]?.value || 'Arial';
+    },
     clearCell(cell) {
       cell.style.removeProperty('font-family');
       cell.style.removeProperty('font-size');
