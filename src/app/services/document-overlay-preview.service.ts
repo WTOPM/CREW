@@ -1,8 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AppData } from '../models/crew.models';
 import { DocumentOverlayId } from '../models/document-overlay.models';
-import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
-import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { PdfCrewArrService } from './pdf-crew-arr.service';
 import { PdfCrewListForm01Service } from './pdf-crew-list-form01.service';
 import { PdfCrewListForm02Service } from './pdf-crew-list-form02.service';
@@ -12,7 +10,8 @@ import { PdfCrewListForm05Service } from './pdf-crew-list-form05.service';
 import { PdfCrewListForm06Service } from './pdf-crew-list-form06.service';
 import { PdfCrewListForm07Service } from './pdf-crew-list-form07.service';
 import { PdfMdhService } from './pdf-mdh.service';
-import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
+import { PdfPassengerListForm01Service } from './pdf-passenger-list-form01.service';
+import { PdfPassengerListForm02Service } from './pdf-passenger-list-form02.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfPortOfCallTemplateService } from './pdf-port-of-call-template.service';
 import { PdfCrewEffect02Service } from './pdf-crew-effect-02.service';
@@ -37,7 +36,8 @@ export type MdhOverlayPreviewPage = 'form' | 'attachment';
 export class DocumentOverlayPreviewService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
-  private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
+  private readonly passengerListForm01Pdf = inject(PdfPassengerListForm01Service);
+  private readonly passengerListForm02Pdf = inject(PdfPassengerListForm02Service);
   private readonly crewListForm01Pdf = inject(PdfCrewListForm01Service);
   private readonly crewListForm02Pdf = inject(PdfCrewListForm02Service);
   private readonly crewListForm04Pdf = inject(PdfCrewListForm04Service);
@@ -178,29 +178,17 @@ export class DocumentOverlayPreviewService {
   }
 
   private buildPassengerList(data: AppData): Promise<Uint8Array> {
-    const passengers = this.storage.activePassengersArrival();
-    const pdfData: AppData = {
-      ...data,
-      crewArr: {
-        ...data.crewArr,
-        isArrival: data.paxArr.isArrival,
-        identityDocumentType: PASSENGER_IDENTITY_DOCUMENT,
-      },
-    };
-    return this.crewPdf.buildPdfBytes(pdfData, passengersToCrewRows(passengers), {
-      overlayId: 'pax',
-    });
+    const passengers = data.paxArr.isArrival
+      ? this.storage.activePassengersArrival()
+      : this.storage.activePassengersDeparture();
+    return this.passengerListForm01Pdf.buildPdfBytes(data, passengers, data.paxArr.isArrival);
   }
 
   private buildPassengerListV2(data: AppData): Promise<Uint8Array> {
     const passengers = data.paxArr.isArrival
       ? this.storage.activePassengersArrival()
       : this.storage.activePassengersDeparture();
-    const pdfData: AppData = {
-      ...data,
-      paxArr: { ...data.paxArr, isArrival: data.paxArr.isArrival },
-    };
-    return this.passengerListV2Pdf.buildPdfBytes(pdfData, passengers);
+    return this.passengerListForm02Pdf.buildPdfBytes(data, passengers, data.paxArr.isArrival);
   }
 
   private appData(): AppData {

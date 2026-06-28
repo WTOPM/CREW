@@ -39,6 +39,15 @@ export interface DocumentStampOptions {
   signatureBoxAttachment?: PdfStampBox;
 }
 
+/** HTML passenger list forms — stamp/signature, cell styles, footer date. */
+export interface PaxHtmlFormStampOptions extends DocumentStampOptions {
+  cellStyles?: Record<
+    string,
+    { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
+  >;
+  footerSignatureDate?: string;
+}
+
 /** Whether stamp is enabled for the given page (page 1 vs attachment). */
 export function documentUsesStamp(options: DocumentStampOptions, attachmentPage: boolean): boolean {
   return attachmentPage ? Boolean(options.useStampAttachment) : options.useStamp;
@@ -395,8 +404,8 @@ export type ShipAssetKind = 'stamp' | 'signature';
 
 export interface DocumentOverlayPrefs {
   crewList: CrewListDocumentPrefs;
-  pax: DocumentStampOptions;
-  paxV2: DocumentStampOptions;
+  pax: PaxHtmlFormStampOptions;
+  paxV2: PaxHtmlFormStampOptions;
   portOfCall: DocumentStampOptions;
   portsOfCall: DocumentStampOptions;
   mdh: DocumentStampOptions;

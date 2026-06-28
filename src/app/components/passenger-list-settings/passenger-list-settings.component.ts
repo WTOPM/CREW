@@ -1,6 +1,5 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DocumentOverlayId } from '../../models/document-overlay.models';
 import {
   PAX_LIST_TYPE_IDS,
   PAX_LIST_TYPE_LABELS,
@@ -8,14 +7,15 @@ import {
   paxListTypeOrderNo,
   PaxListTypeId,
 } from '../../models/passenger.models';
+import { passengerListForm01EditorUrl } from '../../models/passenger-list-form-01.paths';
+import { passengerListForm02EditorUrl } from '../../models/passenger-list-form-02.paths';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import { CrewAbbrChipComponent } from '../crew-abbr-chip/crew-abbr-chip.component';
-import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
   selector: 'app-passenger-list-settings',
-  imports: [FormsModule, DocumentStampOptionsComponent, CrewAbbrChipComponent],
+  imports: [FormsModule, CrewAbbrChipComponent],
   template: `
     <fieldset class="choice-group">
       <legend class="choice-group__legend">Select document</legend>
@@ -45,7 +45,11 @@ import { DocumentStampOptionsComponent } from '../document-stamp-options/documen
         }
       </div>
     </fieldset>
-    <app-document-stamp-options [documentId]="stampDocumentId()" />
+    <div style="padding: 0.25rem 0 0.5rem;">
+      <button type="button" class="btn btn-placement" style="width: 100%;" (click)="openHtmlFormSettings()">
+        ⚙ Settings
+      </button>
+    </div>
   `,
   styles: `
     .pax-list-type-list {
@@ -145,8 +149,6 @@ export class PassengerListSettingsComponent {
     return this.storage.paxArr().listType;
   }
 
-  protected stampDocumentId = computed((): DocumentOverlayId => this.listType());
-
   protected typeOption(id: PaxListTypeId) {
     return PAX_LIST_TYPE_OPTION_LABELS[id];
   }
@@ -159,5 +161,15 @@ export class PassengerListSettingsComponent {
     if (value === this.listType()) return;
     this.storage.updatePaxArr({ listType: value }, 'silent');
     this.toast.showSelected(PAX_LIST_TYPE_LABELS[value]);
+  }
+
+  protected openHtmlFormSettings(): void {
+    const returnTo = encodeURIComponent('/?paxSettings=1');
+    const mode = this.storage.paxArr().isArrival ? 'arrival' : 'departure';
+    if (this.listType() === 'pax') {
+      window.location.href = passengerListForm01EditorUrl({ mode, return: returnTo });
+      return;
+    }
+    window.location.href = passengerListForm02EditorUrl({ mode, return: returnTo });
   }
 }

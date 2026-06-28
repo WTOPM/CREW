@@ -30,6 +30,12 @@ declare global {
         copies: number,
         deviceName: string,
       ) => Promise<{ ok: boolean; error?: string }>;
+      /** Vector PDF from HTML form (Electron printToPDF). */
+      captureHtmlFormPdf: (
+        relativeUrl: string,
+        snapshot: unknown,
+        options?: { landscape?: boolean },
+      ) => Promise<string>;
       saveCrewPdf: (
         crewId: string,
         docType: CrewDocumentType,

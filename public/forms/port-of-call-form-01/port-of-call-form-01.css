@@ -1,0 +1,136 @@
+/**
+ * Form 01 — column widths from POC_COL_BOUNDS (2111 src units total).
+ * voy 3.7% | port 24.3% | country 19.5% | arrDate 11.6% | arrTime 12.8% | depDate 13.8% | depTime 14.3%
+ */
+.poc-form-01 .col-voy { width: 3.7%; }
+.poc-form-01 .col-port { width: 24.3%; }
+.poc-form-01 .col-country { width: 19.5%; }
+.poc-form-01 .col-arr-date { width: 11.6%; }
+.poc-form-01 .col-arr-time { width: 12.8%; }
+.poc-form-01 .col-dep-date { width: 13.8%; }
+.poc-form-01 .col-dep-time { width: 14.3%; }
+
+.poc-form-01 .poc-grid {
+  border: 2px solid #000;
+}
+
+.poc-form-01 .poc-grid td {
+  border-width: 1px;
+}
+
+/* Header: label top-left + bold value centred in same cell */
+.poc-form-01 .hdr-cell {
+  height: 11mm;
+  padding: 0.6mm 1.4mm 0.8mm;
+  vertical-align: top;
+  position: relative;
+}
+
+.poc-form-01 .hdr-cell--short {
+  height: 8mm;
+}
+
+.poc-form-01 .hdr-lbl {
+  display: block;
+  font-size: 6.5pt;
+  font-weight: 400;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.poc-form-01 .hdr-val {
+  display: block;
+  font-size: 9pt;
+  font-weight: 700;
+  text-align: center;
+  padding-top: 1.8mm;
+  line-height: 1.15;
+}
+
+.poc-form-01 .hdr-cell--short .hdr-val {
+  padding-top: 0.8mm;
+  font-size: 8.5pt;
+}
+
+/* Table column headers (fields 8–14) */
+.poc-form-01 .th-voy {
+  height: 11mm;
+  font-size: 6.5pt;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 1.15;
+  padding: 0.5mm;
+}
+
+.poc-form-01 .th-main {
+  height: 7mm;
+  font-size: 6.5pt;
+  text-align: left;
+  vertical-align: middle;
+  padding: 0.6mm 1.2mm;
+}
+
+.poc-form-01 .th-time-top {
+  height: 4.5mm;
+  font-size: 6.5pt;
+  text-align: left;
+  vertical-align: middle;
+  padding: 0.4mm 1.2mm;
+  border-bottom: none;
+}
+
+.poc-form-01 .th-time-sub {
+  height: 3.5mm;
+  font-size: 6pt;
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0;
+}
+
+.poc-form-01 tr.th-split-top td.th-time-top {
+  border-bottom: none;
+}
+
+.poc-form-01 tr.th-split-sub td {
+  border-top: none;
+}
+
+.poc-form-01 tr.th-band td {
+  border-bottom: 2px solid #000;
+}
+
+/* Data rows */
+.poc-form-01 .data-row td {
+  height: 6.8mm;
+  font-size: 8.5pt;
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0.4mm 1mm;
+}
+
+.poc-form-01 .data-row td.col-port-data,
+.poc-form-01 .data-row td.col-country-data {
+  text-align: center;
+}
+
+/* Signature footer */
+.poc-form-01 .poc-signature-row td {
+  height: 11mm;
+  font-size: 6.5pt;
+  font-weight: 400;
+  text-align: right;
+  vertical-align: bottom;
+  padding: 0 2mm 1.5mm;
+  position: relative;
+  border-bottom: 2px solid #000;
+}
+
+.poc-form-01 .poc-signature-line {
+  position: absolute;
+  right: 2mm;
+  bottom: 5.5mm;
+  left: 38%;
+  border-top: 1px solid #000;
+}

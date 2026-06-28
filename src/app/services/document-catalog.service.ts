@@ -1,11 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { AppData, CREW_IDENTITY_PASSPORT, CREW_IDENTITY_SEAMANS_BOOK } from '../models/crew.models';
-import { passengerListPdfFileName } from '../utils/pdf-filename.util';
-import { PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
-import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { base64ToUint8 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
-import { IMO_PASSENGER_LIST_TITLE, PdfCrewArrService } from './pdf-crew-arr.service';
+import { PdfCrewArrService } from './pdf-crew-arr.service';
 import { PdfCrewListForm01Service } from './pdf-crew-list-form01.service';
 import { PdfCrewListForm02Service } from './pdf-crew-list-form02.service';
 import { PdfCrewListForm04Service } from './pdf-crew-list-form04.service';
@@ -13,7 +10,8 @@ import { PdfCrewListForm03Service } from './pdf-crew-list-form03.service';
 import { PdfCrewListForm05Service } from './pdf-crew-list-form05.service';
 import { PdfCrewListForm06Service } from './pdf-crew-list-form06.service';
 import { PdfCrewListForm07Service } from './pdf-crew-list-form07.service';
-import { PdfPassengerListV2Service } from './pdf-passenger-list-v2.service';
+import { PdfPassengerListForm01Service } from './pdf-passenger-list-form01.service';
+import { PdfPassengerListForm02Service } from './pdf-passenger-list-form02.service';
 import { PdfPortOfCallService } from './pdf-port-of-call.service';
 import { PdfPortOfCallTemplateService } from './pdf-port-of-call-template.service';
 import { PdfSso0108PortCallsService } from './pdf-sso0108-port-calls.service';
@@ -51,7 +49,8 @@ interface BuiltPdf {
 export class DocumentCatalogService {
   private readonly storage = inject(StorageService);
   private readonly crewPdf = inject(PdfCrewArrService);
-  private readonly passengerListV2 = inject(PdfPassengerListV2Service);
+  private readonly passengerListForm01 = inject(PdfPassengerListForm01Service);
+  private readonly passengerListForm02 = inject(PdfPassengerListForm02Service);
   private readonly crewListForm01 = inject(PdfCrewListForm01Service);
   private readonly crewListForm02 = inject(PdfCrewListForm02Service);
   private readonly crewListForm04 = inject(PdfCrewListForm04Service);
@@ -335,18 +334,12 @@ export class DocumentCatalogService {
       : this.storage.activePassengersDeparture();
     const data: AppData = {
       ...base,
-      crewArr: { ...base.crewArr, isArrival, identityDocumentType: PASSENGER_IDENTITY_DOCUMENT },
       paxArr: { ...base.paxArr, isArrival },
     };
-    const { ship } = base;
-    const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
-    const fileName = passengerListPdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
-    const bytes = await this.crewPdf.buildPdfBytes(data, passengersToCrewRows(passengers), {
-      overlayId: 'pax',
-      title: IMO_PASSENGER_LIST_TITLE,
-      fileName,
-    });
-    return { bytes, fileName };
+    return {
+      bytes: await this.passengerListForm01.buildPdfBytes(data, passengers, isArrival),
+      fileName: this.passengerListForm01.fileName(data, isArrival),
+    };
   }
 
   private async paxV2Bytes(base: AppData, isArrival: boolean): Promise<BuiltPdf> {
@@ -357,9 +350,10 @@ export class DocumentCatalogService {
       ...base,
       paxArr: { ...base.paxArr, isArrival },
     };
-    const fileName = this.passengerListV2.fileName(data);
-    const bytes = await this.passengerListV2.buildPdfBytes(data, passengers);
-    return { bytes, fileName };
+    return {
+      bytes: await this.passengerListForm02.buildPdfBytes(data, passengers, isArrival),
+      fileName: this.passengerListForm02.fileName(data, isArrival),
+    };
   }
 
   private appData(): AppData {

@@ -62,7 +62,11 @@ import { normalizeNarcoticListForm } from '../models/narcotic-list.models';
 import { normalizeDgLibrary } from '../models/dg-manifest.models';
 import { normalizeReeferLibrary } from '../models/reefer.models';
 import { normalizeEtaLibrary } from '../models/eta.models';
-import { normalizeCrewListDocumentPrefs } from '../models/document-overlay.models';
+import {
+  isCrewListForm05CssBox,
+  normalizeCrewListDocumentPrefs,
+  type PaxHtmlFormStampOptions,
+} from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 import { normalizeCrewSignatureByRow } from '../utils/crew-effect-signature.util';
 
@@ -334,8 +338,8 @@ function normalizeDocumentOverlay(
 
   const out: AppData['documentOverlay'] = {
     crewList: normalizeCrewListDocumentPrefs(raw?.crewList),
-    pax: normalizeStampDocumentPrefs(raw?.pax, defaults.pax),
-    paxV2: normalizeStampDocumentPrefs(raw?.paxV2, defaults.paxV2),
+    pax: normalizePaxHtmlFormPrefs(raw?.pax, defaults.pax),
+    paxV2: normalizePaxHtmlFormPrefs(raw?.paxV2, defaults.paxV2),
     portOfCall: normalizeStampDocumentPrefs(raw?.portOfCall, defaults.portOfCall),
     portsOfCall: normalizeStampDocumentPrefs(raw?.portsOfCall, defaults.portsOfCall),
     mdh: normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
@@ -380,6 +384,27 @@ function normalizeStampDocumentPrefs<T extends DocumentStampOptions>(
       : {}),
   };
   return { ...defaults, ...extra, ...base } as T;
+}
+
+function normalizePaxHtmlFormPrefs(
+  raw: Partial<PaxHtmlFormStampOptions> | undefined,
+  defaults: PaxHtmlFormStampOptions,
+): PaxHtmlFormStampOptions {
+  const base = normalizeStampDocumentPrefs(raw, defaults);
+  const out: PaxHtmlFormStampOptions = { ...base };
+  if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
+    out.cellStyles = raw.cellStyles;
+  }
+  if (typeof raw?.footerSignatureDate === 'string') {
+    out.footerSignatureDate = raw.footerSignatureDate;
+  }
+  if (isCrewListForm05CssBox(raw?.stampBox)) {
+    out.stampBox = raw.stampBox;
+  }
+  if (isCrewListForm05CssBox(raw?.signatureBox)) {
+    out.signatureBox = raw.signatureBox;
+  }
+  return out;
 }
 
 function normalizeCrewEffectStampPrefs(

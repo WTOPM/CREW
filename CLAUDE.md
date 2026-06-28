@@ -125,15 +125,18 @@ public/forms/crew-list-form-07/
 | Feedback param | `form05Feedback` | `form06Feedback` | `form07Feedback` |
 | Overlay bucket | `byType.type4V3Sbk` | `byType.type5V3SbkP` | `byType.type6V3SbkP2` |
 
-- PDF capture: hidden iframe → `html2canvas` + jsPDF → `PdfDeliveryService` (same UX as pdf-lib forms)
+- PDF capture: `captureHtmlFormPdfBytes()` in `html-form-pdf-capture.util.ts` — **Electron:**
+  `printToPDF` via IPC `capture-html-form-pdf` (vector text, searchable). **Browser dev:**
+  html2canvas + jsPDF fallback. All HTML form PDF services use this helper.
 - Editor opens from Crew list settings; `return=/?crewListSettings=1` restores the settings modal after Save/Cancel
 - Excel: `html-form-excel-export.js` snapshot → `CrewListHtmlFormExcelService`
 
 **PDF export contract (required on every HTML form):**
 
 - `?pdfExport=1` — hide toolbars, flatten inputs, set `window.__pdfReady = true`
-- Optional `?data=<json>` — snapshot from Angular (crew already filtered); skip re-fetch
-- Use `foreignObjectRendering: true` in html2canvas (see Form 05/06 service comments)
+- Snapshot via `sessionStorage` + `?pdfData=1` (see `html-form-pdf-snapshot.js`) — not long query strings
+- New PDF services: call `captureHtmlFormPdfBytes({ url, snapshot, iframeWidth, iframeHeight, pageSelector, landscape? })`
+- Browser fallback only: `foreignObjectRendering: true` in html2canvas (inside the util)
 
 Do **not** name production forms `test-*`. Use `forms/<kebab-name>/` and wire paths through
 `*.paths.ts` constants, not hard-coded strings. Row counts: `CREW_LIST_FORM_0X_MAX_ROWS` in paths.ts

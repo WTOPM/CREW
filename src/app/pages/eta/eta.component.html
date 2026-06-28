@@ -245,8 +245,8 @@
                 <th class="eta-col-no">#</th>
                 <th class="eta-col-route" [title]="etaTips.fromPort">From</th>
                 <th class="eta-col-route" [title]="etaTips.toPort">To</th>
-                <th class="eta-col-num" [title]="etaTips.legDistance">NM</th>
-                <th class="eta-col-num" [title]="etaTips.legSpeed">kn</th>
+                <th class="eta-col-nm" [title]="etaTips.legDistance">NM</th>
+                <th class="eta-col-kn" [title]="etaTips.legSpeed">kn</th>
                 <th class="eta-col-duration" [title]="etaTips.legDuration">Dur.</th>
                 <th class="eta-col-eta" [title]="etaTips.legEta">ETA</th>
                 <th class="eta-col-actions" aria-label="Actions"></th>
@@ -275,7 +275,7 @@
                       />
                     }
                   </td>
-                  <td class="eta-col-num" [title]="etaTips.legDistance">
+                  <td class="eta-col-nm" [title]="etaTips.legDistance">
                     <input
                       type="number"
                       class="eta-input eta-input--num"
@@ -285,11 +285,11 @@
                       (ngModelChange)="onLegDistance(leg.id, $event)"
                     />
                   </td>
-                  <td class="eta-col-num" [title]="etaTips.legSpeed">
+                  <td class="eta-col-kn" [title]="etaTips.legSpeed">
                     @if (isSpeedEditable()) {
                       <input
                         type="text"
-                        class="eta-input eta-input--num"
+                        class="eta-input eta-input--num eta-input--speed-kn"
                         inputmode="decimal"
                         [ngModel]="legSpeedInput(leg.id, i)"
                         (ngModelChange)="onLegSpeedChange(leg.id, $event)"

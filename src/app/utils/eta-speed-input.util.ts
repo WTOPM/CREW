@@ -4,6 +4,15 @@ export function truncateSpeedKnotsTenths(n: number): number {
   return Math.trunc(n * 10) / 10;
 }
 
+/** Whole tenths of a knot — avoids 0.1 float drift (5.6 + 0.1 → 5.7). */
+export function speedKnotsToTenths(n: number): number {
+  return Math.max(0, Math.round(truncateSpeedKnotsTenths(n) * 10));
+}
+
+export function tenthsToSpeedKnots(tenths: number): number {
+  return Math.max(0, tenths) / 10;
+}
+
 export interface SpeedKnotsInputSanitize {
   /** Sanitized text for the input (comma or dot preserved). */
   text: string;
@@ -60,4 +69,14 @@ export function formatSpeedKnotsDisplay(n: number): string {
   const t = truncateSpeedKnotsTenths(n);
   if (t <= 0) return '';
   return Number.isInteger(t) ? String(t) : t.toFixed(1);
+}
+
+/** Step speed by tenths of a knot (spinner buttons). */
+export function stepSpeedKnots(current: number | null, direction: 1 | -1): {
+  text: string;
+  value: number;
+} {
+  const nextTenths = Math.max(0, speedKnotsToTenths(current ?? 0) + direction);
+  const next = tenthsToSpeedKnots(nextTenths);
+  return { text: formatSpeedKnotsDisplay(next), value: next };
 }

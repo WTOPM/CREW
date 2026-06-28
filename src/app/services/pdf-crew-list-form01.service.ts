@@ -3,10 +3,11 @@ import { AppData, CrewMember, CREW_IDENTITY_PASSPORT } from '../models/crew.mode
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewListForm01EditorUrl } from '../models/crew-list-form-01.paths';
 import { crewListIdentityPdfFileName } from '../utils/pdf-filename.util';
-import { captureHtmlFormFromUrl } from '../utils/html-form-pdf-capture.util';
+import { captureHtmlFormPdfBytes } from '../utils/html-form-pdf-capture.util';
 
 /**
  * Form 01 - IMO CREW LIST - P — HTML editor at `public/forms/crew-list-form-01/`.
+ * Electron: vector PDF via printToPDF. Browser: html2canvas raster fallback.
  */
 @Injectable({ providedIn: 'root' })
 export class PdfCrewListForm01Service {
@@ -29,20 +30,13 @@ export class PdfCrewListForm01Service {
       pdfExport: '1',
     });
 
-    const canvas = await captureHtmlFormFromUrl({
+    return captureHtmlFormPdfBytes({
       url,
       snapshot,
       iframeWidth: '210mm',
       iframeHeight: '297mm',
       pageSelector: '.a4-page',
     });
-
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidth, pageHeight);
-    return new Uint8Array(doc.output('arraybuffer'));
   }
 
   fileName(data: AppData, isArrival: boolean): string {

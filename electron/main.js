@@ -229,6 +229,95 @@ function createWindow() {
   }
 }
 
+function getAppOrigin() {
+  return app.isPackaged ? APP_ORIGIN : 'http://localhost:4200';
+}
+
+/** Poll hidden capture window until the HTML form sets window.__pdfReady. */
+async function waitForHtmlFormPdfReady(webContents, timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const ready = await webContents.executeJavaScript('Boolean(window.__pdfReady)');
+      if (ready) return;
+    } catch {
+      /* page still loading */
+    }
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+  throw new Error('HTML form failed to render for PDF export');
+}
+
+/**
+ * Chromium printToPDF — vector text/lines (not html2canvas raster).
+ * Snapshot is injected via sessionStorage on the app origin before loading the form.
+ */
+ipcMain.handle('capture-html-form-pdf', async (_event, relativeUrl, snapshot, captureOpts = {}) => {
+  const landscape = !!captureOpts.landscape;
+  const origin = getAppOrigin();
+  const urlObj = new URL(relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`, `${origin}/`);
+  urlObj.searchParams.set('pdfExport', '1');
+  urlObj.searchParams.set('pdfData', '1');
+  const formUrl = urlObj.toString();
+  const snapshotJson = JSON.stringify(snapshot ?? {});
+  const storageKey = 'crew-html-form-pdf-snapshot';
+
+  const win = new BrowserWindow({
+    show: false,
+    width: landscape ? 1280 : 900,
+    height: landscape ? 900 : 1280,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  let debuggerAttached = false;
+  try {
+    await win.loadURL(`${origin}/`);
+    await win.webContents.executeJavaScript(
+      `sessionStorage.setItem(${JSON.stringify(storageKey)}, ${JSON.stringify(snapshotJson)});`,
+    );
+
+    await win.loadURL(formUrl);
+    await waitForHtmlFormPdfReady(win.webContents);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    const wc = win.webContents;
+    try {
+      if (!wc.debugger.isAttached()) {
+        wc.debugger.attach('1.3');
+        debuggerAttached = true;
+      }
+      await wc.debugger.sendCommand('Emulation.setEmulatedMedia', { media: 'screen' });
+    } catch {
+      /* screen layout optional — print CSS still works */
+    }
+
+    const pdfBuffer = await wc.printToPDF({
+      printBackground: true,
+      preferCSSPageSize: true,
+      margins: { marginType: 'none' },
+      pageSize: 'A4',
+      landscape,
+    });
+
+    return pdfBuffer.toString('base64');
+  } finally {
+    if (debuggerAttached) {
+      try {
+        if (!win.isDestroyed() && win.webContents.debugger.isAttached()) {
+          win.webContents.debugger.detach();
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!win.isDestroyed()) win.destroy();
+  }
+});
+
 ipcMain.handle('read-data', () => {
   ensureDataDir();
   const filePath = getDataFilePath();

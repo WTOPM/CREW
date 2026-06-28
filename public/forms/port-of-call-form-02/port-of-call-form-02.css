@@ -1,0 +1,15 @@
+.poc-form-02 .col-port { width: 30%; }
+.poc-form-02 .col-country { width: 18%; }
+.poc-form-02 .col-code { width: 10%; }
+.poc-form-02 .col-date { width: 14%; }
+.poc-form-02 .col-sec { width: 10%; }
+
+.poc-form-02 .poc-signature-row td {
+  padding-right: 3mm;
+}
+
+.poc-master-line {
+  display: block;
+  margin-top: 1mm;
+  font-weight: 400;
+}

@@ -2,6 +2,70 @@ import {
   HTML_FORM_PDF_DATA_PARAM,
   HTML_FORM_PDF_SNAPSHOT_STORAGE_KEY,
 } from '../models/html-form-pdf-snapshot.model';
+import { base64ToUint8 } from './base64.util';
+
+/** Relative editor path (/forms/...) for Electron printToPDF IPC. */
+export function htmlFormPdfRelativeUrl(relativePath: string): string {
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://') || relativePath.startsWith('app://')) {
+    const url = new URL(relativePath);
+    return url.pathname + url.search;
+  }
+  return relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
+}
+
+export interface HtmlFormPdfCaptureOptions {
+  url: string;
+  snapshot?: unknown;
+  iframeWidth: string;
+  iframeHeight: string;
+  pageSelector: string;
+  /** A4 landscape (forms 03, 06, 07). Default portrait. */
+  landscape?: boolean;
+}
+
+/**
+ * PDF bytes from an HTML form editor.
+ * Electron: Chromium printToPDF (vector text, searchable).
+ * Browser: html2canvas raster fallback.
+ */
+export async function captureHtmlFormPdfBytes(
+  options: HtmlFormPdfCaptureOptions,
+): Promise<Uint8Array> {
+  const relativeUrl = htmlFormPdfRelativeUrl(options.url);
+  const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+  const landscape = options.landscape ?? false;
+
+  if (api?.captureHtmlFormPdf && options.snapshot !== undefined) {
+    const base64 = await api.captureHtmlFormPdf(relativeUrl, options.snapshot, { landscape });
+    return base64ToUint8(base64);
+  }
+
+  const canvas = await captureHtmlFormFromUrl({
+    url: relativeUrl,
+    snapshot: options.snapshot,
+    iframeWidth: options.iframeWidth,
+    iframeHeight: options.iframeHeight,
+    pageSelector: options.pageSelector,
+  });
+  return canvasToPdfBytes(canvas, landscape);
+}
+
+/** Raster fallback: A4 JPEG page from html2canvas capture. */
+export async function canvasToPdfBytes(
+  canvas: HTMLCanvasElement,
+  landscape = false,
+): Promise<Uint8Array> {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({
+    unit: 'mm',
+    format: 'a4',
+    orientation: landscape ? 'landscape' : 'portrait',
+  });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  doc.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageWidth, pageHeight);
+  return new Uint8Array(doc.output('arraybuffer'));
+}
 
 /** Resolve a root-absolute editor path (/forms/...) against the current page origin (app:// or http://). */
 export function resolveHtmlFormEditorUrl(relativePath: string): string {

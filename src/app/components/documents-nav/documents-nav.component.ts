@@ -31,6 +31,9 @@ import {
   CREW_LIST_TYPE_LABELS,
 } from '../../models/document-overlay.models';
 import { CREW_LIST_FORM_01_FEEDBACK_PARAM } from '../../models/crew-list-form-01.paths';
+import { PASSENGER_LIST_FORM_01_FEEDBACK_PARAM } from '../../models/passenger-list-form-01.paths';
+import { PASSENGER_LIST_FORM_02_FEEDBACK_PARAM } from '../../models/passenger-list-form-02.paths';
+import { PAX_LIST_TYPE_LABELS } from '../../models/passenger.models';
 import { CREW_LIST_FORM_02_FEEDBACK_PARAM } from '../../models/crew-list-form-02.paths';
 import { CREW_LIST_FORM_03_FEEDBACK_PARAM } from '../../models/crew-list-form-03.paths';
 import { CREW_LIST_FORM_04_FEEDBACK_PARAM } from '../../models/crew-list-form-04.paths';
@@ -50,7 +53,8 @@ import { PdfCrewListForm05Service } from '../../services/pdf-crew-list-form05.se
 import { PdfCrewListForm06Service } from '../../services/pdf-crew-list-form06.service';
 import { PdfCrewListForm07Service } from '../../services/pdf-crew-list-form07.service';
 import { PdfMdhService } from '../../services/pdf-mdh.service';
-import { PdfPassengerListV2Service } from '../../services/pdf-passenger-list-v2.service';
+import { PdfPassengerListForm01Service } from '../../services/pdf-passenger-list-form01.service';
+import { PdfPassengerListForm02Service } from '../../services/pdf-passenger-list-form02.service';
 import { PdfPortOfCallService } from '../../services/pdf-port-of-call.service';
 import { PdfPortOfCallTemplateService } from '../../services/pdf-port-of-call-template.service';
 import { PdfCrewEffect02Service } from '../../services/pdf-crew-effect-02.service';
@@ -124,7 +128,8 @@ export class DocumentsNavComponent implements OnInit {
   private readonly htmlFormExcel = inject(CrewListHtmlFormExcelService);
   private readonly forms = inject(FormsStore);
   private readonly crewPdf = inject(PdfCrewArrService);
-  private readonly passengerListV2Pdf = inject(PdfPassengerListV2Service);
+  private readonly passengerListForm01Pdf = inject(PdfPassengerListForm01Service);
+  private readonly passengerListForm02Pdf = inject(PdfPassengerListForm02Service);
   private readonly crewListForm01Pdf = inject(PdfCrewListForm01Service);
   private readonly crewListForm02Pdf = inject(PdfCrewListForm02Service);
   private readonly crewListForm03Pdf = inject(PdfCrewListForm03Service);
@@ -188,12 +193,12 @@ export class DocumentsNavComponent implements OnInit {
       : this.storage.activePassengersDeparture();
     const listType = this.storage.paxArr().listType;
     if (listType === 'paxV2') {
-      void this.passengerListV2Pdf.openPreview(this.appData(), passengers).then((ok) => {
-        if (!ok) this.toast.showError('Allow pop-ups to open Passenger List v2 preview');
+      void this.passengerListForm02Pdf.openPreview(this.appData(), passengers, isArrival).then((ok) => {
+        if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');
       });
       return;
     }
-    void this.crewPdf.openPassengerPreview(this.appData(), passengers).then((ok) => {
+    void this.passengerListForm01Pdf.openPreview(this.appData(), passengers, isArrival).then((ok) => {
       if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');
     });
   }
@@ -231,7 +236,7 @@ export class DocumentsNavComponent implements OnInit {
     void this.openCrewListPdf(isArrival, CREW_IDENTITY_PASSPORT);
   }
 
-  /** Form 01 - IMO CREW LIST - P — HTML editor → PDF via html2canvas. */
+  /** Form 01 - IMO CREW LIST - P — HTML editor → vector PDF (Electron) or html2canvas fallback. */
   private async openCrewListForm01Pdf(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -249,7 +254,7 @@ export class DocumentsNavComponent implements OnInit {
     }
   }
 
-  /** Form 02 - IMO CREW LIST - SBK — HTML editor → PDF via html2canvas. */
+  /** Form 02 - IMO CREW LIST - SBK — HTML editor → vector PDF (Electron) or html2canvas fallback. */
   private async openCrewListForm02Pdf(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -271,7 +276,7 @@ export class DocumentsNavComponent implements OnInit {
     }
   }
 
-  /** Form 03 - IMO CREW LIST [P][SBK][J][T] — HTML editor → PDF via html2canvas. */
+  /** Form 03 - IMO CREW LIST [P][SBK][J][T] — HTML editor → vector PDF (Electron) or html2canvas fallback. */
   private async openCrewListForm03Pdf(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -289,7 +294,7 @@ export class DocumentsNavComponent implements OnInit {
     }
   }
 
-  /** Form 04 - CREW LIST [P][E][PI][G] — HTML editor → PDF via html2canvas. */
+  /** Form 04 - CREW LIST [P][E][PI][G] — HTML editor → vector PDF (Electron) or html2canvas fallback. */
   private async openCrewListForm04Pdf(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -307,7 +312,7 @@ export class DocumentsNavComponent implements OnInit {
     }
   }
 
-  /** Form 05 - CREW LIST [SBK][E] — HTML editor → PDF via html2canvas. */
+  /** Form 05 - CREW LIST [SBK][E] — HTML editor → vector PDF (Electron) or html2canvas fallback. */
   private async openCrewListForm05Pdf(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -325,7 +330,7 @@ export class DocumentsNavComponent implements OnInit {
     }
   }
 
-  /** Form 06 - CREW LIST [SBK][PI][E][P][J] — HTML editor → PDF via html2canvas. */
+  /** Form 06 - CREW LIST [SBK][PI][E][P][J] — HTML editor → vector PDF (Electron) or html2canvas fallback. */
   private async openCrewListForm06Pdf(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -343,7 +348,7 @@ export class DocumentsNavComponent implements OnInit {
     }
   }
 
-  /** Form 07 - CREW LIST [SBK][PI][E][P][PI][E] — HTML editor → PDF via html2canvas. */
+  /** Form 07 - CREW LIST [SBK][PI][E][P][PI][E] — HTML editor → vector PDF (Electron) or html2canvas fallback. */
   private async openCrewListForm07Pdf(isArrival: boolean): Promise<void> {
     this.storage.updateCrewArr({ isArrival }, 'silent');
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
@@ -394,6 +399,12 @@ export class DocumentsNavComponent implements OnInit {
       return;
     }
 
+    const reopenPax = params.get('paxSettings') === '1';
+    const feedbackPax01 = params.get(PASSENGER_LIST_FORM_01_FEEDBACK_PARAM);
+    const feedbackPax02 = params.get(PASSENGER_LIST_FORM_02_FEEDBACK_PARAM);
+    const paxForm01Label = PAX_LIST_TYPE_LABELS.pax;
+    const paxForm02Label = PAX_LIST_TYPE_LABELS.paxV2;
+
     const reopen = params.get('crewListSettings') === '1';
     const feedback01 = params.get(CREW_LIST_FORM_01_FEEDBACK_PARAM);
     const feedback02 = params.get(CREW_LIST_FORM_02_FEEDBACK_PARAM);
@@ -409,6 +420,20 @@ export class DocumentsNavComponent implements OnInit {
     const form05Label = CREW_LIST_TYPE_LABELS[CREW_FORM_05];
     const form06Label = CREW_LIST_TYPE_LABELS[CREW_FORM_06];
     const form07Label = CREW_LIST_TYPE_LABELS[CREW_FORM_07];
+
+    if (reopenPax) {
+      this.showPaxSettings.set(true);
+    }
+    if (feedbackPax01 === 'saved') {
+      this.toast.show(`Saved: ${paxForm01Label}`, 'success');
+    } else if (feedbackPax01 === 'cancelled') {
+      this.toast.show(`Cancelled: ${paxForm01Label}`, 'info');
+    }
+    if (feedbackPax02 === 'saved') {
+      this.toast.show(`Saved: ${paxForm02Label}`, 'success');
+    } else if (feedbackPax02 === 'cancelled') {
+      this.toast.show(`Cancelled: ${paxForm02Label}`, 'info');
+    }
 
     if (reopen) {
       this.showCrewListSettings.set(true);
@@ -449,8 +474,23 @@ export class DocumentsNavComponent implements OnInit {
       this.toast.show(`Cancelled: ${form07Label}`, 'info');
     }
 
-    if (reopen || feedback01 || feedback02 || feedback03 || feedback04 || feedback05 || feedback06 || feedback07) {
+    if (
+      reopen ||
+      reopenPax ||
+      feedback01 ||
+      feedback02 ||
+      feedback03 ||
+      feedback04 ||
+      feedback05 ||
+      feedback06 ||
+      feedback07 ||
+      feedbackPax01 ||
+      feedbackPax02
+    ) {
       params.delete('crewListSettings');
+      params.delete('paxSettings');
+      params.delete(PASSENGER_LIST_FORM_01_FEEDBACK_PARAM);
+      params.delete(PASSENGER_LIST_FORM_02_FEEDBACK_PARAM);
       params.delete(CREW_LIST_FORM_01_FEEDBACK_PARAM);
       params.delete(CREW_LIST_FORM_02_FEEDBACK_PARAM);
       params.delete(CREW_LIST_FORM_03_FEEDBACK_PARAM);

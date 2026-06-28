@@ -3,6 +3,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EtaArchiveModalsComponent } from '../../components/eta-archive-modals/eta-archive-modals.component';
+import { EtaSpeedKnInputDirective } from '../../directives/eta-speed-kn-input.directive';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { TimeInputComponent } from '../../components/time-input/time-input.component';
@@ -13,6 +14,8 @@ import { ToastService } from '../../services/toast.service';
 import {
   formatSpeedKnotsDisplay,
   sanitizeSpeedKnotsInput,
+  speedKnotsToTenths,
+  tenthsToSpeedKnots,
 } from '../../utils/eta-speed-input.util';
 import {
   calculateEta,
@@ -36,6 +39,7 @@ import {
     DatePickerComponent,
     TimeInputComponent,
     EtaArchiveModalsComponent,
+    EtaSpeedKnInputDirective,
   ],
   templateUrl: './eta.component.html',
   styleUrl: './eta.component.css',
@@ -234,8 +238,9 @@ export class EtaComponent {
 
   protected onLegSpeedChange(legId: string, raw: string): void {
     const { text, value } = sanitizeSpeedKnotsInput(raw);
+    const speedKnots = value != null ? tenthsToSpeedKnots(speedKnotsToTenths(value)) : 0;
     this.legSpeedEdit.set({ legId, text });
-    this.etaStore.updateLeg(legId, { speedKnots: value ?? 0 });
+    this.etaStore.updateLeg(legId, { speedKnots });
   }
 
   protected onLegSpeedBlur(legId: string): void {
