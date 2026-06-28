@@ -1,0 +1,471 @@
+/* HTML editor chrome (side panels, zoom, overlays) — Port of Call forms 01 & 02 */
+html:has(body.poc-editor) {
+  height: 100%;
+  overflow: hidden;
+}
+
+body.poc-editor {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  box-sizing: border-box;
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.poc-editor .doc-zoom-viewport {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  height: calc(100vh - 24px);
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  background: #d0d0d0;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: #777 #b8b8b8;
+}
+
+.poc-editor .doc-zoom-viewport::-webkit-scrollbar {
+  width: 14px;
+}
+
+.poc-editor .doc-zoom-viewport::-webkit-scrollbar-track {
+  background: #b8b8b8;
+}
+
+.poc-editor .doc-zoom-viewport::-webkit-scrollbar-thumb {
+  background: #777;
+  border: 3px solid #b8b8b8;
+  border-radius: 8px;
+}
+
+.poc-editor .doc-zoom-viewport::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.poc-editor .doc-zoom-pad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto;
+  position: relative;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 8px 12px 48px;
+}
+
+.poc-editor .doc-zoom-slot {
+  flex-shrink: 0;
+  overflow: visible;
+  display: flex;
+  justify-content: center;
+}
+
+.poc-editor .doc-zoom-stage {
+  transform-origin: top center;
+  flex-shrink: 0;
+}
+
+.poc-editor .poc-page-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin: 0 0 10px;
+  padding: 0.35rem 0.55rem;
+  background: #ececec;
+  border: 1px solid #aaa;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.poc-editor .poc-page-nav__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 5.5rem;
+  text-align: center;
+  color: #333;
+  user-select: none;
+}
+
+.poc-editor .poc-page-nav__btn {
+  width: 1.85rem;
+  min-width: 1.85rem;
+  max-width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.poc-editor .poc-page-nav__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.poc-editor .side-panel {
+  --side-panel-w: clamp(8rem, 11vw, 9.75rem);
+  position: sticky;
+  top: 12px;
+  align-self: flex-start;
+  width: var(--side-panel-w);
+  flex: 0 0 var(--side-panel-w);
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  background: #ececec;
+  border: 1px solid #aaa;
+  border-radius: 6px;
+  max-height: calc(100vh - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.poc-editor .side-panel__title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+  margin-top: 0.15rem;
+}
+
+.poc-editor .side-panel .btn {
+  width: 100%;
+  font-size: 0.72rem;
+  padding: 0.45rem 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #888;
+}
+
+.poc-editor .btn-save { background: #15803d; color: #fff; border-color: #15803d; }
+.poc-editor .btn-cancel { background: #fff; color: #333; }
+.poc-editor .btn-s { background: #f5f5f5; }
+
+.poc-editor .btn-s:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.poc-editor .zoom-controls__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.poc-editor .zoom-controls__pct {
+  font-size: 0.72rem;
+  font-weight: 600;
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+.poc-editor .overlay-marker {
+  position: absolute;
+  display: none;
+  z-index: 20;
+  cursor: move;
+  border: 1px dashed transparent;
+}
+
+.poc-editor .overlay-marker.visible {
+  display: block;
+}
+
+.poc-editor .overlay-marker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.poc-editor .overlay-marker:hover,
+.poc-editor .overlay-marker:focus-within {
+  border-color: #2563eb;
+}
+
+.poc-editor .a4-page {
+  position: relative;
+  height: auto;
+  min-height: 297mm;
+  overflow: visible;
+}
+
+body.is-pdf-export .a4-page,
+body.pdf-export .a4-page {
+  height: 297mm;
+  overflow: hidden;
+}
+
+.poc-editor .confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10050;
+  padding: 1rem;
+}
+
+.poc-editor .dg-archive-modal.confirm-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(30rem, calc(100vw - 1.5rem));
+  max-width: 30rem;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 48px rgb(15 23 42 / 22%);
+  animation: pocModalFadeIn 0.15s ease-out;
+}
+
+@keyframes pocModalFadeIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.poc-editor .dg-archive-modal__head {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.35rem 1.4rem 1.15rem;
+  border-bottom: 1px solid rgb(148 163 184 / 18%);
+  background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+}
+
+.poc-editor .confirm-dialog--danger .dg-archive-modal__head {
+  background: linear-gradient(135deg, #fef2f2 0%, #f8fafc 55%, #fff 100%);
+}
+
+.poc-editor .dg-archive-modal__icon {
+  flex-shrink: 0;
+  width: 2.85rem;
+  height: 2.85rem;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #fff;
+}
+
+.poc-editor .dg-archive-modal__icon svg {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.poc-editor .confirm-dialog__icon--danger {
+  background: linear-gradient(145deg, #f87171, #dc2626);
+  box-shadow: 0 4px 14px rgb(220 38 38 / 28%);
+}
+
+.poc-editor .dg-archive-modal__intro {
+  min-width: 0;
+  flex: 1;
+}
+
+.poc-editor .dg-archive-modal__intro h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.08rem;
+  line-height: 1.25;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.poc-editor .confirm-dialog__message {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.poc-editor .dg-archive-modal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0;
+  padding: 1rem 1.4rem 1.35rem;
+  border-top: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.poc-editor .dg-archive-modal__foot .btn {
+  min-width: 5.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.poc-editor .btn-secondary {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+
+.poc-editor .btn-secondary:hover {
+  background: #f8fafc;
+}
+
+.poc-editor .btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border: 1px solid transparent;
+}
+
+.poc-editor .btn-danger:hover {
+  background: #b91c1c;
+}
+
+.poc-editor .zoom-controls {
+  margin-top: 0.15rem;
+}
+
+body.is-pdf-export .side-panel,
+body.pdf-export .side-panel {
+  display: none !important;
+}
+
+body.is-pdf-export .poc-page-nav,
+body.pdf-export .poc-page-nav {
+  display: none !important;
+}
+
+body.is-pdf-export .doc-zoom-viewport,
+body.pdf-export .doc-zoom-viewport {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+body.is-pdf-export .doc-zoom-pad,
+body.pdf-export .doc-zoom-pad {
+  width: auto !important;
+  height: auto !important;
+}
+
+body.is-pdf-export .doc-zoom-slot,
+body.pdf-export .doc-zoom-slot {
+  width: auto !important;
+  height: auto !important;
+}
+
+body.is-pdf-export .doc-zoom-stage,
+body.pdf-export .doc-zoom-stage {
+  transform: none !important;
+  zoom: 1 !important;
+  margin-bottom: 0 !important;
+}
+
+body.is-pdf-export,
+body.pdf-export {
+  display: block;
+  padding: 0;
+}
+
+/* Cell selection / formatting (shared with crew/passenger HTML forms) */
+.poc-editor .side-panel__select {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  font-size: 0.72rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #94a3b8;
+  border-radius: 3px;
+  background: #fff;
+  color: #0f172a;
+}
+
+.poc-editor .ci {
+  border: none;
+  outline: none;
+  font-family: Arial, sans-serif;
+  font-size: 8pt;
+  font-weight: inherit;
+  padding: 0.2mm 1mm;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  color: #000;
+  display: block;
+  cursor: default;
+  caret-color: transparent;
+  user-select: none;
+}
+
+.poc-editor .ci:focus {
+  outline: none;
+}
+
+.poc-editor .ci.selected {
+  background: #e6f0ff !important;
+  outline: 2px solid #1a56db !important;
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+.poc-editor .ci.ci-hdr {
+  font-weight: 700;
+  font-size: 8pt;
+  text-align: center;
+}
+
+/* Header value inputs sit inside a flex wrapper — block-level .ci sizing breaks vertical centre */
+.poc-editor .poc-form-02 .poc02-hdr-val .ci.ci-hdr {
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  display: block;
+  padding: 0;
+}
+
+.poc-editor .ci.ci-th {
+  white-space: normal;
+  line-height: 1.15;
+  cursor: default;
+}
+
+/* Compact align toolbar — fits narrow side panel without horizontal scroll */
+.poc-editor .cell-align-toolbar {
+  --align-btn: 1.42rem;
+  --align-gap: 0.2rem;
+  padding: 0.28rem;
+  margin: 0.08rem 0 0.12rem;
+}
+
+.poc-editor .cell-align-toolbar__btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.fi {
+  border: none;
+  background: transparent;
+  width: 100%;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.fi[readonly] {
+  cursor: default;
+}

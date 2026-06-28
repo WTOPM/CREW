@@ -43,7 +43,8 @@ import {
   migratePassengerMember,
 } from '../models/passenger.models';
 import { APP_DATA_SCHEMA_VERSION } from '../data/empty-app-data';
-import { POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
+import { POC_DEFAULT_ROW_COUNT, POC_MAX_ROW_COUNT, POC_MIN_ROW_COUNT } from './port-of-call-coordinates';
+import { PORT_OF_CALL_HTML_MAX_ROWS_PER_PAGE } from '../models/port-of-call-form-01.paths';
 import {
   normalizeCrewEffectForm,
   normalizeCrewEffectForm02,
@@ -66,6 +67,7 @@ import {
   isCrewListForm05CssBox,
   normalizeCrewListDocumentPrefs,
   type PaxHtmlFormStampOptions,
+  type PortOfCallHtmlFormStampOptions,
 } from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 import { normalizeCrewSignatureByRow } from '../utils/crew-effect-signature.util';
@@ -340,8 +342,8 @@ function normalizeDocumentOverlay(
     crewList: normalizeCrewListDocumentPrefs(raw?.crewList),
     pax: normalizePaxHtmlFormPrefs(raw?.pax, defaults.pax),
     paxV2: normalizePaxHtmlFormPrefs(raw?.paxV2, defaults.paxV2),
-    portOfCall: normalizeStampDocumentPrefs(raw?.portOfCall, defaults.portOfCall),
-    portsOfCall: normalizeStampDocumentPrefs(raw?.portsOfCall, defaults.portsOfCall),
+    portOfCall: normalizePortOfCallHtmlFormPrefs(raw?.portOfCall, defaults.portOfCall),
+    portsOfCall: normalizePortOfCallHtmlFormPrefs(raw?.portsOfCall, defaults.portsOfCall),
     mdh: normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
     crewVaccine: normalizeStampDocumentPrefs(raw?.crewVaccine, defaults.crewVaccine),
     shipStores: normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
@@ -384,6 +386,23 @@ function normalizeStampDocumentPrefs<T extends DocumentStampOptions>(
       : {}),
   };
   return { ...defaults, ...extra, ...base } as T;
+}
+
+function normalizePortOfCallHtmlFormPrefs(
+  raw: Partial<PortOfCallHtmlFormStampOptions> | undefined,
+  defaults: PortOfCallHtmlFormStampOptions,
+): PortOfCallHtmlFormStampOptions {
+  const base = normalizeStampDocumentPrefs(raw, defaults);
+  const out: PortOfCallHtmlFormStampOptions = { ...base };
+  if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
+    out.cellStyles = raw.cellStyles;
+  }
+  const rows = raw?.rowsPerPage ?? defaults.rowsPerPage ?? POC_DEFAULT_ROW_COUNT;
+  out.rowsPerPage = Math.min(PORT_OF_CALL_HTML_MAX_ROWS_PER_PAGE, Math.max(POC_MIN_ROW_COUNT, rows));
+  if (typeof raw?.footerSignatureDate === 'string') {
+    out.footerSignatureDate = raw.footerSignatureDate;
+  }
+  return out;
 }
 
 function normalizePaxHtmlFormPrefs(

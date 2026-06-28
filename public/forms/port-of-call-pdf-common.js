@@ -5,6 +5,7 @@
   const A4_W_PT = 595.28;
   const A4_H_PT = 842;
   const ROWS_PER_PAGE = 11;
+  const MAX_ROWS = 23;
 
   function formatDisplayDate(value) {
     if (!value) return '';
@@ -142,8 +143,8 @@
     const opts = snapshot.documentOverlay?.[overlayKey];
     if (!opts) return;
 
-    const stampEl = pageEl.querySelector('.poc-stamp');
-    const sigEl = pageEl.querySelector('.poc-signature');
+    const stampEl = pageEl.querySelector('#stamp-container') || pageEl.querySelector('.poc-stamp');
+    const sigEl = pageEl.querySelector('#sig-container') || pageEl.querySelector('.poc-signature');
     if (!stampEl || !sigEl) return;
 
     if (opts.useStamp) {
@@ -182,8 +183,63 @@
     global.__pdfReady = true;
   }
 
+  function orderPortHistory(history) {
+    if (!Array.isArray(history)) return [];
+    return [...history].sort((a, b) => {
+      const aKey = a.arrivalDate || a.departureDate || '';
+      const bKey = b.arrivalDate || b.departureDate || '';
+      return bKey.localeCompare(aKey);
+    });
+  }
+
+  function rowsPerPageFromOverlay(appData, overlayKey) {
+    const raw = appData?.documentOverlay?.[overlayKey || 'portOfCall']?.rowsPerPage;
+    const n = typeof raw === 'number' ? raw : ROWS_PER_PAGE;
+    return Math.min(MAX_ROWS, Math.max(1, Math.round(n)));
+  }
+
+  function buildPagesFromData(appData, overlayKey, rowsPerPageOverride) {
+    const rowsPerPage =
+      typeof rowsPerPageOverride === 'number'
+        ? Math.min(MAX_ROWS, Math.max(1, Math.round(rowsPerPageOverride)))
+        : rowsPerPageFromOverlay(appData, overlayKey);
+    const limit = Math.max(0, appData?.portOfCall?.pdfRowCount ?? rowsPerPage);
+    const ordered = orderPortHistory(appData?.portCallHistory).slice(0, limit);
+    if (ordered.length === 0) return [[]];
+    const pages = [];
+    for (let i = 0; i < ordered.length; i += rowsPerPage) {
+      pages.push(ordered.slice(i, i + rowsPerPage));
+    }
+    return pages;
+  }
+
+  function snapshotFromAppData(appData, withOverlay, overlayKey) {
+    const key = overlayKey || 'portOfCall';
+    const rowsPerPage = rowsPerPageFromOverlay(appData, key);
+    return {
+      ship: appData.ship,
+      ports: (appData.ports || []).map((p) => ({
+        name: p.name,
+        country: p.country || '',
+        code: p.code || '',
+      })),
+      pages: buildPagesFromData(appData, key),
+      rowsPerPage,
+      portCallHistory: appData.portCallHistory,
+      portOfCall: appData.portOfCall,
+      documentOverlay: appData.documentOverlay,
+      withOverlay,
+      crew: (appData.crew || []).map((c) => ({
+        rank: c.rank,
+        familyName: c.familyName,
+        givenNames: c.givenNames,
+      })),
+    };
+  }
+
   global.CrewPortOfCallPdf = {
     ROWS_PER_PAGE,
+    MAX_ROWS,
     formatDisplayDate,
     formatPortName,
     portCountry,
@@ -195,5 +251,8 @@
     findMaster,
     formatCaptainName,
     finishPdfExport,
+    loadAsset,
+    buildPagesFromData,
+    snapshotFromAppData,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

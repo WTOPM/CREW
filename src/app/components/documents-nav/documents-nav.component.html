@@ -574,13 +574,7 @@
           </div>
         </fieldset>
 
-        @if (portSettingsDoc() === 'portOfCall') {
-          <app-port-of-call-settings />
-        } @else if (portSettingsDoc() === 'portsOfCall') {
-          <app-document-stamp-options documentId="portsOfCall" />
-        } @else {
-          <app-document-stamp-options documentId="sso0108PortCalls" />
-        }
+        <app-port-of-call-settings [docId]="portSettingsDoc()" />
 
         <div class="poc-settings-bar">
           <label class="doc-count-field">

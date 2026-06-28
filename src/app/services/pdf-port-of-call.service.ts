@@ -34,7 +34,7 @@ export class PdfPortOfCallService {
   }
 
   private capture(data: AppData, withOverlay: boolean): Promise<Uint8Array> {
-    const snapshot = buildPortOfCallHtmlPdfSnapshot(data, withOverlay);
+    const snapshot = buildPortOfCallHtmlPdfSnapshot(data, withOverlay, 'portOfCall');
     const url = portOfCallForm01EditorUrl({ pdfExport: '1' });
     return captureHtmlFormPdfBytes({
       url,

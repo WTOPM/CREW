@@ -6,12 +6,97 @@
   <title>01 - Port of Call</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="../port-of-call-pdf-common.css" />
+  <link rel="stylesheet" href="../port-of-call-editor.css" />
+  <link rel="stylesheet" href="../cell-align-toolbar.css" />
+  <link rel="stylesheet" href="../overlay-toolbar.css" />
   <link rel="stylesheet" href="port-of-call-form-01.css" />
 </head>
-<body>
-  <div class="poc-pages" id="poc-pages"></div>
+<body class="poc-editor">
+  <div class="side-panel side-panel--left">
+    <button type="button" class="btn btn-save" onclick="persistAllChanges()">✓ Save</button>
+    <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">✗ Cancel</button>
+    <div class="side-panel__title">Format</div>
+    <select id="tb-font" class="side-panel__select" onchange="applyFormat('fontFamily', this.value)">
+      <option value="Arial">Arial</option>
+      <option value="Calibri">Calibri</option>
+      <option value="Times New Roman">Times New Roman</option>
+      <option value="Courier New">Courier New</option>
+    </select>
+    <select id="tb-size" class="side-panel__select" onchange="applyFormat('fontSize', this.value + 'pt')">
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8" selected>8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+    </select>
+    <div id="cell-align-toolbar" class="cell-align-toolbar" aria-label="Cell alignment"></div>
+    <div class="zoom-controls">
+      <div class="side-panel__title">Zoom</div>
+      <div class="zoom-controls__row">
+        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">−</button>
+        <span id="zoom-label" class="zoom-controls__pct">100%</span>
+        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-zoom-viewport" id="doc-zoom-viewport">
+    <div class="doc-zoom-pad" id="doc-zoom-pad">
+      <nav id="poc-page-nav" class="poc-page-nav" hidden aria-label="Document pages">
+        <button type="button" id="poc-page-prev" class="btn btn-s poc-page-nav__btn" title="Previous page" aria-label="Previous page">‹</button>
+        <span id="poc-page-label" class="poc-page-nav__label">Page 1 / 1</span>
+        <button type="button" id="poc-page-next" class="btn btn-s poc-page-nav__btn" title="Next page" aria-label="Next page">›</button>
+      </nav>
+      <div class="doc-zoom-slot" id="doc-zoom-slot">
+        <div class="doc-zoom-stage" id="doc-zoom-stage">
+          <div id="poc-pages" class="poc-pages"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-panel side-panel--right">
+    <div class="side-panel__title">Rows</div>
+    <button type="button" id="btn-add-row" class="btn btn-s" onclick="addRow()">+ Add row</button>
+    <button type="button" id="btn-remove-row" class="btn btn-s" onclick="removeRow()">− Remove last</button>
+    <div class="overlay-toolbar" aria-label="Stamp and signature">
+      <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
+      <button type="button" class="btn btn-cancel btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
+    <div class="dg-archive-modal confirm-dialog confirm-dialog--danger" role="alertdialog" aria-modal="true"
+      aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" onclick="event.stopPropagation()">
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon confirm-dialog__icon confirm-dialog__icon--danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="confirm-dialog-title">Cancel changes</h3>
+          <p id="confirm-dialog-message" class="confirm-dialog__message">Are you sure you want to cancel? All unsaved changes will be lost.</p>
+        </div>
+      </header>
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmCancel()">Discard changes</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="../overlay-drag.js"></script>
+  <script src="../cell-align-toolbar.js"></script>
+  <script src="../overlay-toolbar.js"></script>
   <script src="../html-form-pdf-snapshot.js"></script>
+  <script src="../crew-name-format.js"></script>
   <script src="../port-of-call-pdf-common.js"></script>
+  <script src="../port-of-call-form-editor.js"></script>
+  <script src="../port-of-call-form-rows.js"></script>
+  <script src="../port-of-call-form-pages.js"></script>
+  <script src="../port-of-call-form-cells.js"></script>
   <script src="port-of-call-form-01.js"></script>
 </body>
 </html>

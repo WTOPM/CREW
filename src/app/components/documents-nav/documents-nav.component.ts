@@ -40,6 +40,11 @@ import { CREW_LIST_FORM_04_FEEDBACK_PARAM } from '../../models/crew-list-form-04
 import { CREW_LIST_FORM_05_FEEDBACK_PARAM } from '../../models/crew-list-form-05.paths';
 import { CREW_LIST_FORM_06_FEEDBACK_PARAM } from '../../models/crew-list-form-06.paths';
 import { CREW_LIST_FORM_07_FEEDBACK_PARAM } from '../../models/crew-list-form-07.paths';
+import {
+  PORT_OF_CALL_FORM_01_FEEDBACK_PARAM,
+  PORT_OF_CALL_SETTINGS_PARAM,
+} from '../../models/port-of-call-form-01.paths';
+import { PORT_OF_CALL_FORM_02_FEEDBACK_PARAM } from '../../models/port-of-call-form-02.paths';
 import { PartialDateInputComponent } from '../partial-date-input/partial-date-input.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
@@ -399,6 +404,12 @@ export class DocumentsNavComponent implements OnInit {
       return;
     }
 
+    const reopenPoc = params.get(PORT_OF_CALL_SETTINGS_PARAM) === '1';
+    const feedbackPoc01 = params.get(PORT_OF_CALL_FORM_01_FEEDBACK_PARAM);
+    const feedbackPoc02 = params.get(PORT_OF_CALL_FORM_02_FEEDBACK_PARAM);
+    const pocForm01Label = PORT_SETTINGS_DOC_LABELS.portOfCall;
+    const pocForm02Label = PORT_SETTINGS_DOC_LABELS.portsOfCall;
+
     const reopenPax = params.get('paxSettings') === '1';
     const feedbackPax01 = params.get(PASSENGER_LIST_FORM_01_FEEDBACK_PARAM);
     const feedbackPax02 = params.get(PASSENGER_LIST_FORM_02_FEEDBACK_PARAM);
@@ -420,6 +431,20 @@ export class DocumentsNavComponent implements OnInit {
     const form05Label = CREW_LIST_TYPE_LABELS[CREW_FORM_05];
     const form06Label = CREW_LIST_TYPE_LABELS[CREW_FORM_06];
     const form07Label = CREW_LIST_TYPE_LABELS[CREW_FORM_07];
+
+    if (reopenPoc) {
+      this.showPortOfCallSettings.set(true);
+    }
+    if (feedbackPoc01 === 'saved') {
+      this.toast.show(`Saved: ${pocForm01Label}`, 'success');
+    } else if (feedbackPoc01 === 'cancelled') {
+      this.toast.show(`Cancelled: ${pocForm01Label}`, 'info');
+    }
+    if (feedbackPoc02 === 'saved') {
+      this.toast.show(`Saved: ${pocForm02Label}`, 'success');
+    } else if (feedbackPoc02 === 'cancelled') {
+      this.toast.show(`Cancelled: ${pocForm02Label}`, 'info');
+    }
 
     if (reopenPax) {
       this.showPaxSettings.set(true);
@@ -476,7 +501,10 @@ export class DocumentsNavComponent implements OnInit {
 
     if (
       reopen ||
+      reopenPoc ||
       reopenPax ||
+      feedbackPoc01 ||
+      feedbackPoc02 ||
       feedback01 ||
       feedback02 ||
       feedback03 ||
@@ -489,6 +517,9 @@ export class DocumentsNavComponent implements OnInit {
     ) {
       params.delete('crewListSettings');
       params.delete('paxSettings');
+      params.delete(PORT_OF_CALL_SETTINGS_PARAM);
+      params.delete(PORT_OF_CALL_FORM_01_FEEDBACK_PARAM);
+      params.delete(PORT_OF_CALL_FORM_02_FEEDBACK_PARAM);
       params.delete(PASSENGER_LIST_FORM_01_FEEDBACK_PARAM);
       params.delete(PASSENGER_LIST_FORM_02_FEEDBACK_PARAM);
       params.delete(CREW_LIST_FORM_01_FEEDBACK_PARAM);

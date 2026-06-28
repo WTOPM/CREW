@@ -39,6 +39,18 @@ export interface DocumentStampOptions {
   signatureBoxAttachment?: PdfStampBox;
 }
 
+/** HTML Port of Call forms (01 list / 02 security) — stamp, cell styles, rows per page. */
+export interface PortOfCallHtmlFormStampOptions extends DocumentStampOptions {
+  cellStyles?: Record<
+    string,
+    { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
+  >;
+  /** Data rows rendered on each PDF page (editor +/- row buttons). Default 11. */
+  rowsPerPage?: number;
+  /** Footer field 15 date (DD.MM.YYYY). */
+  footerSignatureDate?: string;
+}
+
 /** HTML passenger list forms — stamp/signature, cell styles, footer date. */
 export interface PaxHtmlFormStampOptions extends DocumentStampOptions {
   cellStyles?: Record<
@@ -406,8 +418,8 @@ export interface DocumentOverlayPrefs {
   crewList: CrewListDocumentPrefs;
   pax: PaxHtmlFormStampOptions;
   paxV2: PaxHtmlFormStampOptions;
-  portOfCall: DocumentStampOptions;
-  portsOfCall: DocumentStampOptions;
+  portOfCall: PortOfCallHtmlFormStampOptions;
+  portsOfCall: PortOfCallHtmlFormStampOptions;
   mdh: DocumentStampOptions;
   crewVaccine: DocumentStampOptions;
   shipStores: DocumentStampOptions;
@@ -466,13 +478,18 @@ export function normalizeCrewListType(
   return 'type1Passport';
 }
 
+const DEFAULT_POC_HTML_OPTS: PortOfCallHtmlFormStampOptions = {
+  ...DEFAULT_STAMP_OPTS,
+  rowsPerPage: 11,
+};
+
 export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
   return {
     crewList: createDefaultCrewListPrefs(),
     pax: { ...DEFAULT_STAMP_OPTS },
     paxV2: { ...DEFAULT_STAMP_OPTS },
-    portOfCall: { ...DEFAULT_STAMP_OPTS },
-    portsOfCall: { ...DEFAULT_STAMP_OPTS },
+    portOfCall: { ...DEFAULT_POC_HTML_OPTS },
+    portsOfCall: { ...DEFAULT_POC_HTML_OPTS },
     mdh: { ...DEFAULT_STAMP_OPTS },
     crewVaccine: { ...DEFAULT_STAMP_OPTS },
     shipStores: { ...DEFAULT_STAMP_OPTS },
