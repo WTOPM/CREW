@@ -52,10 +52,10 @@ const DEMO = [
     <td class="c1"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></td>
     <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly tabindex="-1"></td>
     <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly tabindex="-1"></td>
-    <td class="c4"><input class="ci" type="text" value="${d.dob || ''}" placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>
+    <td class="c4"><input class="ci" type="text" value="${d.dob || ''}"${dateIsoAttr(d.dobIso)} placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>
     <td class="c5"><input class="ci" type="text" value="${d.pob || ''}" placeholder="City" readonly tabindex="-1"></td>
     <td class="c6"><input class="ci" type="text" value="${d.bno || ''}" readonly tabindex="-1"></td>
-    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}" placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>`;
+    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}"${dateIsoAttr(d.bexpIso)} placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>`;
       tbody.appendChild(tr);
       refreshRowNumbers();
     }
@@ -160,6 +160,7 @@ const DEMO = [
 
     function dismissSelection() {
       clearSelection();
+      HtmlFormHeaderCells.clearSelection();
       isDragging = false;
       selectionAnchor = null;
     }
@@ -217,6 +218,7 @@ const DEMO = [
     }
 
     tbody.addEventListener('mousedown', (e) => {
+      HtmlFormHeaderCells.clearSelection();
       const cell = e.target.closest('.ci');
       if (!cell || !tbody.contains(cell)) return;
       e.preventDefault();
@@ -285,6 +287,7 @@ const DEMO = [
         if (cell.classList.contains('ci-rno')) return;
         applyVerticalAlignToCell(cell, val);
       });
+      HtmlFormHeaderCells.applyVerticalAlign(val);
     }
 
     function applyFormat(prop, val) {
@@ -293,6 +296,7 @@ const DEMO = [
         cell.style[prop] = val;
         if (prop === 'textAlign') syncCellFlexAlignment(cell);
       });
+      HtmlFormHeaderCells.applyFormat(prop, val);
     }
 
     let stampImgUrl = null;
@@ -516,6 +520,7 @@ const DEMO = [
           else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
         }
       });
+      HtmlFormHeaderCells.restoreStyles(cellStyles);
     }
 
     async function persistAllChanges() {
@@ -548,6 +553,8 @@ const DEMO = [
           }
         }
       });
+
+      Object.assign(cellStyles, HtmlFormHeaderCells.collectStyles());
       
       if (!window._currentPositions) {
         window._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
@@ -658,6 +665,7 @@ const DEMO = [
           delete cell.dataset.verticalAlign;
         });
       }
+      HtmlFormHeaderCells.resetAll();
       clearSelection();
       const fontSel = document.getElementById('tb-font');
       const sizeSel = document.getElementById('tb-size');
@@ -828,10 +836,16 @@ const DEMO = [
     }
 
     function fmtDate(iso) {
+      const F = window.HtmlFormDateFormat;
+      if (F) return F.format(iso, F.getActive());
       if (!iso) return '';
       const parts = iso.split('-');
       if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
       return iso;
+    }
+
+    function dateIsoAttr(iso) {
+      return window.HtmlFormDateFormat?.isoAttr(iso) || '';
     }
 
     async function loadAppData() {
@@ -905,9 +919,9 @@ const DEMO = [
         }
         const masterEl = document.getElementById('f-master-name');
         if (masterEl && master) {
-          masterEl.textContent = CrewNameFormat.formatCrewListName(master);
+          masterEl.value = CrewNameFormat.formatCrewListName(master);
         } else if (masterEl) {
-          masterEl.textContent = '';
+          masterEl.value = '';
         }
 
         crewList.forEach(c => {
@@ -917,9 +931,11 @@ const DEMO = [
             rank: c.rank || '',
             nat: c.nationality || '',
             dob: fmtDate(c.dateOfBirth),
+            dobIso: c.dateOfBirth || '',
             pob: c.placeOfBirth || '',
             bno: c.seamansBook || '',
-            bexp: fmtDate(c.sbookExpiryDate)
+            bexp: fmtDate(c.sbookExpiryDate),
+            bexpIso: c.sbookExpiryDate || '',
           });
         });
       } else {
@@ -994,6 +1010,11 @@ const DEMO = [
           onSigChange: (on) => void toggleSignature(on),
         });
       }
+      HtmlFormHeaderCells.init({
+        scope: '.a4-page',
+        beforeHeaderSelect: clearSelection,
+        syncToolbarFromCell,
+      });
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       if (isPdfExport) {
@@ -1005,7 +1026,9 @@ const DEMO = [
       } else {
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {
-          CrewCellAlignToolbar.init({ getSelectedCells: () => selectedCells });
+          CrewCellAlignToolbar.init({
+            getSelectedCells: () => [...selectedCells, ...HtmlFormHeaderCells.getSelected()],
+          });
         }
         if (window.CrewHtmlFormEditorDirty) {
           CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);

@@ -52,7 +52,16 @@
     selectionAnchor = null;
   }
 
+  function pageScope() {
+    return root?.closest('.a4-page') || root;
+  }
+
   function resolveCell(target) {
+    if (!target) return null;
+    const footer = target.closest(
+      '#poc-footer-date, #poc-footer-master, .poc-form-footer__date, .poc-form-footer__master, #f-footer-date, #f-master-name',
+    );
+    if (footer && (pageScope()?.contains(footer) || root?.contains(footer))) return footer;
     if (!root || !target || !root.contains(target)) return null;
     const direct = target.closest('.ci');
     if (direct) return direct;
@@ -92,13 +101,6 @@
     };
   }
 
-  function escapeHtml(text) {
-    return String(text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-  }
-
   function buildCopyText() {
     const { rMin, rMax, cMin, cMax, selectedSet } = selectionBounds();
     const lines = [];
@@ -113,45 +115,88 @@
     return lines.join('\n');
   }
 
-  function hdrValWrapper(cell) {
-    return cell.closest('.poc02-hdr-val');
+  function valWrapper(cell) {
+    return cell.closest('.poc-hdr-val, .poc02-hdr-val, .poc-data-val');
+  }
+
+  function isFooterField(input) {
+    return (
+      input.classList.contains('ci-footer') ||
+      input.classList.contains('poc-form-footer__date') ||
+      input.classList.contains('poc-form-footer__master') ||
+      input.dataset.cellKey === 'footer-date' ||
+      input.dataset.cellKey === 'footer-master'
+    );
+  }
+
+  function footerFieldValue(el) {
+    if (!el) return '';
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return el.value || '';
+    return (el.textContent || '').trim();
+  }
+
+  function flattenFooterForExport() {
+    document.querySelectorAll('.poc-form-footer').forEach((footer) => {
+      footer
+        .querySelectorAll('#poc-footer-date, .poc-form-footer__date, input.poc-form-footer__date')
+        .forEach((el) => {
+          const span = document.createElement('span');
+          span.className = 'poc-form-footer__date';
+          span.textContent = footerFieldValue(el);
+          span.style.cssText =
+            'display:inline;font-size:8pt;font-weight:700;text-align:left;white-space:nowrap;padding:0 1mm;line-height:1.35;';
+          el.replaceWith(span);
+        });
+      footer
+        .querySelectorAll('#poc-footer-master, .poc-form-footer__master, input.poc-form-footer__master')
+        .forEach((el) => {
+          const span = document.createElement('span');
+          span.className = 'poc-form-footer__master';
+          span.textContent = footerFieldValue(el);
+          span.style.cssText =
+            'display:inline-block;width:50mm;max-width:100%;text-align:center;font-size:8pt;font-weight:700;border-bottom:1px solid #000;line-height:1.35;box-sizing:border-box;';
+          el.replaceWith(span);
+        });
+    });
   }
 
   function syncCellFlexAlignment(cell) {
     const ta = cell.style.textAlign || '';
     const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
-    const hdrVal = hdrValWrapper(cell);
-    if (hdrVal && cell.classList.contains('ci-hdr')) {
-      hdrVal.style.justifyContent = jc;
+    const wrapper = valWrapper(cell);
+    if (wrapper && cell.classList.contains('ci')) {
+      wrapper.style.justifyContent = jc;
       cell.style.display = 'block';
       return;
     }
     const usesFlex =
       cell.style.display === 'flex' ||
-      cell.classList.contains('ci-hdr') ||
       cell.classList.contains('ci-th') ||
-      cell.classList.contains('ci-rno') ||
-      cell.closest('.data-row, .poc02-data-row');
+      cell.classList.contains('ci-rno');
     if (usesFlex) {
       cell.style.display = 'flex';
       cell.style.justifyContent = jc;
     }
   }
 
-  function applyVerticalAlignToCell(cell, val) {
-    const alignItems = val === 'top' ? 'flex-start' : val === 'bottom' ? 'flex-end' : 'center';
-    const hdrVal = hdrValWrapper(cell);
-    if (hdrVal && cell.classList.contains('ci-hdr')) {
-      hdrVal.style.display = 'flex';
-      hdrVal.style.alignItems = alignItems;
-      cell.dataset.verticalAlign = val;
-      syncCellFlexAlignment(cell);
+  function resetWrappedCellLayout(cell) {
+    delete cell.dataset.verticalAlign;
+    cell.style.removeProperty('padding-top');
+    cell.style.removeProperty('padding-bottom');
+    cell.style.removeProperty('align-items');
+    cell.style.removeProperty('justify-content');
+    cell.style.removeProperty('height');
+    cell.style.display = 'block';
+    cell.style.lineHeight = 'normal';
+    syncCellFlexAlignment(cell);
+  }
+
+  function reflowCell(cell) {
+    if (!cell) return;
+    if (valWrapper(cell) && cell.classList.contains('ci')) {
+      resetWrappedCellLayout(cell);
       return;
     }
-    cell.style.display = 'flex';
-    cell.style.height = '100%';
-    cell.style.alignItems = alignItems;
-    cell.dataset.verticalAlign = val;
     syncCellFlexAlignment(cell);
   }
 
@@ -159,12 +204,6 @@
     selectedCells.forEach((cell) => {
       cell.style[prop] = val;
       if (prop === 'textAlign') syncCellFlexAlignment(cell);
-    });
-  }
-
-  function applyVerticalAlign(val) {
-    selectedCells.forEach((cell) => {
-      applyVerticalAlignToCell(cell, val);
     });
   }
 
@@ -184,14 +223,36 @@
     if (el.style.fontFamily) style.fontFamily = el.style.fontFamily;
     if (el.style.fontSize) style.fontSize = el.style.fontSize;
     if (el.style.textAlign) style.textAlign = el.style.textAlign;
-    if (el.dataset.verticalAlign) style.verticalAlign = el.dataset.verticalAlign;
     return Object.keys(style).length ? style : null;
   }
 
+  function isDataRowKey(key) {
+    return /^d-\d+-\d+$/.test(key);
+  }
+
+  function storageKeyFromDomKey(domKey, voyOffset) {
+    if (typeof voyOffset !== 'number' || !isDataRowKey(domKey)) return domKey;
+    const m = /^d-(\d+)-(\d+)$/.exec(domKey);
+    if (!m) return domKey;
+    return `d-${voyOffset + parseInt(m[1], 10)}-${m[2]}`;
+  }
+
+  function setCellValue(el, text) {
+    if (!el) return;
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = text;
+    else el.textContent = text;
+  }
+
   function collectCellStyles() {
-    if (!root) return {};
+    const scope = pageScope() || root;
+    if (!scope) return {};
     const cellStyles = {};
-    root.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
+    scope.querySelectorAll('[data-cell-key^="footer-"]').forEach((el) => {
+      const key = el.dataset.cellKey;
+      const style = styleRecord(el);
+      if (key && style) cellStyles[key] = style;
+    });
+    scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
       const key = el.dataset.cellKey;
       const style = styleRecord(el);
       if (key && style) cellStyles[key] = style;
@@ -199,17 +260,43 @@
     return cellStyles;
   }
 
+  function collectCellValues(voyOffset, scopeEl) {
+    const scope = scopeEl || pageScope() || root;
+    if (!scope) return {};
+    const cellValues = {};
+    scope.querySelectorAll('input.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
+      const domKey = el.dataset.cellKey;
+      if (!domKey) return;
+      cellValues[storageKeyFromDomKey(domKey, voyOffset)] = cellText(el);
+    });
+    return cellValues;
+  }
+
+  function restoreCellValues(cellValues, scopeEl, voyOffset) {
+    const scope = scopeEl || root;
+    if (!scope || !cellValues) return;
+    scope.querySelectorAll('input.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
+      const domKey = el.dataset.cellKey;
+      if (!domKey) return;
+      const storageKey = storageKeyFromDomKey(domKey, voyOffset);
+      let val = cellValues[storageKey];
+      if (val === undefined && isDataRowKey(domKey)) val = cellValues[domKey];
+      if (val === undefined) return;
+      setCellValue(el, val);
+      reflowCell(el);
+    });
+  }
+
   function restoreCellStyles(cellStyles, scopeEl) {
     const scope = scopeEl || root;
     if (!scope || !cellStyles) return;
-    scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
+    scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
       const style = cellStyles[el.dataset.cellKey];
       if (!style) return;
       if (style.fontFamily) el.style.fontFamily = style.fontFamily;
       if (style.fontSize) el.style.fontSize = style.fontSize;
       if (style.textAlign) el.style.textAlign = style.textAlign;
-      if (style.verticalAlign) applyVerticalAlignToCell(el, style.verticalAlign);
-      else if (style.textAlign) syncCellFlexAlignment(el);
+      reflowCell(el);
     });
   }
 
@@ -220,28 +307,78 @@
       const replacement = document.createElement('div');
       replacement.className = input.className;
       replacement.textContent = input.value || '';
-      replacement.style.cssText = input.style.cssText;
       replacement.style.border = 'none';
       replacement.style.background = 'transparent';
-      replacement.style.display = 'flex';
-      replacement.style.alignItems = input.dataset.verticalAlign
-        ? input.style.alignItems || 'center'
-        : 'center';
-      replacement.style.justifyContent =
-        input.style.textAlign === 'center'
-          ? 'center'
-          : input.style.textAlign === 'right'
-            ? 'flex-end'
-            : 'flex-start';
-      replacement.style.width = '100%';
-      replacement.style.height = '100%';
       replacement.style.overflow = 'hidden';
+
+      const wrapper = valWrapper(input);
+      if (wrapper) {
+        replacement.style.display = 'block';
+        replacement.style.width = '100%';
+        replacement.style.lineHeight = 'normal';
+        replacement.style.padding = '0';
+        replacement.style.margin = '0';
+        replacement.style.textOverflow = 'ellipsis';
+        replacement.style.whiteSpace = 'nowrap';
+        replacement.style.textAlign = input.style.textAlign || 'center';
+      } else if (input.classList.contains('ci-th')) {
+        replacement.style.cssText = input.style.cssText;
+        replacement.style.display = 'flex';
+        replacement.style.alignItems = 'center';
+        replacement.style.justifyContent =
+          input.style.textAlign === 'center'
+            ? 'center'
+            : input.style.textAlign === 'right'
+              ? 'flex-end'
+              : 'flex-start';
+        replacement.style.width = '100%';
+        replacement.style.height = '100%';
+      } else if (isFooterField(input)) {
+        replacement.style.cssText = input.style.cssText;
+        replacement.style.display = 'block';
+        replacement.style.height = 'auto';
+        replacement.style.minHeight = '0';
+        replacement.style.overflow = 'visible';
+        replacement.style.textOverflow = 'clip';
+        replacement.style.whiteSpace = 'nowrap';
+        if (input.classList.contains('poc-form-footer__master')) {
+          replacement.style.borderBottom = '1px solid #000';
+        }
+      } else {
+        replacement.style.cssText = input.style.cssText;
+        replacement.style.display = 'flex';
+        replacement.style.alignItems = 'center';
+        replacement.style.justifyContent =
+          input.style.textAlign === 'center'
+            ? 'center'
+            : input.style.textAlign === 'right'
+              ? 'flex-end'
+              : 'flex-start';
+        replacement.style.width = '100%';
+        replacement.style.height = '100%';
+      }
       input.replaceWith(replacement);
     });
   }
 
   function bindEvents() {
     if (!root) return;
+    const page = pageScope();
+
+    if (page) {
+      page.addEventListener('mousedown', (e) => {
+        const cell = e.target.closest(
+          '#poc-footer-date, #poc-footer-master, .poc-form-footer__date, .poc-form-footer__master',
+        );
+        if (!cell) return;
+        e.preventDefault();
+        isDragging = true;
+        selectionAnchor = null;
+        clearSelection();
+        addSelectedCell(cell);
+        syncToolbarFromCell(cell);
+      });
+    }
 
     root.addEventListener('mousedown', (e) => {
       const cell = resolveCell(e.target);
@@ -291,9 +428,10 @@
   }
 
   function captureDirtySnapshot() {
-    if (!root) return '';
+    const scope = pageScope() || root;
+    if (!scope) return '';
     const parts = [];
-    root.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
+    scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
       parts.push({
         k: el.dataset.cellKey,
         v: cellText(el),
@@ -316,28 +454,56 @@
     root = tableRoot;
     bindEvents();
     global.applyFormat = applyFormat;
-    global.applyVerticalAlign = applyVerticalAlign;
     if (global.CrewCellAlignToolbar) {
-      global.CrewCellAlignToolbar.init({ getSelectedCells: () => selectedCells });
+      global.CrewCellAlignToolbar.init({
+        getSelectedCells: () => selectedCells,
+        showDateFormat: true,
+      });
     }
+    requestAnimationFrame(() => {
+      root?.querySelectorAll('input.ci[data-cell-key]').forEach((el) => reflowCell(el));
+    });
   }
 
   global.PortOfCallFormCells = {
     init,
     collectCellStyles,
+    collectCellValues,
     restoreCellStyles,
+    restoreCellValues,
     flattenInputsForExport,
     restoreAllCellStyles(cellStyles) {
       document.querySelectorAll('.poc-grid, .poc02-grid').forEach((grid) => {
         restoreCellStyles(cellStyles, grid);
       });
+      document.querySelectorAll('.poc-form-footer').forEach((footer) => {
+        restoreCellStyles(cellStyles, footer);
+      });
+    },
+    restoreAllCellValues(cellValues, rowsPerPage) {
+      const rows = typeof rowsPerPage === 'number' ? rowsPerPage : 11;
+      document.querySelectorAll('.a4-page').forEach((pageEl) => {
+        const pageIndex = parseInt(pageEl.dataset.page, 10) || 0;
+        const voyOffset = pageIndex * rows;
+        const grid = pageEl.querySelector('.poc-grid, .poc02-grid');
+        if (grid) restoreCellValues(cellValues, grid, voyOffset);
+        const footer = pageEl.querySelector('.poc-form-footer');
+        if (footer) restoreCellValues(cellValues, footer, voyOffset);
+      });
     },
     flattenAllInputsForExport() {
+      flattenFooterForExport();
       flattenInputsForExport(document);
+    },
+    reflowAllWrappedCells() {
+      document
+        .querySelectorAll('.poc-hdr-val .ci, .poc02-hdr-val .ci, .poc-data-val .ci')
+        .forEach((el) => reflowCell(el));
     },
     getSelectedCells: () => selectedCells,
     dismissSelection,
     captureDirtyBaseline,
     isDirty,
+    reflowCell,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

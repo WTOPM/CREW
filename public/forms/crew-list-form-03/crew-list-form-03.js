@@ -94,7 +94,7 @@ const MAX_ROWS = 15;
     <div class="td-cell ch-birth"><input class="ci" type="text" value="${escAttr(d.birth)}" readonly tabindex="-1"></div>
     <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc1)}" readonly tabindex="-1"></div>
     <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc2)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinDate)}" readonly tabindex="-1"></div>
+    <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinDate)}"${dateIsoAttr(d.joinDateIso)} readonly tabindex="-1"></div>
     <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinPlace)}" readonly tabindex="-1"></div>
     <div class="td-cell ch-vertical border-right-none"><input class="ci ci-temp" type="text" value="${escAttr(tempStoredValue(d.temperature || ''))}" inputmode="decimal" tabindex="0"></div>`;
       tableBody.appendChild(row);
@@ -121,11 +121,19 @@ const MAX_ROWS = 15;
       });
       if (window._shipData) {
         const ship = window._shipData;
-        const dateVal = v === 'arrival' ? fmtDate(ship.dateOfArrival) : fmtDate(ship.dateOfDeparture);
+        const iso = v === 'arrival' ? ship.dateOfArrival : ship.dateOfDeparture;
         const dateEl = document.getElementById('h-date');
-        if (dateEl) dateEl.value = dateVal;
+        if (dateEl && window.HtmlFormDateFormat) {
+          window.HtmlFormDateFormat.setElement(dateEl, iso);
+        } else if (dateEl) {
+          dateEl.value = fmtDate(iso);
+        }
         const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl) footerDateEl.value = dateVal;
+        if (footerDateEl && window.HtmlFormDateFormat) {
+          window.HtmlFormDateFormat.setElement(footerDateEl, iso);
+        } else if (footerDateEl) {
+          footerDateEl.value = fmtDate(iso);
+        }
       }
     }
 
@@ -289,6 +297,7 @@ const MAX_ROWS = 15;
     }
 
     tableBody.addEventListener('mousedown', (e) => {
+      HtmlFormHeaderCells.clearSelection();
       const tempInp = e.target.closest('input.ci-temp');
       if (tempInp && tableBody.contains(tempInp)) {
         clearSelection();
@@ -347,6 +356,7 @@ const MAX_ROWS = 15;
       }
       if (e.key === 'Escape') {
         exitCellEdit();
+        HtmlFormHeaderCells.clearSelection();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && selectedCells.length) {
@@ -360,6 +370,7 @@ const MAX_ROWS = 15;
       if (e.target.closest('.side-panel')) return;
       if (e.target.closest('.confirm-backdrop')) return;
       exitCellEdit();
+      HtmlFormHeaderCells.clearSelection();
     });
 
     function syncCellFlexAlignment(cell) {
@@ -384,6 +395,7 @@ const MAX_ROWS = 15;
         if (cell.classList.contains('ci-rno')) return;
         applyVerticalAlignToCell(cell, val);
       });
+      HtmlFormHeaderCells.applyVerticalAlign(val);
     }
 
     function applyFormat(prop, val) {
@@ -392,6 +404,7 @@ const MAX_ROWS = 15;
         cell.style[prop] = val;
         if (prop === 'textAlign') syncCellFlexAlignment(cell);
       });
+      HtmlFormHeaderCells.applyFormat(prop, val);
     }
 
     let stampImgUrl = null;
@@ -627,6 +640,7 @@ const MAX_ROWS = 15;
           else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
         }
       });
+      HtmlFormHeaderCells.restoreStyles(cellStyles);
     }
 
     async function persistAllChanges() {
@@ -659,6 +673,8 @@ const MAX_ROWS = 15;
           }
         }
       });
+
+      Object.assign(cellStyles, HtmlFormHeaderCells.collectStyles());
       
       if (!window._currentPositions) {
         window._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
@@ -694,6 +710,7 @@ const MAX_ROWS = 15;
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         footerSignatureDate,
+        ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       window._appData = appData;
@@ -762,6 +779,7 @@ const MAX_ROWS = 15;
           delete cell.dataset.verticalAlign;
         });
       }
+      HtmlFormHeaderCells.resetAll();
       clearSelection();
       const fontSel = document.getElementById('tb-font');
       const sizeSel = document.getElementById('tb-size');
@@ -932,10 +950,16 @@ const MAX_ROWS = 15;
     }
 
     function fmtDate(iso) {
+      const F = window.HtmlFormDateFormat;
+      if (F) return F.format(iso, F.getActive());
       if (!iso) return '';
       const parts = iso.split('-');
       if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
       return iso;
+    }
+
+    function dateIsoAttr(iso) {
+      return window.HtmlFormDateFormat?.isoAttr(iso) || '';
     }
 
     async function loadAppData() {
@@ -983,16 +1007,19 @@ const MAX_ROWS = 15;
             ? true
             : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
 
+        const savedForm03 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_03_TYPE];
         if (isArrival) {
           setAD('arrival');
         } else {
           setAD('departure');
         }
 
-        const savedForm03 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_03_TYPE];
         const footerDateEl = document.getElementById('f-footer-date');
         if (footerDateEl && savedForm03?.footerSignatureDate) {
           footerDateEl.value = savedForm03.footerSignatureDate;
+          if (window.HtmlFormDateFormat) {
+            window.HtmlFormDateFormat.syncIsoFromDisplay(footerDateEl);
+          }
         }
 
         let crewList = [];
@@ -1008,9 +1035,9 @@ const MAX_ROWS = 15;
         }
         const masterEl = document.getElementById('f-master-name');
         if (masterEl && master) {
-          masterEl.textContent = CrewNameFormat.formatCrewListName(master);
+          masterEl.value = CrewNameFormat.formatCrewListName(master);
         } else if (masterEl) {
-          masterEl.textContent = '';
+          masterEl.value = '';
         }
 
         crewList.forEach(c => {
@@ -1024,11 +1051,17 @@ const MAX_ROWS = 15;
             doc1: c.passport || '',
             doc2: c.seamansBook || '',
             joinDate: fmtDate(c.joiningDate),
+            joinDateIso: c.joiningDate || '',
             joinPlace: c.joiningPort || '',
           });
         });
       } else {
         // No crew in snapshot — empty rows only
+      }
+
+      const savedVar = appData?.documentOverlay?.crewList?.byType?.[CREW_FORM_03_TYPE];
+      if (window.HtmlFormEditorOverlay) {
+        HtmlFormEditorOverlay.applyFromVariant(savedVar, document.querySelector('.a4-page'));
       }
 
       for (let i = tableBody.children.length; i < MAX_ROWS; i++) addRow();
@@ -1045,17 +1078,23 @@ const MAX_ROWS = 15;
         const replacement = document.createElement('div');
         replacement.className = input.className;
         replacement.textContent = input.value || '';
-        // Carry over ALL inline styles (width, border-bottom-color, toolbar font/align
-        // overrides, ...) — copying only a few properties dropped things like the
-        // master-name field's fixed width, stretching its underline across the page.
         replacement.style.cssText = input.style.cssText;
+        const isFooterDate =
+          input.id === 'f-footer-date' || input.classList.contains('form-footer__date');
         if (input.closest('.imo-table') && !input.closest('.doc-footer')) {
           replacement.style.border = 'none';
           replacement.style.borderBottom = 'none';
         }
-        if (input.classList.contains('ci')) {
-          // Native <input> vertically centers its value via the UA stylesheet — replicate
-          // that for the plain div so table-cell text lines up with the grid, not below it.
+        if (isFooterDate) {
+          replacement.style.display = 'inline';
+          replacement.style.width = 'auto';
+          replacement.style.maxWidth = '100%';
+          replacement.style.overflow = 'visible';
+          replacement.style.whiteSpace = 'nowrap';
+          replacement.style.fontSize = input.style.fontSize || '8pt';
+          replacement.style.fontWeight = '700';
+          replacement.style.textAlign = 'left';
+        } else if (input.classList.contains('ci')) {
           replacement.style.display = 'flex';
           replacement.style.alignItems = input.style.alignItems || 'center';
           replacement.style.justifyContent =
@@ -1101,6 +1140,11 @@ const MAX_ROWS = 15;
           onSigChange: (on) => void toggleSignature(on),
         });
       }
+      HtmlFormHeaderCells.init({
+        scope: '.a4-landscape-page',
+        beforeHeaderSelect: clearSelection,
+        syncToolbarFromCell,
+      });
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       if (isPdfExport) {
@@ -1112,7 +1156,9 @@ const MAX_ROWS = 15;
       } else {
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {
-          CrewCellAlignToolbar.init({ getSelectedCells: () => selectedCells });
+          CrewCellAlignToolbar.init({
+            getSelectedCells: () => [...selectedCells, ...HtmlFormHeaderCells.getSelected()],
+          });
         }
         if (window.CrewHtmlFormEditorDirty) {
           CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);

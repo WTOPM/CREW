@@ -87,6 +87,8 @@
               height: sigCss?.height,
             },
             cellStyles: variant.cellStyles || {},
+            cellValues: variant.cellValues || {},
+            dateDisplayFormat: variant.dateDisplayFormat || 'dot',
             rowsPerPage:
               typeof variant.rowsPerPage === 'number'
                 ? variant.rowsPerPage
@@ -101,6 +103,8 @@
         stamp: {},
         sig: {},
         cellStyles: {},
+        cellValues: {},
+        dateDisplayFormat: 'dot',
         rowsPerPage: global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
       };
       savedRowsPerPage = global._currentPositions.rowsPerPage;
@@ -124,9 +128,22 @@
 
     function captureCellStyles() {
       if (cellBridge?.collect) {
-        if (!global._currentPositions) global._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
+        if (!global._currentPositions) global._currentPositions = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
         global._currentPositions.cellStyles = cellBridge.collect();
       }
+    }
+
+    function captureCellValues() {
+      if (!cellBridge?.collectValues) return;
+      const pageIndex = global.PortOfCallFormPages?.getCurrent?.() ?? 0;
+      const rowsPerPage =
+        global._currentPositions?.rowsPerPage ?? global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11;
+      const voyOffset = pageIndex * rowsPerPage;
+      if (!global._currentPositions) global._currentPositions = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
+      global._currentPositions.cellValues = {
+        ...(global._currentPositions.cellValues || {}),
+        ...cellBridge.collectValues(voyOffset),
+      };
     }
 
     function savePositions() {
@@ -163,6 +180,7 @@
     async function persistAllChanges() {
       savePositions();
       captureCellStyles();
+      captureCellValues();
       captureRowsPerPage();
       const appData = await readPersistedAppData();
       if (!appData?.ship) {
@@ -180,9 +198,21 @@
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles: global._currentPositions.cellStyles || {},
+        cellValues: global._currentPositions.cellValues || {},
+        dateDisplayFormat: global.HtmlFormDateFormat?.getActive?.() || global._currentPositions.dateDisplayFormat || 'dot',
         rowsPerPage: global._currentPositions.rowsPerPage ?? global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
-        ...(document.getElementById('poc-footer-date')?.value?.trim()
-          ? { footerSignatureDate: document.getElementById('poc-footer-date').value.trim() }
+        ...(document.getElementById('poc-footer-date')?.textContent?.trim() ||
+        document.getElementById('poc-footer-date')?.value?.trim()
+          ? {
+              footerSignatureDate: (
+                document.getElementById('poc-footer-date')?.value ||
+                document.getElementById('poc-footer-date')?.textContent ||
+                ''
+              ).trim(),
+            }
+          : {}),
+        ...(global.HtmlFormFooterFields?.getMasterName?.()?.trim()
+          ? { footerMasterName: global.HtmlFormFooterFields.getMasterName().trim() }
           : {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;

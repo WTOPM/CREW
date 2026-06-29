@@ -7,7 +7,13 @@
   const ROWS_PER_PAGE = 11;
   const MAX_ROWS = 23;
 
-  function formatDisplayDate(value) {
+  function formatDisplayDate(value, formatType) {
+    const F = global.HtmlFormDateFormat;
+    const fmt = formatType || F?.getActive?.() || 'dot';
+    if (F && value) {
+      const iso = F.parseToIso(value) || (/^\d{4}-\d{2}-\d{2}$/.test(String(value)) ? value : '');
+      if (iso) return F.format(iso, fmt);
+    }
     if (!value) return '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       const [y, m, d] = value.split('-');

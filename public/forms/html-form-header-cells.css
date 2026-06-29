@@ -1,0 +1,27 @@
+/* Header value fields — selectable / formattable like Port of Call header cells */
+.a4-page input.fi.ci-hdr,
+.a4-landscape-page input.fi.ci-hdr {
+  pointer-events: auto !important;
+  cursor: default;
+  caret-color: transparent;
+  user-select: none;
+}
+
+.a4-page input.fi.ci-hdr:focus,
+.a4-landscape-page input.fi.ci-hdr:focus {
+  outline: none;
+}
+
+.a4-page input.fi.ci-hdr.selected,
+.a4-landscape-page input.fi.ci-hdr.selected {
+  background: #e6f0ff !important;
+  outline: 2px solid #1a56db !important;
+  outline-offset: -2px;
+  position: relative;
+  z-index: 2;
+}
+
+.a4-page .h-val .fi.ci-hdr,
+.a4-landscape-page .h-val .fi.ci-hdr {
+  border-bottom: none !important;
+}

@@ -96,6 +96,7 @@
       --w-c1: 60;
       --w-c2: 20;   /* 9. Rank — чуть уже */
       --w-c3: 26;   /* 10. Nationality — шире */
+      --w-c23: 46;  /* footer date: c2 + c3 (Rank + Nationality) */
       --w-c4: 25;   /* 11a. Date of birth — равно с c5 */
       --w-c5: 25;   /* 11b. Place of birth */
       --w-c6: 29;
@@ -779,6 +780,7 @@
       margin-top: 2mm;
       padding: 0 0 0 0;
       flex-shrink: 0;
+      overflow: visible;
     }
 
     .foot-note {
@@ -788,13 +790,15 @@
     }
 
     .form-footer__sig-row {
+      /* pad @ h1 | date @ c2+c3 Rank+Nationality | Master @ c4…c6 */
       display: grid;
       grid-template-columns:
         calc(var(--w-h1) / var(--form-w) * 100%)
-        calc(var(--w-c2) / var(--form-w) * 100%)
+        calc(var(--w-c23) / var(--form-w) * 100%)
         1fr;
       align-items: baseline;
       margin-top: 1mm;
+      overflow: visible;
     }
 
     .form-footer__sig-rest {
@@ -810,6 +814,9 @@
       font-size: 8pt;
       padding: 0 1mm;
       text-align: left;
+      overflow: visible;
+      white-space: nowrap;
+      box-sizing: border-box;
     }
 
     .form-footer__date:focus {

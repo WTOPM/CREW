@@ -15,8 +15,20 @@
     return Object.keys(style).length ? style : null;
   }
 
-  function collectCellStyles(root) {
+  function collectHeaderCellStyles() {
+    if (global.HtmlFormHeaderCells?.collectStyles) {
+      return global.HtmlFormHeaderCells.collectStyles();
+    }
     const cellStyles = {};
+    document.querySelectorAll('.a4-page input.fi.ci-hdr[id^="h-"], .a4-landscape-page input.fi.ci-hdr[id^="h-"]').forEach((el) => {
+      const style = styleRecord(el);
+      if (el.id && style) cellStyles[el.id] = style;
+    });
+    return cellStyles;
+  }
+
+  function collectCellStyles(root) {
+    const cellStyles = collectHeaderCellStyles();
     if (!root) return cellStyles;
     Array.from(root.children).forEach((row, rowIndex) => {
       row.querySelectorAll('input.ci').forEach((input, colIndex) => {

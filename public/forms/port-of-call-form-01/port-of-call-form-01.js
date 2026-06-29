@@ -34,18 +34,31 @@
       .replace(/"/g, '&quot;');
   }
 
-  function ci(value, key, extra) {
-    return `<input class="ci ${extra || ''}" type="text" data-cell-key="${key}" value="${escAttr(value)}" readonly tabindex="-1" />`;
+  function ci(value, key, extra, dateIso) {
+    const ia = dateIso && window.HtmlFormDateFormat ? window.HtmlFormDateFormat.isoAttr(dateIso) : '';
+    return `<input class="ci ${extra || ''}" type="text" data-cell-key="${key}"${ia} value="${escAttr(value)}" readonly tabindex="-1" />`;
+  }
+
+  function ciDate(iso, key, extra) {
+    const F = window.HtmlFormDateFormat;
+    const val = F ? F.format(iso, F.getActive()) : POC.formatDisplayDate(iso);
+    return ci(val, key, extra, iso);
   }
 
   function hdrCell(label, value, short, key) {
     const cls = short ? 'hdr-cell hdr-cell--short' : 'hdr-cell';
-    return `<td class="${cls}"><span class="hdr-lbl">${label}</span>${ci(value, key, 'ci-hdr')}</td>`;
+    return `<td class="${cls}"><span class="hdr-lbl">${label}</span><div class="poc-hdr-val">${ci(value, key, 'ci-hdr')}</div></td>`;
   }
 
   function hdrMerged(label, value, colspan, short, key) {
     const cls = short ? 'hdr-cell hdr-cell--short' : 'hdr-cell';
-    return `<td class="${cls}" colspan="${colspan}"><span class="hdr-lbl">${label}</span>${ci(value, key, 'ci-hdr')}</td>`;
+    return `<td class="${cls}" colspan="${colspan}"><span class="hdr-lbl">${label}</span><div class="poc-hdr-val">${ci(value, key, 'ci-hdr')}</div></td>`;
+  }
+
+  function hdrMergedDate(label, iso, colspan, short, key) {
+    const cls = short ? 'hdr-cell hdr-cell--short' : 'hdr-cell';
+    const inner = iso ? ciDate(iso, key, 'ci-hdr') : ci('', key, 'ci-hdr');
+    return `<td class="${cls}" colspan="${colspan}"><span class="hdr-lbl">${label}</span><div class="poc-hdr-val">${inner}</div></td>`;
   }
 
   function thCell(html, key, cls, rowspan) {
@@ -67,13 +80,13 @@
   function dataRowCellsHtml(entry, rowIndex, voyOffset) {
     const p = `d-${rowIndex}-`;
     let html = '';
-    html += `<td>${ci(entry ? voyOffset + rowIndex + 1 : '', `${p}0`, 'ci-rno')}</td>`;
-    html += `<td>${ci(entry ? POC.formatPortName(entry.portName) : '', `${p}1`)}</td>`;
-    html += `<td>${ci(entry ? entry.country : '', `${p}2`)}</td>`;
-    html += `<td>${ci(entry ? POC.formatDisplayDate(entry.arrivalDate) : '', `${p}3`)}</td>`;
-    html += `<td>${ci(entry ? entry.arrivalTime : '', `${p}4`)}</td>`;
-    html += `<td>${ci(entry ? POC.formatDisplayDate(entry.departureDate) : '', `${p}5`)}</td>`;
-    html += `<td>${ci(entry ? entry.departureTime : '', `${p}6`)}</td>`;
+    html += `<td><div class="poc-data-val">${ci(entry ? voyOffset + rowIndex + 1 : '', `${p}0`, 'ci-rno')}</div></td>`;
+    html += `<td><div class="poc-data-val">${ci(entry ? POC.formatPortName(entry.portName) : '', `${p}1`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${ci(entry ? entry.country : '', `${p}2`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${entry ? ciDate(entry.arrivalDate, `${p}3`) : ci('', `${p}3`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${ci(entry ? entry.arrivalTime : '', `${p}4`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${entry ? ciDate(entry.departureDate, `${p}5`) : ci('', `${p}5`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${ci(entry ? entry.departureTime : '', `${p}6`)}</div></td>`;
     return html;
   }
 
@@ -106,27 +119,51 @@
     return POC.formatCaptainName(master);
   }
 
-  function footerSignatureDate(snapshot, overlayVariant) {
+  function footerMasterName(snapshot, overlayVariant) {
+    const saved =
+      overlayVariant?.footerMasterName ||
+      overlayVariant?.cellValues?.['footer-master'];
+    if (saved) return saved;
+    return masterDisplayName(snapshot);
+  }
+
+  function footerDateDisplay(snapshot, overlayVariant) {
     const saved = overlayVariant?.footerSignatureDate;
     if (saved) return saved;
-    return POC.formatDisplayDate(snapshot.ship?.dateOfArrival);
+    const F = window.HtmlFormDateFormat;
+    const iso = snapshot.ship?.dateOfArrival;
+    return F ? F.format(iso, F.getActive()) : POC.formatDisplayDate(iso);
+  }
+
+  function footerDateIso(snapshot, overlayVariant) {
+    const saved = overlayVariant?.footerSignatureDate;
+    if (saved && window.HtmlFormDateFormat) {
+      const parsed = window.HtmlFormDateFormat.parseToIso(saved);
+      if (parsed) return parsed;
+    }
+    return snapshot.ship?.dateOfArrival || '';
   }
 
   function footerHtml(snapshot, overlayVariant, pageIndex, isLastPage) {
     if (!isLastPage) return '';
-    const date = escAttr(footerSignatureDate(snapshot, overlayVariant));
-    const master = escAttr(masterDisplayName(snapshot));
+    const dateIso = footerDateIso(snapshot, overlayVariant);
+    const date = escAttr(footerDateDisplay(snapshot, overlayVariant));
+    const master = escAttr(footerMasterName(snapshot, overlayVariant));
+    const isoAttr = window.HtmlFormDateFormat?.isoAttr(dateIso) || '';
     const dateId = ' id="poc-footer-date"';
+    const masterId = pageIndex === 0 ? ' id="poc-footer-master"' : '';
     return `
         <div class="poc-form-footer">
           <p class="poc-foot-note">${LABELS.signature}</p>
           <div class="poc-form-footer__sig-row">
             <div class="poc-form-footer__pad" aria-hidden="true"></div>
-            <input type="text"${dateId} class="fi poc-form-footer__date" value="${date}" readonly tabindex="-1" />
+            <div${dateId} class="fi poc-form-footer__date" data-cell-key="footer-date"${isoAttr}
+              style="font-size:8pt;font-weight:700;text-align:left;padding:0 1mm;" aria-readonly="true">${date}</div>
             <div class="poc-form-footer__sig-rest">
               <div class="poc-sig-block">
                 <span class="poc-sig-lbl">Master</span>
-                <div class="fi poc-form-footer__master">${master}</div>
+                <div${masterId} class="fi poc-form-footer__master" data-cell-key="footer-master"
+                  style="width:50mm;text-align:center;font-size:8pt;border-bottom:1px solid #000;" aria-readonly="true">${master}</div>
               </div>
             </div>
           </div>
@@ -153,7 +190,7 @@
             ${hdrMerged(LABELS.shipName, ship.name, 2, false, 'h-0-0')}
             ${hdrCell(LABELS.callSign, ship.callSign, false, 'h-0-1')}
             ${hdrMerged(LABELS.portOfArrival, ship.portOfCall, 2, false, 'h-0-2')}
-            ${hdrMerged(LABELS.dateOfArrival, POC.formatDisplayDate(ship.dateOfArrival), 2, false, 'h-0-3')}
+            ${hdrMergedDate(LABELS.dateOfArrival, ship.dateOfArrival, 2, false, 'h-0-3')}
           </tr>
           <tr class="poc-editable-row">
             ${hdrMerged(LABELS.nationality, ship.nationality, 2, true, 'h-1-0')}
@@ -185,6 +222,9 @@
     const pages = Array.isArray(snapshot.pages) && snapshot.pages.length ? snapshot.pages : [[]];
     const overlayVariant =
       snapshot.documentOverlay?.[OVERLAY_KEY] || window._appData?.documentOverlay?.[OVERLAY_KEY] || {};
+    if (window.HtmlFormDateFormat) {
+      window.HtmlFormDateFormat.setActive(overlayVariant.dateDisplayFormat || 'dot');
+    }
     const mount = document.getElementById('poc-pages');
     if (!mount) return;
 
@@ -255,10 +295,26 @@
   function initCellEditor(overlayVariant) {
     const table = document.getElementById('poc-grid');
     if (!table) return;
+    const snapshot = window._pocEditorSnapshot;
+    const pageIndex = window.PortOfCallFormPages?.getCurrent?.() ?? 0;
+    const rowsPerPage = resolveRowsPerPage(snapshot);
+    const voyOffset = pageIndex * rowsPerPage;
+    const saved = editor.loadPositions();
+    const cellValues = overlayVariant?.cellValues || saved.cellValues || {};
+    if (window.HtmlFormDateFormat) {
+      window.HtmlFormDateFormat.setActive(overlayVariant?.dateDisplayFormat || saved.dateDisplayFormat || 'dot');
+    }
     window.PortOfCallFormCells.init(table);
-    window.PortOfCallFormCells.restoreCellStyles(overlayVariant?.cellStyles || {});
+    if (window.HtmlFormFooterFields) {
+      window.HtmlFormFooterFields.init(table.closest('.a4-page'));
+    }
+    window.PortOfCallFormCells.restoreCellValues(cellValues, table, voyOffset);
+    window.PortOfCallFormCells.restoreCellStyles(overlayVariant?.cellStyles || saved.cellStyles || {});
     window.PortOfCallFormCells.captureDirtyBaseline();
-    editor.connectCellEditor({ collect: () => window.PortOfCallFormCells.collectCellStyles() });
+    editor.connectCellEditor({
+      collect: () => window.PortOfCallFormCells.collectCellStyles(),
+      collectValues: (vo) => window.PortOfCallFormCells.collectCellValues(vo),
+    });
   }
 
   function initRowEditor(overlayVariant, snapshot) {
@@ -322,11 +378,14 @@
 
     if (isPdfExport) {
       document.body.classList.add('is-pdf-export');
+      const rowsPerPage = resolveRowsPerPage(snapshot);
+      window.PortOfCallFormCells.restoreAllCellValues(overlayVariant?.cellValues || {}, rowsPerPage);
       window.PortOfCallFormCells.restoreAllCellStyles(overlayVariant?.cellStyles || {});
       const pageEls = document.querySelectorAll('.a4-page');
       for (let i = 0; i < pageEls.length; i++) {
         await POC.renderOverlays(pageEls[i], OVERLAY_KEY, snapshot);
       }
+      window.PortOfCallFormCells.reflowAllWrappedCells();
       window.PortOfCallFormCells.flattenAllInputsForExport();
       editor.resetEditorZoomForExport();
       document.querySelectorAll('.side-panel').forEach((el) => el.remove());

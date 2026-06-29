@@ -14,13 +14,26 @@
       .replace(/"/g, '&quot;');
   }
 
-  function ci(value, key, extra) {
-    return `<input class="ci ${extra || ''}" type="text" data-cell-key="${key}" value="${escAttr(value)}" readonly tabindex="-1" />`;
+  function ci(value, key, extra, dateIso) {
+    const ia = dateIso && window.HtmlFormDateFormat ? window.HtmlFormDateFormat.isoAttr(dateIso) : '';
+    return `<input class="ci ${extra || ''}" type="text" data-cell-key="${key}"${ia} value="${escAttr(value)}" readonly tabindex="-1" />`;
+  }
+
+  function ciDate(iso, key, extra) {
+    const F = window.HtmlFormDateFormat;
+    const val = F ? F.format(iso, F.getActive()) : POC.formatDisplayDate(iso);
+    return ci(val, key, extra, iso);
   }
 
   function hdrCell(label, value, key, colspan) {
     const span = colspan ? ` colspan="${colspan}"` : '';
     return `<td class="poc02-hdr"${span}><div class="poc02-hdr-inner"><span class="poc02-hdr-lbl">${label}</span><div class="poc02-hdr-val">${ci(value, key, 'ci-hdr')}</div></div></td>`;
+  }
+
+  function hdrCellDate(label, iso, key, colspan) {
+    const span = colspan ? ` colspan="${colspan}"` : '';
+    const inner = iso ? ciDate(iso, key, 'ci-hdr') : ci('', key, 'ci-hdr');
+    return `<td class="poc02-hdr"${span}><div class="poc02-hdr-inner"><span class="poc02-hdr-lbl">${label}</span><div class="poc02-hdr-val">${inner}</div></div></td>`;
   }
 
   function thHeadCell(text, key) {
@@ -52,11 +65,11 @@
   function dataRowCellsHtml(entry, rowIndex, ports) {
     const p = `d-${rowIndex}-`;
     let html = '';
-    html += `<td>${ci(entry ? portCountryCell(entry, ports) : '', `${p}0`)}</td>`;
-    html += `<td>${ci(entry ? POC.portCode(entry.portName, ports) : '', `${p}1`)}</td>`;
-    html += `<td>${ci(entry ? POC.formatDisplayDate(entry.arrivalDate) : '', `${p}2`)}</td>`;
-    html += `<td>${ci(entry ? POC.formatDisplayDate(entry.departureDate) : '', `${p}3`)}</td>`;
-    html += `<td>${ci(entry ? POC.normalizeSecLvl(entry.secLvl) : '', `${p}4`)}</td>`;
+    html += `<td><div class="poc-data-val">${ci(entry ? portCountryCell(entry, ports) : '', `${p}0`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${ci(entry ? POC.portCode(entry.portName, ports) : '', `${p}1`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${entry ? ciDate(entry.arrivalDate, `${p}2`) : ci('', `${p}2`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${entry ? ciDate(entry.departureDate, `${p}3`) : ci('', `${p}3`)}</div></td>`;
+    html += `<td><div class="poc-data-val">${ci(entry ? POC.normalizeSecLvl(entry.secLvl) : '', `${p}4`)}</div></td>`;
     return html;
   }
 
@@ -77,26 +90,50 @@
     return POC.formatCaptainName(master);
   }
 
-  function footerSignatureDate(snapshot, overlayVariant) {
+  function footerMasterName(snapshot, overlayVariant) {
+    const saved =
+      overlayVariant?.footerMasterName ||
+      overlayVariant?.cellValues?.['footer-master'];
+    if (saved) return saved;
+    return masterDisplayName(snapshot);
+  }
+
+  function footerDateDisplay(snapshot, overlayVariant) {
     const saved = overlayVariant?.footerSignatureDate;
     if (saved) return saved;
-    return POC.formatDisplayDate(snapshot.ship?.dateOfArrival);
+    const F = window.HtmlFormDateFormat;
+    const iso = snapshot.ship?.dateOfArrival;
+    return F ? F.format(iso, F.getActive()) : POC.formatDisplayDate(iso);
+  }
+
+  function footerDateIso(snapshot, overlayVariant) {
+    const saved = overlayVariant?.footerSignatureDate;
+    if (saved && window.HtmlFormDateFormat) {
+      const parsed = window.HtmlFormDateFormat.parseToIso(saved);
+      if (parsed) return parsed;
+    }
+    return snapshot.ship?.dateOfArrival || '';
   }
 
   function footerHtml(snapshot, overlayVariant, pageIndex) {
-    const date = escAttr(footerSignatureDate(snapshot, overlayVariant));
-    const master = escAttr(masterDisplayName(snapshot));
+    const dateIso = footerDateIso(snapshot, overlayVariant);
+    const date = escAttr(footerDateDisplay(snapshot, overlayVariant));
+    const master = escAttr(footerMasterName(snapshot, overlayVariant));
+    const isoAttr = window.HtmlFormDateFormat?.isoAttr(dateIso) || '';
     const dateId = pageIndex === 0 ? ' id="poc-footer-date"' : '';
+    const masterId = pageIndex === 0 ? ' id="poc-footer-master"' : '';
     return `
         <div class="poc-form-footer">
           <p class="poc-foot-note">${SIGNATURE_LABEL}</p>
           <div class="poc-form-footer__sig-row">
             <div class="poc-form-footer__pad" aria-hidden="true"></div>
-            <input type="text"${dateId} class="fi poc-form-footer__date" value="${date}" readonly tabindex="-1" />
+            <div${dateId} class="fi poc-form-footer__date" data-cell-key="footer-date"${isoAttr}
+              style="font-size:8pt;font-weight:700;text-align:left;padding:0 1mm;" aria-readonly="true">${date}</div>
             <div class="poc-form-footer__sig-rest">
               <div class="poc-sig-block">
                 <span class="poc-sig-lbl">Master</span>
-                <div class="fi poc-form-footer__master">${master}</div>
+                <div${masterId} class="fi poc-form-footer__master" data-cell-key="footer-master"
+                  style="width:50mm;text-align:center;font-size:8pt;border-bottom:1px solid #000;" aria-readonly="true">${master}</div>
               </div>
             </div>
           </div>
@@ -124,7 +161,7 @@
             ${hdrCell('Name of ship:', ship.name, 'h-0-0')}
             ${hdrCell('IMO Number', ship.imoNo, 'h-0-1')}
             ${hdrCell('Port of arrival:', POC.formatPortWithCountry(ship.portOfCall, ports), 'h-0-2')}
-            ${hdrCell('Date of Arrival:', POC.formatDisplayDate(ship.dateOfArrival), 'h-0-3', 2)}
+            ${hdrCellDate('Date of Arrival:', ship.dateOfArrival, 'h-0-3', 2)}
           </tr>
           <tr class="poc-editable-row">
             ${hdrCell('Nationality of ship:', POC.formatPortName(ship.nationality), 'h-1-0')}
@@ -149,6 +186,9 @@
     const pages = Array.isArray(snapshot.pages) && snapshot.pages.length ? snapshot.pages : [[]];
     const overlayVariant =
       snapshot.documentOverlay?.[OVERLAY_KEY] || window._appData?.documentOverlay?.[OVERLAY_KEY] || {};
+    if (window.HtmlFormDateFormat) {
+      window.HtmlFormDateFormat.setActive(overlayVariant.dateDisplayFormat || 'dot');
+    }
     const mount = document.getElementById('poc-pages');
     if (!mount) return;
 
@@ -231,10 +271,26 @@
   function initCellEditor(overlayVariant) {
     const table = document.getElementById('poc-grid');
     if (!table) return;
+    const snapshot = window._pocEditorSnapshot;
+    const pageIndex = window.PortOfCallFormPages?.getCurrent?.() ?? 0;
+    const rowsPerPage = resolveRowsPerPage(snapshot);
+    const voyOffset = pageIndex * rowsPerPage;
+    const saved = editor.loadPositions();
+    const cellValues = overlayVariant?.cellValues || saved.cellValues || {};
+    if (window.HtmlFormDateFormat) {
+      window.HtmlFormDateFormat.setActive(overlayVariant?.dateDisplayFormat || saved.dateDisplayFormat || 'dot');
+    }
     window.PortOfCallFormCells.init(table);
-    window.PortOfCallFormCells.restoreCellStyles(overlayVariant?.cellStyles || {});
+    if (window.HtmlFormFooterFields) {
+      window.HtmlFormFooterFields.init(table.closest('.a4-page'));
+    }
+    window.PortOfCallFormCells.restoreCellValues(cellValues, table, voyOffset);
+    window.PortOfCallFormCells.restoreCellStyles(overlayVariant?.cellStyles || saved.cellStyles || {});
     window.PortOfCallFormCells.captureDirtyBaseline();
-    editor.connectCellEditor({ collect: () => window.PortOfCallFormCells.collectCellStyles() });
+    editor.connectCellEditor({
+      collect: () => window.PortOfCallFormCells.collectCellStyles(),
+      collectValues: (vo) => window.PortOfCallFormCells.collectCellValues(vo),
+    });
   }
 
   async function bootstrap() {
@@ -275,11 +331,14 @@
 
     if (isPdfExport) {
       document.body.classList.add('is-pdf-export');
+      const rowsPerPage = resolveRowsPerPage(snapshot);
+      window.PortOfCallFormCells.restoreAllCellValues(overlayVariant?.cellValues || {}, rowsPerPage);
       window.PortOfCallFormCells.restoreAllCellStyles(overlayVariant?.cellStyles || {});
       const pageEls = document.querySelectorAll('.a4-page');
       for (let i = 0; i < pageEls.length; i++) {
         await POC.renderOverlays(pageEls[i], OVERLAY_KEY, snapshot);
       }
+      window.PortOfCallFormCells.reflowAllWrappedCells();
       window.PortOfCallFormCells.flattenAllInputsForExport();
       editor.resetEditorZoomForExport();
       document.querySelectorAll('.side-panel').forEach((el) => el.remove());

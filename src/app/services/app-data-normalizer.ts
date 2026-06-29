@@ -397,10 +397,19 @@ function normalizePortOfCallHtmlFormPrefs(
   if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
     out.cellStyles = raw.cellStyles;
   }
+  if (raw?.cellValues && typeof raw.cellValues === 'object') {
+    out.cellValues = raw.cellValues;
+  }
   const rows = raw?.rowsPerPage ?? defaults.rowsPerPage ?? POC_DEFAULT_ROW_COUNT;
   out.rowsPerPage = Math.min(PORT_OF_CALL_HTML_MAX_ROWS_PER_PAGE, Math.max(POC_MIN_ROW_COUNT, rows));
   if (typeof raw?.footerSignatureDate === 'string') {
     out.footerSignatureDate = raw.footerSignatureDate;
+  }
+  if (typeof raw?.footerMasterName === 'string') {
+    out.footerMasterName = raw.footerMasterName;
+  }
+  if (raw?.dateDisplayFormat === 'dot' || raw?.dateDisplayFormat === 'shortMonth' || raw?.dateDisplayFormat === 'fullMonth') {
+    out.dateDisplayFormat = raw.dateDisplayFormat;
   }
   return out;
 }
@@ -416,6 +425,12 @@ function normalizePaxHtmlFormPrefs(
   }
   if (typeof raw?.footerSignatureDate === 'string') {
     out.footerSignatureDate = raw.footerSignatureDate;
+  }
+  if (typeof raw?.footerMasterName === 'string') {
+    out.footerMasterName = raw.footerMasterName;
+  }
+  if (raw?.dateDisplayFormat === 'dot' || raw?.dateDisplayFormat === 'shortMonth' || raw?.dateDisplayFormat === 'fullMonth') {
+    out.dateDisplayFormat = raw.dateDisplayFormat;
   }
   if (isCrewListForm05CssBox(raw?.stampBox)) {
     out.stampBox = raw.stampBox;

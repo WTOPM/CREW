@@ -1,6 +1,6 @@
 /**
  * Icon alignment toolbar with hover tooltips and live preview on selected cells.
- * Expects global applyFormat / applyVerticalAlign from each form editor script.
+ * Expects global applyFormat from each form editor script.
  */
 (function () {
   const ICONS = {
@@ -10,36 +10,71 @@
       '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h11M4.5 8h7M2.5 12h11" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>',
     hRight:
       '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4h11M7 8h7M3 12h11" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>',
-    vTop:
-      '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="0.9" opacity="0.35"/><path d="M4 4.5h8M5.5 6.5h5M4 8.5h8" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>',
-    vMiddle:
-      '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="0.9" opacity="0.35"/><path d="M4 6h8M5.5 8h5M4 10h8" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>',
-    vBottom:
-      '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="0.9" opacity="0.35"/><path d="M4 7.5h8M5.5 9.5h5M4 11.5h8" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>',
   };
 
   const BUTTONS = [
-    { kind: 'h', value: 'left', tip: 'Align left', icon: 'hLeft' },
-    { kind: 'h', value: 'center', tip: 'Align center', icon: 'hCenter' },
-    { kind: 'h', value: 'right', tip: 'Align right', icon: 'hRight' },
-    { kind: 'v', value: 'top', tip: 'Align top', icon: 'vTop' },
-    { kind: 'v', value: 'middle', tip: 'Align middle', icon: 'vMiddle' },
-    { kind: 'v', value: 'bottom', tip: 'Align bottom', icon: 'vBottom' },
+    { value: 'left', tip: 'Align left', icon: 'hLeft' },
+    { value: 'center', tip: 'Align center', icon: 'hCenter' },
+    { value: 'right', tip: 'Align right', icon: 'hRight' },
   ];
 
   function editableCells(getSelectedCells) {
     return (getSelectedCells() || []).filter((cell) => !cell.classList.contains('ci-rno'));
   }
 
+  function cellText(cell) {
+    if (!cell) return '';
+    if (cell.tagName === 'INPUT' || cell.tagName === 'TEXTAREA') return cell.value || '';
+    return cell.textContent || '';
+  }
+
+  function setCellText(cell, text) {
+    if (!cell) return;
+    if (cell.tagName === 'INPUT' || cell.tagName === 'TEXTAREA') cell.value = text;
+    else cell.textContent = text;
+  }
+
+  function toAllCaps(text) {
+    return String(text).toUpperCase();
+  }
+
+  /** First letter upper, rest lower; each word capitalised (e.g. "john smith" → "John Smith"). */
+  function toTitleCase(text) {
+    return String(text).replace(/\S+/g, (word) => {
+      const lower = word.toLowerCase();
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    });
+  }
+
+  function transformCellCase(cell, mode) {
+    const text = cellText(cell);
+    if (!text) return;
+    if (mode === 'upper') setCellText(cell, toAllCaps(text));
+    else if (mode === 'title') setCellText(cell, toTitleCase(text));
+    reflowCellAfterTextChange(cell);
+  }
+
+  function reflowCellAfterTextChange(cell) {
+    if (window.PortOfCallFormCells?.reflowCell) {
+      window.PortOfCallFormCells.reflowCell(cell);
+      return;
+    }
+    if (cell.tagName === 'INPUT' && cell.classList.contains('ci')) {
+      cell.style.removeProperty('display');
+      cell.style.removeProperty('align-items');
+      cell.style.removeProperty('justify-content');
+      cell.style.removeProperty('height');
+    }
+  }
+
+  function applyCellCase(mode, getSelectedCells) {
+    editableCells(getSelectedCells).forEach((cell) => transformCellCase(cell, mode));
+  }
+
   function snapshotCells(cells) {
     return cells.map((cell) => ({
       el: cell,
       textAlign: cell.style.textAlign,
-      display: cell.style.display,
-      alignItems: cell.style.alignItems,
-      height: cell.style.height,
-      justifyContent: cell.style.justifyContent,
-      verticalAlign: cell.dataset.verticalAlign || '',
     }));
   }
 
@@ -47,12 +82,9 @@
     if (!snap) return;
     snap.forEach((s) => {
       s.el.style.textAlign = s.textAlign;
-      s.el.style.display = s.display;
-      s.el.style.alignItems = s.alignItems;
-      s.el.style.height = s.height;
-      s.el.style.justifyContent = s.justifyContent;
-      if (s.verticalAlign) s.el.dataset.verticalAlign = s.verticalAlign;
-      else delete s.el.dataset.verticalAlign;
+    });
+    snap.forEach((s) => {
+      if (window.PortOfCallFormCells?.reflowCell) window.PortOfCallFormCells.reflowCell(s.el);
     });
   }
 
@@ -62,15 +94,6 @@
     if (ta === 'end') return 'right';
     if (ta === 'center' || ta === 'right' || ta === 'left') return ta;
     return 'left';
-  }
-
-  function readVerticalAlign(cell) {
-    if (cell.dataset.verticalAlign) return cell.dataset.verticalAlign;
-    const ai = cell.style.alignItems;
-    if (ai === 'flex-start') return 'top';
-    if (ai === 'flex-end') return 'bottom';
-    if (ai === 'center') return 'middle';
-    return null;
   }
 
   function unanimous(values) {
@@ -84,20 +107,16 @@
 
   function syncActiveButtons(mount, getSelectedCells) {
     const cells = editableCells(getSelectedCells);
-    mount.querySelectorAll('.cell-align-toolbar__btn').forEach((btn) => {
+    mount.querySelectorAll('.cell-align-toolbar__btn[data-value]').forEach((btn) => {
       btn.classList.remove('cell-align-toolbar__btn--active');
       btn.removeAttribute('aria-pressed');
     });
     if (!cells.length) return;
 
     const h = unanimous(cells.map(readHorizontalAlign));
-    const v = unanimous(cells.map(readVerticalAlign));
 
-    mount.querySelectorAll('.cell-align-toolbar__btn').forEach((btn) => {
-      const kind = btn.dataset.kind;
-      const value = btn.dataset.value;
-      const match = (kind === 'h' && h === value) || (kind === 'v' && v != null && v === value);
-      if (match) {
+    mount.querySelectorAll('.cell-align-toolbar__btn[data-value]').forEach((btn) => {
+      if (h === btn.dataset.value) {
         btn.classList.add('cell-align-toolbar__btn--active');
         btn.setAttribute('aria-pressed', 'true');
       }
@@ -107,44 +126,65 @@
   let toolbarMount = null;
   let toolbarGetSelectedCells = () => [];
 
+  let toolbarShowDateFormat = false;
+
   function syncSelection() {
     if (!toolbarMount) return;
     syncActiveButtons(toolbarMount, toolbarGetSelectedCells);
+    if (toolbarShowDateFormat) syncDateFormatButton(toolbarMount);
   }
 
   function applyHorizontal(value) {
     if (typeof applyFormat === 'function') applyFormat('textAlign', value);
   }
 
-  function applyVertical(value) {
-    if (typeof applyVerticalAlign === 'function') applyVerticalAlign(value);
-  }
-
-  function renderToolbar(mount) {
-    const rows = [
-      BUTTONS.slice(0, 3),
-      BUTTONS.slice(3, 6),
-    ];
-    mount.innerHTML = rows
-      .map(
-        (row, rowIdx) => `
-      <div class="cell-align-toolbar__row" role="group" aria-label="${rowIdx === 0 ? 'Horizontal alignment' : 'Vertical alignment'}">
-        ${row
-          .map(
-            (b) => `
+  function renderToolbar(mount, showDateFormat) {
+    const dateRow = showDateFormat
+      ? `
+      <div class="cell-align-toolbar__row cell-align-toolbar__row--date" role="group" aria-label="Date display format">
+        <button type="button"
+          class="cell-align-toolbar__btn cell-align-toolbar__btn--text cell-align-toolbar__btn--date"
+          data-date-format-cycle
+          aria-label="Change date format">16.06</button>
+      </div>`
+      : '';
+    mount.innerHTML = `
+      <div class="cell-align-toolbar__row" role="group" aria-label="Horizontal alignment">
+        ${BUTTONS.map(
+          (b) => `
           <button type="button"
             class="cell-align-toolbar__btn"
-            data-kind="${b.kind}"
             data-value="${b.value}"
             data-tip="${b.tip}"
             aria-label="${b.tip}">
             ${ICONS[b.icon]}
           </button>`,
-          )
-          .join('')}
-      </div>`,
-      )
-      .join('');
+        ).join('')}
+      </div>
+      <div class="cell-align-toolbar__row cell-align-toolbar__row--case" role="group" aria-label="Letter case">
+        <button type="button"
+          class="cell-align-toolbar__btn cell-align-toolbar__btn--text"
+          data-case="upper"
+          data-tip="All caps"
+          aria-label="All caps">AA</button>
+        <button type="button"
+          class="cell-align-toolbar__btn cell-align-toolbar__btn--text"
+          data-case="title"
+          data-tip="Title case"
+          aria-label="Title case">Aa</button>
+      </div>${dateRow}`;
+  }
+
+  function syncDateFormatButton(mount) {
+    const btn = mount?.querySelector('[data-date-format-cycle]');
+    const F = window.HtmlFormDateFormat;
+    if (!btn || !F) return;
+    const t = F.getActive();
+    btn.textContent = F.buttonLabel(t);
+    const tip = F.tipLabel(t);
+    btn.dataset.tip = tip;
+    btn.dataset.baseTip = tip;
+    btn.setAttribute('aria-label', tip);
   }
 
   function init(options) {
@@ -153,9 +193,10 @@
     mount.dataset.initialized = '1';
 
     const getSelectedCells = options?.getSelectedCells || (() => []);
+    toolbarShowDateFormat = !!options?.showDateFormat;
     toolbarMount = mount;
     toolbarGetSelectedCells = getSelectedCells;
-    renderToolbar(mount);
+    renderToolbar(mount, toolbarShowDateFormat);
 
     let previewSnap = null;
     let previewBtn = null;
@@ -182,14 +223,10 @@
       previewBtn = btn;
       btn.classList.add('cell-align-toolbar__btn--preview');
       btn.dataset.tip = btn.dataset.baseTip + ' — preview';
-
-      const kind = btn.dataset.kind;
-      const value = btn.dataset.value;
-      if (kind === 'h') applyHorizontal(value);
-      else applyVertical(value);
+      applyHorizontal(btn.dataset.value);
     }
 
-    mount.querySelectorAll('.cell-align-toolbar__btn').forEach((btn) => {
+    mount.querySelectorAll('.cell-align-toolbar__btn[data-value]').forEach((btn) => {
       btn.dataset.baseTip = btn.dataset.tip;
 
       btn.addEventListener('mouseenter', () => startPreview(btn));
@@ -212,18 +249,36 @@
       btn.addEventListener('click', () => {
         clickCommitted = true;
         previewSnap = null;
-        const kind = btn.dataset.kind;
-        const value = btn.dataset.value;
-        if (kind === 'h') applyHorizontal(value);
-        else applyVertical(value);
+        applyHorizontal(btn.dataset.value);
         syncSelection();
       });
     });
+
+    mount.querySelectorAll('[data-case]').forEach((btn) => {
+      btn.dataset.baseTip = btn.dataset.tip;
+      btn.addEventListener('click', () => {
+        applyCellCase(btn.dataset.case, getSelectedCells);
+      });
+    });
+
+    const dateBtn = mount.querySelector('[data-date-format-cycle]');
+    if (dateBtn && window.HtmlFormDateFormat && toolbarShowDateFormat) {
+      syncDateFormatButton(mount);
+      dateBtn.addEventListener('click', () => {
+        const page = document.querySelector('.a4-page') || document;
+        window.HtmlFormDateFormat.cycleActive(page);
+        syncDateFormatButton(mount);
+      });
+    }
 
     syncSelection();
   }
 
   window.CrewCellAlignToolbar = { init, syncSelection };
+
+  window.applyCellCase = function applyCellCaseGlobal(mode) {
+    applyCellCase(mode, toolbarGetSelectedCells);
+  };
 
   window.CrewCellFormat = {
     normalizeFontFamily(raw) {
@@ -251,11 +306,17 @@
       cell.style.removeProperty('align-items');
       cell.style.removeProperty('height');
       cell.style.removeProperty('justify-content');
+      cell.style.removeProperty('padding-top');
+      cell.style.removeProperty('padding-bottom');
       delete cell.dataset.verticalAlign;
     },
     resetAllCells(root) {
       if (!root) return;
       root.querySelectorAll('.ci:not(.ci-rno)').forEach((cell) => this.clearCell(cell));
     },
+    toAllCaps,
+    toTitleCase,
+    transformCellCase,
+    applyCellCase,
   };
 })();

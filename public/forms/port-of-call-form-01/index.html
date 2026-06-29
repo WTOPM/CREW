@@ -43,9 +43,18 @@
   <div class="doc-zoom-viewport" id="doc-zoom-viewport">
     <div class="doc-zoom-pad" id="doc-zoom-pad">
       <nav id="poc-page-nav" class="poc-page-nav" hidden aria-label="Document pages">
-        <button type="button" id="poc-page-prev" class="btn btn-s poc-page-nav__btn" title="Previous page" aria-label="Previous page">‹</button>
-        <span id="poc-page-label" class="poc-page-nav__label">Page 1 / 1</span>
-        <button type="button" id="poc-page-next" class="btn btn-s poc-page-nav__btn" title="Next page" aria-label="Next page">›</button>
+        <button type="button" id="poc-page-prev" class="poc-page-nav__btn" title="Previous page" aria-label="Previous page">
+          <svg class="poc-page-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="poc-page-nav__center">
+          <span class="poc-page-nav__prefix">Page</span>
+          <input type="text" id="poc-page-input" class="poc-page-nav__input" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="Current page number" value="1" />
+          <span class="poc-page-nav__sep" aria-hidden="true">/</span>
+          <span id="poc-page-total" class="poc-page-nav__total">1</span>
+        </div>
+        <button type="button" id="poc-page-next" class="poc-page-nav__btn" title="Next page" aria-label="Next page">
+          <svg class="poc-page-nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </nav>
       <div class="doc-zoom-slot" id="doc-zoom-slot">
         <div class="doc-zoom-stage" id="doc-zoom-stage">
@@ -88,6 +97,9 @@
   </div>
 
   <script src="../overlay-drag.js"></script>
+  <script src="../html-form-date-format.js"></script>
+  <script src="../html-form-footer-fields.js"></script>
+  <script src="../html-form-editor-overlay.js"></script>
   <script src="../cell-align-toolbar.js"></script>
   <script src="../overlay-toolbar.js"></script>
   <script src="../html-form-pdf-snapshot.js"></script>

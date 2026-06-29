@@ -53,10 +53,10 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     <td class="c4"><input class="ci" type="text" value="${d.birth || ''}" readonly tabindex="-1"></td>
     <td class="c5"><input class="ci" type="text" value="${d.bno || ''}" readonly tabindex="-1"></td>
     <td class="c6"><input class="ci" type="text" value="${d.bplace || ''}" readonly tabindex="-1"></td>
-    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}" readonly tabindex="-1"></td>
+    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}"${dateIsoAttr(d.bexpIso)} readonly tabindex="-1"></td>
     <td class="c8"><input class="ci" type="text" value="${d.passport || ''}" readonly tabindex="-1"></td>
     <td class="c9"><input class="ci" type="text" value="${d.joinPort || ''}" readonly tabindex="-1"></td>
-    <td class="c10"><input class="ci" type="text" value="${d.joinDate || ''}" readonly tabindex="-1"></td>`;
+    <td class="c10"><input class="ci" type="text" value="${d.joinDate || ''}"${dateIsoAttr(d.joinDateIso)} readonly tabindex="-1"></td>`;
       tbody.appendChild(tr);
       refreshRowNumbers();
     }
@@ -161,6 +161,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
 
     function dismissSelection() {
       clearSelection();
+      HtmlFormHeaderCells.clearSelection();
       isDragging = false;
       selectionAnchor = null;
     }
@@ -218,6 +219,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     }
 
     tbody.addEventListener('mousedown', (e) => {
+      HtmlFormHeaderCells.clearSelection();
       const cell = e.target.closest('.ci');
       if (!cell || !tbody.contains(cell)) return;
       e.preventDefault();
@@ -286,6 +288,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         if (cell.classList.contains('ci-rno')) return;
         applyVerticalAlignToCell(cell, val);
       });
+      HtmlFormHeaderCells.applyVerticalAlign(val);
     }
 
     function applyFormat(prop, val) {
@@ -294,6 +297,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         cell.style[prop] = val;
         if (prop === 'textAlign') syncCellFlexAlignment(cell);
       });
+      HtmlFormHeaderCells.applyFormat(prop, val);
     }
 
     let stampImgUrl = null;
@@ -529,6 +533,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
           else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
         }
       });
+      HtmlFormHeaderCells.restoreStyles(cellStyles);
     }
 
     async function persistAllChanges() {
@@ -561,6 +566,8 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
           }
         }
       });
+
+      Object.assign(cellStyles, HtmlFormHeaderCells.collectStyles());
       
       if (!window._currentPositions) {
         window._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
@@ -671,6 +678,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
           delete cell.dataset.verticalAlign;
         });
       }
+      HtmlFormHeaderCells.resetAll();
       clearSelection();
       const fontSel = document.getElementById('tb-font');
       const sizeSel = document.getElementById('tb-size');
@@ -841,10 +849,16 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     }
 
     function fmtDate(iso) {
+      const F = window.HtmlFormDateFormat;
+      if (F) return F.format(iso, F.getActive());
       if (!iso) return '';
       const parts = iso.split('-');
       if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
       return iso;
+    }
+
+    function dateIsoAttr(iso) {
+      return window.HtmlFormDateFormat?.isoAttr(iso) || '';
     }
 
     async function loadAppData() {
@@ -925,9 +939,9 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         }
         const masterEl = document.getElementById('f-master-name');
         if (masterEl && master) {
-          masterEl.textContent = CrewNameFormat.formatCrewListName(master);
+          masterEl.value = CrewNameFormat.formatCrewListName(master);
         } else if (masterEl) {
-          masterEl.textContent = '';
+          masterEl.value = '';
         }
 
         crewList.forEach(c => {
@@ -941,9 +955,11 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
             bno: c.seamansBook || '',
             bplace: (c.seamansBookPlaceOfIssue || '').toUpperCase(),
             bexp: fmtDate(c.sbookExpiryDate),
+            bexpIso: c.sbookExpiryDate || '',
             passport: c.passport || '',
             joinPort: (c.joiningPort || '').toUpperCase(),
             joinDate: fmtDate(c.joiningDate),
+            joinDateIso: c.joiningDate || '',
           });
         });
       } else {
@@ -1019,6 +1035,11 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
           onSigChange: (on) => void toggleSignature(on),
         });
       }
+      HtmlFormHeaderCells.init({
+        scope: '.a4-landscape-page',
+        beforeHeaderSelect: clearSelection,
+        syncToolbarFromCell,
+      });
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       if (isPdfExport) {
@@ -1030,7 +1051,9 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       } else {
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {
-          CrewCellAlignToolbar.init({ getSelectedCells: () => selectedCells });
+          CrewCellAlignToolbar.init({
+            getSelectedCells: () => [...selectedCells, ...HtmlFormHeaderCells.getSelected()],
+          });
         }
         if (window.CrewHtmlFormEditorDirty) {
           CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);

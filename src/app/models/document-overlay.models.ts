@@ -39,16 +39,25 @@ export interface DocumentStampOptions {
   signatureBoxAttachment?: PdfStampBox;
 }
 
+/** HTML form editors — date display in cells (dot / short month / full month). */
+export type HtmlFormDateDisplayFormat = 'dot' | 'shortMonth' | 'fullMonth';
+
 /** HTML Port of Call forms (01 list / 02 security) — stamp, cell styles, rows per page. */
 export interface PortOfCallHtmlFormStampOptions extends DocumentStampOptions {
   cellStyles?: Record<
     string,
     { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
   >;
+  /** User-edited cell text (keys: h-* header, d-{globalRow}-{col} data rows). */
+  cellValues?: Record<string, string>;
   /** Data rows rendered on each PDF page (editor +/- row buttons). Default 11. */
   rowsPerPage?: number;
   /** Footer field 15 date (DD.MM.YYYY). */
   footerSignatureDate?: string;
+  /** Footer master name override. */
+  footerMasterName?: string;
+  /** How dates are shown in this form editor / PDF. */
+  dateDisplayFormat?: HtmlFormDateDisplayFormat;
 }
 
 /** HTML passenger list forms — stamp/signature, cell styles, footer date. */
@@ -58,6 +67,8 @@ export interface PaxHtmlFormStampOptions extends DocumentStampOptions {
     { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
   >;
   footerSignatureDate?: string;
+  footerMasterName?: string;
+  dateDisplayFormat?: HtmlFormDateDisplayFormat;
 }
 
 /** Whether stamp is enabled for the given page (page 1 vs attachment). */
@@ -148,6 +159,10 @@ export interface CrewListVariantSettings {
   cellStyles?: Record<string, { fontFamily?: string; fontSize?: string; textAlign?: string }>;
   /** Form 05 — editable date under table (field 12), aligned with column c2. */
   footerSignatureDate?: string;
+  /** Footer master name override. */
+  footerMasterName?: string;
+  /** How dates are shown in this form editor / PDF. */
+  dateDisplayFormat?: HtmlFormDateDisplayFormat;
 }
 
 export function isCrewListForm05CssBox(box: unknown): box is CrewListForm05CssBox {
@@ -276,6 +291,8 @@ const CREW_LIST_VARIANT_FIELD_NAMES = [
   'signatureBox',
   'cellStyles',
   'footerSignatureDate',
+  'footerMasterName',
+  'dateDisplayFormat',
 ] as const satisfies readonly (keyof CrewListVariantSettings)[];
 
 function mergeCrewListVariantPlacement(

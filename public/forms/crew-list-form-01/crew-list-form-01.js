@@ -45,7 +45,7 @@ const tbody = document.getElementById('tbody');
     <td class="c1"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></td>
     <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly tabindex="-1"></td>
     <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly tabindex="-1"></td>
-    <td class="c4"><input class="ci" type="text" value="${d.dob || ''}" placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>
+    <td class="c4"><input class="ci" type="text" value="${d.dob || ''}"${dateIsoAttr(d.dobIso)} placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>
     <td class="c5"><input class="ci" type="text" value="${d.pob || ''}" readonly tabindex="-1"></td>
     <td class="c6"><input class="ci" type="text" value="${d.identity || ''}" readonly tabindex="-1"></td>`;
       tbody.appendChild(tr);
@@ -65,11 +65,19 @@ const tbody = document.getElementById('tbody');
       });
       if (window._shipData) {
         const ship = window._shipData;
-        const dateVal = v === 'arrival' ? fmtDate(ship.dateOfArrival) : fmtDate(ship.dateOfDeparture);
+        const iso = v === 'arrival' ? ship.dateOfArrival : ship.dateOfDeparture;
         const dateEl = document.getElementById('h-date');
-        if (dateEl) dateEl.value = dateVal;
+        if (dateEl && window.HtmlFormDateFormat) {
+          window.HtmlFormDateFormat.setElement(dateEl, iso);
+        } else if (dateEl) {
+          dateEl.value = fmtDate(iso);
+        }
         const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl) footerDateEl.value = dateVal;
+        if (footerDateEl && window.HtmlFormDateFormat) {
+          window.HtmlFormDateFormat.setElement(footerDateEl, iso);
+        } else if (footerDateEl) {
+          footerDateEl.value = fmtDate(iso);
+        }
       }
     }
 
@@ -152,6 +160,7 @@ const tbody = document.getElementById('tbody');
 
     function dismissSelection() {
       clearSelection();
+      HtmlFormHeaderCells.clearSelection();
       isDragging = false;
       selectionAnchor = null;
     }
@@ -209,6 +218,7 @@ const tbody = document.getElementById('tbody');
     }
 
     tbody.addEventListener('mousedown', (e) => {
+      HtmlFormHeaderCells.clearSelection();
       const cell = e.target.closest('.ci');
       if (!cell || !tbody.contains(cell)) return;
       e.preventDefault();
@@ -277,6 +287,7 @@ const tbody = document.getElementById('tbody');
         if (cell.classList.contains('ci-rno')) return;
         applyVerticalAlignToCell(cell, val);
       });
+      HtmlFormHeaderCells.applyVerticalAlign(val);
     }
 
     function applyFormat(prop, val) {
@@ -285,6 +296,7 @@ const tbody = document.getElementById('tbody');
         cell.style[prop] = val;
         if (prop === 'textAlign') syncCellFlexAlignment(cell);
       });
+      HtmlFormHeaderCells.applyFormat(prop, val);
     }
 
     let stampImgUrl = null;
@@ -507,6 +519,7 @@ const tbody = document.getElementById('tbody');
           else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
         }
       });
+      HtmlFormHeaderCells.restoreStyles(cellStyles);
     }
 
     async function persistAllChanges() {
@@ -539,6 +552,8 @@ const tbody = document.getElementById('tbody');
           }
         }
       });
+
+      Object.assign(cellStyles, HtmlFormHeaderCells.collectStyles());
       
       if (!window._currentPositions) {
         window._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
@@ -574,6 +589,7 @@ const tbody = document.getElementById('tbody');
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         footerSignatureDate,
+        ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       window._appData = appData;
@@ -642,6 +658,7 @@ const tbody = document.getElementById('tbody');
           delete cell.dataset.verticalAlign;
         });
       }
+      HtmlFormHeaderCells.resetAll();
       clearSelection();
       const fontSel = document.getElementById('tb-font');
       const sizeSel = document.getElementById('tb-size');
@@ -812,10 +829,16 @@ const tbody = document.getElementById('tbody');
     }
 
     function fmtDate(iso) {
+      const F = window.HtmlFormDateFormat;
+      if (F) return F.format(iso, F.getActive());
       if (!iso) return '';
       const parts = iso.split('-');
       if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
       return iso;
+    }
+
+    function dateIsoAttr(iso) {
+      return window.HtmlFormDateFormat?.isoAttr(iso) || '';
     }
 
     async function loadAppData() {
@@ -862,16 +885,19 @@ const tbody = document.getElementById('tbody');
         const urlMode = new URLSearchParams(window.location.search).get('mode');
         const isArrival = urlMode === 'departure' ? false : (urlMode === 'arrival' ? true : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
 
+        const savedForm01 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_01_TYPE];
         if (isArrival) {
           setAD('arrival');
         } else {
           setAD('departure');
         }
 
-        const savedForm01 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_01_TYPE];
         const footerDateEl = document.getElementById('f-footer-date');
         if (footerDateEl && savedForm01?.footerSignatureDate) {
           footerDateEl.value = savedForm01.footerSignatureDate;
+          if (window.HtmlFormDateFormat) {
+            window.HtmlFormDateFormat.syncIsoFromDisplay(footerDateEl);
+          }
         }
 
         let crewList = [];
@@ -888,9 +914,9 @@ const tbody = document.getElementById('tbody');
         }
         const masterEl = document.getElementById('f-master-name');
         if (masterEl && master) {
-          masterEl.textContent = CrewNameFormat.formatCrewListName(master, { upper: true });
+          masterEl.value = CrewNameFormat.formatCrewListName(master, { upper: true });
         } else if (masterEl) {
-          masterEl.textContent = '';
+          masterEl.value = '';
         }
 
         crewList.forEach(c => {
@@ -900,10 +926,16 @@ const tbody = document.getElementById('tbody');
             rank: c.rank || '',
             nat: c.nationality || '',
             dob: fmtDate(c.dateOfBirth),
+            dobIso: c.dateOfBirth || '',
             pob: c.placeOfBirth || '',
             identity: c.passport || '',
           });
         });
+      }
+
+      const savedVar = appData?.documentOverlay?.crewList?.byType?.[CREW_FORM_01_TYPE];
+      if (window.HtmlFormEditorOverlay) {
+        HtmlFormEditorOverlay.applyFromVariant(savedVar, document.querySelector('.a4-page'));
       }
 
       for (let i = tbody.children.length; i < CREW_LIST_MAX_ROWS; i++) addRow();
@@ -918,17 +950,23 @@ const tbody = document.getElementById('tbody');
         const replacement = document.createElement('div');
         replacement.className = input.className;
         replacement.textContent = input.value || '';
-        // Carry over ALL inline styles (width, border-bottom-color, toolbar font/align
-        // overrides, ...) — copying only a few properties dropped things like the
-        // master-name field's fixed width, stretching its underline across the page.
         replacement.style.cssText = input.style.cssText;
+        const isFooterDate =
+          input.id === 'f-footer-date' || input.classList.contains('form-footer__date');
         if (input.closest('.header-block')) {
           replacement.style.border = 'none';
           replacement.style.borderBottom = 'none';
         }
-        if (input.classList.contains('ci')) {
-          // Native <input> vertically centers its value via the UA stylesheet — replicate
-          // that for the plain div so table-cell text lines up with the grid, not below it.
+        if (isFooterDate) {
+          replacement.style.display = 'inline';
+          replacement.style.width = 'auto';
+          replacement.style.maxWidth = '100%';
+          replacement.style.overflow = 'visible';
+          replacement.style.whiteSpace = 'nowrap';
+          replacement.style.fontSize = input.style.fontSize || '8pt';
+          replacement.style.fontWeight = '700';
+          replacement.style.textAlign = 'left';
+        } else if (input.classList.contains('ci')) {
           replacement.style.display = 'flex';
           replacement.style.alignItems = input.style.alignItems || 'center';
           replacement.style.justifyContent =
@@ -974,6 +1012,11 @@ const tbody = document.getElementById('tbody');
           onSigChange: (on) => void toggleSignature(on),
         });
       }
+      HtmlFormHeaderCells.init({
+        scope: '.a4-page',
+        beforeHeaderSelect: clearSelection,
+        syncToolbarFromCell,
+      });
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       if (isPdfExport) {
@@ -985,7 +1028,9 @@ const tbody = document.getElementById('tbody');
       } else {
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {
-          CrewCellAlignToolbar.init({ getSelectedCells: () => selectedCells });
+          CrewCellAlignToolbar.init({
+            getSelectedCells: () => [...selectedCells, ...HtmlFormHeaderCells.getSelected()],
+          });
         }
         if (window.CrewHtmlFormEditorDirty) {
           CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);
