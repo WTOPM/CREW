@@ -23,6 +23,8 @@ import {
   DocumentOverlayId,
   DocumentStampOptions,
   resolveCrewListStampOptions,
+  asPdfStampOptions,
+  type HtmlAwareStampOptions,
 } from '../../models/document-overlay.models';
 import { CrewMember, formatCrewListName } from '../../models/crew.models';
 import {
@@ -381,7 +383,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     if (id === 'crewList') {
       return resolveCrewListStampOptions(overlay.crewList);
     }
-    return overlay[id];
+    return asPdfStampOptions(overlay[id] as HtmlAwareStampOptions);
   }
 
   protected docLabel(): string {

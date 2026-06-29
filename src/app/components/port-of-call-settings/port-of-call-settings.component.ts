@@ -1,6 +1,13 @@
 import { Component, input } from '@angular/core';
-import { PortSettingsDocId, PORT_SETTINGS_DOC_LABELS } from '../../models/crew.models';
-import { portOfCallForm01EditorUrl } from '../../models/port-of-call-form-01.paths';
+import {
+  PortSettingsDocId,
+  PORT_SETTINGS_DOC_LABELS,
+  PORT_SETTINGS_DOC_PARAM,
+} from '../../models/crew.models';
+import {
+  PORT_OF_CALL_SETTINGS_PARAM,
+  portOfCallForm01EditorUrl,
+} from '../../models/port-of-call-form-01.paths';
 import { portOfCallForm02EditorUrl } from '../../models/port-of-call-form-02.paths';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
@@ -47,7 +54,11 @@ export class PortOfCallSettingsComponent {
   }
 
   protected openHtmlFormSettings(): void {
-    const returnTo = encodeURIComponent('/?portOfCallSettings=1');
+    const q = new URLSearchParams({
+      [PORT_OF_CALL_SETTINGS_PARAM]: '1',
+      [PORT_SETTINGS_DOC_PARAM]: this.docId(),
+    });
+    const returnTo = encodeURIComponent(`/?${q.toString()}`);
     if (this.docId() === 'portsOfCall') {
       window.location.href = portOfCallForm02EditorUrl({ return: returnTo });
       return;

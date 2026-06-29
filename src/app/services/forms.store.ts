@@ -14,6 +14,7 @@ import {
   type CrewEffectDocId,
   type ShipStoresDocId,
   crewEffectFormField,
+  normalizeShipStoresDocId,
   shipStoresFormField,
 } from '../models/crew.models';
 import { ToastService } from './toast.service';
@@ -136,6 +137,14 @@ export class FormsStore {
     this.data.update((d) => ({
       ...d,
       portOfCall: normalizePortOfCallSettings({ ...d.portOfCall, ...partial }),
+    }));
+    void this.state.persist('silent');
+  }
+
+  updateShipStoresSettingsDocId(docId: ShipStoresDocId): void {
+    this.data.update((d) => ({
+      ...d,
+      shipStoresSettingsDocId: normalizeShipStoresDocId(docId),
     }));
     void this.state.persist('silent');
   }

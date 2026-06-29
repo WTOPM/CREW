@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { jsPDF } from 'jspdf';
-import { DocumentOverlayId, resolveCrewListStampOptions } from '../models/document-overlay.models';
+import { DocumentOverlayId, resolveCrewListStampOptions, asPdfStampOptions, type HtmlAwareStampOptions } from '../models/document-overlay.models';
 import { PdfOverlayService } from './pdf-overlay.service';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import {
@@ -77,7 +77,7 @@ export class PdfCrewArrService {
     if (id === 'crewList') {
       return resolveCrewListStampOptions(data.documentOverlay.crewList);
     }
-    return data.documentOverlay[id];
+    return asPdfStampOptions(data.documentOverlay[id] as HtmlAwareStampOptions);
   }
 
   async generate(data: AppData, crew: CrewMember[], options?: CrewListPdfOptions): Promise<void> {

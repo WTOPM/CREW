@@ -3,10 +3,17 @@ import { FormsModule } from '@angular/forms';
 import {
   SHIP_STORES_02_ROW_COUNT,
   SHIP_STORES_03_ROW_COUNT,
+  SHIP_STORES_DOC_LABELS,
   SHIP_STORES_ROW_COUNT,
+  SHIP_STORES_SETTINGS_DOC_PARAM,
   ShipStoresDocId,
 } from '../../models/crew.models';
 import { DocumentOverlayId } from '../../models/document-overlay.models';
+import {
+  SHIP_STORES_SETTINGS_PARAM,
+  shipStoresForm01EditorUrl,
+} from '../../models/ship-stores-form-01.paths';
+import { shipStoresForm02EditorUrl } from '../../models/ship-stores-form-02.paths';
 import { StorageService } from '../../services/storage.service';
 import { FormsStore } from '../../services/forms.store';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
@@ -42,6 +49,11 @@ export class ShipStoresSettingsComponent {
     return 'shipStores';
   });
 
+  protected readonly usesHtmlEditor = computed(() => {
+    const id = this.docId();
+    return id === 'shipStores' || id === 'shipStores02';
+  });
+
   protected readonly rowCount = computed(() => {
     const id = this.docId();
     if (id === 'shipStores03') return SHIP_STORES_03_ROW_COUNT;
@@ -57,6 +69,23 @@ export class ShipStoresSettingsComponent {
         this.loadDraftFromRow(0);
       });
     });
+  }
+
+  protected docLabel(): string {
+    return SHIP_STORES_DOC_LABELS[this.docId()];
+  }
+
+  protected openHtmlFormSettings(): void {
+    const q = new URLSearchParams({
+      [SHIP_STORES_SETTINGS_PARAM]: '1',
+      [SHIP_STORES_SETTINGS_DOC_PARAM]: this.docId(),
+    });
+    const returnTo = encodeURIComponent(`/?${q.toString()}`);
+    if (this.docId() === 'shipStores02') {
+      window.location.href = shipStoresForm02EditorUrl({ return: returnTo });
+      return;
+    }
+    window.location.href = shipStoresForm01EditorUrl({ return: returnTo });
   }
 
   protected onPlaceOfStorageChange(value: string): void {

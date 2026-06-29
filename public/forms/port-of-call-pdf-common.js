@@ -253,6 +253,8 @@
     formatPortWithCountry,
     normalizeSecLvl,
     pdfBoxToCss,
+    defaultStampCss,
+    defaultSignatureCss,
     renderOverlays,
     findMaster,
     formatCaptainName,

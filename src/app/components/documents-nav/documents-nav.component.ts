@@ -8,7 +8,9 @@ import {
   PORT_SEC_LVL_OPTIONS,
   PORT_SETTINGS_DOC_IDS,
   PORT_SETTINGS_DOC_LABELS,
+  PORT_SETTINGS_DOC_PARAM,
   PortSettingsDocId,
+  SHIP_STORES_SETTINGS_DOC_PARAM,
   CREW_EFFECT_DOC_IDS,
   CREW_EFFECT_DOC_LABELS,
   CrewEffectDocId,
@@ -45,6 +47,11 @@ import {
   PORT_OF_CALL_SETTINGS_PARAM,
 } from '../../models/port-of-call-form-01.paths';
 import { PORT_OF_CALL_FORM_02_FEEDBACK_PARAM } from '../../models/port-of-call-form-02.paths';
+import {
+  SHIP_STORES_FORM_01_FEEDBACK_PARAM,
+  SHIP_STORES_SETTINGS_PARAM,
+} from '../../models/ship-stores-form-01.paths';
+import { SHIP_STORES_FORM_02_FEEDBACK_PARAM } from '../../models/ship-stores-form-02.paths';
 import { PartialDateInputComponent } from '../partial-date-input/partial-date-input.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
@@ -173,7 +180,6 @@ export class DocumentsNavComponent implements OnInit {
   /** Which port document the unified Port Settings modal is editing. */
   protected readonly portSettingsDocIds = PORT_SETTINGS_DOC_IDS;
   protected readonly portSecLvlOptions = PORT_SEC_LVL_OPTIONS;
-  protected portSettingsDoc = signal<PortSettingsDocId>('portOfCall');
   protected showCrewListSettings = signal(false);
   protected showPaxSettings = signal(false);
   protected showMdhSettings = signal(false);
@@ -181,7 +187,6 @@ export class DocumentsNavComponent implements OnInit {
   protected mdhSettingsDoc = signal<'mdh' | 'crewVaccine'>('mdh');
   protected showShipStoresSettings = signal(false);
   protected readonly shipStoresDocIds = SHIP_STORES_DOC_IDS;
-  protected shipStoresSettingsDoc = signal<ShipStoresDocId>('shipStores');
   protected showCrewEffectSettings = signal(false);
   protected readonly crewEffectDocIds = CREW_EFFECT_DOC_IDS;
   protected crewEffectSettingsDoc = signal<CrewEffectDocId>('crewEffect');
@@ -410,6 +415,12 @@ export class DocumentsNavComponent implements OnInit {
     const pocForm01Label = PORT_SETTINGS_DOC_LABELS.portOfCall;
     const pocForm02Label = PORT_SETTINGS_DOC_LABELS.portsOfCall;
 
+    const reopenShipStores = params.get(SHIP_STORES_SETTINGS_PARAM) === '1';
+    const feedbackSs01 = params.get(SHIP_STORES_FORM_01_FEEDBACK_PARAM);
+    const feedbackSs02 = params.get(SHIP_STORES_FORM_02_FEEDBACK_PARAM);
+    const ssForm01Label = SHIP_STORES_DOC_LABELS.shipStores;
+    const ssForm02Label = SHIP_STORES_DOC_LABELS.shipStores02;
+
     const reopenPax = params.get('paxSettings') === '1';
     const feedbackPax01 = params.get(PASSENGER_LIST_FORM_01_FEEDBACK_PARAM);
     const feedbackPax02 = params.get(PASSENGER_LIST_FORM_02_FEEDBACK_PARAM);
@@ -435,6 +446,16 @@ export class DocumentsNavComponent implements OnInit {
     if (reopenPoc) {
       this.showPortOfCallSettings.set(true);
     }
+    const portDocFromUrl = params.get(PORT_SETTINGS_DOC_PARAM);
+    if (portDocFromUrl) {
+      this.forms.updatePortOfCallSettings({
+        settingsDocId: portDocFromUrl as PortSettingsDocId,
+      });
+    } else if (feedbackPoc02) {
+      this.forms.updatePortOfCallSettings({ settingsDocId: 'portsOfCall' });
+    } else if (feedbackPoc01) {
+      this.forms.updatePortOfCallSettings({ settingsDocId: 'portOfCall' });
+    }
     if (feedbackPoc01 === 'saved') {
       this.toast.show(`Saved: ${pocForm01Label}`, 'success');
     } else if (feedbackPoc01 === 'cancelled') {
@@ -444,6 +465,28 @@ export class DocumentsNavComponent implements OnInit {
       this.toast.show(`Saved: ${pocForm02Label}`, 'success');
     } else if (feedbackPoc02 === 'cancelled') {
       this.toast.show(`Cancelled: ${pocForm02Label}`, 'info');
+    }
+
+    if (reopenShipStores) {
+      this.showShipStoresSettings.set(true);
+    }
+    const shipStoresDocFromUrl = params.get(SHIP_STORES_SETTINGS_DOC_PARAM);
+    if (shipStoresDocFromUrl) {
+      this.forms.updateShipStoresSettingsDocId(shipStoresDocFromUrl as ShipStoresDocId);
+    } else if (feedbackSs02) {
+      this.forms.updateShipStoresSettingsDocId('shipStores02');
+    } else if (feedbackSs01) {
+      this.forms.updateShipStoresSettingsDocId('shipStores');
+    }
+    if (feedbackSs01 === 'saved') {
+      this.toast.show(`Saved: ${ssForm01Label}`, 'success');
+    } else if (feedbackSs01 === 'cancelled') {
+      this.toast.show(`Cancelled: ${ssForm01Label}`, 'info');
+    }
+    if (feedbackSs02 === 'saved') {
+      this.toast.show(`Saved: ${ssForm02Label}`, 'success');
+    } else if (feedbackSs02 === 'cancelled') {
+      this.toast.show(`Cancelled: ${ssForm02Label}`, 'info');
     }
 
     if (reopenPax) {
@@ -502,9 +545,12 @@ export class DocumentsNavComponent implements OnInit {
     if (
       reopen ||
       reopenPoc ||
+      reopenShipStores ||
       reopenPax ||
       feedbackPoc01 ||
       feedbackPoc02 ||
+      feedbackSs01 ||
+      feedbackSs02 ||
       feedback01 ||
       feedback02 ||
       feedback03 ||
@@ -518,8 +564,13 @@ export class DocumentsNavComponent implements OnInit {
       params.delete('crewListSettings');
       params.delete('paxSettings');
       params.delete(PORT_OF_CALL_SETTINGS_PARAM);
+      params.delete(PORT_SETTINGS_DOC_PARAM);
       params.delete(PORT_OF_CALL_FORM_01_FEEDBACK_PARAM);
       params.delete(PORT_OF_CALL_FORM_02_FEEDBACK_PARAM);
+      params.delete(SHIP_STORES_SETTINGS_PARAM);
+      params.delete(SHIP_STORES_SETTINGS_DOC_PARAM);
+      params.delete(SHIP_STORES_FORM_01_FEEDBACK_PARAM);
+      params.delete(SHIP_STORES_FORM_02_FEEDBACK_PARAM);
       params.delete(PASSENGER_LIST_FORM_01_FEEDBACK_PARAM);
       params.delete(PASSENGER_LIST_FORM_02_FEEDBACK_PARAM);
       params.delete(CREW_LIST_FORM_01_FEEDBACK_PARAM);
@@ -631,9 +682,13 @@ export class DocumentsNavComponent implements OnInit {
     return PORT_SETTINGS_DOC_LABELS[id];
   }
 
+  protected portSettingsDoc(): PortSettingsDocId {
+    return this.portOfCall().settingsDocId;
+  }
+
   protected onPortSettingsDocChange(value: PortSettingsDocId): void {
     if (value === this.portSettingsDoc()) return;
-    this.portSettingsDoc.set(value);
+    this.forms.updatePortOfCallSettings({ settingsDocId: value });
     this.toast.showSelected(PORT_SETTINGS_DOC_LABELS[value]);
   }
 
@@ -687,9 +742,13 @@ export class DocumentsNavComponent implements OnInit {
     return SHIP_STORES_DOC_LABELS[id];
   }
 
+  protected shipStoresSettingsDoc(): ShipStoresDocId {
+    return this.storage.shipStoresSettingsDocId();
+  }
+
   protected onShipStoresSettingsDocChange(value: ShipStoresDocId): void {
     if (value === this.shipStoresSettingsDoc()) return;
-    this.shipStoresSettingsDoc.set(value);
+    this.forms.updateShipStoresSettingsDocId(value);
     this.toast.showSelected(SHIP_STORES_DOC_LABELS[value]);
   }
 

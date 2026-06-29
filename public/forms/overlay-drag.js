@@ -1,6 +1,6 @@
 /**
  * Stamp / signature overlay drag+resize for HTML form editors.
- * Compensates for doc-zoom-stage CSS scale; on drag, centers marker under pointer.
+ * Compensates for doc-zoom-stage CSS scale; drag keeps grab point under the pointer.
  */
 (function (global) {
   function overlayParent(el) {
@@ -79,12 +79,9 @@
       startH = el.offsetHeight;
 
       if (mode === 'drag') {
-        const ptr = pointerLocal(e.clientX, e.clientY, parent, scale);
-        const pos = clampDragPosition(ptr.x - startW / 2, ptr.y - startH / 2, startW, startH, parent);
-        startL = pos.left;
-        startT = pos.top;
-        el.style.left = `${startL}px`;
-        el.style.top = `${startT}px`;
+        const pinned = pinOverlayPosition(el);
+        startL = pinned.left;
+        startT = pinned.top;
       } else {
         const pinned = pinOverlayPosition(el);
         startL = pinned.left;

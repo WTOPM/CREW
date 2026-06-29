@@ -1,5 +1,5 @@
 /**
- * Shared HTML editor chrome for Port of Call forms 01 & 02 (overlay, save, zoom).
+ * Shared HTML editor chrome for Ship Stores forms 01 & 02 (stamp/signature overlay).
  */
 (function (global) {
   const ZOOM_MIN = 50;
@@ -59,8 +59,8 @@
   function createEditor(overlayKey, feedbackParam) {
     global._currentPositions = null;
     let cellBridge = null;
-    let rowsBridge = null;
-    let savedRowsPerPage = null;
+    let savedStampVisible = false;
+    let savedSigVisible = false;
 
     function loadPositions() {
       if (global._currentPositions) return global._currentPositions;
@@ -88,11 +88,6 @@
             },
             cellStyles: variant.cellStyles || {},
             cellValues: variant.cellValues || {},
-            dateDisplayFormat: variant.dateDisplayFormat || 'dot',
-            rowsPerPage:
-              typeof variant.rowsPerPage === 'number'
-                ? variant.rowsPerPage
-                : global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
           };
         }
       } catch (e) {
@@ -104,26 +99,17 @@
         sig: {},
         cellStyles: {},
         cellValues: {},
-        dateDisplayFormat: 'dot',
-        rowsPerPage: global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
       };
-      savedRowsPerPage = global._currentPositions.rowsPerPage;
+      savedStampVisible = !!global._currentPositions.stamp?.visible;
+      savedSigVisible = !!global._currentPositions.sig?.visible;
       return global._currentPositions;
     }
 
-    function captureRowsPerPage() {
-      const count = rowsBridge?.getCount?.() ?? global.PortOfCallFormRows?.getRowsPerPage?.();
-      if (typeof count === 'number') {
-        if (!global._currentPositions) global._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
-        global._currentPositions.rowsPerPage = count;
-      }
-    }
-
     function isEditorDirty() {
-      captureRowsPerPage();
-      if (global.PortOfCallFormCells?.isDirty?.()) return true;
-      if (savedRowsPerPage === null) return false;
-      return global._currentPositions?.rowsPerPage !== savedRowsPerPage;
+      if (global.ShipStoresFormCells?.isDirty?.()) return true;
+      const stampOn = global.CrewOverlayToolbar?.isStampOn() ?? false;
+      const sigOn = global.CrewOverlayToolbar?.isSigOn() ?? false;
+      return stampOn !== savedStampVisible || sigOn !== savedSigVisible;
     }
 
     function captureCellStyles() {
@@ -135,15 +121,10 @@
 
     function captureCellValues() {
       if (!cellBridge?.collectValues) return;
-      const pageIndex = global.PortOfCallFormPages?.getCurrent?.() ?? 0;
-      const rowsPerPage =
-        global._currentPositions?.rowsPerPage ?? global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11;
-      const voyOffset = pageIndex * rowsPerPage;
       if (!global._currentPositions) global._currentPositions = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
-      global._currentPositions.cellValues = {
-        ...(global._currentPositions.cellValues || {}),
-        ...cellBridge.collectValues(voyOffset),
-      };
+      global._currentPositions.cellValues = cellBridge.collectValues();
+      const depOn = document.getElementById('ssd-cb-dep')?.textContent === '\u2713';
+      global._currentPositions.cellValues._ssMode = depOn ? 'departure' : 'arrival';
     }
 
     function overlayBoxFromElement(el) {
@@ -183,7 +164,7 @@
     function navigateBack(feedback) {
       const params = new URLSearchParams(location.search);
       const returnRaw = params.get('return');
-      const base = returnRaw ? decodeURIComponent(returnRaw) : '/?portOfCallSettings=1';
+      const base = returnRaw ? decodeURIComponent(returnRaw) : '/?shipStoresSettings=1';
       const url = new URL(base, location.origin);
       url.searchParams.set(feedbackParam, feedback);
       window.location.href = url.pathname + url.search;
@@ -193,39 +174,29 @@
       savePositions();
       captureCellStyles();
       captureCellValues();
-      captureRowsPerPage();
       const appData = await readPersistedAppData();
-      if (!appData?.ship) {
+      if (!appData) {
         alert('Cannot save: application data is not loaded.');
         return;
+      }
+      if (overlayKey === 'shipStores' && global.ShipStoresForm01?.collectIntoAppData) {
+        global.ShipStoresForm01.collectIntoAppData(appData);
       }
       if (!appData.documentOverlay) appData.documentOverlay = {};
       const prev = appData.documentOverlay[overlayKey] || {};
       const stampBox = overlayCssBox(global._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
-      const signatureBox = overlayCssBox(global._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
+      const signatureBox = overlayCssBox(
+        global._currentPositions.sig,
+        cssBoxFromVariant(prev.signatureBox),
+      );
       appData.documentOverlay[overlayKey] = {
         ...prev,
         useStamp: !!global._currentPositions.stamp.visible,
         useSignature: !!global._currentPositions.sig.visible,
-        ...(stampBox ? { stampBox } : {}),
-        ...(signatureBox ? { signatureBox } : {}),
         cellStyles: global._currentPositions.cellStyles || {},
         cellValues: global._currentPositions.cellValues || {},
-        dateDisplayFormat: global.HtmlFormDateFormat?.getActive?.() || global._currentPositions.dateDisplayFormat || 'dot',
-        rowsPerPage: global._currentPositions.rowsPerPage ?? global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
-        ...(document.getElementById('poc-footer-date')?.textContent?.trim() ||
-        document.getElementById('poc-footer-date')?.value?.trim()
-          ? {
-              footerSignatureDate: (
-                document.getElementById('poc-footer-date')?.value ||
-                document.getElementById('poc-footer-date')?.textContent ||
-                ''
-              ).trim(),
-            }
-          : {}),
-        ...(global.HtmlFormFooterFields?.getMasterName?.()?.trim()
-          ? { footerMasterName: global.HtmlFormFooterFields.getMasterName().trim() }
-          : {}),
+        ...(stampBox ? { stampBox } : {}),
+        ...(signatureBox ? { signatureBox } : {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       global._appData = appData;
@@ -285,15 +256,13 @@
         sig: { visible: false },
         cellStyles: {},
         cellValues: {},
-        dateDisplayFormat: 'dot',
-        rowsPerPage: global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
       };
       resetOverlays();
       if (cellBridge?.resetPage) cellBridge.resetPage();
     }
 
     async function loadAsset(kind) {
-      return global.CrewPortOfCallPdf?.loadAsset?.(kind) ?? null;
+      return global.CrewShipStoresPdf?.loadAsset?.(kind) ?? null;
     }
 
     function editorScaleFactor() {
@@ -317,15 +286,6 @@
       if (global.CrewOverlayDrag) {
         CrewOverlayDrag.attach(el, editorScaleFactor, savePositions);
       }
-    }
-
-    function overlayCssPos(saved, defaults) {
-      return {
-        left: saved?.left || defaults.left,
-        top: saved?.top || defaults.top,
-        width: saved?.width || defaults.width,
-        height: saved?.height || defaults.height,
-      };
     }
 
     function showOverlay(el, url, pos) {
@@ -353,8 +313,13 @@
       const url = await loadAsset('stamp');
       if (url) {
         const saved = loadPositions().stamp;
-        const defaults = global.CrewPortOfCallPdf?.defaultStampCss?.() || {};
-        showOverlay(el, url, overlayCssPos(saved, defaults));
+        const defaults = global.CrewShipStoresPdf?.defaultStampCss?.() || {};
+        showOverlay(el, url, {
+          left: saved.left || defaults.left,
+          top: saved.top || defaults.top,
+          width: saved.width || defaults.width,
+          height: saved.height || defaults.height,
+        });
         savePositions();
       } else {
         if (global.CrewOverlayToolbar) CrewOverlayToolbar.setStampOn(false);
@@ -372,8 +337,13 @@
       const url = await loadAsset('signature');
       if (url) {
         const saved = loadPositions().sig;
-        const defaults = global.CrewPortOfCallPdf?.defaultSignatureCss?.() || {};
-        showOverlay(el, url, overlayCssPos(saved, defaults));
+        const defaults = global.CrewShipStoresPdf?.defaultSignatureCss?.() || {};
+        showOverlay(el, url, {
+          left: saved.left || defaults.left,
+          top: saved.top || defaults.top,
+          width: saved.width || defaults.width,
+          height: saved.height || defaults.height,
+        });
         savePositions();
       } else {
         if (global.CrewOverlayToolbar) CrewOverlayToolbar.setSigOn(false);
@@ -407,12 +377,9 @@
       const stage = document.getElementById('doc-zoom-stage');
       const pad = document.getElementById('doc-zoom-pad');
       const slot = document.getElementById('doc-zoom-slot');
-      const page = stage?.querySelector('.a4-page');
-      const nav = document.getElementById('poc-page-nav');
+      const page = stage?.querySelector('.a4-page, .ssd-sheet');
       const label = document.getElementById('zoom-label');
       const scale = editorZoomPct / 100;
-      const padX = 24;
-      const padY = 56;
 
       if (slot) {
         slot.style.width = '';
@@ -421,18 +388,14 @@
 
       if (stage) {
         stage.style.transform = scale === 1 ? 'none' : `scale(${scale})`;
-        stage.style.transformOrigin = 'top center';
+        stage.style.transformOrigin = 'top left';
         stage.style.marginBottom = '0';
         stage.style.zoom = '';
       }
 
       if (pad && page) {
-        const pageW = page.offsetWidth;
-        const pageH = page.offsetHeight;
-        const navBlock = nav && !nav.hidden ? nav.offsetHeight + 10 : 0;
-        const contentW = Math.max(pageW * scale, nav?.offsetWidth || 0);
-        pad.style.width = `${Math.ceil(contentW + padX)}px`;
-        pad.style.height = `${Math.ceil(navBlock + pageH * scale + padY)}px`;
+        pad.style.width = `${page.offsetWidth * scale}px`;
+        pad.style.height = `${page.offsetHeight * scale}px`;
       } else if (pad) {
         pad.style.width = '';
         pad.style.height = '';
@@ -458,7 +421,7 @@
       viewport.addEventListener(
         'wheel',
         (e) => {
-          if (document.body.classList.contains('is-pdf-export')) return;
+          if (document.body.classList.contains('pdf-export')) return;
           e.preventDefault();
           setEditorZoom(editorZoomPct + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
         },
@@ -499,19 +462,11 @@
       readPersistedAppData,
       loadPositions,
       savePositions,
-      captureCellStyles,
       restoreOverlaySettings,
       initEditorZoom,
       resetEditorZoomForExport,
-      applyEditorZoom,
       connectCellEditor(bridge) {
         cellBridge = bridge;
-      },
-      connectRowsEditor(bridge) {
-        rowsBridge = bridge;
-      },
-      initSavedRowsBaseline() {
-        loadPositions();
       },
       initOverlayToolbar() {
         if (global.CrewOverlayToolbar) {
@@ -524,5 +479,5 @@
     };
   }
 
-  global.PortOfCallFormEditor = { createEditor };
+  global.ShipStoresFormEditor = { createEditor };
 })(typeof window !== 'undefined' ? window : globalThis);

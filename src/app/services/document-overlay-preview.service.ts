@@ -83,9 +83,9 @@ export class DocumentOverlayPreviewService {
       case 'crewVaccine':
         return this.crewVaccinePdf.build(data);
       case 'shipStores':
-        return this.shipStoresPdf.build(data);
+        return this.shipStoresPdf.buildPdfBytes(data);
       case 'shipStores02':
-        return this.shipStores02Pdf.build(data);
+        return this.shipStores02Pdf.buildPdfBytes(data);
       case 'shipStores03':
         return this.shipStores03Pdf.build(data);
       case 'crewEffect':

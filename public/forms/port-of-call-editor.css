@@ -222,8 +222,13 @@ body.poc-editor {
   border: 1px solid #aaa;
   border-radius: 6px;
   max-height: calc(100vh - 24px);
-  overflow-x: hidden;
+  overflow-x: visible;
   overflow-y: auto;
+}
+
+.poc-editor .side-panel .cell-align-toolbar,
+.poc-editor .side-panel .overlay-toolbar {
+  overflow: visible;
 }
 
 .poc-editor .side-panel__title {
@@ -277,6 +282,66 @@ body.poc-editor {
 
 .poc-editor .overlay-marker.visible {
   display: block;
+  pointer-events: auto;
+}
+
+.poc-editor .ss-stamp.visible,
+.poc-editor .ss-signature.visible,
+.poc-editor #stamp-container.visible,
+.poc-editor #sig-container.visible {
+  pointer-events: auto;
+  cursor: move;
+  z-index: 20;
+  border: 1px dashed transparent;
+}
+
+.poc-editor .ss-stamp.visible:hover,
+.poc-editor .ss-signature.visible:hover,
+.poc-editor #stamp-container.visible:hover,
+.poc-editor #sig-container.visible:hover,
+.poc-editor .ss-stamp.visible:focus-within,
+.poc-editor .ss-signature.visible:focus-within,
+.poc-editor #stamp-container.visible:focus-within,
+.poc-editor #sig-container.visible:focus-within {
+  border-color: #2563eb;
+}
+
+.poc-editor .ss-stamp img,
+.poc-editor .ss-signature img,
+.poc-editor #stamp-container img,
+.poc-editor #sig-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.poc-editor .overlay-resize {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 10px;
+  height: 10px;
+  background: #1a56db;
+  border-radius: 2px;
+  cursor: nwse-resize;
+  z-index: 51;
+}
+
+.poc-editor .overlay-h {
+  position: absolute;
+  z-index: 50;
+  background: transparent;
+}
+
+.poc-editor .overlay-h--e { top: 12%; bottom: 12%; right: -3px; width: 8px; cursor: ew-resize; }
+.poc-editor .overlay-h--w { top: 12%; bottom: 12%; left: -3px; width: 8px; cursor: ew-resize; }
+.poc-editor .overlay-h--n { left: 12%; right: 12%; top: -3px; height: 8px; cursor: ns-resize; }
+.poc-editor .overlay-h--s { left: 12%; right: 12%; bottom: -3px; height: 8px; cursor: ns-resize; }
+
+body.pdf-export .overlay-resize,
+body.pdf-export .overlay-h {
+  display: none;
 }
 
 .poc-editor .overlay-marker img {

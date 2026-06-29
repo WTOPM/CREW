@@ -47,6 +47,7 @@ export function createEmptyAppData(): AppData {
     nationalities: [],
     portCallHistory: [],
     portOfCall: createDefaultPortOfCallSettings(),
+    shipStoresSettingsDocId: 'shipStores',
     shipStoresForm: createDefaultShipStoresForm(),
     shipStoresForm02: createDefaultShipStoresForm02(),
     shipStoresForm03: createDefaultShipStoresForm03(),

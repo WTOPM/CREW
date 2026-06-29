@@ -3,6 +3,8 @@
  * Value Y positions measured from reference Ship Stores.pdf; Arrival mark from coordinate picker.
  */
 
+import type { Port } from '../models/crew.models';
+
 export const SHIP_STORES_FONT = 9;
 
 export interface ShipStoresTextPlacement {
@@ -56,10 +58,18 @@ export function formatShipStoresPortsRoute(
   lastPortOfCall: string,
   nextPortOfCall: string,
   portOfCall: string,
+  ports: Port[],
   formatPort: (name: string) => string,
+  portCountryFn: (name: string, ports: Port[]) => string,
 ): string {
-  const from = formatPort(lastPortOfCall);
-  const to = formatPort(nextPortOfCall || portOfCall);
+  const fmt = (portName: string) => {
+    const name = formatPort(portName);
+    if (!name) return '';
+    const country = portCountryFn(portName, ports);
+    return country ? `${name}, ${country}` : name;
+  };
+  const from = fmt(lastPortOfCall);
+  const to = fmt(nextPortOfCall || portOfCall);
   if (from && to) return `${from} / ${to}`;
   return from || to;
 }

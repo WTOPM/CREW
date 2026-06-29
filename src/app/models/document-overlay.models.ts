@@ -42,6 +42,18 @@ export interface DocumentStampOptions {
 /** HTML form editors — date display in cells (dot / short month / full month). */
 export type HtmlFormDateDisplayFormat = 'dot' | 'shortMonth' | 'fullMonth';
 
+/** HTML Ship Stores forms 01 & 02 — stamp/signature CSS placement + cell overrides. */
+export interface ShipStoresHtmlFormStampOptions
+  extends Omit<DocumentStampOptions, 'stampBox' | 'signatureBox'> {
+  cellStyles?: Record<
+    string,
+    { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
+  >;
+  cellValues?: Record<string, string>;
+  stampBox?: PdfStampBox | CrewListForm05CssBox;
+  signatureBox?: PdfStampBox | CrewListForm05CssBox;
+}
+
 /** HTML Port of Call forms (01 list / 02 security) — stamp, cell styles, rows per page. */
 export interface PortOfCallHtmlFormStampOptions extends DocumentStampOptions {
   cellStyles?: Record<
@@ -82,6 +94,43 @@ export function documentUsesSignature(
   attachmentPage: boolean,
 ): boolean {
   return attachmentPage ? Boolean(options.useSignatureAttachment) : options.useSignature;
+}
+
+/** Stamp prefs that may store HTML editor CSS boxes instead of pdf-lib pt boxes. */
+export type HtmlAwareStampOptions = {
+  useStamp: boolean;
+  useSignature: boolean;
+  useStampAttachment?: boolean;
+  useSignatureAttachment?: boolean;
+  overlayRotation?: number;
+  overlayRotationAttachment?: number;
+  stampBox?: PdfStampBox | CrewListForm05CssBox;
+  signatureBox?: PdfStampBox | CrewListForm05CssBox;
+  stampBoxAttachment?: PdfStampBox | CrewListForm05CssBox;
+  signatureBoxAttachment?: PdfStampBox | CrewListForm05CssBox;
+};
+
+/** pdf-lib overlay paths — CSS HTML boxes are ignored (HTML forms render overlays separately). */
+export function asPdfStampOptions(options: HtmlAwareStampOptions): DocumentStampOptions {
+  const out: DocumentStampOptions = {
+    useStamp: options.useStamp,
+    useSignature: options.useSignature,
+    useStampAttachment: options.useStampAttachment,
+    useSignatureAttachment: options.useSignatureAttachment,
+    ...(typeof options.overlayRotation === 'number' ? { overlayRotation: options.overlayRotation } : {}),
+    ...(typeof options.overlayRotationAttachment === 'number'
+      ? { overlayRotationAttachment: options.overlayRotationAttachment }
+      : {}),
+    ...(isValidStampBox(options.stampBox) ? { stampBox: { ...options.stampBox } } : {}),
+    ...(isValidStampBox(options.stampBoxAttachment)
+      ? { stampBoxAttachment: { ...options.stampBoxAttachment } }
+      : {}),
+    ...(isValidStampBox(options.signatureBox) ? { signatureBox: { ...options.signatureBox } } : {}),
+    ...(isValidStampBox(options.signatureBoxAttachment)
+      ? { signatureBoxAttachment: { ...options.signatureBoxAttachment } }
+      : {}),
+  };
+  return out;
 }
 
 export function documentPageUsesOverlay(
@@ -439,8 +488,8 @@ export interface DocumentOverlayPrefs {
   portsOfCall: PortOfCallHtmlFormStampOptions;
   mdh: DocumentStampOptions;
   crewVaccine: DocumentStampOptions;
-  shipStores: DocumentStampOptions;
-  shipStores02: DocumentStampOptions;
+  shipStores: ShipStoresHtmlFormStampOptions;
+  shipStores02: ShipStoresHtmlFormStampOptions;
   shipStores03: DocumentStampOptions;
   crewEffect: CrewEffectStampOptions;
   crewEffect02: CrewEffectStampOptions;

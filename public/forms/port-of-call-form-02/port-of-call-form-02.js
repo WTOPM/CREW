@@ -268,6 +268,28 @@
     editor.initSavedRowsBaseline();
   }
 
+  function resetEditorPage() {
+    const appData = window._appData;
+    if (!appData || !POC.snapshotFromAppData) return;
+    const fresh = POC.snapshotFromAppData(appData, false, OVERLAY_KEY);
+    fresh.rowsPerPage = window.PortOfCallFormRows.DEFAULT_ROWS;
+    fresh.pages = POC.buildPagesFromData(appData, OVERLAY_KEY, fresh.rowsPerPage);
+    window._pocEditorSnapshot = fresh;
+    window.PortOfCallFormPages?.goTo?.(0);
+    renderAll(fresh, true);
+    initRowEditor({}, fresh);
+    initCellEditor({});
+    if (window.HtmlFormDateFormat) {
+      window.HtmlFormDateFormat.setActive('dot');
+      const page = document.querySelector('.a4-page');
+      if (page) window.HtmlFormDateFormat.applyToScope(page);
+    }
+    window.PortOfCallFormCells.resetAllCellStyles();
+    window.PortOfCallFormCells.captureDirtyBaseline();
+    window.PortOfCallFormRows?.syncToolbarButtons?.();
+    window.PortOfCallFormPages?.syncRowToolbar?.();
+  }
+
   function initCellEditor(overlayVariant) {
     const table = document.getElementById('poc-grid');
     if (!table) return;
@@ -290,6 +312,7 @@
     editor.connectCellEditor({
       collect: () => window.PortOfCallFormCells.collectCellStyles(),
       collectValues: (vo) => window.PortOfCallFormCells.collectCellValues(vo),
+      resetPage: resetEditorPage,
     });
   }
 

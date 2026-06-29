@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>01 - Ship Stores - Short</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="../port-of-call-editor.css" />
+  <link rel="stylesheet" href="../ship-stores-editor-chrome.css" />
+  <link rel="stylesheet" href="../cell-align-toolbar.css" />
+  <link rel="stylesheet" href="../overlay-toolbar.css" />
+  <link rel="stylesheet" href="ship-stores-declaration.css" />
+  <link rel="stylesheet" href="ship-stores-form-01.css" />
+</head>
+<body class="poc-editor ss-editor">
+  <div class="side-panel side-panel--left">
+    <button type="button" class="btn btn-save" onclick="persistAllChanges()">✓ Save</button>
+    <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">✗ Cancel</button>
+    <div class="side-panel__title">Format</div>
+    <select id="tb-font" class="side-panel__select" onchange="applyFormat('fontFamily', this.value)">
+      <option value="Arial">Arial</option>
+      <option value="Calibri">Calibri</option>
+      <option value="Times New Roman">Times New Roman</option>
+      <option value="Courier New">Courier New</option>
+    </select>
+    <select id="tb-size" class="side-panel__select" onchange="applyFormat('fontSize', this.value + 'pt')">
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8" selected>8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+    </select>
+    <div id="cell-align-toolbar" class="cell-align-toolbar" aria-label="Cell alignment"></div>
+    <div class="side-panel__title">Zoom</div>
+    <div class="zoom-controls">
+      <div class="zoom-controls__row">
+        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">−</button>
+        <span id="zoom-label" class="zoom-controls__pct">100%</span>
+        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-zoom-viewport" id="doc-zoom-viewport">
+    <div class="doc-zoom-pad" id="doc-zoom-pad">
+      <div class="doc-zoom-slot" id="doc-zoom-slot">
+        <div class="doc-zoom-stage" id="doc-zoom-stage">
+          <div id="ss-page" class="ssd-sheet a4-page">
+            <h1 class="ssd-title">IMO SHIP'S STORES DECLARATION</h1>
+
+            <div class="ssd-body">
+              <div class="ssd-table-area">
+                <div class="ssd-table-wrap">
+                  <div class="ssd-rail">
+                    <div class="ssd-rail__vertical">
+                      <span>IMO Convention on Facilitation of International Maritime Traffic</span>
+                    </div>
+                    <div class="ssd-rail__id">
+                      <span>IMO FAL Form 3</span>
+                    </div>
+                  </div>
+
+                  <div class="ssd-table-col">
+                  <table id="ssd-grid" class="ssd-table">
+                  <colgroup>
+                    <col style="width: 21%" />
+                    <col style="width: 14%" />
+                    <col style="width: 13%" />
+                    <col style="width: 26%" />
+                    <col style="width: 15%" />
+                    <col style="width: 11%" />
+                  </colgroup>
+                  <tbody>
+                    <tr class="ssd-tr-strip">
+                      <td colspan="3" rowspan="2" class="ssd-cell ssd-hdr-cell ssd-hdr-cell--tall">
+                        <label class="ssd-label">1.&nbsp;&nbsp;Name of ship</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-nameOfShip" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="2" class="ssd-cell ssd-cell--checks">
+                        <div class="ssd-cb-group">
+                          <label class="ssd-cb-item" onclick="setSsAd('arrival')">
+                            <span class="ssd-cb-box" id="ssd-cb-arr">✓</span>
+                            <span>Arrival</span>
+                          </label>
+                          <label class="ssd-cb-item" onclick="setSsAd('departure')">
+                            <span class="ssd-cb-box" id="ssd-cb-dep"></span>
+                            <span>Departure</span>
+                          </label>
+                        </div>
+                      </td>
+                      <td class="ssd-cell ssd-cell--page-no">
+                        <div class="ssd-page-no-row">
+                          <span class="ssd-label">Page No.</span>
+                          <input class="ci ci-hdr ssd-input--page-no" type="text" data-cell-key="h-pageNo" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="ssd-tr-h">
+                      <td class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">2.&nbsp;&nbsp;Port of <span class="ssd-ad-lbl" data-ad="arrival">arrival</span> / <span class="ssd-ad-lbl" data-ad="departure">departure</span></label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-port" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="2" class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">3.&nbsp;&nbsp;Date of <span class="ssd-ad-lbl" data-ad="arrival">arrival</span> / <span class="ssd-ad-lbl" data-ad="departure">departure</span></label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-date" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="ssd-tr-h">
+                      <td colspan="3" class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">4.&nbsp;&nbsp;Nationality of Ship</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-nationality" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="3" class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">5.&nbsp;&nbsp;Port arrived from / Port of Destination</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-portsRoute" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="ssd-tr-h ssd-tr-fields-678">
+                      <td colspan="6" class="ssd-cell ssd-row-678-wrap">
+                        <div class="ssd-row-678">
+                          <div class="ssd-hdr-cell ssd-hdr-cell--persons ssd-row-678__f6">
+                            <label class="ssd-label">6.&nbsp;&nbsp;Number of Persons on board</label>
+                            <div class="ssd-hdr-val">
+                              <input class="ci ci-hdr" type="text" data-cell-key="h-persons" readonly tabindex="-1" />
+                            </div>
+                          </div>
+                          <div class="ssd-row-678__right">
+                            <div class="ssd-hdr-cell ssd-hdr-cell--period">
+                              <label class="ssd-label">7.&nbsp;&nbsp;Period of stay</label>
+                              <div class="ssd-hdr-val">
+                                <input class="ci ci-hdr" type="text" data-cell-key="h-period" readonly tabindex="-1" />
+                              </div>
+                            </div>
+                            <div class="ssd-hdr-cell ssd-hdr-cell--storage">
+                              <label class="ssd-label">8.&nbsp;&nbsp;Place of storage</label>
+                              <div class="ssd-hdr-val">
+                                <input class="ci ci-hdr" type="text" data-cell-key="h-storage" readonly tabindex="-1" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="ssd-tr-cols">
+                      <td colspan="2" class="ssd-cell">
+                        <label class="ssd-label">9.&nbsp;&nbsp;Name of article</label>
+                      </td>
+                      <td class="ssd-cell">
+                        <label class="ssd-label">10.&nbsp;&nbsp;Quantity</label>
+                      </td>
+                      <td colspan="3" class="ssd-cell">
+                        <label class="ssd-label">11.&nbsp;&nbsp;For official use</label>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tbody id="ssd-articles"></tbody>
+                </table>
+                </div>
+                </div>
+
+                <div class="ssd-form-footer">
+                  <p class="ssd-foot-note">12.&nbsp;&nbsp;Date and signature by master, authorised agent or officer</p>
+                  <div class="ssd-form-footer__data-row">
+                    <input type="text" id="f-footer-date" class="ci form-footer__date" data-cell-key="footer-date" readonly tabindex="-1" placeholder="DD.MM.YYYY" />
+                    <div class="ssd-form-footer__master">
+                      <span class="sig-lbl">Master</span>
+                      <input type="text" id="f-master-name" class="ci form-footer__master" data-cell-key="footer-master" readonly tabindex="-1" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="stamp-container" class="ss-stamp"></div>
+            <div id="sig-container" class="ss-signature"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-panel side-panel--right">
+    <div class="overlay-toolbar" aria-label="Stamp and signature">
+      <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
+      <button type="button" class="btn btn-cancel btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
+    </div>
+    <p class="ss-editor-hint">Select cells to format. Data is loaded from CREW. Stamp and signature are draggable.</p>
+  </div>
+
+  <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
+    <div class="dg-archive-modal confirm-dialog confirm-dialog--danger" role="alertdialog" aria-modal="true"
+      aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" onclick="event.stopPropagation()">
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon confirm-dialog__icon confirm-dialog__icon--danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="confirm-dialog-title">Cancel changes</h3>
+          <p id="confirm-dialog-message" class="confirm-dialog__message">Are you sure you want to cancel? All unsaved changes will be lost.</p>
+        </div>
+      </header>
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmCancel()">Discard changes</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="../overlay-drag.js"></script>
+  <script src="../overlay-toolbar.js"></script>
+  <script src="../cell-align-toolbar.js"></script>
+  <script src="../html-form-pdf-snapshot.js"></script>
+  <script src="../html-form-date-format.js"></script>
+  <script src="../html-form-footer-fields.js"></script>
+  <script src="../crew-name-format.js"></script>
+  <script src="../ship-stores-pdf-common.js"></script>
+  <script src="ship-stores-form-01-data.js"></script>
+  <script src="../ship-stores-form-cells.js"></script>
+  <script src="../ship-stores-form-editor.js"></script>
+  <script src="ship-stores-form-01.js"></script>
+</body>
+</html>

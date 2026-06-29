@@ -145,6 +145,7 @@
         <button type="button"
           class="cell-align-toolbar__btn cell-align-toolbar__btn--text cell-align-toolbar__btn--date"
           data-date-format-cycle
+          data-tip="Change date format"
           aria-label="Change date format">16.06</button>
       </div>`
       : '';

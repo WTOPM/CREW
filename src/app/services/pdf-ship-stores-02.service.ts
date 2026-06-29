@@ -1,50 +1,24 @@
 import { Injectable, inject } from '@angular/core';
-import {
-  AppData,
-  CrewMember,
-  filterActiveCrewListFromData,
-  formatPortCallPortName,
-  portCountry,
-} from '../models/crew.models';
-import { filterActivePassengerListFromData } from '../models/passenger.models';
+import { AppData } from '../models/crew.models';
+import { shipStoresForm02EditorUrl } from '../models/ship-stores-form-02.paths';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { shipStores02PdfFileName } from '../utils/pdf-filename.util';
-import {
-  formatShipStoresQuantityText,
-  formatShipStoresUnitText,
-  normalizeShipStoresForm02,
-} from '../models/ship-stores.models';
-import { formatShipStoresPeriodOfStay, shipStoresPeriodDays } from './ship-stores-field-positions';
-import {
-  formatShipStores02PortsRoute,
-  SHIP_STORES_02_BODY_ARTICLE_MAX_WIDTH,
-  SHIP_STORES_02_BODY_ARTICLE_X,
-  SHIP_STORES_02_BODY_FONT_SIZE,
-  SHIP_STORES_02_BODY_QUANTITY_X,
-  SHIP_STORES_02_BODY_ROW_COUNT,
-  SHIP_STORES_02_BODY_UNIT_X,
-  SHIP_STORES_02_FIELDS,
-  SHIP_STORES_02_FONT,
-  SHIP_STORES_02_TEMPLATE_VERSION,
-  shipStores02BodyRowPdfLibY,
-  type ShipStores02TextPlacement,
-} from './ship-stores-02-field-positions';
-import { PdfOverlayService } from './pdf-overlay.service';
+import { captureHtmlFormPdfBytes } from '../utils/html-form-pdf-capture.util';
+import { buildShipStoresHtmlPdfSnapshot } from '../utils/ship-stores-html-pdf.util';
 
-const SHIP_STORES_02_TEMPLATE_URL = '/ship-stores-02-empty.pdf';
-
-/** Ship Stores form 02 — portrait, 1 page (123.pdf). */
+/**
+ * 02 - Ship Stores Long — HTML form at `public/forms/ship-stores-form-02/`.
+ */
 @Injectable({ providedIn: 'root' })
 export class PdfShipStores02Service {
-  private readonly overlay = inject(PdfOverlayService);
   private readonly delivery = inject(PdfDeliveryService);
 
-  private templateBytes: Uint8Array | null = null;
-  private loadedVersion = 0;
+  buildPdfBytes(data: AppData): Promise<Uint8Array> {
+    return this.capture(data, false);
+  }
 
-  async buildFinalBytes(data: AppData): Promise<Uint8Array> {
-    const bytes = await this.build(data);
-    return this.overlay.applyToPdfBytes(bytes, data.documentOverlay.shipStores02);
+  buildFinalBytes(data: AppData): Promise<Uint8Array> {
+    return this.capture(data, true);
   }
 
   async openPreview(data: AppData): Promise<boolean> {
@@ -58,136 +32,15 @@ export class PdfShipStores02Service {
     return shipStores02PdfFileName(ship.name, voyageDate);
   }
 
-  async build(data: AppData): Promise<Uint8Array> {
-    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
-    const template = await this.loadTemplate();
-    const doc = await PDFDocument.load(template);
-    const page = doc.getPages()[0];
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-    const black = rgb(0, 0, 0);
-
-    const draw = (text: string, placement: ShipStores02TextPlacement, useBold = false) => {
-      const value = text.trim();
-      if (!value) return;
-      page.drawText(value, {
-        x: placement.x,
-        y: placement.y,
-        size: placement.fontSize ?? SHIP_STORES_02_FONT,
-        font: useBold ? bold : font,
-        color: black,
-        ...(placement.maxWidth != null ? { maxWidth: placement.maxWidth } : {}),
-      });
-    };
-
-    const form = normalizeShipStoresForm02(data.shipStoresForm02);
-    this.drawHeader(draw, data, form.placeOfStorage);
-    this.drawBodyTable(page, font, black, form);
-
-    return doc.save();
-  }
-
-  private drawHeader(
-    draw: (text: string, placement: ShipStores02TextPlacement, useBold?: boolean) => void,
-    data: AppData,
-    placeOfStorage: string,
-  ): void {
-    const { ship, crewArr, ports } = data;
-    const isArrival = crewArr.isArrival;
-    const portsRoute = formatShipStores02PortsRoute(
-      ship.lastPortOfCall,
-      ship.nextPortOfCall,
-      ship.portOfCall,
-      ports,
-      formatPortCallPortName,
-      portCountry,
-    );
-    const periodDays = shipStoresPeriodDays(ship.dateOfArrival, ship.dateOfDeparture);
-
-    const list = isArrival ? 'arrival' : 'departure';
-    const crewCount = filterActiveCrewListFromData(data, list).length;
-    const paxCount = filterActivePassengerListFromData(data, list).length;
-
-    draw('1', SHIP_STORES_02_FIELDS.pageNo);
-    if (isArrival) {
-      draw('X', SHIP_STORES_02_FIELDS.arrivalMark);
-    } else {
-      draw('X', SHIP_STORES_02_FIELDS.departureMark);
-    }
-    draw(formatPortCallPortName(ship.name), SHIP_STORES_02_FIELDS.shipName, true);
-    draw(ship.imoNo, SHIP_STORES_02_FIELDS.imoNo, true);
-    draw(ship.callSign, SHIP_STORES_02_FIELDS.callSign, true);
-    draw(formatPortCallPortName(ship.nationality), SHIP_STORES_02_FIELDS.nationality, true);
-    draw(portsRoute, SHIP_STORES_02_FIELDS.portsRoute, true);
-    draw(placeOfStorage, SHIP_STORES_02_FIELDS.placeOfStorage, true);
-    draw(String(crewCount + paxCount), SHIP_STORES_02_FIELDS.personsOnBoard, true);
-    draw(formatShipStoresPeriodOfStay(periodDays), SHIP_STORES_02_FIELDS.periodOfStay, true);
-
-    const master = this.findMaster(filterActiveCrewListFromData(data, list));
-    if (master) {
-      draw(this.formatCaptainName(master), SHIP_STORES_02_FIELDS.captainName, true);
-    }
-  }
-
-  private findMaster(crew: CrewMember[]): CrewMember | undefined {
-    const exact = crew.find((m) => m.rank.trim().toLowerCase() === 'master');
-    if (exact) return exact;
-    return crew.find((m) => m.rank.trim().toLowerCase().includes('master'));
-  }
-
-  private formatCaptainName(member: Pick<CrewMember, 'familyName' | 'givenNames'>): string {
-    const parts = [member.familyName?.trim(), member.givenNames?.trim()].filter(Boolean);
-    return parts.join(' ').toUpperCase();
-  }
-
-  private drawBodyTable(
-    page: import('pdf-lib').PDFPage,
-    font: import('pdf-lib').PDFFont,
-    black: import('pdf-lib').RGB,
-    form: ReturnType<typeof normalizeShipStoresForm02>,
-  ): void {
-    const draw = (text: string, placement: ShipStores02TextPlacement) => {
-      const value = text.trim();
-      if (!value) return;
-      page.drawText(value, {
-        x: placement.x,
-        y: placement.y,
-        size: placement.fontSize ?? SHIP_STORES_02_BODY_FONT_SIZE,
-        font,
-        color: black,
-        ...(placement.maxWidth != null ? { maxWidth: placement.maxWidth } : {}),
-      });
-    };
-
-    const fontSize = SHIP_STORES_02_BODY_FONT_SIZE;
-    for (let i = 0; i < SHIP_STORES_02_BODY_ROW_COUNT; i++) {
-      const row = form.rows[i];
-      const y = shipStores02BodyRowPdfLibY(i);
-      draw(row.name, {
-        x: SHIP_STORES_02_BODY_ARTICLE_X,
-        y,
-        fontSize,
-        maxWidth: SHIP_STORES_02_BODY_ARTICLE_MAX_WIDTH,
-      });
-      const quantity = formatShipStoresQuantityText(row.name, row.quantity);
-      const unit = formatShipStoresUnitText(row.name, row.quantity, row.unit);
-      draw(quantity, { x: SHIP_STORES_02_BODY_QUANTITY_X, y, fontSize });
-      draw(unit, { x: SHIP_STORES_02_BODY_UNIT_X, y, fontSize });
-    }
-  }
-
-  private async loadTemplate(): Promise<Uint8Array> {
-    if (this.templateBytes && this.loadedVersion === SHIP_STORES_02_TEMPLATE_VERSION) {
-      return this.templateBytes;
-    }
-    const res = await fetch(`${SHIP_STORES_02_TEMPLATE_URL}?v=${SHIP_STORES_02_TEMPLATE_VERSION}`, {
-      cache: 'no-store',
+  private capture(data: AppData, withOverlay: boolean): Promise<Uint8Array> {
+    const snapshot = buildShipStoresHtmlPdfSnapshot(data, withOverlay, '02');
+    const url = shipStoresForm02EditorUrl({ pdfExport: '1' });
+    return captureHtmlFormPdfBytes({
+      url,
+      snapshot,
+      iframeWidth: '210mm',
+      iframeHeight: '297mm',
+      pageSelector: '.a4-page',
     });
-    if (!res.ok) {
-      throw new Error('Ship Stores 02 template not found (public/ship-stores-02-empty.pdf)');
-    }
-    this.templateBytes = new Uint8Array(await res.arrayBuffer());
-    this.loadedVersion = SHIP_STORES_02_TEMPLATE_VERSION;
-    return this.templateBytes;
   }
 }

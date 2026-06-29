@@ -392,6 +392,8 @@ export const PORT_SETTINGS_DOC_LABELS: Record<PortSettingsDocId, string> = Objec
   ]),
 ) as Record<PortSettingsDocId, string>;
 
+export const PORT_SETTINGS_DOC_PARAM = 'portSettingsDoc';
+
 export function normalizePortSettingsDocId(raw: unknown): PortSettingsDocId {
   if (raw === 'portsOfCall' || raw === 'sso0108') return raw;
   return 'portOfCall';
@@ -423,6 +425,8 @@ export const SHIP_STORES_DOC_LABELS: Record<ShipStoresDocId, string> = Object.fr
     `${shipStoresDocOrderNo(id)} - ${SHIP_STORES_DOC_NAMES[id]}`,
   ]),
 ) as Record<ShipStoresDocId, string>;
+
+export const SHIP_STORES_SETTINGS_DOC_PARAM = 'shipStoresSettingsDoc';
 
 export function normalizeShipStoresDocId(raw: unknown): ShipStoresDocId {
   if (raw === 'shipStores03') return 'shipStores03';
@@ -482,6 +486,8 @@ export function crewEffectFormField(
 export interface PortOfCallSettings {
   /** How many latest port calls to print in the PDF (pages of 11 rows each). */
   pdfRowCount: number;
+  /** Last selected document in Port Settings. */
+  settingsDocId: PortSettingsDocId;
 }
 
 export interface AppData {
@@ -503,6 +509,8 @@ export interface AppData {
   nationalities: string[];
   portCallHistory: PortCallHistoryEntry[];
   portOfCall: PortOfCallSettings;
+  /** Last selected document in Ship Stores settings. */
+  shipStoresSettingsDocId?: ShipStoresDocId;
   /** Ship Stores 01 — table (articles, quantities, place of storage). */
   shipStoresForm: ShipStoresFormSettings;
   /** Ship Stores 02 — separate table data (123.pdf). */
@@ -795,7 +803,7 @@ export function createDefaultCrewArrSettings(): CrewArrFormSettings {
 }
 
 export function createDefaultPortOfCallSettings(): PortOfCallSettings {
-  return { pdfRowCount: 10 };
+  return { pdfRowCount: 10, settingsDocId: 'portOfCall' };
 }
 
 export function createEmptyPortCallEntry(): PortCallHistoryEntry {

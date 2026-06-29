@@ -89,6 +89,16 @@ describe('normalizePortOfCallSettings', () => {
   it('keeps a valid value unchanged', () => {
     expect(normalizePortOfCallSettings({ pdfRowCount: 12 }).pdfRowCount).toBe(12);
   });
+
+  it('normalizes settingsDocId', () => {
+    expect(normalizePortOfCallSettings({}).settingsDocId).toBe('portOfCall');
+    expect(normalizePortOfCallSettings({ settingsDocId: 'portsOfCall' }).settingsDocId).toBe(
+      'portsOfCall',
+    );
+    expect(normalizePortOfCallSettings({ settingsDocId: 'invalid' as never }).settingsDocId).toBe(
+      'portOfCall',
+    );
+  });
 });
 
 describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
@@ -116,5 +126,48 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
       archived: false,
     };
     expect(rescueOrphanPassengers([orphan])[0].archived).toBe(true);
+  });
+
+  it('preserves Ship Stores HTML overlay CSS boxes, cell styles and values', () => {
+    const data = normalizeAppData({
+      documentOverlay: {
+        shipStores: {
+          useStamp: true,
+          useSignature: true,
+          stampBox: {
+            left: '142px',
+            top: '812px',
+            width: '180px',
+            height: '78px',
+          },
+          signatureBox: {
+            left: '155px',
+            top: '895px',
+            width: '140px',
+            height: '32px',
+          },
+          cellStyles: { 'd-0-0': { fontSize: '8pt' } },
+          cellValues: { 'h-port': 'GENOA', _ssMode: 'arrival' },
+        },
+      },
+    } as never);
+
+    const overlay = data.documentOverlay.shipStores;
+    expect(overlay.useStamp).toBe(true);
+    expect(overlay.useSignature).toBe(true);
+    expect(overlay.stampBox).toEqual({
+      left: '142px',
+      top: '812px',
+      width: '180px',
+      height: '78px',
+    });
+    expect(overlay.signatureBox).toEqual({
+      left: '155px',
+      top: '895px',
+      width: '140px',
+      height: '32px',
+    });
+    expect(overlay.cellStyles).toEqual({ 'd-0-0': { fontSize: '8pt' } });
+    expect(overlay.cellValues).toEqual({ 'h-port': 'GENOA', _ssMode: 'arrival' });
   });
 });

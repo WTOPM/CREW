@@ -89,5 +89,16 @@
     </table>
   </div>
 
-  <app-document-stamp-options [documentId]="stampDocumentId()" />
+  @if (usesHtmlEditor()) {
+    <div class="ss-html-settings">
+      <button type="button" class="btn btn-placement ss-html-settings__btn" (click)="openHtmlFormSettings()">
+        ⚙ Settings
+      </button>
+      <p class="ss-html-settings__hint">
+        Open the HTML editor to place stamp and signature on {{ docLabel() }}.
+      </p>
+    </div>
+  } @else {
+    <app-document-stamp-options [documentId]="stampDocumentId()" />
+  }
 </section>

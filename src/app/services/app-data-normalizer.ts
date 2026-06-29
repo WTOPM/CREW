@@ -34,7 +34,9 @@ import {
   migratePortsRaw,
   resolvePortRef,
   normalizePortSecLvl,
+  normalizePortSettingsDocId,
   normalizePortTerminals,
+  normalizeShipStoresDocId,
 } from '../models/crew.models';
 import {
   PassengerMember,
@@ -68,6 +70,7 @@ import {
   normalizeCrewListDocumentPrefs,
   type PaxHtmlFormStampOptions,
   type PortOfCallHtmlFormStampOptions,
+  type ShipStoresHtmlFormStampOptions,
 } from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 import { normalizeCrewSignatureByRow } from '../utils/crew-effect-signature.util';
@@ -174,6 +177,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     nationalities: mergeUniqueList(nationalities),
     portCallHistory,
     portOfCall,
+    shipStoresSettingsDocId: normalizeShipStoresDocId(raw.shipStoresSettingsDocId),
     shipStoresForm,
     shipStoresForm02,
     shipStoresForm03,
@@ -346,9 +350,12 @@ function normalizeDocumentOverlay(
     portsOfCall: normalizePortOfCallHtmlFormPrefs(raw?.portsOfCall, defaults.portsOfCall),
     mdh: normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
     crewVaccine: normalizeStampDocumentPrefs(raw?.crewVaccine, defaults.crewVaccine),
-    shipStores: normalizeStampDocumentPrefs(raw?.shipStores, defaults.shipStores),
-    shipStores02: normalizeStampDocumentPrefs(shipStores02Raw, defaults.shipStores02),
-    shipStores03: normalizeStampDocumentPrefs(shipStores03Raw, defaults.shipStores03),
+    shipStores: normalizeShipStoresHtmlFormPrefs(raw?.shipStores, defaults.shipStores),
+    shipStores02: normalizeShipStoresHtmlFormPrefs(shipStores02Raw, defaults.shipStores02),
+    shipStores03: normalizeStampDocumentPrefs(
+      shipStores03Raw as Partial<DocumentStampOptions> | undefined,
+      defaults.shipStores03,
+    ),
     crewEffect: normalizeCrewEffectStampPrefs(raw?.crewEffect, defaults.crewEffect),
     crewEffect02: normalizeCrewEffectStampPrefs(crewEffect02Raw, defaults.crewEffect02),
     crewEffect03: normalizeCrewEffectStampPrefs(crewEffect03Raw, defaults.crewEffect03),
@@ -388,12 +395,43 @@ function normalizeStampDocumentPrefs<T extends DocumentStampOptions>(
   return { ...defaults, ...extra, ...base } as T;
 }
 
+function preserveHtmlFormCssOverlayBoxes<
+  T extends { stampBox?: unknown; signatureBox?: unknown },
+>(raw: Partial<{ stampBox?: unknown; signatureBox?: unknown }> | undefined, out: T): void {
+  if (isCrewListForm05CssBox(raw?.stampBox)) {
+    out.stampBox = raw.stampBox;
+  }
+  if (isCrewListForm05CssBox(raw?.signatureBox)) {
+    out.signatureBox = raw.signatureBox;
+  }
+}
+
+function normalizeShipStoresHtmlFormPrefs(
+  raw: Partial<ShipStoresHtmlFormStampOptions> | undefined,
+  defaults: ShipStoresHtmlFormStampOptions,
+): ShipStoresHtmlFormStampOptions {
+  const base = normalizeStampDocumentPrefs(
+    raw as Partial<DocumentStampOptions>,
+    defaults as DocumentStampOptions,
+  );
+  const out: ShipStoresHtmlFormStampOptions = { ...base };
+  preserveHtmlFormCssOverlayBoxes(raw, out);
+  if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
+    out.cellStyles = raw.cellStyles;
+  }
+  if (raw?.cellValues && typeof raw.cellValues === 'object') {
+    out.cellValues = raw.cellValues;
+  }
+  return out;
+}
+
 function normalizePortOfCallHtmlFormPrefs(
   raw: Partial<PortOfCallHtmlFormStampOptions> | undefined,
   defaults: PortOfCallHtmlFormStampOptions,
 ): PortOfCallHtmlFormStampOptions {
   const base = normalizeStampDocumentPrefs(raw, defaults);
   const out: PortOfCallHtmlFormStampOptions = { ...base };
+  preserveHtmlFormCssOverlayBoxes(raw, out);
   if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
     out.cellStyles = raw.cellStyles;
   }
@@ -481,6 +519,7 @@ export function normalizePortOfCallSettings(
   const count = raw?.pdfRowCount ?? defaults.pdfRowCount;
   return {
     pdfRowCount: Math.min(POC_MAX_ROW_COUNT, Math.max(POC_MIN_ROW_COUNT, count)),
+    settingsDocId: normalizePortSettingsDocId(raw?.settingsDocId ?? defaults.settingsDocId),
   };
 }
 

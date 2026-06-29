@@ -1,6 +1,5 @@
 /**
- * Cell selection, alignment and font formatting for Port of Call HTML editors.
- * Same UX as crew/passenger forms: select cells → font / size / align toolbar.
+ * Cell selection, alignment and font formatting for Ship Stores Form 01 HTML editor.
  */
 (function (global) {
   let root = null;
@@ -11,7 +10,7 @@
 
   function editableRows() {
     if (!root) return [];
-    return Array.from(root.querySelectorAll('tr.poc-editable-row, tr.poc-th-row, #poc-tbody tr'));
+    return Array.from(root.querySelectorAll('#ssd-articles tr, .ssd-tr-h, .ssd-tr-strip'));
   }
 
   function rowCells(tr) {
@@ -53,15 +52,15 @@
   }
 
   function pageScope() {
-    return root?.closest('.a4-page') || root;
+    return document.getElementById('ss-page') || root?.closest('.ssd-sheet') || root;
   }
 
   function resolveCell(target) {
     if (!target) return null;
     const footer = target.closest(
-      '#poc-footer-date, #poc-footer-master, .poc-form-footer__date, .poc-form-footer__master, #f-footer-date, #f-master-name',
+      '#f-footer-date, #f-master-name, .form-footer__date, .form-footer__master',
     );
-    if (footer && (pageScope()?.contains(footer) || root?.contains(footer))) return footer;
+    if (footer && pageScope()?.contains(footer)) return footer;
     if (!root || !target || !root.contains(target)) return null;
     const direct = target.closest('.ci');
     if (direct) return direct;
@@ -116,65 +115,35 @@
   }
 
   function valWrapper(cell) {
-    return cell.closest('.poc-hdr-val, .poc02-hdr-val, .poc-data-val');
+    const qtyHalf = cell.closest('.ssd-qty-half');
+    if (qtyHalf) return qtyHalf;
+    return cell.closest('.ssd-hdr-val, .ssd-data-val, .ssd-sign-val');
   }
 
-  function isFooterField(input) {
-    return (
-      input.classList.contains('ci-footer') ||
-      input.classList.contains('poc-form-footer__date') ||
-      input.classList.contains('poc-form-footer__master') ||
-      input.dataset.cellKey === 'footer-date' ||
-      input.dataset.cellKey === 'footer-master'
-    );
-  }
-
-  function footerFieldValue(el) {
-    if (!el) return '';
-    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return el.value || '';
-    return (el.textContent || '').trim();
-  }
-
-  function flattenFooterForExport() {
-    document.querySelectorAll('.poc-form-footer').forEach((footer) => {
-      footer
-        .querySelectorAll('#poc-footer-date, .poc-form-footer__date, input.poc-form-footer__date')
-        .forEach((el) => {
-          const span = document.createElement('span');
-          span.className = 'poc-form-footer__date';
-          span.textContent = footerFieldValue(el);
-          span.style.cssText =
-            'display:inline;font-size:8pt;font-weight:700;text-align:left;white-space:nowrap;padding:0 1mm;line-height:1.35;';
-          el.replaceWith(span);
-        });
-      footer
-        .querySelectorAll('#poc-footer-master, .poc-form-footer__master, input.poc-form-footer__master')
-        .forEach((el) => {
-          const span = document.createElement('span');
-          span.className = 'poc-form-footer__master';
-          span.textContent = footerFieldValue(el);
-          span.style.cssText =
-            'display:inline-block;width:50mm;max-width:100%;text-align:center;font-size:8pt;font-weight:700;border-bottom:1px solid #000;line-height:1.35;box-sizing:border-box;';
-          el.replaceWith(span);
-        });
-    });
+  function qtyAlign(cell) {
+    const ta = (cell.style.textAlign || '').trim();
+    return ta === 'left' || ta === 'right' || ta === 'center' ? ta : 'center';
   }
 
   function syncCellFlexAlignment(cell) {
     const ta = cell.style.textAlign || '';
-    const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
     const wrapper = valWrapper(cell);
+    if (wrapper?.classList.contains('ssd-qty-half')) {
+      const align = qtyAlign(cell);
+      const jc = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
+      wrapper.style.justifyContent = jc;
+      cell.style.display = 'block';
+      cell.style.width = '100%';
+      cell.style.textAlign = align;
+      return;
+    }
+    const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
     if (wrapper && cell.classList.contains('ci')) {
       wrapper.style.justifyContent = jc;
       cell.style.display = 'block';
       return;
     }
-    const usesFlex =
-      cell.style.display === 'flex' ||
-      cell.classList.contains('ci-th') ||
-      cell.classList.contains('ci-rno');
-    if (usesFlex) {
-      cell.style.display = 'flex';
+    if (cell.style.display === 'flex') {
       cell.style.justifyContent = jc;
     }
   }
@@ -188,6 +157,10 @@
     cell.style.removeProperty('height');
     cell.style.display = 'block';
     cell.style.lineHeight = 'normal';
+    const wrapper = valWrapper(cell);
+    if (wrapper?.classList.contains('ssd-qty-half')) {
+      wrapper.style.removeProperty('justify-content');
+    }
     syncCellFlexAlignment(cell);
   }
 
@@ -217,6 +190,16 @@
     if (sizeSel) sizeSel.value = String(size);
   }
 
+  function isFooterField(input) {
+    return (
+      input.classList.contains('ci-footer') ||
+      input.classList.contains('form-footer__date') ||
+      input.classList.contains('form-footer__master') ||
+      input.dataset.cellKey === 'footer-date' ||
+      input.dataset.cellKey === 'footer-master'
+    );
+  }
+
   function styleRecord(el) {
     if (!el) return null;
     const style = {};
@@ -224,17 +207,6 @@
     if (el.style.fontSize) style.fontSize = el.style.fontSize;
     if (el.style.textAlign) style.textAlign = el.style.textAlign;
     return Object.keys(style).length ? style : null;
-  }
-
-  function isDataRowKey(key) {
-    return /^d-\d+-\d+$/.test(key);
-  }
-
-  function storageKeyFromDomKey(domKey, voyOffset) {
-    if (typeof voyOffset !== 'number' || !isDataRowKey(domKey)) return domKey;
-    const m = /^d-(\d+)-(\d+)$/.exec(domKey);
-    if (!m) return domKey;
-    return `d-${voyOffset + parseInt(m[1], 10)}-${m[2]}`;
   }
 
   function setCellValue(el, text) {
@@ -247,11 +219,6 @@
     const scope = pageScope() || root;
     if (!scope) return {};
     const cellStyles = {};
-    scope.querySelectorAll('[data-cell-key^="footer-"]').forEach((el) => {
-      const key = el.dataset.cellKey;
-      const style = styleRecord(el);
-      if (key && style) cellStyles[key] = style;
-    });
     scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
       const key = el.dataset.cellKey;
       const style = styleRecord(el);
@@ -260,37 +227,32 @@
     return cellStyles;
   }
 
-  function collectCellValues(voyOffset, scopeEl) {
-    const scope = scopeEl || pageScope() || root;
+  function collectCellValues() {
+    const scope = pageScope() || root;
     if (!scope) return {};
     const cellValues = {};
-    scope.querySelectorAll('input.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
-      const domKey = el.dataset.cellKey;
-      if (!domKey) return;
-      cellValues[storageKeyFromDomKey(domKey, voyOffset)] = cellText(el);
+    scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
+      const key = el.dataset.cellKey;
+      if (key) cellValues[key] = cellText(el);
     });
     return cellValues;
   }
 
-  function restoreCellValues(cellValues, scopeEl, voyOffset) {
-    const scope = scopeEl || root;
+  function restoreCellValues(cellValues, scopeEl) {
+    const scope = scopeEl || pageScope() || root;
     if (!scope || !cellValues) return;
-    scope.querySelectorAll('input.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
-      const domKey = el.dataset.cellKey;
-      if (!domKey) return;
-      const storageKey = storageKeyFromDomKey(domKey, voyOffset);
-      let val = cellValues[storageKey];
-      if (val === undefined && isDataRowKey(domKey)) val = cellValues[domKey];
-      if (val === undefined) return;
-      setCellValue(el, val);
+    scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
+      const key = el.dataset.cellKey;
+      if (!key || cellValues[key] === undefined) return;
+      setCellValue(el, cellValues[key]);
       reflowCell(el);
     });
   }
 
   function restoreCellStyles(cellStyles, scopeEl) {
-    const scope = scopeEl || root;
+    const scope = scopeEl || pageScope() || root;
     if (!scope || !cellStyles) return;
-    scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
+    scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
       const style = cellStyles[el.dataset.cellKey];
       if (!style) return;
       if (style.fontFamily) el.style.fontFamily = style.fontFamily;
@@ -301,9 +263,9 @@
   }
 
   function flattenInputsForExport(scopeEl) {
-    const scope = scopeEl || root || document;
+    const scope = scopeEl || pageScope() || root || document;
     if (!scope) return;
-    scope.querySelectorAll('input.ci, input.fi').forEach((input) => {
+    scope.querySelectorAll('input.ci').forEach((input) => {
       const replacement = document.createElement('div');
       replacement.className = input.className;
       replacement.textContent = input.value || '';
@@ -311,8 +273,20 @@
       replacement.style.background = 'transparent';
       replacement.style.overflow = 'hidden';
 
+      const half = input.closest('.ssd-qty-half');
       const wrapper = valWrapper(input);
-      if (wrapper) {
+      if (half) {
+        replacement.style.display = 'block';
+        replacement.style.width = '100%';
+        replacement.style.lineHeight = '1.15';
+        replacement.style.padding = '0';
+        replacement.style.margin = '0';
+        replacement.style.whiteSpace = 'nowrap';
+        replacement.style.fontWeight = '700';
+        if (input.style.fontSize) replacement.style.fontSize = input.style.fontSize;
+        if (input.style.fontFamily) replacement.style.fontFamily = input.style.fontFamily;
+        replacement.style.textAlign = qtyAlign(input);
+      } else if (wrapper) {
         replacement.style.display = 'block';
         replacement.style.width = '100%';
         replacement.style.lineHeight = 'normal';
@@ -321,29 +295,14 @@
         replacement.style.textOverflow = 'ellipsis';
         replacement.style.whiteSpace = 'nowrap';
         replacement.style.textAlign = input.style.textAlign || 'center';
-      } else if (input.classList.contains('ci-th')) {
-        replacement.style.cssText = input.style.cssText;
-        replacement.style.display = 'flex';
-        replacement.style.alignItems = 'center';
-        replacement.style.justifyContent =
-          input.style.textAlign === 'center'
-            ? 'center'
-            : input.style.textAlign === 'right'
-              ? 'flex-end'
-              : 'flex-start';
-        replacement.style.width = '100%';
-        replacement.style.height = '100%';
+        replacement.style.fontWeight = '700';
       } else if (isFooterField(input)) {
         replacement.style.cssText = input.style.cssText;
         replacement.style.display = 'block';
         replacement.style.height = 'auto';
         replacement.style.minHeight = '0';
         replacement.style.overflow = 'visible';
-        replacement.style.textOverflow = 'clip';
         replacement.style.whiteSpace = 'nowrap';
-        if (input.classList.contains('poc-form-footer__master')) {
-          replacement.style.borderBottom = '1px solid #000';
-        }
       } else {
         replacement.style.cssText = input.style.cssText;
         replacement.style.display = 'flex';
@@ -368,7 +327,7 @@
     if (page) {
       page.addEventListener('mousedown', (e) => {
         const cell = e.target.closest(
-          '#poc-footer-date, #poc-footer-master, .poc-form-footer__date, .poc-form-footer__master',
+          '#f-footer-date, #f-master-name, .form-footer__date, .form-footer__master',
         );
         if (!cell) return;
         e.preventDefault();
@@ -420,7 +379,7 @@
     });
 
     document.body.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.a4-page')) return;
+      if (e.target.closest('#ss-page, .ssd-sheet, .a4-page')) return;
       if (e.target.closest('.side-panel')) return;
       if (e.target.closest('.confirm-backdrop')) return;
       dismissSelection();
@@ -431,7 +390,7 @@
     const scope = pageScope() || root;
     if (!scope) return '';
     const parts = [];
-    scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
+    scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
       parts.push({
         k: el.dataset.cellKey,
         v: cellText(el),
@@ -441,11 +400,8 @@
     return JSON.stringify(parts);
   }
 
-  function captureDirtyBaseline() {
-    dirtyBaseline = captureDirtySnapshot();
-  }
-
-  function resetCellStylesInScope(scope) {
+  function resetCellStyles(scopeEl) {
+    const scope = scopeEl || pageScope() || root;
     if (!scope) return;
     scope.querySelectorAll('.ci').forEach((cell) => {
       cell.style.removeProperty('font-family');
@@ -454,16 +410,16 @@
       cell.classList.remove('selected');
       reflowCell(cell);
     });
-  }
-
-  function resetAllCellStyles() {
-    document.querySelectorAll('.poc-grid, .poc02-grid, .poc-form-footer').forEach(resetCellStylesInScope);
     dismissSelection();
     const fontSel = document.getElementById('tb-font');
     const sizeSel = document.getElementById('tb-size');
     if (fontSel) fontSel.value = 'Arial';
     if (sizeSel) sizeSel.value = '8';
     if (global.CrewCellAlignToolbar?.syncSelection) global.CrewCellAlignToolbar.syncSelection();
+  }
+
+  function captureDirtyBaseline() {
+    dirtyBaseline = captureDirtySnapshot();
   }
 
   function isDirty() {
@@ -478,52 +434,27 @@
     if (global.CrewCellAlignToolbar) {
       global.CrewCellAlignToolbar.init({
         getSelectedCells: () => selectedCells,
-        showDateFormat: true,
+        showDateFormat: false,
       });
     }
     requestAnimationFrame(() => {
-      root?.querySelectorAll('input.ci[data-cell-key]').forEach((el) => reflowCell(el));
+      pageScope()?.querySelectorAll('input.ci[data-cell-key]').forEach((el) => reflowCell(el));
     });
   }
 
-  global.PortOfCallFormCells = {
+  global.ShipStoresFormCells = {
     init,
     collectCellStyles,
     collectCellValues,
     restoreCellStyles,
     restoreCellValues,
     flattenInputsForExport,
-    restoreAllCellStyles(cellStyles) {
-      document.querySelectorAll('.poc-grid, .poc02-grid').forEach((grid) => {
-        restoreCellStyles(cellStyles, grid);
-      });
-      document.querySelectorAll('.poc-form-footer').forEach((footer) => {
-        restoreCellStyles(cellStyles, footer);
-      });
-    },
-    restoreAllCellValues(cellValues, rowsPerPage) {
-      const rows = typeof rowsPerPage === 'number' ? rowsPerPage : 11;
-      document.querySelectorAll('.a4-page').forEach((pageEl) => {
-        const pageIndex = parseInt(pageEl.dataset.page, 10) || 0;
-        const voyOffset = pageIndex * rows;
-        const grid = pageEl.querySelector('.poc-grid, .poc02-grid');
-        if (grid) restoreCellValues(cellValues, grid, voyOffset);
-        const footer = pageEl.querySelector('.poc-form-footer');
-        if (footer) restoreCellValues(cellValues, footer, voyOffset);
-      });
-    },
-    flattenAllInputsForExport() {
-      flattenFooterForExport();
-      flattenInputsForExport(document);
-    },
     reflowAllWrappedCells() {
-      document
-        .querySelectorAll('.poc-hdr-val .ci, .poc02-hdr-val .ci, .poc-data-val .ci')
-        .forEach((el) => reflowCell(el));
+      document.querySelectorAll('.ssd-hdr-val .ci, .ssd-data-val .ci, .ssd-sign-val .ci, .ssd-qty-half .ci').forEach((el) => reflowCell(el));
     },
     getSelectedCells: () => selectedCells,
     dismissSelection,
-    resetAllCellStyles,
+    resetCellStyles,
     captureDirtyBaseline,
     isDirty,
     reflowCell,

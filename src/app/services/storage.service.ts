@@ -8,6 +8,7 @@ import {
   shipFieldPersistNotify,
   areCrewListsInSync,
   crewListDiffCounts,
+  normalizeShipStoresDocId,
 } from '../models/crew.models';
 import {
   sortPassengersByName,
@@ -33,6 +34,9 @@ export class StorageService {
   readonly nationalities = computed(() => this.data().nationalities);
   readonly portCallHistory = computed(() => this.data().portCallHistory);
   readonly portOfCall = computed(() => this.data().portOfCall);
+  readonly shipStoresSettingsDocId = computed(() =>
+    normalizeShipStoresDocId(this.data().shipStoresSettingsDocId),
+  );
   readonly shipStoresForm = computed(() => this.data().shipStoresForm);
   readonly shipStoresForm02 = computed(() => this.data().shipStoresForm02);
   readonly shipStoresForm03 = computed(() => this.data().shipStoresForm03);

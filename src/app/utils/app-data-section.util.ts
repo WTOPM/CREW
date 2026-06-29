@@ -39,6 +39,7 @@ export function pickSectionSlice(data: AppData, section: AppSection): Partial<Ap
         paxArr: data.paxArr,
         portCallHistory: data.portCallHistory,
         portOfCall: data.portOfCall,
+        shipStoresSettingsDocId: data.shipStoresSettingsDocId,
         shipStoresForm: data.shipStoresForm,
         shipStoresForm02: data.shipStoresForm02,
         shipStoresForm03: data.shipStoresForm03,
