@@ -120,7 +120,7 @@ export class StorageService {
     this.data.update((d) => ({ ...d, ship: { ...d.ship, ...partial } }));
     const fields = Object.keys(partial) as (keyof ShipInfo)[];
     const mode = notify ?? (fields.length === 1 ? shipFieldPersistNotify(fields[0]) : 'debounced');
-    void this.persist(mode, savedMessage);
+    void this.state.persistShip(mode, savedMessage);
   }
 
   updateCrewArr(partial: Partial<AppData['crewArr']>, notify: 'silent' | 'saved' = 'saved'): void {

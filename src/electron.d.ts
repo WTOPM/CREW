@@ -15,7 +15,15 @@ export interface AcquireSectionLockResult {
   ok: boolean;
   lock?: SectionLockRecord;
   heldBy?: SectionLockRecord;
+  previousHolder?: SectionLockRecord;
   error?: string;
+}
+
+export type SectionLockBannerKind = 'view-only' | 'displaced';
+
+export interface SectionLockBanner {
+  kind: SectionLockBannerKind;
+  message: string;
 }
 
 export interface ElectronLocalPrefs {
@@ -32,6 +40,11 @@ declare global {
       getDataPath: () => Promise<string>;
       getClientInfo: () => Promise<{ hostName: string; userName: string }>;
       acquireSectionLock: (
+        section: AppSection,
+        clientId: string,
+        displayName: string,
+      ) => Promise<AcquireSectionLockResult>;
+      forceAcquireSectionLock: (
         section: AppSection,
         clientId: string,
         displayName: string,

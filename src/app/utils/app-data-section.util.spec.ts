@@ -40,4 +40,25 @@ describe('app-data-section.util', () => {
     expect(saved.crew[0]?.familyName).toBe('MEM');
     expect(saved.etaLibrary.draft.name).not.toBe('X');
   });
+
+  it('mergeSectionForSave always persists outputSettings from memory', () => {
+    const disk = createEmptyAppData();
+    disk.outputSettings = { ...disk.outputSettings, saveToFolder: false, activePath: 'disk-path' };
+    const memory = createEmptyAppData();
+    memory.outputSettings = { ...memory.outputSettings, saveToFolder: true, activePath: 'mem-path' };
+
+    const saved = mergeSectionForSave(disk, memory, 'home');
+    expect(saved.outputSettings.saveToFolder).toBe(true);
+    expect(saved.outputSettings.activePath).toBe('mem-path');
+  });
+
+  it('mergeSectionForSave always persists ship from memory on Home', () => {
+    const disk = createEmptyAppData();
+    disk.ship = { ...disk.ship, portOfCall: 'Hamburg' };
+    const memory = createEmptyAppData();
+    memory.ship = { ...memory.ship, portOfCall: 'Rotterdam' };
+
+    const saved = mergeSectionForSave(disk, memory, 'home');
+    expect(saved.ship.portOfCall).toBe('Rotterdam');
+  });
 });

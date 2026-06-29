@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getClientInfo: () => ipcRenderer.invoke('get-client-info'),
   acquireSectionLock: (section, clientId, displayName) =>
     ipcRenderer.invoke('acquire-section-lock', section, clientId, displayName),
+  forceAcquireSectionLock: (section, clientId, displayName) =>
+    ipcRenderer.invoke('force-acquire-section-lock', section, clientId, displayName),
   renewSectionLock: (section, clientId) =>
     ipcRenderer.invoke('renew-section-lock', section, clientId),
   releaseSectionLock: (section, clientId) =>

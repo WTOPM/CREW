@@ -1,4 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
+import type { SectionLockBanner } from '../../electron';
 import {
   APP_SECTION_LABELS,
   AppSection,
@@ -23,15 +24,33 @@ export class SectionLockService {
   readonly activeSection = signal<AppSection | null>(null);
   readonly readOnly = signal(false);
   readonly heldBy = signal<SectionLockRecord | null>(null);
+  /** Set when another user force-took the lock while we were editing. */
+  readonly displacedBy = signal<SectionLockRecord | null>(null);
   readonly peerLocks = signal<Partial<Record<AppSection, SectionLockRecord>>>({});
+  /** Increments when this workstation loses the active section lock. */
+  readonly lockLostTick = signal(0);
 
   readonly cooperativeMode = computed(() => !!window.electronAPI?.acquireSectionLock);
 
-  readonly bannerMessage = computed(() => {
-    if (!this.readOnly() || !this.activeSection()) return null;
-    const section = APP_SECTION_LABELS[this.activeSection()!];
-    const who = this.heldBy()?.displayName || 'Another user';
-    return `${who} is editing ${section}. View only — your changes here will not be saved.`;
+  readonly lockBanner = computed((): SectionLockBanner | null => {
+    const section = this.activeSection();
+    if (!section || !this.cooperativeMode()) return null;
+    const label = APP_SECTION_LABELS[section];
+    if (this.displacedBy()) {
+      const who = this.displacedBy()!.displayName || 'Another user';
+      return {
+        kind: 'displaced',
+        message: `${who} took over ${label}. Your unsaved edits here were discarded.`,
+      };
+    }
+    if (this.readOnly()) {
+      const who = this.heldBy()?.displayName || 'Another user';
+      return {
+        kind: 'view-only',
+        message: `${who} is editing ${label}. View only — changes here will not be saved.`,
+      };
+    }
+    return null;
   });
 
   private clientId = '';
@@ -76,6 +95,7 @@ export class SectionLockService {
     await this.ensureClient();
     await this.releaseCurrent();
     this.activeSection.set(section);
+    this.displacedBy.set(null);
     if (!section || !this.cooperativeMode()) {
       this.readOnly.set(false);
       this.heldBy.set(null);
@@ -98,7 +118,7 @@ export class SectionLockService {
   async releaseCurrent(): Promise<void> {
     this.stopHeartbeat();
     const section = this.activeSection();
-    if (section && this.cooperativeMode() && !this.readOnly()) {
+    if (section && this.cooperativeMode() && !this.readOnly() && !this.displacedBy()) {
       await window.electronAPI?.releaseSectionLock(section, this.clientId);
     }
     await this.refreshPeerLocks();
@@ -109,8 +129,25 @@ export class SectionLockService {
       this.peerLocks.set({});
       return;
     }
+    await this.verifyStillHoldingLock();
     const locks = await window.electronAPI!.listSectionLocks();
     this.peerLocks.set(locks ?? {});
+  }
+
+  /** Force-take the active section lock from another workstation. */
+  async takeOverControl(): Promise<boolean> {
+    const section = this.activeSection();
+    if (!section || !this.cooperativeMode()) return false;
+    await this.ensureClient();
+    const api = window.electronAPI!;
+    const result = await api.forceAcquireSectionLock(section, this.clientId, this.displayName);
+    if (!result.ok) return false;
+    this.readOnly.set(false);
+    this.heldBy.set(null);
+    this.displacedBy.set(null);
+    this.startHeartbeat(section);
+    await this.refreshPeerLocks();
+    return true;
   }
 
   /** Re-read lock for the active section (e.g. after manual refresh — other user may have left). */
@@ -120,19 +157,18 @@ export class SectionLockService {
     const api = window.electronAPI!;
     const lock = await api.readSectionLock(section);
     if (!lock || lock.clientId === this.clientId) {
-      if (this.readOnly()) {
+      if (this.readOnly() || this.displacedBy()) {
         const result = await api.acquireSectionLock(section, this.clientId, this.displayName);
         if (result.ok) {
           this.readOnly.set(false);
           this.heldBy.set(null);
+          this.displacedBy.set(null);
           this.startHeartbeat(section);
         }
       }
       return;
     }
-    this.readOnly.set(true);
-    this.heldBy.set(lock);
-    this.stopHeartbeat();
+    await this.handleLockLost(section, lock);
   }
 
   navLockState(section: AppSection): SectionNavLockState {
@@ -153,7 +189,6 @@ export class SectionLockService {
     return label;
   }
 
-  /** Short badge on nav tab (null = no badge). */
   navLockBadge(section: AppSection): string | null {
     const state = this.navLockState(section);
     if (state === 'free') return null;
@@ -167,13 +202,38 @@ export class SectionLockService {
     if (!this.cooperativeMode()) return true;
     const section = this.activeSection();
     if (!section) return true;
-    return !this.readOnly();
+    return !this.readOnly() && !this.displacedBy();
+  }
+
+  private async verifyStillHoldingLock(): Promise<void> {
+    const section = this.activeSection();
+    if (!section || this.readOnly() || this.displacedBy()) return;
+    const lock = await window.electronAPI!.readSectionLock(section);
+    if (lock && lock.clientId !== this.clientId) {
+      await this.handleLockLost(section, lock);
+    }
+  }
+
+  private async handleLockLost(section: AppSection, lock: SectionLockRecord): Promise<void> {
+    this.stopHeartbeat();
+    this.readOnly.set(true);
+    this.heldBy.set(lock);
+    this.displacedBy.set(lock);
+    this.lockLostTick.update((n) => n + 1);
   }
 
   private startHeartbeat(section: AppSection): void {
     this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
-      void window.electronAPI?.renewSectionLock(section, this.clientId);
+      void window.electronAPI?.renewSectionLock(section, this.clientId).then((res) => {
+        if (!res?.ok) {
+          void window.electronAPI?.readSectionLock(section).then((lock) => {
+            if (lock && lock.clientId !== this.clientId) {
+              void this.handleLockLost(section, lock);
+            }
+          });
+        }
+      });
     }, HEARTBEAT_MS);
   }
 

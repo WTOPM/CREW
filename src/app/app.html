@@ -187,8 +187,22 @@
       </div>
     </div>
   </nav>
-  @if (sectionLockBanner(); as msg) {
-    <div class="section-lock-banner" role="status">{{ msg }}</div>
+  @if (sectionLockBanner(); as banner) {
+    <div
+      class="section-lock-banner"
+      [class.section-lock-banner--displaced]="banner.kind === 'displaced'"
+      role="status"
+    >
+      <span class="section-lock-banner__text">{{ banner.message }}</span>
+      <button
+        type="button"
+        class="section-lock-takeover-btn"
+        [disabled]="takeOverBusy()"
+        (click)="takeOverSection()"
+      >
+        TAKE OVER CONTROL
+      </button>
+    </div>
   }
   <main class="app-main" [class.app-main--readonly]="sectionReadOnly()">
     <router-outlet />

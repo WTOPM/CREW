@@ -143,7 +143,7 @@ export class DocumentSettingsStore {
       ...d,
       outputSettings: normalizeOutputSettings({ ...d.outputSettings, ...partial }),
     }));
-    void this.state.persist(notify);
+    void this.state.persistOutputSettings(notify);
   }
 
   /** Remember a folder path and make it the active output target. */
@@ -159,7 +159,7 @@ export class DocumentSettingsStore {
         savedPaths: [p, ...d.outputSettings.savedPaths.filter((x) => x !== p)],
       }),
     }));
-    void this.state.persist('saved');
+    void this.state.persistOutputSettings('saved');
   }
 
   removeSavedPath(path: string): void {
@@ -175,7 +175,7 @@ export class DocumentSettingsStore {
         }),
       };
     });
-    void this.state.persist('silent');
+    void this.state.persistOutputSettings('silent');
   }
 
   setPrinterName(printerName: string): void {

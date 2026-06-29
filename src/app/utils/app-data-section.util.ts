@@ -87,6 +87,16 @@ export function mergeSectionForSave(disk: AppData, memory: AppData, section: App
   return {
     ...disk,
     ...pickSectionSlice(memory, section),
+    /** Voyage fields edited on Home; output folder from the top bar on any tab. */
+    ship: memory.ship,
+    outputSettings: memory.outputSettings,
+    /** Document overlay prefs edited from Home document menus. */
+    ...(section === 'home'
+      ? {
+          documentOverlay: memory.documentOverlay,
+          shipAssets: memory.shipAssets,
+        }
+      : {}),
     seedVersion: APP_DATA_SCHEMA_VERSION,
   };
 }

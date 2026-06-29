@@ -115,6 +115,68 @@ export class AppStateStore {
     } else {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(memory));
     }
+    this.afterPersist(notify, savedMessage);
+  }
+
+  /**
+   * Save folder/printer output settings immediately — not tied to the active section lock
+   * (top-bar control is available on every tab).
+   */
+  async persistOutputSettings(
+    notify: PersistNotify = 'silent',
+    savedMessage?: string,
+  ): Promise<void> {
+    const memory = this.data();
+    const electron = window.electronAPI;
+    if (electron) {
+      const loaded = await electron.readData();
+      const disk = normalizeAppData(loaded ?? createEmptyAppData());
+      await electron.writeData({
+        ...disk,
+        outputSettings: memory.outputSettings,
+        seedVersion: APP_DATA_SCHEMA_VERSION,
+      });
+    } else {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...memory, seedVersion: APP_DATA_SCHEMA_VERSION }),
+      );
+    }
+    this.afterPersist(notify, savedMessage);
+  }
+
+  /** Save ship/voyage fields immediately — edited on Home, stored under Settings in the slice map. */
+  async persistShip(notify: PersistNotify = 'silent', savedMessage?: string): Promise<void> {
+    if (!this.sectionLock.canPersist()) {
+      if (notify !== 'silent') {
+        this.toast.show(
+          'View only — another user is editing this section. Changes were not saved.',
+          'warning',
+        );
+      }
+      return;
+    }
+
+    const memory = this.data();
+    const electron = window.electronAPI;
+    if (electron) {
+      const loaded = await electron.readData();
+      const disk = normalizeAppData(loaded ?? createEmptyAppData());
+      await electron.writeData({
+        ...disk,
+        ship: memory.ship,
+        seedVersion: APP_DATA_SCHEMA_VERSION,
+      });
+    } else {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...memory, seedVersion: APP_DATA_SCHEMA_VERSION }),
+      );
+    }
+    this.afterPersist(notify, savedMessage);
+  }
+
+  private afterPersist(notify: PersistNotify, savedMessage?: string): void {
     if (notify === 'silent') {
       this.formSessionDirty = true;
     } else if (notify === 'saved') {

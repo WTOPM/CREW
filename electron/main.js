@@ -4,6 +4,12 @@ const fs = require('fs');
 const os = require('os');
 const { pathToFileURL } = require('url');
 
+/** One CREW window per machine — second launch focuses the existing instance. */
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
+
 /**
  * In the packaged app the renderer is served over a custom privileged scheme
  * (app://) instead of file://. This is REQUIRED because the document templates
@@ -525,11 +531,36 @@ ipcMain.handle('acquire-section-lock', (_event, section, clientId, displayName) 
     section,
     clientId,
     displayName: String(displayName || 'User'),
-    acquiredAt: existing?.acquiredAt ?? now,
+    acquiredAt: existing?.clientId === clientId ? (existing.acquiredAt ?? now) : now,
     heartbeatAt: now,
   };
   fs.writeFileSync(sectionLockPath(section), JSON.stringify(lock, null, 2), 'utf-8');
   return { ok: true, lock };
+});
+
+ipcMain.handle('force-acquire-section-lock', (_event, section, clientId, displayName) => {
+  if (!SECTION_LOCK_IDS.includes(section)) {
+    return { ok: false, error: 'invalid section' };
+  }
+  ensureDataDir();
+  fs.mkdirSync(getLocksDir(), { recursive: true });
+  clearStaleSectionLock(section);
+  const previousHolder = readSectionLock(section);
+  const now = Date.now();
+  const lock = {
+    section,
+    clientId,
+    displayName: String(displayName || 'User'),
+    acquiredAt: now,
+    heartbeatAt: now,
+  };
+  fs.writeFileSync(sectionLockPath(section), JSON.stringify(lock, null, 2), 'utf-8');
+  return {
+    ok: true,
+    lock,
+    previousHolder:
+      previousHolder && previousHolder.clientId !== clientId ? previousHolder : undefined,
+  };
 });
 
 ipcMain.handle('renew-section-lock', (_event, section, clientId) => {
@@ -868,21 +899,27 @@ ipcMain.handle('set-local-prefs', (_event, patch) => {
   return next;
 });
 
-app.whenReady().then(() => {
-  if (app.isPackaged) registerAppProtocol();
-  const prefs = readLocalPrefs();
-  applyMinimizeToTrayPref(prefs.minimizeToTray);
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (gotSingleInstanceLock) {
+  app.on('second-instance', () => {
+    showMainWindowFromTray();
   });
-});
 
-app.on('window-all-closed', () => {
-  if (minimizeToTrayEnabled && mainWindow && !appIsQuitting) return;
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.whenReady().then(() => {
+    if (app.isPackaged) registerAppProtocol();
+    const prefs = readLocalPrefs();
+    applyMinimizeToTrayPref(prefs.minimizeToTray);
+    createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
 
-app.on('before-quit', () => {
-  appIsQuitting = true;
-});
+  app.on('window-all-closed', () => {
+    if (minimizeToTrayEnabled && mainWindow && !appIsQuitting) return;
+    if (process.platform !== 'darwin') app.quit();
+  });
+
+  app.on('before-quit', () => {
+    appIsQuitting = true;
+  });
+}
