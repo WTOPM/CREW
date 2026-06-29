@@ -182,6 +182,9 @@
       if (overlayKey === 'shipStores' && global.ShipStoresForm01?.collectIntoAppData) {
         global.ShipStoresForm01.collectIntoAppData(appData);
       }
+      if (overlayKey === 'shipStores02' && global.ShipStoresForm02?.collectIntoAppData) {
+        global.ShipStoresForm02.collectIntoAppData(appData);
+      }
       if (!appData.documentOverlay) appData.documentOverlay = {};
       const prev = appData.documentOverlay[overlayKey] || {};
       const stampBox = overlayCssBox(global._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));

@@ -396,8 +396,9 @@
 }
 
 .ss-modal.modal-wide {
-  max-width: 52rem;
-  width: min(52rem, 96vw);
+  max-width: 64rem;
+  width: min(64rem, 97vw);
+  max-height: calc(100dvh - 1.5rem);
 }
 
 .nl-modal.modal-wide {

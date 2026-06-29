@@ -5,52 +5,216 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>02 - Ship Stores - Long</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="../ship-stores-pdf-common.css" />
   <link rel="stylesheet" href="../port-of-call-editor.css" />
   <link rel="stylesheet" href="../ship-stores-editor-chrome.css" />
+  <link rel="stylesheet" href="../cell-align-toolbar.css" />
   <link rel="stylesheet" href="../overlay-toolbar.css" />
+  <link rel="stylesheet" href="ship-stores-declaration-v2.css" />
   <link rel="stylesheet" href="ship-stores-form-02.css" />
+  <link rel="stylesheet" href="../html-form-editor-chrome.css" />
 </head>
 <body class="poc-editor ss-editor">
   <div class="side-panel side-panel--left">
-    <button type="button" class="btn btn-save" onclick="persistAllChanges()">✓ Save</button>
-    <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">✗ Cancel</button>
-    <div class="side-panel__title">Zoom</div>
-    <div class="zoom-controls">
-      <div class="zoom-controls__row">
-        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">−</button>
-        <span id="zoom-label" class="zoom-controls__pct">100%</span>
-        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">+</button>
-      </div>
+    <div class="side-panel__actions">
+      <button type="button" class="btn btn-save" onclick="persistAllChanges()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 9.5 17 19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Save
+      </button>
+      <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        Cancel
+      </button>
     </div>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Format</h2>
+      <select id="tb-font" class="side-panel__select" onchange="applyFormat('fontFamily', this.value)">
+        <option value="Arial">Arial</option>
+        <option value="Calibri">Calibri</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Courier New">Courier New</option>
+      </select>
+      <select id="tb-size" class="side-panel__select" onchange="applyFormat('fontSize', this.value + 'pt')">
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8" selected>8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+      </select>
+      <div id="cell-align-toolbar" class="cell-align-toolbar" aria-label="Cell alignment"></div>
+    </section>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Zoom</h2>
+      <div class="zoom-controls">
+        <div class="zoom-controls__row">
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <span id="zoom-label" class="zoom-controls__pct">100%</span>
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div class="doc-zoom-viewport" id="doc-zoom-viewport">
     <div class="doc-zoom-pad" id="doc-zoom-pad">
       <div class="doc-zoom-slot" id="doc-zoom-slot">
         <div class="doc-zoom-stage" id="doc-zoom-stage">
-          <div id="ss-page" class="a4-page ss-page">
-            <img
-              class="ss-pdf-bg"
-              src="ship-stores-form-02-bg.png?v=2"
-              alt=""
-              draggable="false"
-            />
-            <div class="ss-fields">
-              <span data-ss-field="pageNo" class="ss-field"></span>
-              <span data-ss-field="arrivalMark" class="ss-field"></span>
-              <span data-ss-field="departureMark" class="ss-field"></span>
-              <span data-ss-field="shipName" class="ss-field"></span>
-              <span data-ss-field="imoNo" class="ss-field"></span>
-              <span data-ss-field="callSign" class="ss-field"></span>
-              <span data-ss-field="nationality" class="ss-field"></span>
-              <span data-ss-field="portsRoute" class="ss-field"></span>
-              <span data-ss-field="placeOfStorage" class="ss-field"></span>
-              <span data-ss-field="personsOnBoard" class="ss-field"></span>
-              <span data-ss-field="periodOfStay" class="ss-field"></span>
-              <span data-ss-field="captainName" class="ss-field"></span>
+          <div id="ss-page" class="ssd-sheet ssd-sheet--v2 a4-page">
+            <h1 class="ssd-title">SHIP'S STORES DECLARATION</h1>
+
+            <div class="ssd-body">
+              <div class="ssd-table-area">
+                <div class="ssd-table-wrap">
+                  <div class="ssd-rail">
+                    <div class="ssd-rail__vertical">
+                      <span>IMO Convention on Facilitation of International Maritime Traffic</span>
+                    </div>
+                    <div class="ssd-rail__id">
+                      <span>IMO FAL FORM 3</span>
+                    </div>
+                  </div>
+
+                  <div class="ssd-table-col">
+                <table id="ssd-grid" class="ssd-table">
+                  <colgroup>
+                    <col style="width: 21%" />
+                    <col style="width: 12%" />
+                    <col style="width: 12%" />
+                    <col style="width: 6%" />
+                    <col style="width: 21%" />
+                    <col style="width: 20%" />
+                    <col style="width: 5%" />
+                    <col style="width: 3%" />
+                  </colgroup>
+                  <tbody>
+                    <tr class="ssd-tr-strip">
+                      <td rowspan="2" class="ssd-cell ssd-hdr-cell ssd-hdr-cell--tall">
+                        <label class="ssd-label">1.1 Name of ship</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-nameOfShip" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td rowspan="2" class="ssd-cell ssd-hdr-cell ssd-hdr-cell--tall">
+                        <label class="ssd-label">1.2 IMO number</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-imo" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td rowspan="2" colspan="2" class="ssd-cell ssd-hdr-cell ssd-hdr-cell--tall">
+                        <label class="ssd-label">1.3 Call sign</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-callSign" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td class="ssd-cell ssd-cell--checks">
+                        <div class="ssd-cb-group">
+                          <label class="ssd-cb-item" onclick="setSsAd('arrival')">
+                            <span class="ssd-cb-box" id="ssd-cb-arr">✓</span>
+                            <span>Arrival</span>
+                          </label>
+                        </div>
+                      </td>
+                      <td class="ssd-cell ssd-cell--checks">
+                        <div class="ssd-cb-group">
+                          <label class="ssd-cb-item" onclick="setSsAd('departure')">
+                            <span class="ssd-cb-box" id="ssd-cb-dep"></span>
+                            <span>Departure</span>
+                          </label>
+                        </div>
+                      </td>
+                      <td colspan="2" class="ssd-cell ssd-cell--page-no">
+                        <div class="ssd-page-no-row">
+                          <span class="ssd-strip-label">Page</span>
+                          <input class="ci ci-hdr ssd-input--page-no" type="text" data-cell-key="h-pageNo" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr class="ssd-tr-h">
+                      <td class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">2. Port of arrival / departure</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-port" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="3" class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">3. Date of arrival / departure</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-date" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr class="ssd-tr-h">
+                      <td colspan="4" class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">4. Nationality&nbsp;&nbsp;of&nbsp;&nbsp;ship</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-nationality" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="4" class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">5. Last port of call&nbsp;&nbsp;/&nbsp;&nbsp;Next port of call</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-portsRoute" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr class="ssd-tr-h">
+                      <td class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">6. Number of persons on board</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-persons" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="3" class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">7. Period of stay</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-period" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="4" class="ssd-cell ssd-hdr-cell">
+                        <label class="ssd-label">8. Place of storage</label>
+                        <div class="ssd-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-storage" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr class="ssd-tr-cols">
+                      <td colspan="2" class="ssd-cell">
+                        <label class="ssd-label">9. Name of article</label>
+                      </td>
+                      <td class="ssd-cell">
+                        <label class="ssd-label ssd-label--center">10. Quantity</label>
+                      </td>
+                      <td class="ssd-cell"></td>
+                      <td colspan="2" class="ssd-cell"></td>
+                      <td class="ssd-cell"></td>
+                      <td class="ssd-cell"></td>
+                    </tr>
+                  </tbody>
+                  <tbody id="ssd-articles"></tbody>
+                </table>
+                  </div>
+                </div>
+
+                <div class="ssd-form-footer">
+                  <p class="ssd-foot-note">12.&nbsp;&nbsp;Date and signature by master, authorised agent or officer</p>
+                  <div class="ssd-form-footer__data-row">
+                    <input type="text" id="f-footer-date" class="ci form-footer__date" data-cell-key="footer-date" readonly tabindex="-1" placeholder="DD.MM.YYYY" />
+                    <div class="ssd-form-footer__master">
+                      <span class="sig-lbl">Master</span>
+                      <input type="text" id="f-master-name" class="ci form-footer__master" data-cell-key="footer-master" readonly tabindex="-1" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="ss-body-fields"></div>
+
             <div id="stamp-container" class="ss-stamp"></div>
             <div id="sig-container" class="ss-signature"></div>
           </div>
@@ -60,11 +224,14 @@
   </div>
 
   <div class="side-panel side-panel--right">
-    <div class="overlay-toolbar" aria-label="Stamp and signature">
-      <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
-      <button type="button" class="btn btn-cancel btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
-    </div>
-    <p class="ss-editor-hint">Drag stamp and signature on the form. Table data is edited in Ship Stores settings.</p>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Overlays</h2>
+      <div class="overlay-toolbar" aria-label="Stamp and signature">
+        <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
+        <button type="button" class="btn btn-s btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
+      </div>
+      <p class="side-panel__hint">Select cells to format. Data loads from CREW and Ship Stores settings. Stamp and signature are draggable.</p>
+    </section>
   </div>
 
   <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
@@ -91,8 +258,13 @@
 
   <script src="../overlay-drag.js"></script>
   <script src="../overlay-toolbar.js"></script>
+  <script src="../cell-align-toolbar.js"></script>
   <script src="../html-form-pdf-snapshot.js"></script>
+  <script src="../html-form-date-format.js"></script>
+  <script src="../html-form-footer-fields.js"></script>
   <script src="../ship-stores-pdf-common.js"></script>
+  <script src="ship-stores-form-02-data.js"></script>
+  <script src="../ship-stores-form-cells.js"></script>
   <script src="../ship-stores-form-editor.js"></script>
   <script src="ship-stores-form-02.js"></script>
 </body>

@@ -117,7 +117,7 @@
     if (!appData?.ship) return;
     const ship = appData.ship;
     const dateIso = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
-    if (dateIso) setCi('h-date', formatDisplayDate(dateIso));
+    if (dateIso) setDateField('h-date', dateIso);
     const persons = activeCrewCount(appData, mode) + activePaxCount(appData, mode);
     setCi('h-persons', String(persons));
     applyFooterFromApp(appData, mode);
@@ -131,6 +131,25 @@
     el.value = value == null ? '' : String(value);
   }
 
+  function setDateField(key, value) {
+    const el = document.querySelector(`[data-cell-key="${key}"]`);
+    if (!el) return;
+    if (global.HtmlFormDateFormat) {
+      const raw = value == null ? '' : String(value);
+      const iso =
+        global.HtmlFormDateFormat.parseToIso(raw) ||
+        (/^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '');
+      global.HtmlFormDateFormat.setElement(el, iso);
+      return;
+    }
+    setCi(key, value);
+  }
+
+  function parseDateToIso(value) {
+    if (global.HtmlFormDateFormat) return global.HtmlFormDateFormat.parseToIso(value);
+    return parseDotDateToIso(value);
+  }
+
   function getCi(key) {
     const el = document.querySelector(`[data-cell-key="${key}"]`);
     return el ? String(el.value || '').trim() : '';
@@ -142,7 +161,10 @@
       return;
     }
     const key = HDR_KEYS[name];
-    if (key) setCi(key, value);
+    if (key) {
+      if (name === 'dateOfArrivalDeparture') setDateField(key, value);
+      else setCi(key, value);
+    }
     const el = document.querySelector(`[data-ss-field="${name}"]`);
     if (!el) return;
     if (el.type === 'checkbox') {
@@ -181,7 +203,7 @@
     setField('numberOfPersonsOnBoard', form01.numberOfPersonsOnBoard);
     setField('periodOfStay', form01.periodOfStay);
     setField('placeOfStorage', form01.placeOfStorage);
-    setCi('footer-date', form01.footerDate || '');
+    setDateField('footer-date', form01.footerDate || '');
     setCi('footer-master', form01.footerMaster || '');
 
     const articles = form01.articles || [];
@@ -239,7 +261,7 @@
     if (form01.nameOfShip) appData.ship.name = form01.nameOfShip;
     if (form01.portOfArrivalDeparture) appData.ship.portOfCall = form01.portOfArrivalDeparture;
     if (form01.nationalityOfShip) appData.ship.nationality = form01.nationalityOfShip;
-    const iso = parseDotDateToIso(form01.dateOfArrivalDeparture);
+    const iso = parseDateToIso(form01.dateOfArrivalDeparture);
     if (iso) appData.ship.dateOfArrival = iso;
 
     appData.shipStoresForm.placeOfStorage = form01.placeOfStorage;

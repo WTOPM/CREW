@@ -667,85 +667,7 @@ body {
   transform-origin: top left;
   flex-shrink: 0;
   width: max-content;
-}
-
-.zoom-controls {
-  margin-top: 0.35rem;
-  padding-top: 0.35rem;
-  border-top: 1px solid #c5c5c5;
-}
-
-.zoom-controls__row {
-  display: grid;
-  grid-template-columns: minmax(1.85rem, auto) 1fr minmax(1.85rem, auto);
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.side-panel .zoom-controls__btn {
-  width: 1.85rem;
-  min-width: 1.85rem;
-  max-width: 1.85rem;
-  height: 1.85rem;
-  padding: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.zoom-controls__pct {
-  text-align: center;
-  font-size: var(--side-font);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.side-panel {
-  --side-panel-w: clamp(7.75rem, 10vw, 9.5rem);
-  --side-font: 0.8rem;
-  --side-font-sm: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  position: sticky;
-  top: 5mm;
-  width: var(--side-panel-w);
-  flex: 0 0 var(--side-panel-w);
-  min-width: 0;
-}
-
-.side-panel__title {
-  font-size: var(--side-font);
-  font-weight: 700;
-  text-align: center;
-  margin: 0.1rem 0 0.05rem;
-  color: #1e293b;
-}
-
-.side-panel__select {
-  width: 100%;
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
-  font-size: var(--side-font);
-  padding: 0.3rem 0.4rem;
-  border: 1px solid #94a3b8;
-  border-radius: 3px;
-  background: #fff;
-}
-
-.side-panel .btn {
-  width: 100%;
-  box-sizing: border-box;
-  font-size: var(--side-font);
-  padding: 0.35rem 0.5rem;
-  line-height: 1.25;
-  border-radius: 3px;
-  cursor: pointer;
-  border: 1px solid #1a3a5c;
-}
+}
 
 .btn-s {
   background: #fff;
@@ -907,11 +829,7 @@ body {
     height: auto;
     overflow: visible;
     display: block;
-  }
-
-  .side-panel {
-    display: none;
-  }
+  }
 
   .a4-landscape-page {
     width: 297mm;

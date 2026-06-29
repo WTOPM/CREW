@@ -36,7 +36,8 @@ body.poc-editor.ss-editor .doc-zoom-stage {
   transform-origin: top left;
 }
 
-body.poc-editor.ss-editor .ssd-sheet.a4-page {
+body.poc-editor.ss-editor .ssd-sheet.a4-page,
+body.poc-editor.ss-editor .ssd-sheet.ssd-sheet--v2 {
   width: 210mm;
   max-width: 210mm;
   box-sizing: border-box;
@@ -106,7 +107,9 @@ body.is-pdf-export .doc-zoom-stage {
 }
 
 body.pdf-export .ssd-sheet.a4-page,
-body.is-pdf-export .ssd-sheet.a4-page {
+body.is-pdf-export .ssd-sheet.a4-page,
+body.pdf-export .ssd-sheet.ssd-sheet--v2,
+body.is-pdf-export .ssd-sheet.ssd-sheet--v2 {
   width: 210mm !important;
   height: 297mm !important;
   min-height: 297mm !important;

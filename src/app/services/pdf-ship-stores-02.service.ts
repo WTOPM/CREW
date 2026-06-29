@@ -40,7 +40,7 @@ export class PdfShipStores02Service {
       snapshot,
       iframeWidth: '210mm',
       iframeHeight: '297mm',
-      pageSelector: '.a4-page',
+      pageSelector: '.ssd-sheet',
     });
   }
 }

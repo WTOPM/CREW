@@ -446,7 +446,7 @@ function normalizePortOfCallHtmlFormPrefs(
   if (typeof raw?.footerMasterName === 'string') {
     out.footerMasterName = raw.footerMasterName;
   }
-  if (raw?.dateDisplayFormat === 'dot' || raw?.dateDisplayFormat === 'shortMonth' || raw?.dateDisplayFormat === 'fullMonth') {
+  if (raw?.dateDisplayFormat === 'dot' || raw?.dateDisplayFormat === 'shortMonth' || raw?.dateDisplayFormat === 'fullMonth' || raw?.dateDisplayFormat === 'isoSlash') {
     out.dateDisplayFormat = raw.dateDisplayFormat;
   }
   return out;
@@ -466,9 +466,6 @@ function normalizePaxHtmlFormPrefs(
   }
   if (typeof raw?.footerMasterName === 'string') {
     out.footerMasterName = raw.footerMasterName;
-  }
-  if (raw?.dateDisplayFormat === 'dot' || raw?.dateDisplayFormat === 'shortMonth' || raw?.dateDisplayFormat === 'fullMonth') {
-    out.dateDisplayFormat = raw.dateDisplayFormat;
   }
   if (isCrewListForm05CssBox(raw?.stampBox)) {
     out.stampBox = raw.stampBox;

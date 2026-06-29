@@ -181,7 +181,7 @@
     const F = window.HtmlFormDateFormat;
     if (!btn || !F) return;
     const t = F.getActive();
-    btn.textContent = F.buttonLabel(t);
+    btn.textContent = F.buttonShortLabel ? F.buttonShortLabel(t) : F.buttonLabel(t);
     const tip = F.tipLabel(t);
     btn.dataset.tip = tip;
     btn.dataset.baseTip = tip;

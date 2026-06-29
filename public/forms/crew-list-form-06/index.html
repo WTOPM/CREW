@@ -11,12 +11,22 @@
   <link rel="stylesheet" href="../html-form-header-cells.css" />
   <link rel="stylesheet" href="../overlay-toolbar.css" />
   <link rel="stylesheet" href="../html-form-excel-export.css" />
+  <link rel="stylesheet" href="../html-form-editor-chrome.css" />
 </head>
 <body>
   <div class="side-panel side-panel--left">
-    <button type="button" class="btn btn-save" onclick="persistAllChanges()">✓ Save</button>
-    <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">✗ Cancel</button>
-    <div class="side-panel__title">Format</div>
+    <div class="side-panel__actions">
+      <button type="button" class="btn btn-save" onclick="persistAllChanges()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 9.5 17 19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Save
+      </button>
+      <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        Cancel
+      </button>
+    </div>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Format</h2>
     <select id="tb-font" class="side-panel__select" onchange="applyFormat('fontFamily', this.value)">
       <option value="Arial">Arial</option>
       <option value="Calibri">Calibri</option>
@@ -32,13 +42,19 @@
       <option value="10">10</option>
     </select>
     <div id="cell-align-toolbar" class="cell-align-toolbar" aria-label="Cell alignment"></div>
-    <div class="zoom-controls">
-      <div class="side-panel__title">Zoom</div>
-      <div class="zoom-controls__row">
-        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">−</button>
-        <span id="zoom-label" class="zoom-controls__pct">100%</span>
-        <button type="button" class="btn btn-s zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">+</button>
-      </div>
+    </section>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Zoom</h2>
+      <div class="zoom-controls">
+        <div class="zoom-controls__row">
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <span id="zoom-label" class="zoom-controls__pct">100%</span>
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
       <button type="button" class="btn btn-excel" id="btn-export-excel" onclick="exportToExcel()">Excel</button>
     </div>
   </div>
@@ -175,13 +191,15 @@
   </div>
 
   <div class="side-panel side-panel--right">
-    <div class="side-panel__title">Rows</div>
-    <button type="button" class="btn btn-s" onclick="addRow()">+ Add row</button>
-    <button type="button" class="btn btn-s" onclick="removeRow()">− Remove last</button>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Rows</h2>
+    <button type="button" class="btn btn-s side-panel__row-btn" onclick="addRow()"><svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Add row</button>
+    <button type="button" class="btn btn-s side-panel__row-btn side-panel__row-btn--muted" onclick="removeRow()"><svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Remove last</button>
     <div class="overlay-toolbar" aria-label="Stamp and signature">
       <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
-      <button type="button" class="btn btn-cancel btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
+      <button type="button" class="btn btn-s btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
     </div>
+    </section>
   </div>
 
   <script src="../overlay-drag.js"></script>

@@ -144,13 +144,12 @@
     return snapshot.ship?.dateOfArrival || '';
   }
 
-  function footerHtml(snapshot, overlayVariant, pageIndex, isLastPage) {
-    if (!isLastPage) return '';
+  function footerHtml(snapshot, overlayVariant, pageIndex) {
     const dateIso = footerDateIso(snapshot, overlayVariant);
     const date = escAttr(footerDateDisplay(snapshot, overlayVariant));
     const master = escAttr(footerMasterName(snapshot, overlayVariant));
     const isoAttr = window.HtmlFormDateFormat?.isoAttr(dateIso) || '';
-    const dateId = ' id="poc-footer-date"';
+    const dateId = pageIndex === 0 ? ' id="poc-footer-date"' : '';
     const masterId = pageIndex === 0 ? ' id="poc-footer-master"' : '';
     return `
         <div class="poc-form-footer">
@@ -170,7 +169,7 @@
         </div>`;
   }
 
-  function renderPage(pageRows, voyOffset, pageIndex, snapshot, includeOverlays, rowCount, overlayVariant, isLastPage) {
+  function renderPage(pageRows, voyOffset, pageIndex, snapshot, includeOverlays, rowCount, overlayVariant) {
     const ship = snapshot.ship || {};
     const overlayHtml = includeOverlays
       ? '<div id="stamp-container" class="overlay-marker"></div><div id="sig-container" class="overlay-marker"></div>'
@@ -213,7 +212,7 @@
           </tr>
           <tbody id="poc-tbody">${dataRowsHtml(pageRows, voyOffset, rowCount)}</tbody>
         </table>
-        ${footerHtml(snapshot, overlayVariant, pageIndex, isLastPage)}
+        ${footerHtml(snapshot, overlayVariant, pageIndex)}
       </div>`;
   }
 
@@ -232,16 +231,7 @@
       mount.className = 'poc-pages';
       mount.innerHTML = pages
         .map((pageRows, i) =>
-          renderPage(
-            pageRows,
-            i * rowsPerPage,
-            i,
-            snapshot,
-            false,
-            rowsPerPage,
-            overlayVariant,
-            i === pages.length - 1,
-          ),
+          renderPage(pageRows, i * rowsPerPage, i, snapshot, false, rowsPerPage, overlayVariant),
         )
         .join('');
       window.PortOfCallFormPages?.setTotal?.(pages.length);
@@ -260,7 +250,6 @@
       pageIndex === 0,
       rowsPerPage,
       overlayVariant,
-      pageIndex === pages.length - 1,
     );
     window.PortOfCallFormPages?.syncRowToolbar?.();
   }

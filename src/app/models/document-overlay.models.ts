@@ -40,7 +40,7 @@ export interface DocumentStampOptions {
 }
 
 /** HTML form editors — date display in cells (dot / short month / full month). */
-export type HtmlFormDateDisplayFormat = 'dot' | 'shortMonth' | 'fullMonth';
+export type HtmlFormDateDisplayFormat = 'dot' | 'shortMonth' | 'fullMonth' | 'isoSlash';
 
 /** HTML Ship Stores forms 01 & 02 — stamp/signature CSS placement + cell overrides. */
 export interface ShipStoresHtmlFormStampOptions
@@ -68,7 +68,7 @@ export interface PortOfCallHtmlFormStampOptions extends DocumentStampOptions {
   footerSignatureDate?: string;
   /** Footer master name override. */
   footerMasterName?: string;
-  /** How dates are shown in this form editor / PDF. */
+  /** How dates are shown in this form editor / PDF (Port of Call only). */
   dateDisplayFormat?: HtmlFormDateDisplayFormat;
 }
 
@@ -80,7 +80,6 @@ export interface PaxHtmlFormStampOptions extends DocumentStampOptions {
   >;
   footerSignatureDate?: string;
   footerMasterName?: string;
-  dateDisplayFormat?: HtmlFormDateDisplayFormat;
 }
 
 /** Whether stamp is enabled for the given page (page 1 vs attachment). */
@@ -210,8 +209,6 @@ export interface CrewListVariantSettings {
   footerSignatureDate?: string;
   /** Footer master name override. */
   footerMasterName?: string;
-  /** How dates are shown in this form editor / PDF. */
-  dateDisplayFormat?: HtmlFormDateDisplayFormat;
 }
 
 export function isCrewListForm05CssBox(box: unknown): box is CrewListForm05CssBox {
@@ -341,7 +338,6 @@ const CREW_LIST_VARIANT_FIELD_NAMES = [
   'cellStyles',
   'footerSignatureDate',
   'footerMasterName',
-  'dateDisplayFormat',
 ] as const satisfies readonly (keyof CrewListVariantSettings)[];
 
 function mergeCrewListVariantPlacement(

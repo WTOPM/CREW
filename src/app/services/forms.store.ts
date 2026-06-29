@@ -300,6 +300,33 @@ export class FormsStore {
     void this.state.persist('silent');
   }
 
+  reorderShipStoresRows(
+    docId: ShipStoresDocId,
+    previousIndex: number,
+    currentIndex: number,
+  ): void {
+    if (previousIndex === currentIndex) return;
+    const rowCount = this.shipStoresRowCount(docId);
+    if (
+      previousIndex < 0 ||
+      previousIndex >= rowCount ||
+      currentIndex < 0 ||
+      currentIndex >= rowCount
+    ) {
+      return;
+    }
+    const field = shipStoresFormField(docId);
+    this.data.update((d) => {
+      const normalize = this.shipStoresNormalize(docId);
+      const form = normalize(d[field]);
+      const rows = [...form.rows];
+      const [moved] = rows.splice(previousIndex, 1);
+      rows.splice(currentIndex, 0, moved);
+      return { ...d, [field]: normalize({ ...form, rows }) };
+    });
+    void this.state.persist('silent');
+  }
+
   private patchShipStoresForm(
     docId: ShipStoresDocId,
     partial: Partial<ShipStoresFormSettings>,

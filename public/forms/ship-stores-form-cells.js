@@ -450,7 +450,9 @@
     restoreCellValues,
     flattenInputsForExport,
     reflowAllWrappedCells() {
-      document.querySelectorAll('.ssd-hdr-val .ci, .ssd-data-val .ci, .ssd-sign-val .ci, .ssd-qty-half .ci').forEach((el) => reflowCell(el));
+      document
+        .querySelectorAll('.ssd-hdr-val .ci, .ssd-data-val .ci, .ssd-sign-val .ci, .ssd-qty-half .ci')
+        .forEach((el) => reflowCell(el));
     },
     getSelectedCells: () => selectedCells,
     dismissSelection,

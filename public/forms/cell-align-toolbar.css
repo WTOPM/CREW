@@ -1,10 +1,10 @@
-/* Shared cell-alignment toolbar for crew-list HTML form editors */
+/* Cell alignment + case + date format toolbar (inside side panel) */
 
 .cell-align-toolbar {
-  --align-btn: clamp(1.65rem, 4.5vw, 2rem);
-  --align-gap: 0.28rem;
-  --align-radius: 8px;
-  --align-border: #cbd5e1;
+  --align-btn: 2rem;
+  --align-gap: 0.32rem;
+  --align-radius: 10px;
+  --align-border: rgb(148 163 184 / 35%);
   --align-bg: #f8fafc;
   --align-accent: #2563eb;
   --align-accent-soft: #eff6ff;
@@ -13,54 +13,42 @@
   --align-tip-z: 120;
   display: flex;
   flex-direction: column;
-  gap: var(--align-gap);
+  gap: 0.35rem;
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
-  padding: 0.4rem;
-  margin: 0.15rem 0 0.25rem;
+  padding: 0.45rem;
+  margin: 0.1rem 0 0;
   background: var(--align-bg);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--align-border);
   border-radius: var(--align-radius);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   overflow: visible;
   position: relative;
   z-index: 2;
 }
 
+.cell-align-toolbar__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--align-gap);
+  overflow: visible;
+  min-width: 0;
+  width: 100%;
+}
+
 .cell-align-toolbar__row--case {
-  grid-template-columns: repeat(2, 1fr);
-  margin-top: 0.12rem;
-  padding-top: 0.38rem;
-  border-top: 1px solid #e2e8f0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0.1rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgb(148 163 184 / 22%);
 }
 
 .cell-align-toolbar__row--date {
   grid-template-columns: 1fr;
-  margin-top: 0.12rem;
-  padding-top: 0.32rem;
-  border-top: 1px solid #e2e8f0;
-}
-
-.cell-align-toolbar__btn--date {
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.cell-align-toolbar__btn--text {
-  aspect-ratio: auto;
-  min-height: var(--align-btn);
-  font-size: clamp(0.68rem, 2.8vw, 0.78rem);
-  font-weight: 700;
-  font-family: Arial, sans-serif;
-  letter-spacing: 0.04em;
-}
-
-.cell-align-toolbar__row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--align-gap);
-  overflow: visible;
+  margin-top: 0.1rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgb(148 163 184 / 22%);
+  min-width: 0;
 }
 
 .cell-align-toolbar__btn {
@@ -69,12 +57,14 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  min-width: 0;
   aspect-ratio: 1;
   min-height: var(--align-btn);
+  max-height: var(--align-btn);
   padding: 0;
   margin: 0;
   border: 1px solid var(--align-border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
   color: var(--align-text);
   cursor: pointer;
@@ -87,10 +77,35 @@
 }
 
 .cell-align-toolbar__btn svg {
-  width: clamp(14px, 3.2vw, 17px);
-  height: clamp(14px, 3.2vw, 17px);
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
   pointer-events: none;
+}
+
+.cell-align-toolbar__btn--text {
+  aspect-ratio: auto;
+  min-height: var(--align-btn);
+  max-height: var(--align-btn);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+}
+
+.cell-align-toolbar__btn--text.cell-align-toolbar__btn--date {
+  aspect-ratio: auto;
+  min-height: var(--align-btn);
+  max-height: var(--align-btn);
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 4px;
 }
 
 .cell-align-toolbar__btn:hover,
@@ -98,7 +113,7 @@
   background: var(--align-accent-soft);
   border-color: #93c5fd;
   color: var(--align-accent);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 2px rgb(37 99 235 / 12%);
   outline: none;
 }
 
@@ -110,24 +125,24 @@
   background: var(--align-accent-soft);
   border-color: var(--align-accent);
   color: var(--align-accent);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 0 0 2px rgb(37 99 235 / 18%);
 }
 
 .cell-align-toolbar__btn--active {
   background: var(--align-accent-soft);
   border-color: var(--align-accent);
   color: var(--align-accent);
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.35);
+  box-shadow: inset 0 0 0 1px rgb(37 99 235 / 35%);
 }
 
 .cell-align-toolbar__btn--active:hover,
 .cell-align-toolbar__btn--active:focus-visible {
   box-shadow:
-    inset 0 0 0 1px rgba(37, 99, 235, 0.35),
-    0 0 0 2px rgba(37, 99, 235, 0.12);
+    inset 0 0 0 1px rgb(37 99 235 / 35%),
+    0 0 0 2px rgb(37 99 235 / 12%);
 }
 
-/* Tooltip — below button (stays inside narrow side panel; avoids overflow-x clip) */
+/* Tooltip — below button */
 .cell-align-toolbar__btn[data-tip]::after {
   content: attr(data-tip);
   position: absolute;
@@ -136,15 +151,15 @@
   z-index: var(--align-tip-z);
   transform: translateX(-50%) translateY(4px);
   padding: 0.28rem 0.55rem;
-  font-family: Arial, sans-serif;
-  font-size: 0.7rem;
+  font-family: inherit;
+  font-size: 0.68rem;
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
   color: #f8fafc;
   background: var(--align-tip-bg);
-  border-radius: 5px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 22%);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -171,20 +186,18 @@
     visibility 0.16s ease;
 }
 
-/* Case / date rows are last — open tooltips upward so content below does not clip them */
 .cell-align-toolbar__row--case .cell-align-toolbar__btn[data-tip]::after,
 .cell-align-toolbar__row--date .cell-align-toolbar__btn[data-tip]::after {
-  top: auto;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%) translateY(-4px);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%) translateY(4px);
 }
 
 .cell-align-toolbar__row--case .cell-align-toolbar__btn[data-tip]::before,
 .cell-align-toolbar__row--date .cell-align-toolbar__btn[data-tip]::before {
-  top: auto;
-  bottom: calc(100% + 2px);
-  border-bottom-color: transparent;
-  border-top-color: var(--align-tip-bg);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
 }
 
 .cell-align-toolbar__btn:hover::after,
@@ -207,17 +220,9 @@
   transform: translateX(-50%) translateY(0);
 }
 
-/* Large user font sizes — keep fixed row height; clip overflow instead of breaking layout */
-.crew-tbl tbody .ci:not(.ci-rno) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-@media (max-width: 900px) {
+@media (prefers-reduced-motion: reduce) {
   .cell-align-toolbar__btn[data-tip]::after,
   .cell-align-toolbar__btn[data-tip]::before {
-    display: none;
+    transition: none;
   }
 }

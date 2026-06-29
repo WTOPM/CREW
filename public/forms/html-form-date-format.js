@@ -1,9 +1,9 @@
 /**
- * Shared date display formats for HTML form editors (crew / passenger / port of call).
- * Canonical storage: ISO yyyy-MM-dd on data-date-iso; display cycles via toolbar button.
+ * Shared date display formats for HTML form editors.
+ * Port of Call 01/02: user cycles format via toolbar; other forms use fixed DD.MM.YYYY.
  */
 (function (global) {
-  const TYPES = ['dot', 'shortMonth', 'fullMonth'];
+  const TYPES = ['dot', 'shortMonth', 'fullMonth', 'isoSlash'];
   const SHORT_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   const FULL_MONTHS = [
     'JANUARY',
@@ -23,11 +23,19 @@
     dot: 'DD.MM.YYYY',
     shortMonth: 'DD MON YYYY',
     fullMonth: 'DD MONTH YYYY',
+    isoSlash: 'YYYY/MM/DD',
   };
   const SAMPLE = {
     dot: '16.06.2026',
     shortMonth: '16 JUN 2026',
     fullMonth: '16 JUNE 2026',
+    isoSlash: '2025/11/29',
+  };
+  const SHORT_SAMPLE = {
+    dot: '16.06.26',
+    shortMonth: '16 JUN 26',
+    fullMonth: '16 JUN 26',
+    isoSlash: '25/11/29',
   };
 
   let activeType = 'dot';
@@ -59,10 +67,21 @@
     return Number.isNaN(Date.parse(iso)) ? '' : iso;
   }
 
+  function parseSlashDate(value) {
+    const m = String(value || '')
+      .trim()
+      .match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (!m) return '';
+    const iso = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+    return Number.isNaN(Date.parse(iso)) ? '' : iso;
+  }
+
   function parseToIso(value) {
     if (!value) return '';
     const raw = String(value).trim();
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const slash = parseSlashDate(raw);
+    if (slash) return slash;
     const dot = parseDotDate(raw);
     if (dot) return dot;
     const short = parseMonthDate(raw, SHORT_MONTHS);
@@ -86,6 +105,7 @@
     if (!parts) return iso ? String(iso) : '';
     if (t === 'shortMonth') return `${parts.d} ${SHORT_MONTHS[parts.mi]} ${parts.y}`;
     if (t === 'fullMonth') return `${parts.d} ${FULL_MONTHS[parts.mi]} ${parts.y}`;
+    if (t === 'isoSlash') return `${parts.y}/${parts.m}/${parts.d}`;
     return `${parts.d}.${parts.m}.${parts.y}`;
   }
 
@@ -148,6 +168,11 @@
     return SAMPLE[t] || LABELS[t];
   }
 
+  function buttonShortLabel(type) {
+    const t = normalizeType(type || activeType);
+    return SHORT_SAMPLE[t] || buttonLabel(t);
+  }
+
   function tipLabel(type) {
     const t = normalizeType(type || activeType);
     return `Date format: ${LABELS[t]} (click to change)`;
@@ -167,6 +192,7 @@
     nextType,
     cycleActive,
     buttonLabel,
+    buttonShortLabel,
     tipLabel,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

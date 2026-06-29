@@ -1,4 +1,5 @@
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
+import { Component, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   SHIP_STORES_02_ROW_COUNT,
@@ -18,9 +19,11 @@ import { StorageService } from '../../services/storage.service';
 import { FormsStore } from '../../services/forms.store';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
+type ShipStoresCellField = 'name' | 'quantity' | 'unit';
+
 @Component({
   selector: 'app-ship-stores-settings',
-  imports: [FormsModule, DocumentStampOptionsComponent],
+  imports: [FormsModule, DragDropModule, DocumentStampOptionsComponent],
   templateUrl: './ship-stores-settings.component.html',
   styleUrl: './ship-stores-settings.component.css',
 })
@@ -30,10 +33,7 @@ export class ShipStoresSettingsComponent {
 
   readonly docId = input<ShipStoresDocId>('shipStores');
 
-  protected selectedRow = signal(1);
-  protected draftName = signal('');
-  protected draftQuantity = signal('');
-  protected draftUnit = signal('');
+  private readonly editSnapshot = new Map<string, string>();
 
   protected readonly form = computed(() => {
     const id = this.docId();
@@ -61,18 +61,12 @@ export class ShipStoresSettingsComponent {
     return SHIP_STORES_ROW_COUNT;
   });
 
-  constructor() {
-    effect(() => {
-      this.docId();
-      untracked(() => {
-        this.selectedRow.set(1);
-        this.loadDraftFromRow(0);
-      });
-    });
-  }
-
   protected docLabel(): string {
     return SHIP_STORES_DOC_LABELS[this.docId()];
+  }
+
+  protected unitDisplay(unit: string): string {
+    return unit === 'NIL' ? '' : unit;
   }
 
   protected openHtmlFormSettings(): void {
@@ -92,31 +86,66 @@ export class ShipStoresSettingsComponent {
     this.forms.updateShipStoresPlaceOfStorage(this.docId(), value);
   }
 
-  protected selectRow(rowNo: number): void {
-    const n = Math.min(this.rowCount(), Math.max(1, Number(rowNo) || 1));
-    if (n === this.selectedRow()) return;
-    this.selectedRow.set(n);
-    this.loadDraftFromRow(n - 1);
+  protected onRowDrop(event: CdkDragDrop<unknown>): void {
+    this.forms.reorderShipStoresRows(this.docId(), event.previousIndex, event.currentIndex);
   }
 
-  protected saveArticleName(): void {
-    const idx = this.selectedRow() - 1;
-    this.forms.updateShipStoresRow(this.docId(), idx, { name: this.draftName().trim() });
+  protected onCellFocus(
+    rowIndex: number,
+    field: ShipStoresCellField,
+    event: FocusEvent,
+  ): void {
+    const input = event.target as HTMLInputElement;
+    this.editSnapshot.set(this.cellKey(rowIndex, field), input.value);
+    queueMicrotask(() => input.select());
   }
 
-  protected saveQuantityAndUnit(): void {
-    const idx = this.selectedRow() - 1;
-    this.forms.updateShipStoresRow(this.docId(), idx, {
-      quantity: this.draftQuantity().trim(),
-      unit: this.draftUnit().trim(),
-    });
+  protected onCellCommit(
+    rowIndex: number,
+    field: ShipStoresCellField,
+    event: Event,
+  ): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+    this.editSnapshot.delete(this.cellKey(rowIndex, field));
+    this.commitCell(rowIndex, field, value);
   }
 
-  private loadDraftFromRow(index: number): void {
-    const row = this.form().rows[index];
-    this.draftName.set(row?.name ?? '');
-    this.draftQuantity.set(row?.quantity ?? '');
-    const unit = row?.unit ?? '';
-    this.draftUnit.set(unit === 'NIL' ? '' : unit);
+  protected onCellKeydown(
+    rowIndex: number,
+    field: ShipStoresCellField,
+    event: KeyboardEvent,
+  ): void {
+    const input = event.target as HTMLInputElement;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      input.blur();
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      const snap = this.editSnapshot.get(this.cellKey(rowIndex, field));
+      if (snap !== undefined) {
+        input.value = snap;
+      }
+      this.editSnapshot.delete(this.cellKey(rowIndex, field));
+      input.blur();
+    }
+  }
+
+  private cellKey(rowIndex: number, field: ShipStoresCellField): string {
+    return `${this.docId()}:${rowIndex}:${field}`;
+  }
+
+  private commitCell(rowIndex: number, field: ShipStoresCellField, raw: string): void {
+    if (field === 'name') {
+      this.forms.updateShipStoresRow(this.docId(), rowIndex, { name: raw.trim() });
+      return;
+    }
+    if (field === 'quantity') {
+      this.forms.updateShipStoresRow(this.docId(), rowIndex, { quantity: raw.trim() });
+      return;
+    }
+    this.forms.updateShipStoresRow(this.docId(), rowIndex, { unit: raw.trim() });
   }
 }

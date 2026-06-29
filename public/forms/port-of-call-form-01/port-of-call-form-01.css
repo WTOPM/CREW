@@ -230,12 +230,12 @@
 }
 
 .poc-form-01 .poc-form-footer__sig-row {
-  /* pad | date @ t-2 Country | Master @ t-3 Date of Arrival … end */
+  /* pad | date @ Date of Arrival | Master @ arrival time … end */
   display: grid;
   grid-template-columns:
-    calc(3.7% + 24.3%)
-    19.5%
-    calc(11.6% + 12.8% + 13.8% + 14.3%);
+    calc(3.7% + 24.3% + 19.5%)
+    11.6%
+    calc(12.8% + 13.8% + 14.3%);
   align-items: baseline;
   overflow: visible;
 }
