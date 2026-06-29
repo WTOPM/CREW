@@ -12,6 +12,8 @@ import { AppData } from '../models/crew.models';
 import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-data';
 import { ToastService } from './toast.service';
 import { normalizeAppData } from './app-data-normalizer';
+import { SectionLockService } from './section-lock.service';
+import { AppSection, mergeSectionForSave, mergeSectionFromDisk, APP_SECTIONS } from '../utils/app-data-section.util';
 
 const STORAGE_KEY = 'crew-app-data';
 
@@ -20,6 +22,7 @@ export type PersistNotify = 'silent' | 'saved' | 'debounced';
 @Injectable({ providedIn: 'root' })
 export class AppStateStore {
   private readonly toast = inject(ToastService);
+  private readonly sectionLock = inject(SectionLockService);
 
   /** The single writable source of truth. Feature stores read/update this directly. */
   readonly data = signal<AppData>(createEmptyAppData());
@@ -62,13 +65,55 @@ export class AppStateStore {
     }
   }
 
-  async persist(notify: PersistNotify = 'debounced', savedMessage?: string): Promise<void> {
-    const payload = { ...this.data(), seedVersion: APP_DATA_SCHEMA_VERSION };
+  async reloadSectionFromDisk(section: AppSection): Promise<void> {
     const electron = window.electronAPI;
+    if (!electron) return;
+    const loaded = await electron.readData();
+    if (!loaded) return;
+    const fromDisk = normalizeAppData(loaded);
+    const merged = mergeSectionFromDisk(this.data(), fromDisk, section);
+    this.data.set(merged);
+  }
+
+  /** Reload every section from disk (e.g. after restoring from system tray). */
+  async reloadAllFromDisk(): Promise<void> {
+    const electron = window.electronAPI;
+    if (!electron) return;
+    const loaded = await electron.readData();
+    if (!loaded) return;
+    const fromDisk = normalizeAppData(loaded);
+    let merged = this.data();
+    for (const section of APP_SECTIONS) {
+      merged = mergeSectionFromDisk(merged, fromDisk, section);
+    }
+    this.data.set(merged);
+  }
+
+  async persist(notify: PersistNotify = 'debounced', savedMessage?: string): Promise<void> {
+    if (!this.sectionLock.canPersist()) {
+      if (notify !== 'silent') {
+        this.toast.show(
+          'View only — another user is editing this section. Changes were not saved.',
+          'warning',
+        );
+      }
+      return;
+    }
+
+    const memory = { ...this.data(), seedVersion: APP_DATA_SCHEMA_VERSION };
+    const electron = window.electronAPI;
+    const section = this.sectionLock.activeSection();
+
     if (electron) {
-      await electron.writeData(payload);
+      let toWrite: AppData = memory;
+      if (this.sectionLock.cooperativeMode() && section) {
+        const loaded = await electron.readData();
+        const disk = normalizeAppData(loaded ?? createEmptyAppData());
+        toWrite = mergeSectionForSave(disk, memory, section);
+      }
+      await electron.writeData({ ...toWrite, seedVersion: APP_DATA_SCHEMA_VERSION });
     } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(memory));
     }
     if (notify === 'silent') {
       this.formSessionDirty = true;

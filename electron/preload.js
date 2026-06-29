@@ -4,6 +4,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readData: () => ipcRenderer.invoke('read-data'),
   writeData: (data) => ipcRenderer.invoke('write-data', data),
   getDataPath: () => ipcRenderer.invoke('get-data-path'),
+  getClientInfo: () => ipcRenderer.invoke('get-client-info'),
+  acquireSectionLock: (section, clientId, displayName) =>
+    ipcRenderer.invoke('acquire-section-lock', section, clientId, displayName),
+  renewSectionLock: (section, clientId) =>
+    ipcRenderer.invoke('renew-section-lock', section, clientId),
+  releaseSectionLock: (section, clientId) =>
+    ipcRenderer.invoke('release-section-lock', section, clientId),
+  readSectionLock: (section) => ipcRenderer.invoke('read-section-lock', section),
+  listSectionLocks: () => ipcRenderer.invoke('list-section-locks'),
+  getLocalPrefs: () => ipcRenderer.invoke('get-local-prefs'),
+  setLocalPrefs: (patch) => ipcRenderer.invoke('set-local-prefs', patch),
+  onAppRestoredFromTray: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('app-restored-from-tray', listener);
+    return () => ipcRenderer.removeListener('app-restored-from-tray', listener);
+  },
   pickPdfFile: () => ipcRenderer.invoke('pick-pdf-file'),
   pickDirectory: () => ipcRenderer.invoke('pick-directory'),
   openDirectory: (dirPath) => ipcRenderer.invoke('open-directory', dirPath),

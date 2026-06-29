@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { pathToFileURL } = require('url');
 
 /**
@@ -198,6 +199,161 @@ function ensureDataDir() {
   }
 }
 
+function writeDataFile(data) {
+  const filePath = getDataFilePath();
+  const tmp = `${filePath}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
+  fs.renameSync(tmp, filePath);
+}
+
+const SECTION_LOCK_IDS = ['home', 'dg', 'reefer', 'eta', 'settings'];
+const LOCK_STALE_MS = 90_000;
+
+function getLocksDir() {
+  return path.join(getDataDir(), 'locks');
+}
+
+function sectionLockPath(section) {
+  return path.join(getLocksDir(), `${section}.lock.json`);
+}
+
+function readSectionLock(section) {
+  const p = sectionLockPath(section);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function isSectionLockStale(lock) {
+  if (!lock || typeof lock.heartbeatAt !== 'number') return true;
+  return Date.now() - lock.heartbeatAt > LOCK_STALE_MS;
+}
+
+function clearStaleSectionLock(section) {
+  const lock = readSectionLock(section);
+  if (lock && isSectionLockStale(lock)) {
+    try {
+      fs.unlinkSync(sectionLockPath(section));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** Per-PC preferences (not in shared crew-data.json). */
+const LOCAL_PREFS_FILE = 'local-prefs.json';
+
+function getLocalPrefsPath() {
+  return path.join(app.getPath('userData'), LOCAL_PREFS_FILE);
+}
+
+function readLocalPrefs() {
+  try {
+    const raw = fs.readFileSync(getLocalPrefsPath(), 'utf-8');
+    const parsed = JSON.parse(raw);
+    return { minimizeToTray: !!parsed.minimizeToTray };
+  } catch {
+    return { minimizeToTray: false };
+  }
+}
+
+function writeLocalPrefs(prefs) {
+  const dir = path.dirname(getLocalPrefsPath());
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(getLocalPrefsPath(), JSON.stringify(prefs, null, 2), 'utf-8');
+}
+
+let mainWindow = null;
+let tray = null;
+let appIsQuitting = false;
+let minimizeToTrayEnabled = false;
+
+function getTrayIcon() {
+  const iconPath = path.join(__dirname, 'icon.ico');
+  if (fs.existsSync(iconPath)) {
+    return nativeImage.createFromPath(iconPath);
+  }
+  const pngPath = path.join(__dirname, 'icon.png');
+  if (fs.existsSync(pngPath)) {
+    return nativeImage.createFromPath(pngPath);
+  }
+  return nativeImage.createEmpty();
+}
+
+function ensureTray() {
+  if (tray) return;
+  const icon = getTrayIcon();
+  tray = new Tray(icon);
+  tray.setToolTip('CREW Documents');
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'Show CREW Documents',
+      click: () => showMainWindowFromTray(),
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        appIsQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+  tray.setContextMenu(menu);
+  tray.on('double-click', () => showMainWindowFromTray());
+  if (process.platform === 'win32') {
+    tray.on('click', () => showMainWindowFromTray());
+  }
+}
+
+function destroyTray() {
+  if (!tray) return;
+  tray.destroy();
+  tray = null;
+}
+
+function applyMinimizeToTrayPref(enabled) {
+  minimizeToTrayEnabled = !!enabled;
+  if (minimizeToTrayEnabled) {
+    ensureTray();
+  } else {
+    destroyTray();
+  }
+}
+
+function hideMainWindowToTray() {
+  if (!mainWindow || !minimizeToTrayEnabled) return;
+  mainWindow.hide();
+}
+
+function showMainWindowFromTray() {
+  if (!mainWindow) return;
+  const wasHidden = !mainWindow.isVisible();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  if (wasHidden) {
+    mainWindow.webContents.send('app-restored-from-tray');
+  }
+}
+
+function attachTrayWindowHandlers(win) {
+  win.on('minimize', (event) => {
+    if (!minimizeToTrayEnabled) return;
+    event.preventDefault();
+    hideMainWindowToTray();
+  });
+
+  win.on('close', (event) => {
+    if (!minimizeToTrayEnabled || appIsQuitting) return;
+    event.preventDefault();
+    hideMainWindowToTray();
+  });
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
@@ -211,6 +367,12 @@ function createWindow() {
       nodeIntegration: false,
     },
     autoHideMenuBar: true,
+  });
+
+  mainWindow = win;
+  attachTrayWindowHandlers(win);
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null;
   });
 
   // Launch maximized (fills the screen, keeps the taskbar).
@@ -331,7 +493,87 @@ ipcMain.handle('read-data', () => {
 
 ipcMain.handle('write-data', (_event, data) => {
   ensureDataDir();
-  fs.writeFileSync(getDataFilePath(), JSON.stringify(data, null, 2), 'utf-8');
+  writeDataFile(data);
+});
+
+ipcMain.handle('get-client-info', () => {
+  let userName = '';
+  try {
+    userName = os.userInfo().username || '';
+  } catch {
+    userName = '';
+  }
+  return {
+    hostName: os.hostname(),
+    userName,
+  };
+});
+
+ipcMain.handle('acquire-section-lock', (_event, section, clientId, displayName) => {
+  if (!SECTION_LOCK_IDS.includes(section)) {
+    return { ok: false, error: 'invalid section' };
+  }
+  ensureDataDir();
+  fs.mkdirSync(getLocksDir(), { recursive: true });
+  clearStaleSectionLock(section);
+  const existing = readSectionLock(section);
+  const now = Date.now();
+  if (existing && existing.clientId !== clientId && !isSectionLockStale(existing)) {
+    return { ok: false, heldBy: existing };
+  }
+  const lock = {
+    section,
+    clientId,
+    displayName: String(displayName || 'User'),
+    acquiredAt: existing?.acquiredAt ?? now,
+    heartbeatAt: now,
+  };
+  fs.writeFileSync(sectionLockPath(section), JSON.stringify(lock, null, 2), 'utf-8');
+  return { ok: true, lock };
+});
+
+ipcMain.handle('renew-section-lock', (_event, section, clientId) => {
+  if (!SECTION_LOCK_IDS.includes(section)) return { ok: false };
+  const existing = readSectionLock(section);
+  if (!existing || existing.clientId !== clientId || isSectionLockStale(existing)) {
+    return { ok: false };
+  }
+  existing.heartbeatAt = Date.now();
+  fs.writeFileSync(sectionLockPath(section), JSON.stringify(existing, null, 2), 'utf-8');
+  return { ok: true };
+});
+
+ipcMain.handle('release-section-lock', (_event, section, clientId) => {
+  if (!SECTION_LOCK_IDS.includes(section)) return { ok: true };
+  const existing = readSectionLock(section);
+  if (existing && existing.clientId === clientId) {
+    try {
+      fs.unlinkSync(sectionLockPath(section));
+    } catch {
+      /* ignore */
+    }
+  }
+  return { ok: true };
+});
+
+ipcMain.handle('read-section-lock', (_event, section) => {
+  if (!SECTION_LOCK_IDS.includes(section)) return null;
+  clearStaleSectionLock(section);
+  const lock = readSectionLock(section);
+  if (!lock || isSectionLockStale(lock)) return null;
+  return lock;
+});
+
+ipcMain.handle('list-section-locks', () => {
+  const locks = {};
+  for (const section of SECTION_LOCK_IDS) {
+    clearStaleSectionLock(section);
+    const lock = readSectionLock(section);
+    if (lock && !isSectionLockStale(lock)) {
+      locks[section] = lock;
+    }
+  }
+  return locks;
 });
 
 ipcMain.handle('get-data-path', () => getDataFilePath());
@@ -609,8 +851,27 @@ ipcMain.handle('delete-ship-asset', (_event, kind) => {
   return true;
 });
 
+ipcMain.handle('get-local-prefs', () => readLocalPrefs());
+
+ipcMain.handle('set-local-prefs', (_event, patch) => {
+  const current = readLocalPrefs();
+  const next = { ...current, ...patch };
+  if (typeof patch?.minimizeToTray === 'boolean') {
+    next.minimizeToTray = patch.minimizeToTray;
+    applyMinimizeToTrayPref(next.minimizeToTray);
+    if (!next.minimizeToTray && mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  }
+  writeLocalPrefs(next);
+  return next;
+});
+
 app.whenReady().then(() => {
   if (app.isPackaged) registerAppProtocol();
+  const prefs = readLocalPrefs();
+  applyMinimizeToTrayPref(prefs.minimizeToTray);
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -618,5 +879,10 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (minimizeToTrayEnabled && mainWindow && !appIsQuitting) return;
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  appIsQuitting = true;
 });

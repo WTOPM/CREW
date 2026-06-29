@@ -1122,3 +1122,42 @@
   color: var(--text-muted);
   word-break: break-all;
 }
+
+.settings-workstation-card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.settings-workstation-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.settings-workstation-row input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  accent-color: #0284c7;
+  cursor: pointer;
+}
+
+.settings-workstation-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.settings-workstation-row__hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}

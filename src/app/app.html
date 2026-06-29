@@ -16,13 +16,79 @@
       </a>
 
       <div class="nav-links" aria-label="Main navigation">
-        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
-          >Home</a
+        <a
+          routerLink="/"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          class="nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('home') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('home') === 'other'"
+          [title]="navLockTooltip('home')"
+          >Home
+          @if (navLockBadge('home'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('home') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
         >
-        <a routerLink="/dg" routerLinkActive="active" class="nav-dg">DG</a>
-        <a routerLink="/reefer" routerLinkActive="active" class="nav-reefer">REEFER</a>
-        <a routerLink="/eta" routerLinkActive="active" class="nav-eta">ETA</a>
-        <a routerLink="/settings" routerLinkActive="active" class="nav-settings">
+        <a
+          routerLink="/dg"
+          routerLinkActive="active"
+          class="nav-dg nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('dg') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('dg') === 'other'"
+          [title]="navLockTooltip('dg')"
+          >DG
+          @if (navLockBadge('dg'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('dg') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
+          routerLink="/reefer"
+          routerLinkActive="active"
+          class="nav-reefer nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('reefer') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('reefer') === 'other'"
+          [title]="navLockTooltip('reefer')"
+          >REEFER
+          @if (navLockBadge('reefer'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('reefer') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
+          routerLink="/eta"
+          routerLinkActive="active"
+          class="nav-eta nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('eta') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('eta') === 'other'"
+          [title]="navLockTooltip('eta')"
+          >ETA
+          @if (navLockBadge('eta'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('eta') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
+          routerLink="/settings"
+          routerLinkActive="active"
+          class="nav-settings nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('settings') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('settings') === 'other'"
+          [title]="navLockTooltip('settings')"
+        >
           <svg class="gear-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path
               fill="currentColor"
@@ -30,8 +96,30 @@
             />
           </svg>
           Settings
+          @if (navLockBadge('settings'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('settings') === 'mine'"
+              >{{ badge }}</span
+            >
+          }
         </a>
       </div>
+
+      @if (cooperativeSharing()) {
+        <button
+          type="button"
+          class="nav-refresh-btn"
+          title="Refresh current section from shared data folder"
+          [disabled]="refreshBusy()"
+          (click)="refreshFromDisk()"
+        >
+          <span class="nav-refresh-btn__icon" [class.nav-refresh-btn__icon--spin]="refreshBusy()"
+            >↻</span
+          >
+          <span class="nav-refresh-btn__label">Refresh</span>
+        </button>
+      }
     </div>
 
     @if (showPkgBar()) {
@@ -41,14 +129,23 @@
     }
 
     <div class="top-nav__end">
-      <div class="output-bar">
-        <label class="output-toggle" title="Save to selected folder">
-          <input
-            type="checkbox"
-            [ngModel]="outputSettings().saveToFolder"
-            (ngModelChange)="toggleSaveToFolder($event)"
-          />
-        </label>
+      <div
+        class="output-bar"
+        [class.output-bar--active]="outputSettings().saveToFolder"
+        [attr.aria-label]="
+          outputSettings().saveToFolder ? 'Saving to folder is ON' : 'Saving to folder is off'
+        "
+      >
+        <button
+          type="button"
+          class="output-toggle-btn"
+          [class.output-toggle-btn--on]="outputSettings().saveToFolder"
+          title="Save to selected folder — click to toggle"
+          [attr.aria-pressed]="outputSettings().saveToFolder"
+          (click)="toggleSaveToFolder(!outputSettings().saveToFolder)"
+        >
+          {{ outputSettings().saveToFolder ? 'ON' : 'OFF' }}
+        </button>
 
         @if (canSaveToFolder) {
           <select
@@ -90,7 +187,10 @@
       </div>
     </div>
   </nav>
-  <main class="app-main">
+  @if (sectionLockBanner(); as msg) {
+    <div class="section-lock-banner" role="status">{{ msg }}</div>
+  }
+  <main class="app-main" [class.app-main--readonly]="sectionReadOnly()">
     <router-outlet />
   </main>
   <app-confirm-dialog />

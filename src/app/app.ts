@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -15,6 +15,9 @@ import { DgPageArchiveService } from './services/dg-page-archive.service';
 import { ReeferPageArchiveService } from './services/reefer-page-archive.service';
 import { AppSnapshotArchiveService } from './services/app-snapshot-archive.service';
 import { CrewListHtmlFormExcelService } from './services/crew-list-html-form-excel.service';
+import { AppStateStore } from './services/app-state.store';
+import { SectionLockService } from './services/section-lock.service';
+import { sectionFromRoutePath, AppSection } from './utils/app-data-section.util';
 import { uint8ToBase64 } from './utils/base64.util';
 
 interface FolderOption {
@@ -49,6 +52,8 @@ export class App implements OnInit {
   private readonly reeferPageArchive = inject(ReeferPageArchiveService);
   private readonly appSnapshotArchive = inject(AppSnapshotArchiveService);
   private readonly htmlFormExcel = inject(CrewListHtmlFormExcelService);
+  private readonly appState = inject(AppStateStore);
+  protected readonly sectionLock = inject(SectionLockService);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
   private folderHoldTriggered = false;
 
@@ -81,6 +86,11 @@ export class App implements OnInit {
     { initialValue: !this.isStandaloneInventoryRoute() },
   );
 
+  protected readonly sectionLockBanner = this.sectionLock.bannerMessage;
+  protected readonly sectionReadOnly = this.sectionLock.readOnly;
+  protected readonly cooperativeSharing = this.sectionLock.cooperativeMode;
+  protected readonly refreshBusy = signal(false);
+
   ngOnInit(): void {
     const params = new URLSearchParams(window.location.search);
     const embeddedExcel = params.get('embed') === '1' && !!params.get('htmlFormExcel');
@@ -89,6 +99,11 @@ export class App implements OnInit {
     }
 
     this.titleTooltips.install();
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe((e) => {
+        void this.onMainSectionNav(e.urlAfterRedirects);
+      });
     void this.storage.init().then(async () => {
       if (embeddedExcel) {
         await this.runEmbeddedHtmlFormExcelExport();
@@ -97,8 +112,12 @@ export class App implements OnInit {
       this.dgPageArchive.restoreSession();
       this.reeferPageArchive.restoreSession();
       this.appSnapshotArchive.restoreSession();
+      await this.onMainSectionNav(this.router.url);
     });
     void this.folderAccess.restore();
+    window.electronAPI?.onAppRestoredFromTray?.(() => {
+      void this.onRestoredFromTray();
+    });
   }
 
   /** Hidden iframe from an HTML form editor — build Excel and post bytes to the parent page. */
@@ -224,5 +243,67 @@ export class App implements OnInit {
   private isStandaloneInventoryRoute(): boolean {
     const path = this.router.url.split('?')[0].split('#')[0];
     return path === '/dg' || path === '/reefer' || path === '/eta';
+  }
+
+  private shouldSkipSectionReload(section: NonNullable<ReturnType<typeof sectionFromRoutePath>>): boolean {
+    if (section === 'home' && this.appSnapshotArchive.loaded()) return true;
+    if (section === 'dg' && this.dgPageArchive.loaded()) return true;
+    if (section === 'reefer' && this.reeferPageArchive.loaded()) return true;
+    return false;
+  }
+
+  private async onMainSectionNav(url: string): Promise<void> {
+    const section = sectionFromRoutePath(url);
+    if (section && this.hasElectron && !this.shouldSkipSectionReload(section)) {
+      await this.appState.reloadSectionFromDisk(section);
+    }
+    await this.sectionLock.onNavigate(section);
+  }
+
+  protected navLockTooltip(section: AppSection): string {
+    return this.sectionLock.navLockTooltip(section);
+  }
+
+  protected navLockBadge(section: AppSection): string | null {
+    return this.sectionLock.navLockBadge(section);
+  }
+
+  protected navLockState(section: AppSection): string {
+    return this.sectionLock.navLockState(section);
+  }
+
+  protected async refreshFromDisk(): Promise<void> {
+    if (!this.hasElectron || this.refreshBusy()) return;
+    const section = sectionFromRoutePath(this.router.url);
+    if (!section) return;
+    if (this.shouldSkipSectionReload(section)) {
+      this.toast.show('Cannot refresh while an archive snapshot is loaded', 'warning');
+      return;
+    }
+    this.refreshBusy.set(true);
+    try {
+      await this.appState.reloadSectionFromDisk(section);
+      await this.sectionLock.refreshPeerLocks();
+      await this.sectionLock.refreshCurrentLockState();
+      this.toast.show('Data refreshed from shared folder', 'success');
+    } catch (err) {
+      console.error(err);
+      this.toast.showError('Could not refresh data');
+    } finally {
+      this.refreshBusy.set(false);
+    }
+  }
+
+  private async onRestoredFromTray(): Promise<void> {
+    if (!this.hasElectron) return;
+    try {
+      await this.appState.reloadAllFromDisk();
+      await this.sectionLock.refreshPeerLocks();
+      await this.sectionLock.refreshCurrentLockState();
+      this.toast.show('Data refreshed from shared folder', 'success');
+    } catch (err) {
+      console.error(err);
+      this.toast.showError('Could not refresh data');
+    }
   }
 }

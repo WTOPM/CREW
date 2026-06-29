@@ -1,6 +1,26 @@
 import { AppData } from './app/models/crew.models';
 import type { CrewDocumentType } from './app/models/crew.models';
 import type { ShipAssetKind } from './app/models/document-overlay.models';
+import type { AppSection } from './app/utils/app-data-section.util';
+
+export interface SectionLockRecord {
+  section: AppSection;
+  clientId: string;
+  displayName: string;
+  acquiredAt: number;
+  heartbeatAt: number;
+}
+
+export interface AcquireSectionLockResult {
+  ok: boolean;
+  lock?: SectionLockRecord;
+  heldBy?: SectionLockRecord;
+  error?: string;
+}
+
+export interface ElectronLocalPrefs {
+  minimizeToTray: boolean;
+}
 
 export {};
 
@@ -10,6 +30,19 @@ declare global {
       readData: () => Promise<AppData | null>;
       writeData: (data: AppData) => Promise<void>;
       getDataPath: () => Promise<string>;
+      getClientInfo: () => Promise<{ hostName: string; userName: string }>;
+      acquireSectionLock: (
+        section: AppSection,
+        clientId: string,
+        displayName: string,
+      ) => Promise<AcquireSectionLockResult>;
+      renewSectionLock: (section: AppSection, clientId: string) => Promise<{ ok: boolean }>;
+      releaseSectionLock: (section: AppSection, clientId: string) => Promise<{ ok: boolean }>;
+      readSectionLock: (section: AppSection) => Promise<SectionLockRecord | null>;
+      listSectionLocks: () => Promise<Partial<Record<AppSection, SectionLockRecord>>>;
+      getLocalPrefs: () => Promise<ElectronLocalPrefs>;
+      setLocalPrefs: (patch: Partial<ElectronLocalPrefs>) => Promise<ElectronLocalPrefs>;
+      onAppRestoredFromTray: (callback: () => void) => () => void;
       pickPdfFile: () => Promise<string | null>;
       pickDirectory: () => Promise<string | null>;
       openDirectory: (dirPath: string) => Promise<{ ok: boolean; error?: string }>;

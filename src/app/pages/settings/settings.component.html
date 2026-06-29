@@ -251,6 +251,30 @@
     <app-custom-documents />
   </section>
 
+  @if (hasElectron) {
+    <section class="card settings-workstation-card">
+      <h2>This computer</h2>
+      <p class="section-desc">
+        Options stored on this PC only — not in the shared data folder. Each workstation can use
+        different settings.
+      </p>
+      <label class="settings-workstation-row">
+        <input
+          type="checkbox"
+          [ngModel]="minimizeToTray()"
+          (ngModelChange)="onMinimizeToTrayChange($event)"
+        />
+        <span class="settings-workstation-row__text">
+          <strong>Minimize to system tray</strong>
+          <span class="settings-workstation-row__hint">
+            When minimized or closed, CREW stays in the tray. Open from the tray icon — data is
+            refreshed from the shared folder.
+          </span>
+        </span>
+      </label>
+    </section>
+  }
+
   @if (dataPath()) {
     <p class="settings-data-path">Data file: {{ dataPath() }}</p>
   }

@@ -7,6 +7,7 @@ import { PortSelectComponent } from '../../components/port-select/port-select.co
 import { PORT_SEC_LVL_OPTIONS, PortTerminal, ShipInfo } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 import { ReferenceListsStore } from '../../services/reference-lists.store';
+import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
 import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
 import { PrintPackagesComponent } from '../../components/print-packages/print-packages.component';
 import { CustomDocumentsComponent } from '../../components/custom-documents/custom-documents.component';
@@ -31,6 +32,10 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 export class SettingsComponent {
   protected readonly storage = inject(StorageService);
   protected readonly refLists = inject(ReferenceListsStore);
+  protected readonly localPrefs = inject(ElectronLocalPrefsService);
+
+  protected readonly hasElectron = this.localPrefs.available;
+  protected readonly minimizeToTray = this.localPrefs.minimizeToTray;
 
   protected readonly dataPath = signal<string | null>(null);
 
@@ -60,6 +65,11 @@ export class SettingsComponent {
 
   constructor() {
     void this.storage.getDataPath().then((p) => this.dataPath.set(p));
+    void this.localPrefs.load();
+  }
+
+  protected onMinimizeToTrayChange(enabled: boolean): void {
+    void this.localPrefs.setMinimizeToTray(enabled);
   }
 
   protected onShipChange(field: keyof ShipInfo, value: string): void {
