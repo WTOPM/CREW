@@ -5,15 +5,29 @@
       <span class="doc-menu-chevron" aria-hidden="true">▾</span>
     </button>
     <div class="doc-menu-panel doc-menu-panel--crew" role="menu">
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(true)">
-        ARRIVAL
-      </button>
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openCrewList(false)">
-        DEPARTURE
-      </button>
+      @for (id of crewListDocIds; track id) {
+        <div class="doc-menu-group" role="group" [attr.aria-label]="crewListDocLabel(id)">
+          <button
+            type="button"
+            class="doc-menu-item doc-menu-item--crew-doc"
+            role="menuitem"
+            (click)="openCrewListFor(id, true)"
+          >
+            {{ crewListDocLabel(id) }}
+          </button>
+          <button
+            type="button"
+            class="doc-menu-item doc-menu-item--crew-sub"
+            role="menuitem"
+            (click)="openCrewListFor(id, false)"
+          >
+            DEPARTURE
+          </button>
+        </div>
+      }
       <button
         type="button"
-        class="doc-menu-item doc-menu-item--icon"
+        class="doc-menu-item doc-menu-item--icon doc-menu-item--crew-settings"
         role="menuitem"
         (click)="openCrewListSettings()"
       >

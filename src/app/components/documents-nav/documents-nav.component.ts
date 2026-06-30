@@ -30,7 +30,9 @@ import {
   CREW_FORM_05,
   CREW_FORM_06,
   CREW_FORM_07,
+  CREW_LIST_TYPE_IDS,
   CREW_LIST_TYPE_LABELS,
+  CrewListTypeId,
 } from '../../models/document-overlay.models';
 import { CREW_LIST_FORM_01_FEEDBACK_PARAM } from '../../models/crew-list-form-01.paths';
 import { PASSENGER_LIST_FORM_01_FEEDBACK_PARAM } from '../../models/passenger-list-form-01.paths';
@@ -190,6 +192,7 @@ export class DocumentsNavComponent implements OnInit {
   protected readonly portSettingsDocIds = PORT_SETTINGS_DOC_IDS;
   protected readonly portSecLvlOptions = PORT_SEC_LVL_OPTIONS;
   protected showCrewListSettings = signal(false);
+  protected readonly crewListDocIds = CREW_LIST_TYPE_IDS;
   protected showPaxSettings = signal(false);
   protected showMdhSettings = signal(false);
   /** Which MDH document the unified MDH Settings modal is editing. */
@@ -222,8 +225,11 @@ export class DocumentsNavComponent implements OnInit {
     });
   }
 
-  protected openCrewList(isArrival: boolean): void {
-    const listType = this.storage.documentOverlay().crewList.listType;
+  protected crewListDocLabel(id: CrewListTypeId): string {
+    return CREW_LIST_TYPE_LABELS[id];
+  }
+
+  protected openCrewListFor(listType: CrewListTypeId, isArrival: boolean): void {
     if (listType === CREW_FORM_01) {
       void this.openCrewListForm01Pdf(isArrival);
       return;
@@ -232,23 +238,23 @@ export class DocumentsNavComponent implements OnInit {
       void this.openCrewListForm02Pdf(isArrival);
       return;
     }
-    if (listType === 'type2Alger') {
+    if (listType === CREW_FORM_03) {
       void this.openCrewListForm03Pdf(isArrival);
       return;
     }
-    if (listType === 'type3V2') {
+    if (listType === CREW_FORM_04) {
       void this.openCrewListForm04Pdf(isArrival);
       return;
     }
-    if (listType === 'type4V3Sbk') { // Form 05 - CREW LIST [SBK][E] — generate PDF from HTML form
+    if (listType === CREW_FORM_05) {
       void this.openCrewListForm05Pdf(isArrival);
       return;
     }
-    if (listType === 'type5V3SbkP') {
+    if (listType === CREW_FORM_06) {
       void this.openCrewListForm06Pdf(isArrival);
       return;
     }
-    if (listType === 'type6V3SbkP2') {
+    if (listType === CREW_FORM_07) {
       void this.openCrewListForm07Pdf(isArrival);
       return;
     }
