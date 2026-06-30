@@ -156,7 +156,18 @@
     };
   }
 
+  function crewSignatureMembers(appData) {
+    if (!appData) return [];
+    const form = normalizeForm(appData.crewEffectForm);
+    return crewListRows(appData, form.appendPassengers, DATA_ROWS).map((m) => ({
+      id: m.id,
+      hasSignature: !!m.hasSignature,
+      label: formatCrewName(m),
+    }));
+  }
+
   global.CrewCrewEffectPdf = global.CrewCrewEffectPdf || {};
   global.CrewCrewEffectPdf.buildForm01FromAppData = buildForm01FromAppData;
+  global.CrewCrewEffectPdf.crewSignatureMembers01 = crewSignatureMembers;
   global.CrewCrewEffectPdf.ROW_COUNT_01 = ROW_COUNT;
 })(typeof window !== 'undefined' ? window : globalThis);

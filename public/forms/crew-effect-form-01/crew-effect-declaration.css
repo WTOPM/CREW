@@ -1,6 +1,7 @@
 /* IMO Crew's Effects Declaration (FAL Form 4) — print layout */
 
 .ced-sheet {
+  position: relative;
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
@@ -12,6 +13,38 @@
   font-size: 8.5pt;
   line-height: 1.15;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+}
+
+.ced-sheet .ss-stamp,
+.ced-sheet .ss-signature,
+.ced-sheet #stamp-container,
+.ced-sheet #sig-container {
+  position: absolute;
+  display: none;
+  z-index: 5;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.ced-sheet .ss-stamp.visible,
+.ced-sheet .ss-signature.visible,
+.ced-sheet #stamp-container.visible,
+.ced-sheet #sig-container.visible {
+  display: block;
+}
+
+.ced-sheet .ss-stamp img,
+.ced-sheet .ss-signature img,
+.ced-sheet #stamp-container img,
+.ced-sheet #sig-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.ced-cell--sig .ced-data-val {
+  min-height: 16px;
 }
 
 .ced-title {

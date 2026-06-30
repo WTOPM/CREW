@@ -120,6 +120,10 @@ export function normalizeCrewSignatureByRow(
       tweak.width = v['width'] as number;
     if (typeof v['height'] === 'number' && (v['height'] as number) > 0)
       tweak.height = v['height'] as number;
+    if (typeof v['cellLeft'] === 'string' && v['cellLeft']) tweak.cellLeft = v['cellLeft'];
+    if (typeof v['cellTop'] === 'string' && v['cellTop']) tweak.cellTop = v['cellTop'];
+    if (typeof v['cellWidth'] === 'string' && v['cellWidth']) tweak.cellWidth = v['cellWidth'];
+    if (typeof v['cellHeight'] === 'string' && v['cellHeight']) tweak.cellHeight = v['cellHeight'];
     if (Object.keys(tweak).length) out[key] = tweak;
   }
   return out;

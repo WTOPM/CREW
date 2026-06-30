@@ -35,14 +35,55 @@
     };
   }
 
-  function defaultSignatureCss() {
-    const stamp = defaultStampCss();
+  function defaultSignatureCss(stampCss) {
+    if (stampCss && stampCss.left && stampCss.top) {
+      const below = signatureCssBelowStamp(stampCss);
+      if (below) return below;
+    }
     return {
-      left: stamp.left,
-      top: `calc(${stamp.top} + ${stamp.height} + 1mm)`,
+      left: '120mm',
+      top: '269mm',
       width: '55mm',
       height: '12mm',
     };
+  }
+
+  function isPdfStampBox(box) {
+    return !!box && typeof box.x === 'number' && typeof box.y === 'number';
+  }
+
+  function isCssOverlayBox(box) {
+    return (
+      !!box &&
+      typeof box.left === 'string' &&
+      typeof box.top === 'string' &&
+      typeof box.width === 'string' &&
+      typeof box.height === 'string'
+    );
+  }
+
+  function signatureCssBelowStamp(stampCss) {
+    if (!stampCss?.left || !stampCss?.top) return null;
+    return {
+      left: stampCss.left,
+      top: `calc(${stampCss.top} + ${stampCss.height || '28mm'} + 2mm)`,
+      width: '55mm',
+      height: '12mm',
+    };
+  }
+
+  /** CSS box from persisted overlay — html css or legacy pdf-lib coords. */
+  function overlayBoxFromPersisted(box, stampBox) {
+    if (!box || typeof box !== 'object') return null;
+    if (isCssOverlayBox(box)) {
+      return { left: box.left, top: box.top, width: box.width, height: box.height };
+    }
+    if (isPdfStampBox(box)) {
+      // HTML editor stores stamp in CSS; legacy pdf-lib signature coords must not be converted.
+      if (stampBox && isCssOverlayBox(stampBox)) return null;
+      return pdfBoxToCss(box);
+    }
+    return null;
   }
 
   function electronApi() {
@@ -130,6 +171,8 @@
     pdfBoxToCss,
     defaultStampCss,
     defaultSignatureCss,
+    overlayBoxFromPersisted,
+    signatureCssBelowStamp,
     loadAsset,
     renderOverlays,
   };

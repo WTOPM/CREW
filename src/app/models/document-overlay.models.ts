@@ -7,6 +7,11 @@ export interface CrewSignatureRowTweak {
   offsetY?: number;
   width?: number;
   height?: number;
+  /** HTML forms 01/02 — signature image box inside table cell (px). */
+  cellLeft?: string;
+  cellTop?: string;
+  cellWidth?: string;
+  cellHeight?: string;
 }
 
 /** Crew Effect forms — stamp/signature plus per-crew row signatures and HTML cell overrides. */

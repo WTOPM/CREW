@@ -194,7 +194,24 @@
     };
   }
 
+  function crewSignatureMembers(appData, list) {
+    if (!appData) return [];
+    const form = normalizeForm(appData.crewEffectForm02);
+    const mode = list || 'arrival';
+    return crewListRows(appData, form.appendPassengers, ROW_COUNT, mode).map((m) => ({
+      id: m.id,
+      hasSignature: !!m.hasSignature,
+      label: formatCrewName(m),
+    }));
+  }
+
   global.CrewCrewEffectPdf = global.CrewCrewEffectPdf || {};
   global.CrewCrewEffectPdf.buildForm02FromAppData = buildForm02FromAppData;
+  global.CrewCrewEffectPdf.crewSignatureMembers02 = (appData) => {
+    const overlay = appData?.documentOverlay?.crewEffect02;
+    const cv = overlay?.cellValues || {};
+    const isArrival = cv._ceMode === 'departure' ? false : cv._ceMode === 'arrival' ? true : true;
+    return crewSignatureMembers(appData, isArrival ? 'arrival' : 'departure');
+  };
   global.CrewCrewEffectPdf.ROW_COUNT_02 = ROW_COUNT;
 })(typeof window !== 'undefined' ? window : globalThis);

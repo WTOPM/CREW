@@ -94,6 +94,7 @@
     const dateIso = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
     if (dateIso) setDateField('h-date', dateIso);
     applyFooterFromApp(appData, mode);
+    void crewSigModule?.onMembersChanged?.();
   }
 
   global.setCeAd = setCeAd;
@@ -112,7 +113,7 @@
         <td class="ced-cell"><div class="ced-data-val ced-data-val--center"><input class="ci" type="text" data-cell-key="d-${i}-5" readonly tabindex="-1" /></div></td>
         <td class="ced-cell"><div class="ced-data-val ced-data-val--center"><input class="ci" type="text" data-cell-key="d-${i}-6" readonly tabindex="-1" /></div></td>
         <td class="ced-cell"><div class="ced-data-val ced-data-val--center"><input class="ci" type="text" data-cell-key="d-${i}-7" readonly tabindex="-1" /></div></td>
-        <td class="ced-cell"><div class="ced-data-val"><input class="ci" type="text" data-cell-key="d-${i}-8" readonly tabindex="-1" /></div></td>
+        <td class="ced-cell ced-cell--sig"><div class="ced-data-val ced-sig-cell" data-ce-sig-row="${i}"><input class="ci" type="text" data-cell-key="d-${i}-8" readonly tabindex="-1" /></div></td>
       </tr>`;
     }
     tbody.innerHTML = html;
@@ -231,6 +232,31 @@
     global.__pdfReady = true;
   }
 
+  function editorScale() {
+    const txt = document.getElementById('zoom-label')?.textContent || '100%';
+    return (parseFloat(txt) || 100) / 100;
+  }
+
+  let crewSigModule = null;
+
+  function signatureListMode() {
+    const depOn = document.getElementById('ced-cb-dep')?.textContent === '\u2713';
+    return depOn ? 'departure' : 'arrival';
+  }
+
+  function initCrewSignatures(overlayVariant) {
+    if (!global.CrewEffectCrewSignatures) return null;
+    crewSigModule = CrewEffectCrewSignatures.create();
+    crewSigModule.init({
+      signatureCol: (row) => `d-${row}-8`,
+      getMembers: () => CE?.crewSignatureMembers02?.(window._appData) || [],
+      getScale: editorScale,
+    });
+    crewSigModule.restoreFromOverlay(overlayVariant || {});
+    editor.connectCrewSignatures(crewSigModule);
+    return crewSigModule;
+  }
+
   async function initEditor() {
     const appData = await editor.readPersistedAppData();
     const snapshot = await loadSnapshot(false);
@@ -248,8 +274,10 @@
     const overlayVariant =
       snapshot.documentOverlay?.[OVERLAY_KEY] || window._appData?.documentOverlay?.[OVERLAY_KEY];
     initCellEditor(overlayVariant || {});
+    initCrewSignatures(overlayVariant || {});
     editor.initOverlayToolbar();
     await editor.restoreOverlaySettings();
+    if (crewSigModule) await crewSigModule.restore();
     editor.initEditorZoom();
   }
 
@@ -271,6 +299,25 @@
     }
     if (snapshot.withOverlay && CE?.renderOverlays) {
       await CE.renderOverlays(document.getElementById('ce-page'), OVERLAY_KEY, snapshot);
+    }
+    const appData = await editor.readPersistedAppData();
+    if (overlayVariant?.useCrewSignatures && global.CrewEffectCrewSignatures) {
+      const mod = CrewEffectCrewSignatures.create();
+      mod.init({ signatureCol: (row) => `d-${row}-8`, getMembers: () => [] });
+      document.querySelectorAll('#ced-crew tr.ced-tr-data').forEach((tr) => {
+        const row = Number(tr.dataset.ceRow);
+        const input = tr.querySelector(`[data-cell-key="d-${row}-8"]`);
+        const wrap = input?.closest('.ced-data-val');
+        if (wrap) {
+          wrap.classList.add('ced-sig-cell');
+          wrap.dataset.ceSigRow = String(row);
+        }
+      });
+      await mod.renderForExport(
+        document.getElementById('ce-page'),
+        overlayVariant,
+        CE?.crewSignatureMembers02?.(appData) || [],
+      );
     }
     finishPdfExport();
   }

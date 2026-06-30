@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="crew-effect-declaration-v2.css" />
   <link rel="stylesheet" href="crew-effect-form-02.css" />
   <link rel="stylesheet" href="../html-form-editor-chrome.css" />
+  <link rel="stylesheet" href="../crew-effect-crew-signatures.css" />
 </head>
 <body class="poc-editor ce-editor">
   <div class="side-panel side-panel--left">
@@ -221,6 +222,25 @@
       </div>
       <p class="side-panel__hint">Select cells to format. Data is loaded from CREW. Stamp and signature are draggable.</p>
     </section>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Crew signatures</h2>
+      <div class="ced-crew-sig-panel">
+        <label class="ced-crew-sig-panel__toggle">
+          <input type="checkbox" id="ced-crew-sig-on" />
+          <span>Show crew signatures in table</span>
+        </label>
+        <label class="ced-crew-sig-panel__toggle">
+          <input type="checkbox" id="ced-crew-sig-all" checked />
+          <span>Preview all rows</span>
+        </label>
+        <p class="ced-crew-sig-panel__row-label">Row to adjust</p>
+        <select id="ced-crew-sig-row" class="ced-crew-sig-panel__select" aria-label="Crew signature row"></select>
+        <div class="ced-crew-sig-panel__actions">
+          <button type="button" class="btn btn-s btn--compact" id="ced-crew-sig-apply-all">Apply size to all rows</button>
+        </div>
+        <p class="ced-crew-sig-panel__hint">Upload each crew member&apos;s signature in the crew list. Drag and resize inside the selected row&apos;s Signature cell. Save to keep layout.</p>
+      </div>
+    </section>
   </div>
 
   <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
@@ -255,6 +275,7 @@
   <script src="../crew-effect-pdf-common.js"></script>
   <script src="crew-effect-form-02-data.js"></script>
   <script src="../crew-effect-form-cells-v2.js"></script>
+  <script src="../crew-effect-crew-signatures.js"></script>
   <script src="../crew-effect-form-editor.js"></script>
   <script src="crew-effect-form-02.js"></script>
 </body>

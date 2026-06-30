@@ -40,9 +40,11 @@ body.poc-editor.ce-editor .ced-sheet.a4-page,
 body.poc-editor.ce-editor .ced-sheet.ced-sheet--v2 {
   width: 210mm;
   max-width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
   box-sizing: border-box;
-  overflow-x: clip;
-  overflow-y: visible;
+  overflow: hidden;
   contain: layout paint;
   isolation: isolate;
 }
