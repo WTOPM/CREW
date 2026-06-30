@@ -37,7 +37,7 @@ import {
 import { CREW_LIST_FORM_01_FEEDBACK_PARAM } from '../../models/crew-list-form-01.paths';
 import { PASSENGER_LIST_FORM_01_FEEDBACK_PARAM } from '../../models/passenger-list-form-01.paths';
 import { PASSENGER_LIST_FORM_02_FEEDBACK_PARAM } from '../../models/passenger-list-form-02.paths';
-import { PAX_LIST_TYPE_LABELS } from '../../models/passenger.models';
+import { PAX_LIST_TYPE_IDS, PAX_LIST_TYPE_LABELS, PaxListTypeId } from '../../models/passenger.models';
 import { CREW_LIST_FORM_02_FEEDBACK_PARAM } from '../../models/crew-list-form-02.paths';
 import { CREW_LIST_FORM_03_FEEDBACK_PARAM } from '../../models/crew-list-form-03.paths';
 import { CREW_LIST_FORM_04_FEEDBACK_PARAM } from '../../models/crew-list-form-04.paths';
@@ -194,6 +194,7 @@ export class DocumentsNavComponent implements OnInit {
   protected showCrewListSettings = signal(false);
   protected readonly crewListDocIds = CREW_LIST_TYPE_IDS;
   protected showPaxSettings = signal(false);
+  protected readonly paxListDocIds = PAX_LIST_TYPE_IDS;
   protected showMdhSettings = signal(false);
   /** Which MDH document the unified MDH Settings modal is editing. */
   protected mdhSettingsDoc = signal<'mdh' | 'crewVaccine'>('mdh');
@@ -208,12 +209,15 @@ export class DocumentsNavComponent implements OnInit {
   protected moneySettingsDoc = signal<MoneyDocId>('shipMoney');
   protected showNarcoticListSettings = signal(false);
 
-  protected openPassengerList(isArrival: boolean): void {
+  protected paxListDocLabel(id: PaxListTypeId): string {
+    return PAX_LIST_TYPE_LABELS[id];
+  }
+
+  protected openPassengerListFor(listType: PaxListTypeId, isArrival: boolean): void {
     this.storage.updatePaxArr({ isArrival }, 'silent');
     const passengers = isArrival
       ? this.storage.activePassengersArrival()
       : this.storage.activePassengersDeparture();
-    const listType = this.storage.paxArr().listType;
     if (listType === 'paxV2') {
       void this.passengerListForm02Pdf.openPreview(this.appData(), passengers, isArrival).then((ok) => {
         if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');

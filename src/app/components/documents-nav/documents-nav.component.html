@@ -47,21 +47,30 @@
       PAX
       <span class="doc-menu-chevron" aria-hidden="true">▾</span>
     </button>
-    <div class="doc-menu-panel" role="menu">
-      <button type="button" class="doc-menu-item" role="menuitem" (click)="openPassengerList(true)">
-        ARRIVAL
-      </button>
+    <div class="doc-menu-panel doc-menu-panel--pax" role="menu">
+      @for (id of paxListDocIds; track id) {
+        <div class="doc-menu-group" role="group" [attr.aria-label]="paxListDocLabel(id)">
+          <button
+            type="button"
+            class="doc-menu-item doc-menu-item--pax-doc"
+            role="menuitem"
+            (click)="openPassengerListFor(id, true)"
+          >
+            {{ paxListDocLabel(id) }}
+          </button>
+          <button
+            type="button"
+            class="doc-menu-item doc-menu-item--pax-sub"
+            role="menuitem"
+            (click)="openPassengerListFor(id, false)"
+          >
+            DEPARTURE
+          </button>
+        </div>
+      }
       <button
         type="button"
-        class="doc-menu-item"
-        role="menuitem"
-        (click)="openPassengerList(false)"
-      >
-        DEPARTURE
-      </button>
-      <button
-        type="button"
-        class="doc-menu-item doc-menu-item--icon"
+        class="doc-menu-item doc-menu-item--icon doc-menu-item--pax-settings"
         role="menuitem"
         (click)="openPaxSettings()"
       >

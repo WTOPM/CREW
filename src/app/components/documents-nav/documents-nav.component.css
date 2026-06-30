@@ -204,6 +204,60 @@
   white-space: nowrap;
 }
 
+.doc-menu-panel--pax {
+  width: max-content;
+  min-width: max-content;
+  max-width: min(95vw, max-content);
+  max-height: min(70vh, 32rem);
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.doc-menu-panel--pax .doc-menu-group {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  min-width: 100%;
+}
+
+.doc-menu-panel--pax .doc-menu-group + .doc-menu-group {
+  margin-top: 0.2rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid rgb(148 163 184 / 22%);
+}
+
+.doc-menu-panel--pax .doc-menu-item--pax-doc {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  padding-bottom: 0.2rem;
+  white-space: nowrap;
+  width: auto;
+}
+
+.doc-menu-panel--pax .doc-menu-item--pax-sub {
+  padding-top: 0.15rem;
+  padding-left: 1.15rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.doc-menu-panel--pax .doc-menu-item--pax-sub:hover,
+.doc-menu-panel--pax .doc-menu-item--pax-sub:focus-visible {
+  color: var(--text);
+}
+
+.doc-menu-panel--pax .doc-menu-item--pax-settings {
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgb(148 163 184 / 28%);
+  width: 100%;
+  white-space: nowrap;
+}
+
 .doc-menu-panel {
   position: absolute;
   top: calc(100% + 0.25rem);
