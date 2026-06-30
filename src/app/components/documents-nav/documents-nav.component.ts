@@ -104,6 +104,10 @@ import { CrewListSettingsComponent } from '../crew-list-settings/crew-list-setti
 import { PortOfCallSettingsComponent } from '../port-of-call-settings/port-of-call-settings.component';
 import { XlsExportButtonComponent } from '../xls-export-button/xls-export-button.component';
 import { CrewEffectSettingsComponent } from '../crew-effect-settings/crew-effect-settings.component';
+import {
+  NIL_LIST_FORM_FEEDBACK_PARAM,
+  NIL_LIST_SETTINGS_PARAM,
+} from '../../models/nil-list-form.paths';
 import { NilListSettingsComponent } from '../nil-list-settings/nil-list-settings.component';
 import { ShipMoneySettingsComponent } from '../ship-money-settings/ship-money-settings.component';
 import { CashAdvanceSettingsComponent } from '../cash-advance-settings/cash-advance-settings.component';
@@ -519,6 +523,18 @@ export class DocumentsNavComponent implements OnInit {
       this.toast.show(`Cancelled: ${ceForm02Label}`, 'info');
     }
 
+    const reopenNilList = params.get(NIL_LIST_SETTINGS_PARAM) === '1';
+    const feedbackNilList = params.get(NIL_LIST_FORM_FEEDBACK_PARAM);
+    const nilListLabel = 'NIL List';
+    if (reopenNilList) {
+      this.showNilListSettings.set(true);
+    }
+    if (feedbackNilList === 'saved') {
+      this.toast.show(`Saved: ${nilListLabel}`, 'success');
+    } else if (feedbackNilList === 'cancelled') {
+      this.toast.show(`Cancelled: ${nilListLabel}`, 'info');
+    }
+
     if (reopenPax) {
       this.showPaxSettings.set(true);
     }
@@ -577,6 +593,7 @@ export class DocumentsNavComponent implements OnInit {
       reopenPoc ||
       reopenShipStores ||
       reopenCrewEffect ||
+      reopenNilList ||
       reopenPax ||
       feedbackPoc01 ||
       feedbackPoc02 ||
@@ -584,6 +601,7 @@ export class DocumentsNavComponent implements OnInit {
       feedbackSs02 ||
       feedbackCe01 ||
       feedbackCe02 ||
+      feedbackNilList ||
       feedback01 ||
       feedback02 ||
       feedback03 ||
@@ -607,6 +625,8 @@ export class DocumentsNavComponent implements OnInit {
       params.delete(CREW_EFFECT_SETTINGS_PARAM);
       params.delete(CREW_EFFECT_FORM_01_FEEDBACK_PARAM);
       params.delete(CREW_EFFECT_FORM_02_FEEDBACK_PARAM);
+      params.delete(NIL_LIST_SETTINGS_PARAM);
+      params.delete(NIL_LIST_FORM_FEEDBACK_PARAM);
       params.delete(PASSENGER_LIST_FORM_01_FEEDBACK_PARAM);
       params.delete(PASSENGER_LIST_FORM_02_FEEDBACK_PARAM);
       params.delete(CREW_LIST_FORM_01_FEEDBACK_PARAM);

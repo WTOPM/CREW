@@ -439,6 +439,9 @@
   }
 
   function captureDirtyBaseline() {
+    pageScope()
+      ?.querySelectorAll('input.ci[data-cell-key]')
+      .forEach((el) => reflowCell(el));
     dirtyBaseline = captureDirtySnapshot();
   }
 

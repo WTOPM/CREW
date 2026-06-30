@@ -209,4 +209,7 @@
   </main>
   <app-confirm-dialog />
   <app-toast />
+  @if (dataSetup(); as setup) {
+    <app-data-setup [reason]="setup.reason" (resolved)="onDataSetupResolved()" />
+  }
 </div>

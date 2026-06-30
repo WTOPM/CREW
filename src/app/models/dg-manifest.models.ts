@@ -5,7 +5,7 @@ import {
   formatShipSecurityOfficerName,
   resolveKnownPortName,
 } from './crew.models';
-import { dgInventoryDisplayTotalKg, mergeDgCargoLines } from '../utils/dg-cargo-merge.util';
+import { dgInventoryDisplayTotalKg, mergeDgCargoLines, dgContainerDisplayRawWeights } from '../utils/dg-cargo-merge.util';
 import { sumPlannedDgLineWeightsKg } from '../utils/dg-weight-view.util';
 import {
   createEmptyDgPageContext,
@@ -626,19 +626,18 @@ export function formatDgExportLineWeightKg(value: string | number | undefined | 
   return formatDgWeightKgGrossDisplay(value);
 }
 
-/** Manifest export total: when rounding, sum each cargo line's whole kg. */
+/** Manifest export total — same rows and rounding as inventory / PDF / Excel table. */
 export function dgContainersExportTotalKg(
   containers: readonly DgOnboardContainer[],
   useGrossWeight = true,
   roundWeights = false,
+  mergeLines = true,
 ): number {
-  const rawWeights: number[] = [];
-  for (const container of containers) {
-    for (const line of container.lines) {
-      rawWeights.push(dgLineActiveWeightKg(line, useGrossWeight));
-    }
-  }
-  return sumPlannedDgLineWeightsKg(rawWeights, roundWeights);
+  return dgInventoryDisplayTotalKg(containers, {
+    manifestMergeLines: mergeLines,
+    manifestUseGrossWeight: useGrossWeight,
+    manifestRoundWeights: roundWeights,
+  });
 }
 
 export function dgOnboardExportTotalKg(
@@ -650,13 +649,13 @@ export function dgOnboardExportTotalKg(
 }
 
 export function dgViewContainerTotalKg(
-  container: Pick<DgOnboardContainer, 'lines'>,
+  container: { id: string; lines: readonly DgCargoLine[] },
   options: DgManifestViewOptions,
 ): number {
-  const rawWeights = container.lines.map((line) =>
-    dgLineActiveWeightKg(line, options.manifestUseGrossWeight),
+  return sumPlannedDgLineWeightsKg(
+    dgContainerDisplayRawWeights(container, options),
+    options.manifestRoundWeights,
   );
-  return sumPlannedDgLineWeightsKg(rawWeights, options.manifestRoundWeights);
 }
 
 export function dgContainerTotalKg(

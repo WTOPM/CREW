@@ -411,8 +411,7 @@
       const nav = document.getElementById('poc-page-nav');
       const label = document.getElementById('zoom-label');
       const scale = editorZoomPct / 100;
-      const padX = 24;
-      const padY = 56;
+      const isPdfExport = document.body.classList.contains('is-pdf-export');
 
       if (slot) {
         slot.style.width = '';
@@ -425,6 +424,18 @@
         stage.style.marginBottom = '0';
         stage.style.zoom = '';
       }
+
+      if (isPdfExport) {
+        if (pad) {
+          pad.style.width = '';
+          pad.style.height = '';
+        }
+        if (label) label.textContent = `${editorZoomPct}%`;
+        return;
+      }
+
+      const padX = 24;
+      const padY = 56;
 
       if (pad && page) {
         const pageW = page.offsetWidth;
@@ -454,16 +465,10 @@
     function initEditorZoom() {
       applyEditorZoom();
       const viewport = document.getElementById('doc-zoom-viewport');
-      if (!viewport) return;
-      viewport.addEventListener(
-        'wheel',
-        (e) => {
-          if (document.body.classList.contains('is-pdf-export')) return;
-          e.preventDefault();
-          setEditorZoom(editorZoomPct + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
-        },
-        { passive: false },
-      );
+      if (!viewport || !global.CrewHtmlFormEditorWheel) return;
+      global.CrewHtmlFormEditorWheel.attach(viewport, {
+        onZoomStep: (step) => setEditorZoom(editorZoomPct + step * ZOOM_STEP),
+      });
     }
 
     function resetEditorZoomForExport() {
@@ -484,7 +489,6 @@
         slot.style.width = '';
         slot.style.height = '';
       }
-      applyEditorZoom();
     }
 
     global.persistAllChanges = persistAllChanges;

@@ -72,16 +72,43 @@
     };
   }
 
-  /** CSS box from persisted overlay — html css or legacy pdf-lib coords. */
-  function overlayBoxFromPersisted(box, stampBox) {
-    if (!box || typeof box !== 'object') return null;
-    if (isCssOverlayBox(box)) {
-      return { left: box.left, top: box.top, width: box.width, height: box.height };
+  function isUsableHtmlCssBox(box) {
+    if (!box?.left || !box?.top || !box?.width || !box?.height) return false;
+    const left = String(box.left);
+    const top = String(box.top);
+    const width = String(box.width);
+    const height = String(box.height);
+    const w = parseFloat(width);
+    const h = parseFloat(height);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 8 || h < 8) return false;
+    if (left.endsWith('px') && top.endsWith('px')) {
+      const l = parseFloat(left);
+      const t = parseFloat(top);
+      if (!Number.isFinite(l) || !Number.isFinite(t)) return false;
+      if (l < 24 || t < 40) return false;
+      return true;
     }
+    if (left.endsWith('mm') && top.endsWith('mm')) {
+      const t = parseFloat(top);
+      if (!Number.isFinite(t) || t < 120) return false;
+      return true;
+    }
+    return true;
+  }
+
+  function sanitizeHtmlCssBox(box) {
+    if (!isUsableHtmlCssBox(box)) return null;
+    return { left: box.left, top: box.top, width: box.width, height: box.height };
+  }
+
+  /** CSS box from persisted overlay — CSS only for HTML forms (legacy PDF dropped). */
+  function overlayBoxFromPersisted(box, stampBox) {
+    const css = sanitizeHtmlCssBox(box);
+    if (css) return css;
     if (isPdfStampBox(box)) {
-      // HTML editor stores stamp in CSS; legacy pdf-lib signature coords must not be converted.
       if (stampBox && isCssOverlayBox(stampBox)) return null;
-      return pdfBoxToCss(box);
+      const converted = pdfBoxToCss(box);
+      return sanitizeHtmlCssBox(converted);
     }
     return null;
   }
@@ -153,7 +180,7 @@
       if (url) {
         stampEl.classList.add('visible');
         stampEl.innerHTML = `<img src="${url}" alt="" />`;
-        applyBox(stampEl, pdfBoxToCss(opts.stampBox) || defaultStampCss());
+        applyBox(stampEl, sanitizeHtmlCssBox(opts.stampBox) || pdfBoxToCss(opts.stampBox) || defaultStampCss());
       }
     }
 
@@ -162,7 +189,10 @@
       if (url) {
         sigEl.classList.add('visible');
         sigEl.innerHTML = `<img src="${url}" alt="" />`;
-        applyBox(sigEl, pdfBoxToCss(opts.signatureBox) || defaultSignatureCss());
+        applyBox(
+          sigEl,
+          sanitizeHtmlCssBox(opts.signatureBox) || pdfBoxToCss(opts.signatureBox) || defaultSignatureCss(),
+        );
       }
     }
   }
@@ -172,6 +202,8 @@
     defaultStampCss,
     defaultSignatureCss,
     overlayBoxFromPersisted,
+    isUsableHtmlCssBox,
+    sanitizeHtmlCssBox,
     signatureCssBelowStamp,
     loadAsset,
     renderOverlays,

@@ -12,6 +12,7 @@ import { EtaStore } from '../../services/eta.store';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import {
+  formatSpeedKnotsCalculated,
   formatSpeedKnotsDisplay,
   sanitizeSpeedKnotsInput,
   speedKnotsToTenths,
@@ -25,7 +26,7 @@ import {
   etaWallClockParts,
   formatUtcOffsetLabel,
   scenarioHint,
-  scenarioLabel,
+  scenarioShortLabel,
   scenarioTooltip,
 } from '../../utils/eta-calculator.util';
 
@@ -225,7 +226,7 @@ export class EtaComponent {
     const leg = this.calculation().legs[legIndex];
     if (!this.isSpeedEditable()) {
       const speed = leg?.effectiveSpeedKnots ?? this.calculation().requiredSpeedKnots;
-      return speed != null && speed > 0 ? formatSpeedKnotsDisplay(speed) : '';
+      return speed != null && speed > 0 ? formatSpeedKnotsCalculated(speed) : '';
     }
     return this.legSpeedInput(this.draft().legs[legIndex]?.id ?? '', legIndex);
   }
@@ -307,7 +308,7 @@ export class EtaComponent {
     return this.calculation().legs[legIndex]?.arrivalAtLegEndLabel ?? '';
   }
 
-  protected scenarioLabel = scenarioLabel;
+  protected scenarioShortLabel = scenarioShortLabel;
   protected scenarioHint = scenarioHint;
   protected scenarioTooltip = scenarioTooltip;
 

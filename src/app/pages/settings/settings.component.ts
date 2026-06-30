@@ -11,6 +11,7 @@ import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.s
 import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
 import { PrintPackagesComponent } from '../../components/print-packages/print-packages.component';
 import { CustomDocumentsComponent } from '../../components/custom-documents/custom-documents.component';
+import { DataBackupsModalComponent } from '../../components/data-backups-modal/data-backups-modal.component';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
 @Component({
@@ -24,6 +25,7 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
     DocumentStampUploadComponent,
     PrintPackagesComponent,
     CustomDocumentsComponent,
+    DataBackupsModalComponent,
     ClickOutsideDirective,
   ],
   templateUrl: './settings.component.html',
@@ -38,6 +40,7 @@ export class SettingsComponent {
   protected readonly minimizeToTray = this.localPrefs.minimizeToTray;
 
   protected readonly dataPath = signal<string | null>(null);
+  protected readonly showDataBackupsModal = signal(false);
 
   protected readonly ship = this.storage.ship;
   protected readonly marsecLevelOptions = PORT_SEC_LVL_OPTIONS;
@@ -70,6 +73,14 @@ export class SettingsComponent {
 
   protected onMinimizeToTrayChange(enabled: boolean): void {
     void this.localPrefs.setMinimizeToTray(enabled);
+  }
+
+  protected openDataBackups(): void {
+    this.showDataBackupsModal.set(true);
+  }
+
+  protected closeDataBackups(): void {
+    this.showDataBackupsModal.set(false);
   }
 
   protected onShipChange(field: keyof ShipInfo, value: string): void {

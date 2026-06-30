@@ -91,16 +91,26 @@
   appearance: textfield;
 }
 
+.eta-col-kn {
+  width: 6.25rem;
+  min-width: 6.25rem;
+}
+
 .eta-col-kn .num-input {
+  display: block;
   width: 100%;
-  min-width: 0;
+  vertical-align: middle;
 }
 
 .eta-col-kn .num-input__field {
-  min-width: 3.25rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding-top: 0.4rem !important;
+  padding-bottom: 0.4rem !important;
   padding-left: 1.25rem !important;
   padding-right: 1.25rem !important;
   text-align: center;
+  line-height: 1.25;
 }
 
 .eta-col-kn .num-input__spin {
@@ -109,6 +119,26 @@
 
 .eta-col-kn .num-input__spin-btn {
   font-size: 0.5rem;
+}
+
+.eta-col-kn .eta-input--num {
+  text-align: center;
+}
+
+.eta-computed-inline--kn {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
 }
 
 .eta-input--num::-webkit-outer-spin-button,
@@ -306,7 +336,7 @@
 }
 
 .eta-table-wrap {
-  overflow-x: visible;
+  overflow-x: auto;
 }
 
 .eta-legs-table {
@@ -345,22 +375,6 @@
 
 .eta-col-nm .eta-input--num {
   text-align: center;
-}
-
-.eta-col-kn {
-  width: 6.25rem;
-  min-width: 6.25rem;
-}
-
-.eta-col-kn .eta-input--num {
-  text-align: center;
-}
-
-.eta-col-kn .eta-computed-inline {
-  text-align: center;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1d4ed8;
 }
 
 .eta-col-duration {
@@ -453,8 +467,7 @@
   padding: 0.38rem 0.55rem;
   border-radius: 6px;
   border: 1px solid transparent;
-  width: max-content;
-  max-width: none;
+  max-width: 100%;
   box-sizing: border-box;
   white-space: nowrap;
 }
@@ -520,6 +533,30 @@
 .eta-summary {
   position: sticky;
   top: 0.75rem;
+}
+
+.eta-summary__head {
+  text-align: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.eta-summary__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #0f172a;
+}
+
+.eta-summary__mode {
+  margin: 0.4rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #0284c7;
+  line-height: 1.1;
 }
 
 .eta-summary-list {

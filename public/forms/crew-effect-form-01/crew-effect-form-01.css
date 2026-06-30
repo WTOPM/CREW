@@ -113,12 +113,6 @@ body.pdf-export .ced-sheet {
   outline-offset: -2px;
 }
 
-.ce-editor .ced-signature .ci {
-  width: 100%;
-  font-size: 8.5pt;
-  font-weight: 700;
-}
-
 .ce-editor .ced-form-footer {
   margin-top: 2px;
   margin-left: 0;

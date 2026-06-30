@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Tray, Menu, n
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 
 /** One CREW window per machine — second launch focuses the existing instance. */
@@ -67,6 +68,13 @@ function registerAppProtocol() {
 }
 
 const DATA_FILE = 'crew-data.json';
+const BACKUP_PRE_WRITE_CURRENT = 'crew-data-pre-write-current-hour.json';
+const BACKUP_PRE_WRITE_PREVIOUS = 'crew-data-pre-write-previous-hour.json';
+const BACKUP_PRE_WRITE_META = '.pre-write-meta.json';
+const MAX_ON_CLOSE_BACKUPS = 10;
+const MAX_ON_TRAY_BACKUPS = 10;
+const MAX_SAFETY_BACKUPS = 5;
+const QUIT_BACKUP_DELAY_MS = 1800;
 
 /**
  * The folder that holds the .exe at runtime.
@@ -74,7 +82,32 @@ const DATA_FILE = 'crew-data.json';
  * points there — PORTABLE_EXECUTABLE_DIR is the real folder the user double-clicked.
  */
 function getExeDir() {
-  return process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath);
+  const portableDir = process.env.PORTABLE_EXECUTABLE_DIR;
+  if (portableDir) return portableDir;
+  const portableFile = process.env.PORTABLE_EXECUTABLE_FILE;
+  if (portableFile) return path.dirname(portableFile);
+  return path.dirname(process.execPath);
+}
+
+function logDataPathDiagnostics(reason) {
+  if (!app.isPackaged) return;
+  try {
+    const filePath = getDataFilePath();
+    const lines = [
+      `[${new Date().toISOString()}] ${reason}`,
+      `execPath=${process.execPath}`,
+      `PORTABLE_EXECUTABLE_DIR=${process.env.PORTABLE_EXECUTABLE_DIR || ''}`,
+      `PORTABLE_EXECUTABLE_FILE=${process.env.PORTABLE_EXECUTABLE_FILE || ''}`,
+      `exeDir=${getExeDir()}`,
+      `dataDir=${getDataDir()}`,
+      `dataFile=${filePath}`,
+      `dataFileExists=${fs.existsSync(filePath)}`,
+      '---',
+    ];
+    fs.appendFileSync(path.join(getExeDir(), 'crew-startup.log'), `${lines.join('\n')}\n`);
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -106,6 +139,40 @@ function getDataDir() {
     /* fall through to default */
   }
   return path.join(getExeDir(), 'data');
+}
+
+function getDataPathConfigFile() {
+  return path.join(getExeDir(), 'data-path.txt');
+}
+
+function getDefaultDataDir() {
+  return path.join(getExeDir(), 'data');
+}
+
+function writeDataPathConfig(dataDir) {
+  const dir = String(dataDir || '').trim();
+  if (!dir) throw new Error('Empty data directory');
+  fs.writeFileSync(getDataPathConfigFile(), `${dir}\n`, 'utf-8');
+}
+
+function removeDataPathConfig() {
+  const cfg = getDataPathConfigFile();
+  if (fs.existsSync(cfg)) {
+    fs.unlinkSync(cfg);
+  }
+}
+
+function validateDataFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return { ok: false, error: `crew-data.json not found:\n${filePath}` };
+  }
+  try {
+    JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `crew-data.json is invalid:\n${filePath}\n\n${msg}` };
+  }
 }
 
 function getDataFilePath() {
@@ -212,6 +279,170 @@ function writeDataFile(data) {
   fs.renameSync(tmp, filePath);
 }
 
+/** Per-computer JSON backups keyed by the active shared data folder path. */
+function getMachineBackupsDir() {
+  const key = crypto.createHash('sha256').update(getDataDir()).digest('hex').slice(0, 16);
+  const dir = path.join(app.getPath('userData'), 'json-backups', key);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function backupHourKey(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}`;
+}
+
+function backupTimestamp() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+}
+
+function listBackupFiles(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.startsWith('crew-data-') && f.endsWith('.json'))
+    .map((f) => {
+      const fp = path.join(dir, f);
+      const st = fs.statSync(fp);
+      return { fileName: f, path: fp, size: st.size, modifiedAt: st.mtimeMs };
+    });
+}
+
+function backupCategory(fileName) {
+  if (fileName === BACKUP_PRE_WRITE_CURRENT) return 'pre-write-current';
+  if (fileName === BACKUP_PRE_WRITE_PREVIOUS) return 'pre-write-previous';
+  if (fileName.endsWith('-on-close.json') || fileName.endsWith('-on-quit.json')) {
+    return 'on-close';
+  }
+  if (fileName.endsWith('-on-tray.json')) {
+    return 'on-tray';
+  }
+  if (fileName.includes('-pre-restore') || fileName.includes('-blocked-shrink')) {
+    return 'safety';
+  }
+  if (fileName.includes('-pre-write')) {
+    return 'pre-write';
+  }
+  return 'other';
+}
+
+function pruneBackupsBySuffix(dir, suffix, maxCount) {
+  const files = listBackupFiles(dir)
+    .filter((f) => f.fileName.endsWith(suffix))
+    .sort((a, b) => b.modifiedAt - a.modifiedAt);
+  for (const file of files.slice(maxCount)) {
+    try {
+      fs.unlinkSync(file.path);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function readPreWriteMeta(dir) {
+  const metaPath = path.join(dir, BACKUP_PRE_WRITE_META);
+  if (!fs.existsSync(metaPath)) return { hourKey: null };
+  try {
+    const raw = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+    return { hourKey: typeof raw?.hourKey === 'string' ? raw.hourKey : null };
+  } catch {
+    return { hourKey: null };
+  }
+}
+
+function writePreWriteMeta(dir, hourKey) {
+  const metaPath = path.join(dir, BACKUP_PRE_WRITE_META);
+  fs.writeFileSync(
+    metaPath,
+    JSON.stringify({ hourKey, updatedAt: Date.now() }, null, 2),
+    'utf-8',
+  );
+}
+
+function createPreWriteBackup(source) {
+  const dir = getMachineBackupsDir();
+  const hourKey = backupHourKey();
+  const currentPath = path.join(dir, BACKUP_PRE_WRITE_CURRENT);
+  const previousPath = path.join(dir, BACKUP_PRE_WRITE_PREVIOUS);
+  const meta = readPreWriteMeta(dir);
+
+  if (meta.hourKey && meta.hourKey !== hourKey) {
+    if (fs.existsSync(currentPath)) {
+      fs.copyFileSync(currentPath, previousPath);
+    }
+  }
+
+  fs.copyFileSync(source, currentPath);
+  writePreWriteMeta(dir, hourKey);
+
+  for (const f of fs.readdirSync(dir)) {
+    if (f.startsWith('crew-data-') && f.endsWith('-pre-write.json')) {
+      try {
+        fs.unlinkSync(path.join(dir, f));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  logDataPathDiagnostics(`backup:pre-write -> ${currentPath}`);
+  return currentPath;
+}
+
+function createTimedMachineJsonBackup(tag, maxCount) {
+  const source = getDataFilePath();
+  if (!fs.existsSync(source)) return null;
+  const stat = fs.statSync(source);
+  if (stat.size < 4) return null;
+
+  const dir = getMachineBackupsDir();
+  const safeTag = String(tag || 'backup').replace(/[^a-z0-9-]/gi, '-');
+  const dest = path.join(dir, `crew-data-${backupTimestamp()}-${safeTag}.json`);
+  fs.copyFileSync(source, dest);
+  pruneBackupsBySuffix(dir, `-${safeTag}.json`, maxCount);
+  logDataPathDiagnostics(`backup:${safeTag} -> ${dest}`);
+  return dest;
+}
+
+function createMachineJsonBackup(tag) {
+  const source = getDataFilePath();
+  if (!fs.existsSync(source)) return null;
+  const stat = fs.statSync(source);
+  if (stat.size < 4) return null;
+
+  if (tag === 'pre-write') {
+    return createPreWriteBackup(source);
+  }
+  if (tag === 'on-close' || tag === 'on-quit') {
+    return createTimedMachineJsonBackup('on-close', MAX_ON_CLOSE_BACKUPS);
+  }
+  if (tag === 'on-tray') {
+    return createTimedMachineJsonBackup('on-tray', MAX_ON_TRAY_BACKUPS);
+  }
+  if (tag === 'pre-restore' || tag === 'blocked-shrink') {
+    return createTimedMachineJsonBackup(tag, MAX_SAFETY_BACKUPS);
+  }
+
+  return createTimedMachineJsonBackup(tag, MAX_SAFETY_BACKUPS);
+}
+
+function guardShrinkBeforeWrite(data) {
+  const filePath = getDataFilePath();
+  if (!fs.existsSync(filePath)) return;
+  const oldStat = fs.statSync(filePath);
+  const newJson = JSON.stringify(data, null, 2);
+  const newSize = Buffer.byteLength(newJson, 'utf-8');
+  if (oldStat.size > 8192 && newSize < oldStat.size * 0.15) {
+    createMachineJsonBackup('blocked-shrink');
+    throw new Error(
+      `Refusing to save: new database (${newSize} bytes) is much smaller than the existing file (${oldStat.size} bytes). ` +
+        'A safety backup was saved on this computer — open Settings → Data file → Backups to restore.',
+    );
+  }
+}
+
 const SECTION_LOCK_IDS = ['home', 'dg', 'reefer', 'eta', 'settings'];
 const LOCK_STALE_MS = 90_000;
 
@@ -275,6 +506,7 @@ function writeLocalPrefs(prefs) {
 let mainWindow = null;
 let tray = null;
 let appIsQuitting = false;
+let quitBackupDone = false;
 let minimizeToTrayEnabled = false;
 
 function getTrayIcon() {
@@ -330,8 +562,13 @@ function applyMinimizeToTrayPref(enabled) {
   }
 }
 
-function hideMainWindowToTray() {
+function hideMainWindowToTray(backupTag) {
   if (!mainWindow || !minimizeToTrayEnabled) return;
+  try {
+    createMachineJsonBackup(backupTag);
+  } catch (err) {
+    console.error('Tray backup failed', err);
+  }
   mainWindow.hide();
 }
 
@@ -350,13 +587,13 @@ function attachTrayWindowHandlers(win) {
   win.on('minimize', (event) => {
     if (!minimizeToTrayEnabled) return;
     event.preventDefault();
-    hideMainWindowToTray();
+    hideMainWindowToTray('on-tray');
   });
 
   win.on('close', (event) => {
     if (!minimizeToTrayEnabled || appIsQuitting) return;
     event.preventDefault();
-    hideMainWindowToTray();
+    hideMainWindowToTray('on-close');
   });
 }
 
@@ -489,16 +726,23 @@ ipcMain.handle('capture-html-form-pdf', async (_event, relativeUrl, snapshot, ca
 ipcMain.handle('read-data', () => {
   ensureDataDir();
   const filePath = getDataFilePath();
-  if (!fs.existsSync(filePath)) return null;
+  if (!fs.existsSync(filePath)) {
+    logDataPathDiagnostics('read-data: missing crew-data.json');
+    return null;
+  }
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch {
-    return null;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logDataPathDiagnostics(`read-data: parse error (${msg})`);
+    throw new Error(`Cannot read data file (${filePath}): ${msg}`);
   }
 });
 
 ipcMain.handle('write-data', (_event, data) => {
   ensureDataDir();
+  guardShrinkBeforeWrite(data);
+  createMachineJsonBackup('pre-write');
   writeDataFile(data);
 });
 
@@ -608,6 +852,123 @@ ipcMain.handle('list-section-locks', () => {
 });
 
 ipcMain.handle('get-data-path', () => getDataFilePath());
+
+ipcMain.handle('get-data-path-debug', () => ({
+  execPath: process.execPath,
+  exeDir: getExeDir(),
+  dataDir: getDataDir(),
+  dataFile: getDataFilePath(),
+  dataFileExists: fs.existsSync(getDataFilePath()),
+  dataPathConfigFile: getDataPathConfigFile(),
+  dataPathConfigExists: fs.existsSync(getDataPathConfigFile()),
+  defaultDataDir: getDefaultDataDir(),
+  portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR || null,
+  portableExecutableFile: process.env.PORTABLE_EXECUTABLE_FILE || null,
+}));
+
+ipcMain.handle('pick-data-directory', async () => {
+  const win = BrowserWindow.getFocusedWindow();
+  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+    title: 'Select folder containing crew-data.json',
+    properties: ['openDirectory'],
+  });
+  if (canceled || !filePaths?.[0]) return null;
+  return filePaths[0];
+});
+
+ipcMain.handle('set-data-directory', (_event, dirPath) => {
+  try {
+    const dir = String(dirPath || '').trim();
+    if (!dir) return { ok: false, error: 'No folder selected' };
+    if (!fs.existsSync(dir)) {
+      return { ok: false, error: `Folder not found:\n${dir}` };
+    }
+    const filePath = path.join(dir, DATA_FILE);
+    const check = validateDataFile(filePath);
+    if (!check.ok) return check;
+    writeDataPathConfig(dir);
+    logDataPathDiagnostics('set-data-directory');
+    return { ok: true, dataDir: dir, dataFile: filePath };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+});
+
+ipcMain.handle('create-new-data-store', () => {
+  try {
+    removeDataPathConfig();
+    const dir = getDefaultDataDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const filePath = path.join(dir, DATA_FILE);
+    if (fs.existsSync(filePath)) {
+      return {
+        ok: false,
+        error:
+          `crew-data.json already exists:\n${filePath}\n\n` +
+          'Use "Open existing folder" to use it, or delete/rename the file first.',
+      };
+    }
+    logDataPathDiagnostics('create-new-data-store');
+    return { ok: true, dataDir: dir, dataFile: filePath };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+});
+
+ipcMain.handle('list-json-backups', () => {
+  const dir = getMachineBackupsDir();
+  if (!fs.existsSync(dir)) {
+    return { backupsDir: dir, dataFile: getDataFilePath(), backups: [] };
+  }
+  const backups = listBackupFiles(dir)
+    .map((f) => ({
+      fileName: f.fileName,
+      size: f.size,
+      modifiedAt: f.modifiedAt,
+      category: backupCategory(f.fileName),
+    }))
+    .sort((a, b) => b.modifiedAt - a.modifiedAt);
+  return { backupsDir: dir, dataFile: getDataFilePath(), backups };
+});
+
+ipcMain.handle('restore-json-backup', (_event, fileName) => {
+  try {
+    const dir = getMachineBackupsDir();
+    const safe = path.basename(String(fileName || ''));
+    const src = path.join(dir, safe);
+    if (!safe.startsWith('crew-data-') || !safe.endsWith('.json')) {
+      return { ok: false, error: 'Invalid backup file name' };
+    }
+    if (!fs.existsSync(src)) {
+      return { ok: false, error: 'Backup not found on this computer' };
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(src, 'utf-8'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { ok: false, error: `Backup is not valid JSON: ${msg}` };
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      return { ok: false, error: 'Backup is empty or invalid' };
+    }
+    ensureDataDir();
+    createMachineJsonBackup('pre-restore');
+    writeDataFile(parsed);
+    return { ok: true, dataFile: getDataFilePath(), restoredFrom: safe };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg };
+  }
+});
+
+ipcMain.handle('open-json-backups-folder', async () => {
+  const dir = getMachineBackupsDir();
+  const err = await shell.openPath(dir);
+  return err ? { ok: false, error: err } : { ok: true, path: dir };
+});
 
 ipcMain.handle('pick-directory', async () => {
   const win = BrowserWindow.getFocusedWindow();
@@ -905,7 +1266,10 @@ if (gotSingleInstanceLock) {
   });
 
   app.whenReady().then(() => {
-    if (app.isPackaged) registerAppProtocol();
+    if (app.isPackaged) {
+      registerAppProtocol();
+      logDataPathDiagnostics('app-ready');
+    }
     const prefs = readLocalPrefs();
     applyMinimizeToTrayPref(prefs.minimizeToTray);
     createWindow();
@@ -919,7 +1283,16 @@ if (gotSingleInstanceLock) {
     if (process.platform !== 'darwin') app.quit();
   });
 
-  app.on('before-quit', () => {
+  app.on('before-quit', (event) => {
     appIsQuitting = true;
+    if (quitBackupDone) return;
+    event.preventDefault();
+    try {
+      createMachineJsonBackup('on-close');
+    } catch (err) {
+      console.error('Quit backup failed', err);
+    }
+    quitBackupDone = true;
+    setTimeout(() => app.quit(), QUIT_BACKUP_DELAY_MS);
   });
 }

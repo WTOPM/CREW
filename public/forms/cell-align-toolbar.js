@@ -1,5 +1,5 @@
 /**
- * Icon alignment toolbar with hover tooltips and live preview on selected cells.
+ * Icon alignment toolbar with tooltips. Changes apply on click to selected cells only.
  * Expects global applyFormat from each form editor script.
  */
 (function () {
@@ -69,23 +69,6 @@
 
   function applyCellCase(mode, getSelectedCells) {
     editableCells(getSelectedCells).forEach((cell) => transformCellCase(cell, mode));
-  }
-
-  function snapshotCells(cells) {
-    return cells.map((cell) => ({
-      el: cell,
-      textAlign: cell.style.textAlign,
-    }));
-  }
-
-  function restoreCells(snap) {
-    if (!snap) return;
-    snap.forEach((s) => {
-      s.el.style.textAlign = s.textAlign;
-    });
-    snap.forEach((s) => {
-      if (window.PortOfCallFormCells?.reflowCell) window.PortOfCallFormCells.reflowCell(s.el);
-    });
   }
 
   function readHorizontalAlign(cell) {
@@ -199,57 +182,10 @@
     toolbarGetSelectedCells = getSelectedCells;
     renderToolbar(mount, toolbarShowDateFormat);
 
-    let previewSnap = null;
-    let previewBtn = null;
-    let clickCommitted = false;
-
-    function endPreview() {
-      if (previewBtn) {
-        previewBtn.classList.remove('cell-align-toolbar__btn--preview');
-        previewBtn = null;
-      }
-      if (previewSnap) {
-        restoreCells(previewSnap);
-        previewSnap = null;
-      }
-      syncSelection();
-    }
-
-    function startPreview(btn) {
-      const cells = editableCells(getSelectedCells);
-      if (!cells.length) return;
-
-      endPreview();
-      previewSnap = snapshotCells(cells);
-      previewBtn = btn;
-      btn.classList.add('cell-align-toolbar__btn--preview');
-      btn.dataset.tip = btn.dataset.baseTip + ' — preview';
-      applyHorizontal(btn.dataset.value);
-    }
-
     mount.querySelectorAll('.cell-align-toolbar__btn[data-value]').forEach((btn) => {
       btn.dataset.baseTip = btn.dataset.tip;
 
-      btn.addEventListener('mouseenter', () => startPreview(btn));
-
-      btn.addEventListener('mouseleave', () => {
-        if (clickCommitted) {
-          clickCommitted = false;
-          if (previewBtn === btn) {
-            previewBtn.classList.remove('cell-align-toolbar__btn--preview');
-            previewBtn = null;
-          }
-          previewSnap = null;
-          btn.dataset.tip = btn.dataset.baseTip;
-          return;
-        }
-        btn.dataset.tip = btn.dataset.baseTip;
-        endPreview();
-      });
-
       btn.addEventListener('click', () => {
-        clickCommitted = true;
-        previewSnap = null;
         applyHorizontal(btn.dataset.value);
         syncSelection();
       });

@@ -667,7 +667,14 @@ body {
   transform-origin: top left;
   flex-shrink: 0;
   width: max-content;
-}
+}
+
+
+
+
+
+
+
 
 .btn-s {
   background: #fff;
@@ -829,14 +836,15 @@ body {
     height: auto;
     overflow: visible;
     display: block;
-  }
+  }
 
   .a4-landscape-page {
     width: 297mm;
     height: 210mm;
     box-shadow: none;
     border: none;
-    page-break-after: always;
+    page-break-after: avoid;
+    page-break-inside: avoid;
   }
 
   @page {
@@ -878,6 +886,8 @@ body.is-pdf-export .a4-landscape-page {
   height: 210mm;
   overflow: hidden;
   padding: 5mm 10mm 8mm 5mm;
+  page-break-after: avoid !important;
+  page-break-inside: avoid !important;
 }
 
 body.is-pdf-export .side-panel {

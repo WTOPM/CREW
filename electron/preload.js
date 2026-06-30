@@ -4,6 +4,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readData: () => ipcRenderer.invoke('read-data'),
   writeData: (data) => ipcRenderer.invoke('write-data', data),
   getDataPath: () => ipcRenderer.invoke('get-data-path'),
+  getDataPathDebug: () => ipcRenderer.invoke('get-data-path-debug'),
+  pickDataDirectory: () => ipcRenderer.invoke('pick-data-directory'),
+  setDataDirectory: (dirPath) => ipcRenderer.invoke('set-data-directory', dirPath),
+  createNewDataStore: () => ipcRenderer.invoke('create-new-data-store'),
+  listJsonBackups: () => ipcRenderer.invoke('list-json-backups'),
+  restoreJsonBackup: (fileName) => ipcRenderer.invoke('restore-json-backup', fileName),
+  openJsonBackupsFolder: () => ipcRenderer.invoke('open-json-backups-folder'),
   getClientInfo: () => ipcRenderer.invoke('get-client-info'),
   acquireSectionLock: (section, clientId, displayName) =>
     ipcRenderer.invoke('acquire-section-lock', section, clientId, displayName),

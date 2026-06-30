@@ -27,7 +27,11 @@ export class DgUnifeederPdfService {
       library.pageContext,
       ctx.rows,
       this.storage.ports(),
-      { useGrossWeight: ctx.useGrossWeight, roundWeights: ctx.grossTotalKg },
+      {
+        useGrossWeight: ctx.useGrossWeight,
+        roundWeights: ctx.grossTotalKg,
+        mergeLines: ctx.mergeLines,
+      },
     );
     const fileName = this.fileName(ship.name, exportShip.dateOfDeparture);
     return this.delivery.deliver(bytes, fileName);

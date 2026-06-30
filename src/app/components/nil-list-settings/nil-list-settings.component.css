@@ -69,3 +69,18 @@
   flex: 1;
   min-width: 10rem;
 }
+
+.nil-html-settings {
+  padding-top: 0.35rem;
+}
+
+.nil-html-settings__btn {
+  width: 100%;
+}
+
+.nil-html-settings__hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #64748b;
+}

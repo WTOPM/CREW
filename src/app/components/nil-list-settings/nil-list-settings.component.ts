@@ -1,12 +1,15 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import {
+  NIL_LIST_SETTINGS_PARAM,
+  nilListFormEditorUrl,
+} from '../../models/nil-list-form.paths';
 import { StorageService } from '../../services/storage.service';
 import { FormsStore } from '../../services/forms.store';
-import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 @Component({
   selector: 'app-nil-list-settings',
-  imports: [FormsModule, DocumentStampOptionsComponent],
+  imports: [FormsModule],
   templateUrl: './nil-list-settings.component.html',
   styleUrl: './nil-list-settings.component.css',
 })
@@ -16,6 +19,12 @@ export class NilListSettingsComponent {
 
   protected form = this.storage.nilListForm;
   protected newPhraseText = signal('');
+
+  protected openHtmlFormSettings(): void {
+    const q = new URLSearchParams({ [NIL_LIST_SETTINGS_PARAM]: '1' });
+    const returnTo = encodeURIComponent(`/?${q.toString()}`);
+    window.location.href = nilListFormEditorUrl({ return: returnTo });
+  }
 
   protected onPhraseEnabledChange(id: string, enabled: boolean): void {
     this.forms.updateNilListPhrase(id, { enabled });

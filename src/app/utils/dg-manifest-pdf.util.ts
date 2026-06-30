@@ -426,7 +426,12 @@ export function buildDgManifestPdf(
     useGrossWeight,
     roundWeights,
   });
-  const exportTotalKg = dgContainersExportTotalKg(containers, useGrossWeight, roundWeights);
+  const exportTotalKg = dgContainersExportTotalKg(
+    containers,
+    useGrossWeight,
+    roundWeights,
+    mergeLines,
+  );
   const widths = resolveColWidths();
   const xs = colXs(widths);
   const totalPages = Math.max(1, Math.ceil(allRows.length / ROWS_PER_PAGE) || 1);

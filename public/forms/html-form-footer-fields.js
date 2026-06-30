@@ -5,6 +5,15 @@
   const FOOTER_DATE_SELECTOR = '#f-footer-date, #poc-footer-date, .poc-form-footer__date';
   const FOOTER_MASTER_SELECTOR = '#f-master-name, #poc-footer-master, .poc-form-footer__master';
 
+  function ensureFooterStyles() {
+    if (document.getElementById('html-form-footer-styles')) return;
+    const link = document.createElement('link');
+    link.id = 'html-form-footer-styles';
+    link.rel = 'stylesheet';
+    link.href = '../html-form-footer.css';
+    document.head.appendChild(link);
+  }
+
   function isPocFooterMaster(el) {
     return el?.classList?.contains('poc-form-footer__master');
   }
@@ -56,6 +65,7 @@
   }
 
   function init(scope) {
+    ensureFooterStyles();
     const root = scope || document;
     root.querySelectorAll(FOOTER_MASTER_SELECTOR).forEach(ensureMasterInput);
     root.querySelectorAll(FOOTER_DATE_SELECTOR).forEach(prepareFooterDate);

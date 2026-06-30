@@ -170,4 +170,50 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
     expect(overlay.cellStyles).toEqual({ 'd-0-0': { fontSize: '8pt' } });
     expect(overlay.cellValues).toEqual({ 'h-port': 'GENOA', _ssMode: 'arrival' });
   });
+
+  it('cleans legacy Crew Effect 01/02 overlay data on normalize', () => {
+    const data = normalizeAppData({
+      seedVersion: 17,
+      documentOverlay: {
+        crewEffect: {
+          useStamp: true,
+          useSignature: true,
+          overlayRotation: 90,
+          stampBox: { left: '120px', top: '240px', width: '65px', height: '28px' },
+          signatureBox: { left: '0px', top: '0px', width: '55px', height: '12px' },
+          crewSignatureBase: { x: 496, y: 640, width: 50, height: 14 },
+          crewSignatureByRow: {
+            '0': {
+              cellLeft: '4px',
+              cellTop: '2px',
+              cellWidth: '48px',
+              cellHeight: '14px',
+              offsetX: 5,
+            },
+            '1': { offsetX: 1, offsetY: 2 },
+          },
+          cellValues: { 'h-pageNo': '1' },
+        },
+      } as never,
+    });
+    const overlay = data.documentOverlay.crewEffect;
+    expect('overlayRotation' in overlay).toBe(false);
+    expect('crewSignatureBase' in overlay).toBe(false);
+    expect(overlay.stampBox).toEqual({
+      left: '120px',
+      top: '240px',
+      width: '65px',
+      height: '28px',
+    });
+    expect(overlay.signatureBox).toBeUndefined();
+    expect(overlay.crewSignatureByRow).toEqual({
+      '0': {
+        cellLeft: '4px',
+        cellTop: '2px',
+        cellWidth: '48px',
+        cellHeight: '14px',
+      },
+    });
+    expect(overlay.cellValues).toEqual({ 'h-pageNo': '1' });
+  });
 });

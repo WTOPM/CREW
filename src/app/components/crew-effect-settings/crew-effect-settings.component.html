@@ -1,115 +1,143 @@
 <section class="ce-settings">
   <fieldset class="ce-nil-group">
     <legend class="ce-nil-legend">Print NIL for all crew rows</legend>
-    @if (isGermany()) {
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form03().nilCigarettes"
-          (ngModelChange)="onNilToggle03('nilCigarettes', $event)"
-        />
-        <span>Cigarettes (pcs)</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form03().nilCigars"
-          (ngModelChange)="onNilToggle03('nilCigars', $event)"
-        />
-        <span>Cigars (pcs)</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form03().nilSpirits"
-          (ngModelChange)="onNilToggle03('nilSpirits', $event)"
-        />
-        <span>Spirits (l)</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form03().nilWeapons"
-          (ngModelChange)="onNilToggle03('nilWeapons', $event)"
-        />
-        <span>Weapons (pcs)</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form03().nilAmmunition"
-          (ngModelChange)="onNilToggle03('nilAmmunition', $event)"
-        />
-        <span>Ammunition (pcs)</span>
-      </label>
-    } @else if (isForm02()) {
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form02().nilCigarettes"
-          (ngModelChange)="onNilToggle02('nilCigarettes', $event)"
-        />
-        <span>Cigarettes</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form02().nilTobaccoCigars"
-          (ngModelChange)="onNilToggle02('nilTobaccoCigars', $event)"
-        />
-        <span>Tobacco / Cigars</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form02().nilSpirits"
-          (ngModelChange)="onNilToggle02('nilSpirits', $event)"
-        />
-        <span>Spirits</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form02().nilBeer"
-          (ngModelChange)="onNilToggle02('nilBeer', $event)"
-        />
-        <span>Beer</span>
-      </label>
-    } @else {
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form01().nilCigarettes"
-          (ngModelChange)="onNilToggle01('nilCigarettes', $event)"
-        />
-        <span>Cigarettes</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form01().nilSpirits"
-          (ngModelChange)="onNilToggle01('nilSpirits', $event)"
-        />
-        <span>Spirits (Ltr)</span>
-      </label>
-      <label class="ce-nil-check">
-        <input
-          type="checkbox"
-          [ngModel]="form01().nilWines"
-          (ngModelChange)="onNilToggle01('nilWines', $event)"
-        />
-        <span>Wines (Ltr)</span>
-      </label>
-    }
+    <div class="ce-nil-toggles">
+      @if (isGermany()) {
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form03().nilCigarettes"
+            (ngModelChange)="onNilToggle03('nilCigarettes', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Cigarettes (pcs)</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form03().nilCigars"
+            (ngModelChange)="onNilToggle03('nilCigars', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Cigars (pcs)</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form03().nilSpirits"
+            (ngModelChange)="onNilToggle03('nilSpirits', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Spirits (l)</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form03().nilWeapons"
+            (ngModelChange)="onNilToggle03('nilWeapons', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Weapons (pcs)</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form03().nilAmmunition"
+            (ngModelChange)="onNilToggle03('nilAmmunition', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Ammunition (pcs)</span>
+        </label>
+      } @else if (isForm02()) {
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form02().nilCigarettes"
+            (ngModelChange)="onNilToggle02('nilCigarettes', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Cigarettes</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form02().nilTobaccoCigars"
+            (ngModelChange)="onNilToggle02('nilTobaccoCigars', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Tobacco / Cigars</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form02().nilSpirits"
+            (ngModelChange)="onNilToggle02('nilSpirits', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Spirits</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form02().nilBeer"
+            (ngModelChange)="onNilToggle02('nilBeer', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Beer</span>
+        </label>
+      } @else {
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form01().nilCigarettes"
+            (ngModelChange)="onNilToggle01('nilCigarettes', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Cigarettes</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form01().nilSpirits"
+            (ngModelChange)="onNilToggle01('nilSpirits', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Spirits (Ltr)</span>
+        </label>
+        <label class="ce-toggle">
+          <input
+            type="checkbox"
+            class="ce-toggle__input"
+            [ngModel]="form01().nilWines"
+            (ngModelChange)="onNilToggle01('nilWines', $event)"
+          />
+          <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+          <span class="ce-toggle__label">Wines (Ltr)</span>
+        </label>
+      }
+    </div>
   </fieldset>
 
-  <label class="ce-nil-check ce-append-passengers">
+  <label class="ce-toggle ce-toggle--solo">
     <input
       type="checkbox"
+      class="ce-toggle__input"
       [ngModel]="appendPassengers()"
       (ngModelChange)="onAppendPassengersChange($event)"
     />
-    <span>Append passengers after crew</span>
+    <span class="ce-toggle__track" aria-hidden="true"><span class="ce-toggle__thumb"></span></span>
+    <span class="ce-toggle__label">Append passengers after crew</span>
   </label>
 
   @if (isForm02()) {
@@ -142,7 +170,7 @@
         ⚙ Settings
       </button>
       <p class="ce-html-settings__hint">
-        Open the HTML editor to format cells and place stamp and signature on {{ docLabel() }}.
+        Open the HTML editor to format cells, place stamp and master signature, and adjust crew signatures in the table on {{ docLabel() }}.
       </p>
     </div>
   } @else {

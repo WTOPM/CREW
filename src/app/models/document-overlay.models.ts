@@ -14,21 +14,29 @@ export interface CrewSignatureRowTweak {
   cellHeight?: string;
 }
 
-/** Crew Effect forms — stamp/signature plus per-crew row signatures and HTML cell overrides. */
+/** Crew Effect HTML forms 01 & 02 — CSS overlays + table cell overrides. */
+export interface CrewEffectHtmlFormStampOptions {
+  useStamp: boolean;
+  useSignature: boolean;
+  useCrewSignatures?: boolean;
+  crewSignatureByRow?: Record<string, CrewSignatureRowTweak>;
+  stampBox?: CrewListForm05CssBox;
+  signatureBox?: CrewListForm05CssBox;
+  cellStyles?: Record<
+    string,
+    { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
+  >;
+  cellValues?: Record<string, string>;
+}
+
+/** Crew Effect form 03 (pdf-lib) — stamp/signature plus per-crew row signatures. */
 export interface CrewEffectStampOptions extends DocumentStampOptions {
-  /** Draw uploaded crew member signatures in table Signature cells (pdf-lib forms 02/03). */
+  /** Draw uploaded crew member signatures in table Signature cells. */
   useCrewSignatures?: boolean;
   /** Base placement for row 1 (index 0); other rows follow row Y + optional tweak. */
   crewSignatureBase?: PdfStampBox;
   /** Row index (0-based string key) → offset/size tweak. */
   crewSignatureByRow?: Record<string, CrewSignatureRowTweak>;
-  /** Form 01 HTML editor — per-cell font/alignment. */
-  cellStyles?: Record<
-    string,
-    { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
-  >;
-  /** Form 01 HTML editor — user-edited cell text (h-*, d-{row}-{col}, footer-date, footer-master). */
-  cellValues?: Record<string, string>;
 }
 
 /** Per-document PDF overlay toggles (stamp / signature) and placement. */
@@ -62,6 +70,13 @@ export interface ShipStoresHtmlFormStampOptions
     { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
   >;
   cellValues?: Record<string, string>;
+  stampBox?: PdfStampBox | CrewListForm05CssBox;
+  signatureBox?: PdfStampBox | CrewListForm05CssBox;
+}
+
+/** HTML NIL List form — stamp/signature CSS placement. */
+export interface NilListHtmlFormStampOptions
+  extends Omit<DocumentStampOptions, 'stampBox' | 'signatureBox'> {
   stampBox?: PdfStampBox | CrewListForm05CssBox;
   signatureBox?: PdfStampBox | CrewListForm05CssBox;
 }
@@ -499,10 +514,10 @@ export interface DocumentOverlayPrefs {
   shipStores: ShipStoresHtmlFormStampOptions;
   shipStores02: ShipStoresHtmlFormStampOptions;
   shipStores03: DocumentStampOptions;
-  crewEffect: CrewEffectStampOptions;
-  crewEffect02: CrewEffectStampOptions;
+  crewEffect: CrewEffectHtmlFormStampOptions;
+  crewEffect02: CrewEffectHtmlFormStampOptions;
   crewEffect03: CrewEffectStampOptions;
-  nilList: DocumentStampOptions;
+  nilList: NilListHtmlFormStampOptions;
   shipMoney: DocumentStampOptions;
   cashAdvance: DocumentStampOptions;
   crewMoney: DocumentStampOptions;
@@ -557,6 +572,12 @@ const DEFAULT_POC_HTML_OPTS: PortOfCallHtmlFormStampOptions = {
   rowsPerPage: 11,
 };
 
+const DEFAULT_CREW_EFFECT_HTML_OPTS: CrewEffectHtmlFormStampOptions = {
+  useStamp: false,
+  useSignature: false,
+  useCrewSignatures: false,
+};
+
 export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
   return {
     crewList: createDefaultCrewListPrefs(),
@@ -569,8 +590,8 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     shipStores: { ...DEFAULT_STAMP_OPTS },
     shipStores02: { ...DEFAULT_STAMP_OPTS },
     shipStores03: { ...DEFAULT_STAMP_OPTS },
-    crewEffect: { ...DEFAULT_STAMP_OPTS },
-    crewEffect02: { ...DEFAULT_STAMP_OPTS },
+    crewEffect: { ...DEFAULT_CREW_EFFECT_HTML_OPTS },
+    crewEffect02: { ...DEFAULT_CREW_EFFECT_HTML_OPTS },
     crewEffect03: { ...DEFAULT_STAMP_OPTS },
     nilList: { ...DEFAULT_STAMP_OPTS },
     shipMoney: { ...DEFAULT_STAMP_OPTS },

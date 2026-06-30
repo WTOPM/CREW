@@ -330,6 +330,17 @@ export function calculateEta(plan: EtaPlan): EtaCalculation {
   };
 }
 
+export function scenarioShortLabel(scenario: EtaScenario): string {
+  switch (scenario) {
+    case 'planEta':
+      return 'ETA';
+    case 'meetEtaByDeparture':
+      return 'SPEED';
+    case 'meetEtaBySpeed':
+      return 'ETD';
+  }
+}
+
 export function scenarioLabel(scenario: EtaScenario): string {
   switch (scenario) {
     case 'planEta':

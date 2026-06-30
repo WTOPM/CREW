@@ -2,6 +2,11 @@ import { AppData } from './app/models/crew.models';
 import type { CrewDocumentType } from './app/models/crew.models';
 import type { ShipAssetKind } from './app/models/document-overlay.models';
 import type { AppSection } from './app/utils/app-data-section.util';
+import type {
+  DataPathDebugInfo,
+  DataStoreActionResult,
+  JsonBackupsListResult,
+} from './app/services/app-state.store';
 
 export interface SectionLockRecord {
   section: AppSection;
@@ -38,6 +43,13 @@ declare global {
       readData: () => Promise<AppData | null>;
       writeData: (data: AppData) => Promise<void>;
       getDataPath: () => Promise<string>;
+      getDataPathDebug: () => Promise<DataPathDebugInfo>;
+      pickDataDirectory: () => Promise<string | null>;
+      setDataDirectory: (dirPath: string) => Promise<DataStoreActionResult>;
+      createNewDataStore: () => Promise<DataStoreActionResult>;
+      listJsonBackups: () => Promise<JsonBackupsListResult>;
+      restoreJsonBackup: (fileName: string) => Promise<DataStoreActionResult>;
+      openJsonBackupsFolder: () => Promise<{ ok: boolean; error?: string; path?: string }>;
       getClientInfo: () => Promise<{ hostName: string; userName: string }>;
       acquireSectionLock: (
         section: AppSection,

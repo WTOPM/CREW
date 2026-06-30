@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NIL List</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="../port-of-call-editor.css" />
+  <link rel="stylesheet" href="../overlay-toolbar.css" />
+  <link rel="stylesheet" href="../html-form-editor-chrome.css" />
+  <link rel="stylesheet" href="../nil-list-editor-chrome.css" />
+  <link rel="stylesheet" href="nil-list-form.css" />
+</head>
+<body class="poc-editor nil-editor">
+  <div class="side-panel side-panel--left">
+    <div class="side-panel__actions">
+      <button type="button" class="btn btn-save" onclick="persistAllChanges()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 9.5 17 19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Save
+      </button>
+      <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        Cancel
+      </button>
+    </div>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Zoom</h2>
+      <div class="zoom-controls">
+        <div class="zoom-controls__row">
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <span id="zoom-label" class="zoom-controls__pct">100%</span>
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="doc-zoom-viewport" id="doc-zoom-viewport">
+    <div class="doc-zoom-pad" id="doc-zoom-pad">
+      <div class="doc-zoom-slot" id="doc-zoom-slot">
+        <div class="doc-zoom-stage" id="doc-zoom-stage">
+          <div class="a4-page nil-page" id="nil-page">
+            <h1 class="nil-title">NIL LIST</h1>
+
+            <div class="nil-header">
+              <div class="nil-header-col">
+                <div class="nil-field">
+                  <span class="nil-label">Vessel:</span>
+                  <span class="nil-value" id="vessel"></span>
+                </div>
+                <div class="nil-field">
+                  <span class="nil-label">Port of registry:</span>
+                  <span class="nil-value" id="portOfRegistry"></span>
+                </div>
+              </div>
+              <div class="nil-header-col">
+                <div class="nil-field">
+                  <span class="nil-label">Port:</span>
+                  <span class="nil-value" id="port"></span>
+                </div>
+                <div class="nil-field">
+                  <span class="nil-label">Date:</span>
+                  <span class="nil-value" id="date"></span>
+                </div>
+              </div>
+            </div>
+
+            <hr class="nil-rule" />
+
+            <div class="nil-body">
+              <div class="nil-phrases" id="phrases"></div>
+
+              <div class="nil-master">
+                <div class="nil-master-inner">
+                  <div class="nil-master-line">
+                    <span class="nil-master-label">Master</span>
+                    <span class="nil-master-rule">
+                      <span class="nil-master-name" id="masterName"></span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="stamp-container" class="nil-overlay"></div>
+            <div id="sig-container" class="nil-overlay"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-panel side-panel--right">
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Overlays</h2>
+      <div class="overlay-toolbar" aria-label="Stamp and signature">
+        <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
+        <button type="button" class="btn btn-s btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
+      </div>
+      <p class="side-panel__hint">Data is loaded from CREW. Stamp and signature are draggable.</p>
+    </section>
+  </div>
+
+  <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
+    <div class="dg-archive-modal confirm-dialog confirm-dialog--danger" role="alertdialog" aria-modal="true"
+      aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" onclick="event.stopPropagation()">
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon confirm-dialog__icon confirm-dialog__icon--danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="confirm-dialog-title">Cancel changes</h3>
+          <p id="confirm-dialog-message" class="confirm-dialog__message">Are you sure you want to cancel? All unsaved changes will be lost.</p>
+        </div>
+      </header>
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmCancel()">Discard changes</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="../overlay-drag.js"></script>
+  <script src="../overlay-toolbar.js"></script>
+  <script src="../html-form-pdf-snapshot.js"></script>
+  <script src="../crew-name-format.js"></script>
+  <script src="../ship-stores-pdf-common.js"></script>
+  <script src="../html-form-editor-wheel.js"></script>
+  <script src="../nil-list-form-editor.js"></script>
+  <script src="nil-list-form.js"></script>
+</body>
+</html>

@@ -5,7 +5,7 @@
   const ZOOM_MIN = 50;
   const ZOOM_MAX = 200;
   const ZOOM_STEP = 10;
-  const APP_DATA_SCHEMA_VERSION = 16;
+  const APP_DATA_SCHEMA_VERSION = 18;
   let editorZoomPct = 100;
 
   function electronApi() {
@@ -96,6 +96,9 @@
   }
 
   function isUsableSavedOverlay(box) {
+    if (global.CrewCrewEffectPdf?.isUsableHtmlCssBox) {
+      return global.CrewCrewEffectPdf.isUsableHtmlCssBox(box);
+    }
     if (!box?.left || !box?.top || !box?.width || !box?.height) return false;
     const left = String(box.left);
     const top = String(box.top);
@@ -575,16 +578,10 @@
     function initEditorZoom() {
       applyEditorZoom();
       const viewport = document.getElementById('doc-zoom-viewport');
-      if (!viewport) return;
-      viewport.addEventListener(
-        'wheel',
-        (e) => {
-          if (document.body.classList.contains('pdf-export')) return;
-          e.preventDefault();
-          setEditorZoom(editorZoomPct + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
-        },
-        { passive: false },
-      );
+      if (!viewport || !global.CrewHtmlFormEditorWheel) return;
+      global.CrewHtmlFormEditorWheel.attach(viewport, {
+        onZoomStep: (step) => setEditorZoom(editorZoomPct + step * ZOOM_STEP),
+      });
     }
 
     function resetEditorZoomForExport() {

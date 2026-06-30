@@ -236,6 +236,18 @@ function buildDgContainerDisplayLinesRaw(
   }));
 }
 
+/** Raw kg per display line in one container (respects consolidate). */
+export function dgContainerDisplayRawWeights(
+  container: { id: string; lines: readonly DgCargoLine[] },
+  options: Pick<DgManifestViewOptions, 'manifestMergeLines' | 'manifestUseGrossWeight'>,
+): number[] {
+  return buildDgContainerDisplayLinesRaw(
+    container,
+    options.manifestMergeLines,
+    options.manifestUseGrossWeight,
+  ).map((row) => row.rawWeightKg);
+}
+
 /** Raw kg per inventory display line (same rows as the table, incl. merge). */
 export function dgInventoryDisplayRawWeights(
   containers: readonly { id: string; lines: readonly DgCargoLine[] }[],

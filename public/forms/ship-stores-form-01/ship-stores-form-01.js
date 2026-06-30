@@ -284,11 +284,23 @@
     const cellStyles = overlayVariant?.cellStyles || saved.cellStyles || {};
     global.ShipStoresFormCells.restoreCellValues(cellValues);
     global.ShipStoresFormCells.restoreCellStyles(cellStyles);
-    global.ShipStoresFormCells.captureDirtyBaseline();
     editor.connectCellEditor({
       collect: () => global.ShipStoresFormCells.collectCellStyles(),
       collectValues: () => global.ShipStoresFormCells.collectCellValues(),
       resetPage: resetEditorPage,
+    });
+  }
+
+  function settleEditorDirtyBaseline() {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        global.ShipStoresFormCells?.reflowAllWrappedCells?.();
+        requestAnimationFrame(() => {
+          editor.captureDirtyBaseline?.();
+          global.ShipStoresFormCells?.captureDirtyBaseline?.();
+          resolve();
+        });
+      });
     });
   }
 
@@ -345,6 +357,7 @@
     editor.initOverlayToolbar();
     await editor.restoreOverlaySettings();
     editor.initEditorZoom();
+    await settleEditorDirtyBaseline();
   }
 
   async function initPdfExport() {

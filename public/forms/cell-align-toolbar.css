@@ -121,13 +121,6 @@
   transform: scale(0.94);
 }
 
-.cell-align-toolbar__btn--preview {
-  background: var(--align-accent-soft);
-  border-color: var(--align-accent);
-  color: var(--align-accent);
-  box-shadow: 0 0 0 2px rgb(37 99 235 / 18%);
-}
-
 .cell-align-toolbar__btn--active {
   background: var(--align-accent-soft);
   border-color: var(--align-accent);

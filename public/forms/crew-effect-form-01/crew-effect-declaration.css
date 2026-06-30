@@ -205,10 +205,6 @@
   height: 30px;
 }
 
-.ced-signature {
-  display: none;
-}
-
 .ced-form-footer {
   margin-top: 2px;
   flex-shrink: 0;

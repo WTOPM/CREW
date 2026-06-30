@@ -365,13 +365,10 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       loadEditorZoom();
       applyEditorZoom();
       const viewport = document.getElementById('doc-zoom-viewport');
-      if (!viewport) return;
-      viewport.addEventListener('wheel', (e) => {
-        if (document.body.classList.contains('is-pdf-export')) return;
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-        setEditorZoom(editorZoomPct + delta);
-      }, { passive: false });
+      if (!viewport || !window.CrewHtmlFormEditorWheel) return;
+      window.CrewHtmlFormEditorWheel.attach(viewport, {
+        onZoomStep: (step) => setEditorZoom(editorZoomPct + step * ZOOM_STEP),
+      });
     }
 
     const CREW_FORM_06_TYPE = 'type5V3SbkP';
@@ -603,6 +600,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         footerSignatureDate,
+        ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       window._appData = appData;
@@ -884,6 +882,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       }
       window._appData = appData; // Store globally
 
+      let defaultMasterName = '';
       if (appData) {
         const ship = appData.ship || {};
         window._shipData = ship; // Save for setAD date switching
@@ -936,12 +935,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         let master = null;
         if (crewList.length > 0) {
           master = crewList.find(c => c.rank && c.rank.toLowerCase().includes('master')) || crewList[0];
-        }
-        const masterEl = document.getElementById('f-master-name');
-        if (masterEl && master) {
-          masterEl.value = CrewNameFormat.formatCrewListName(master);
-        } else if (masterEl) {
-          masterEl.value = '';
+          defaultMasterName = master ? CrewNameFormat.formatCrewListName(master) : '';
         }
 
         crewList.forEach(c => {
@@ -964,6 +958,15 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         });
       } else {
         DEMO.forEach(d => addRow(d));
+      }
+
+      const savedVar = appData?.documentOverlay?.crewList?.byType?.[CREW_FORM_06_TYPE];
+      if (window.HtmlFormEditorOverlay) {
+        HtmlFormEditorOverlay.applyFromVariant(
+          savedVar,
+          document.querySelector('.a4-page'),
+          defaultMasterName,
+        );
       }
 
       for (let i = tbody.children.length; i < MAX_ROWS; i++) addRow();

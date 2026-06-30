@@ -628,9 +628,7 @@ export class DgUnifeederInventoryComponent {
   private buildUnifeederExportContext(): DgUnifeederExportContext {
     const lib = this.unifeederLibrary();
     return {
-      rows: this.visibleUnifeederDisplayRows().map(
-        ({ editable, sourceRowIds, weightKgDisplay, ...row }) => row,
-      ),
+      rows: this.visibleUnifeederRows(),
       mergeLines: lib.mergeLines,
       grossTotalKg: lib.roundWeights,
       useGrossWeight: lib.useGrossWeight,

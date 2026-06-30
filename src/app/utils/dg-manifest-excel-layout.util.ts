@@ -1,13 +1,14 @@
 import ExcelJS from 'exceljs';
 import {
   dgContainersExportTotalKg,
-  dgOnboardClassSummaries,
+  dgViewOnboardClassSummaries,
   formatDgWeightKgDisplay,
   parseDgWeightKg,
   resolveDgMasterName,
   roundDgExportLineWeightKg,
   type DgCargoLine,
   type DgLibrarySettings,
+  type DgManifestViewOptions,
   type DgOnboardContainer,
 } from '../models/dg-manifest.models';
 import type { DgManifestExportContext } from '../models/dg-manifest-export.models';
@@ -18,6 +19,7 @@ import {
   planDgInventoryWeightDisplays,
 } from './dg-cargo-merge.util';
 import { compareDgManifestExportRowsByClass } from './dg-inventory-sort.util';
+import { sumPlannedDgLineWeightsKg } from './dg-weight-view.util';
 import {
   CrewMember,
   portCode,
@@ -141,12 +143,17 @@ function addRangeBorder(
   }
 }
 
-function exportClassTotalKg(rows: readonly DgManifestExcelRow[], dgClass: string): number {
+function exportClassTotalKg(
+  rows: readonly DgManifestExcelRow[],
+  dgClass: string,
+  roundWeights: boolean,
+): number {
   const key = dgClass.trim();
-  const sum = rows
+  const weights = rows
     .filter((r) => r.dgClass.trim() === key)
-    .reduce((total, r) => total + parseDgWeightKg(r.weightKg), 0);
-  return Math.round(sum);
+    .map((r) => parseDgWeightKg(r.weightKg))
+    .filter((w) => w > 0);
+  return sumPlannedDgLineWeightsKg(weights, roundWeights);
 }
 
 function uniqueUnNumbersForClass(rows: readonly DgManifestExcelRow[], dgClass: string): string {
@@ -381,10 +388,9 @@ function buildClassSideBlock(
   containers: readonly DgOnboardContainer[],
   dataRows: readonly DgManifestExcelRow[],
   totalKg: number,
-  useGrossWeight: boolean,
-  roundWeights: boolean,
+  viewOptions: DgManifestViewOptions,
 ): void {
-  const classes = dgOnboardClassSummaries(containers, true, useGrossWeight, roundWeights);
+  const classes = dgViewOnboardClassSummaries(containers, true, viewOptions);
 
   mergeCells(ws, 7, COL_N, 8, COL_N);
   setCell(ws, 7, COL_N, 'CLASS', {
@@ -402,7 +408,7 @@ function buildClassSideBlock(
 
   let row = DATA_START;
   for (const entry of classes) {
-    const classKg = exportClassTotalKg(dataRows, entry.dgClass);
+    const classKg = exportClassTotalKg(dataRows, entry.dgClass, viewOptions.manifestRoundWeights);
 
     setCell(ws, row, COL_N, entry.dgClass, {
       font: { name: ARIAL, size: 24, bold: true, color: { argb: CLR.red } },
@@ -617,12 +623,17 @@ export async function buildDgManifestWorksheet(
   const mergeLines = exportContext?.mergeLines ?? true;
   const useGrossWeight = exportContext?.useGrossWeight !== false;
   const roundWeights = exportContext?.grossTotalKg === true;
+  const viewOptions: DgManifestViewOptions = {
+    manifestMergeLines: mergeLines,
+    manifestUseGrossWeight: useGrossWeight,
+    manifestRoundWeights: roundWeights,
+  };
   const dataRows = dgContainersToExcelRows(containers, ports, {
     mergeLines,
     useGrossWeight,
     roundWeights,
   });
-  const totalKg = dgContainersExportTotalKg(containers, useGrossWeight, roundWeights);
+  const totalKg = dgContainersExportTotalKg(containers, useGrossWeight, roundWeights, mergeLines);
   const hasExportData = dataRows.some(
     (r) => r.dgClass || r.unNo || r.weightKg || r.properShippingName || r.containerNo,
   );
@@ -659,8 +670,8 @@ export async function buildDgManifestWorksheet(
 
   if (lastDataRow < DATA_START) lastDataRow = DATA_START;
 
-  const classes = dgOnboardClassSummaries(containers, true, useGrossWeight, roundWeights);
-  buildClassSideBlock(ws, containers, dataRows, totalKg, useGrossWeight, roundWeights);
+  const classes = dgViewOnboardClassSummaries(containers, true, viewOptions);
+  buildClassSideBlock(ws, containers, dataRows, totalKg, viewOptions);
   buildUnReportBlock(ws, dataRows, classes);
 
   const printLast = Math.max(lastDataRow + 2, 44);

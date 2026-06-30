@@ -352,13 +352,10 @@ const DEMO = [
       loadEditorZoom();
       applyEditorZoom();
       const viewport = document.getElementById('doc-zoom-viewport');
-      if (!viewport) return;
-      viewport.addEventListener('wheel', (e) => {
-        if (document.body.classList.contains('is-pdf-export')) return;
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-        setEditorZoom(editorZoomPct + delta);
-      }, { passive: false });
+      if (!viewport || !window.CrewHtmlFormEditorWheel) return;
+      window.CrewHtmlFormEditorWheel.attach(viewport, {
+        onZoomStep: (step) => setEditorZoom(editorZoomPct + step * ZOOM_STEP),
+      });
     }
 
     const CREW_FORM_05_TYPE = 'type4V3Sbk';
@@ -590,6 +587,7 @@ const DEMO = [
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         footerSignatureDate,
+        ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       window._appData = appData;
@@ -871,6 +869,7 @@ const DEMO = [
       }
       window._appData = appData; // Store globally
 
+      let defaultMasterName = '';
       if (appData) {
         const ship = appData.ship || {};
         window._shipData = ship; // Save for setAD date switching
@@ -916,12 +915,7 @@ const DEMO = [
         let master = null;
         if (crewList.length > 0) {
           master = crewList.find(c => c.rank && c.rank.toLowerCase().includes('master')) || crewList[0];
-        }
-        const masterEl = document.getElementById('f-master-name');
-        if (masterEl && master) {
-          masterEl.value = CrewNameFormat.formatCrewListName(master);
-        } else if (masterEl) {
-          masterEl.value = '';
+          defaultMasterName = master ? CrewNameFormat.formatCrewListName(master) : '';
         }
 
         crewList.forEach(c => {
@@ -940,6 +934,15 @@ const DEMO = [
         });
       } else {
         DEMO.forEach(d => addRow(d));
+      }
+
+      const savedVar = appData?.documentOverlay?.crewList?.byType?.[CREW_FORM_05_TYPE];
+      if (window.HtmlFormEditorOverlay) {
+        HtmlFormEditorOverlay.applyFromVariant(
+          savedVar,
+          document.querySelector('.a4-page'),
+          defaultMasterName,
+        );
       }
 
       for (let i = tbody.children.length; i < 18; i++) addRow();

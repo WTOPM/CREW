@@ -486,13 +486,10 @@ const MAX_ROWS = 15;
       loadEditorZoom();
       applyEditorZoom();
       const viewport = document.getElementById('doc-zoom-viewport');
-      if (!viewport) return;
-      viewport.addEventListener('wheel', (e) => {
-        if (document.body.classList.contains('is-pdf-export')) return;
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-        setEditorZoom(editorZoomPct + delta);
-      }, { passive: false });
+      if (!viewport || !window.CrewHtmlFormEditorWheel) return;
+      window.CrewHtmlFormEditorWheel.attach(viewport, {
+        onZoomStep: (step) => setEditorZoom(editorZoomPct + step * ZOOM_STEP),
+      });
     }
 
     const CREW_FORM_03_TYPE = 'type2Alger';
@@ -985,6 +982,7 @@ const MAX_ROWS = 15;
       }
       window._appData = appData; // Store globally
 
+      let defaultMasterName = '';
       if (appData) {
         const ship = appData.ship || {};
         window._shipData = ship; // Save for setAD date switching
@@ -1032,12 +1030,7 @@ const MAX_ROWS = 15;
         let master = null;
         if (crewList.length > 0) {
           master = crewList.find(c => c.rank && c.rank.toLowerCase().includes('master')) || crewList[0];
-        }
-        const masterEl = document.getElementById('f-master-name');
-        if (masterEl && master) {
-          masterEl.value = CrewNameFormat.formatCrewListName(master);
-        } else if (masterEl) {
-          masterEl.value = '';
+          defaultMasterName = master ? CrewNameFormat.formatCrewListName(master) : '';
         }
 
         crewList.forEach(c => {
@@ -1061,7 +1054,11 @@ const MAX_ROWS = 15;
 
       const savedVar = appData?.documentOverlay?.crewList?.byType?.[CREW_FORM_03_TYPE];
       if (window.HtmlFormEditorOverlay) {
-        HtmlFormEditorOverlay.applyFromVariant(savedVar, document.querySelector('.a4-page'));
+        HtmlFormEditorOverlay.applyFromVariant(
+          savedVar,
+          document.querySelector('.a4-page'),
+          defaultMasterName,
+        );
       }
 
       for (let i = tableBody.children.length; i < MAX_ROWS; i++) addRow();

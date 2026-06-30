@@ -453,7 +453,19 @@
     .doc-zoom-stage {
       transform-origin: top center;
       flex-shrink: 0;
-    }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
 
     .ci {
       border: none;
@@ -637,7 +649,8 @@
         padding: 0;
       }
 
-      .actions,
+      .actions,
+
 
       @page {
         size: A4 portrait;

@@ -356,13 +356,10 @@ const tbody = document.getElementById('tbody');
       loadEditorZoom();
       applyEditorZoom();
       const viewport = document.getElementById('doc-zoom-viewport');
-      if (!viewport) return;
-      viewport.addEventListener('wheel', (e) => {
-        if (document.body.classList.contains('is-pdf-export')) return;
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-        setEditorZoom(editorZoomPct + delta);
-      }, { passive: false });
+      if (!viewport || !window.CrewHtmlFormEditorWheel) return;
+      window.CrewHtmlFormEditorWheel.attach(viewport, {
+        onZoomStep: (step) => setEditorZoom(editorZoomPct + step * ZOOM_STEP),
+      });
     }
 
     const OVERLAY_KEY = 'paxV2';
@@ -576,6 +573,7 @@ const tbody = document.getElementById('tbody');
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         footerSignatureDate,
+        ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       window._appData = appData;
@@ -850,6 +848,7 @@ const tbody = document.getElementById('tbody');
       }
       window._appData = appData; // Store globally
 
+      let defaultMasterName = '';
       if (appData) {
         const ship = appData.ship || {};
         window._shipData = ship; // Save for setAD date switching
@@ -901,12 +900,7 @@ const tbody = document.getElementById('tbody');
           master =
             masterSource.find((c) => c.rank && c.rank.trim().toLowerCase() === 'master') ||
             masterSource.find((c) => c.rank && c.rank.toLowerCase().includes('master'));
-        }
-        const masterEl = document.getElementById('f-master-name');
-        if (masterEl && master) {
-          masterEl.value = CrewNameFormat.formatCrewListName(master, { upper: true });
-        } else if (masterEl) {
-          masterEl.value = '';
+          defaultMasterName = master ? CrewNameFormat.formatCrewListName(master, { upper: true }) : '';
         }
 
         passengerList.forEach((p) => {
@@ -923,6 +917,15 @@ const tbody = document.getElementById('tbody');
             expiryIso: p.passportExpiryDate || '',
           });
         });
+      }
+
+      const savedOverlay = appData?.documentOverlay?.[OVERLAY_KEY];
+      if (window.HtmlFormEditorOverlay) {
+        HtmlFormEditorOverlay.applyFromVariant(
+          savedOverlay,
+          document.querySelector('.a4-page'),
+          defaultMasterName,
+        );
       }
 
       for (let i = tbody.children.length; i < PASSENGER_LIST_MAX_ROWS; i++) addRow();

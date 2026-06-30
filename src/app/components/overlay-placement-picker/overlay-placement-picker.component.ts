@@ -16,6 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import {
   CREW_LIST_TYPE_LABELS,
+  CrewEffectHtmlFormStampOptions,
   CrewEffectStampOptions,
   DOCUMENT_OVERLAY_LABELS,
   documentUsesSignature,
@@ -192,7 +193,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
     return 'crewEffect';
   });
 
-  protected readonly crewEffectOptions = computed((): CrewEffectStampOptions => {
+  protected readonly crewEffectOptions = computed((): CrewEffectStampOptions | CrewEffectHtmlFormStampOptions => {
     const id = this.crewEffectOverlayId();
     return this.storage.documentOverlay()[id];
   });
@@ -211,7 +212,9 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   });
 
   protected readonly useCrewTableSignatures = computed(
-    () => this.isCrewEffectDoc() && !!this.crewEffectOptions().useCrewSignatures,
+    () =>
+      this.crewEffectOverlayId() === 'crewEffect03' &&
+      !!this.crewEffectOptions().useCrewSignatures,
   );
 
   protected readonly crewTableRowLabels = computed(() =>
@@ -668,7 +671,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   private resolveCrewTableSigRawBox(rowIndex: number): PdfStampBox | null {
     const id = this.crewEffectOverlayId();
     const form = CREW_EFFECT_SIGNATURE_FORM_CONFIG[id];
-    const opts = this.crewEffectOptions();
+    const opts = this.crewEffectOptions() as CrewEffectStampOptions;
     const base = crewEffectSignatureBase(opts, id);
     const tweak = opts.crewSignatureByRow?.[String(rowIndex)];
     const { widthPt, heightPt } = this.pageSizePt();
@@ -994,7 +997,7 @@ export class OverlayPlacementPickerComponent implements OnInit, OnDestroy {
   private persistCrewTableSigBox(boxOnPage: PdfStampBox): void {
     const id = this.crewEffectOverlayId();
     const form = CREW_EFFECT_SIGNATURE_FORM_CONFIG[id];
-    const opts = this.crewEffectOptions();
+    const opts = this.crewEffectOptions() as CrewEffectStampOptions;
     const base = crewEffectSignatureBase(opts, id);
     const row = this.crewTableRow();
     const defaultBox = resolveCrewSignatureBox(base, form.rowY(0), form.rowY(row), {});

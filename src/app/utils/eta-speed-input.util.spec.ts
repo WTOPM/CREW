@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatSpeedKnotsCalculated,
   formatSpeedKnotsDisplay,
   sanitizeSpeedKnotsInput,
   stepSpeedKnots,
@@ -31,6 +32,12 @@ describe('eta-speed-input.util', () => {
   it('formatSpeedKnotsDisplay omits trailing .0', () => {
     expect(formatSpeedKnotsDisplay(9)).toBe('9');
     expect(formatSpeedKnotsDisplay(2.2)).toBe('2.2');
+  });
+
+  it('formatSpeedKnotsCalculated rounds to tenths like Result panel', () => {
+    expect(formatSpeedKnotsCalculated(13.0588)).toBe('13.1');
+    expect(formatSpeedKnotsCalculated(10)).toBe('10');
+    expect(formatSpeedKnotsCalculated(9.95)).toBe('10');
   });
 
   it('stepSpeedKnots adjusts by 0.1 and clamps at zero', () => {

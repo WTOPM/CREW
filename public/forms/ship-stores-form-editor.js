@@ -215,6 +215,11 @@
       navigateBack('saved');
     }
 
+    function captureDirtyBaseline() {
+      savedStampVisible = global.CrewOverlayToolbar?.isStampOn() ?? false;
+      savedSigVisible = global.CrewOverlayToolbar?.isSigOn() ?? false;
+    }
+
     function showConfirmModal() {
       if (!isEditorDirty()) {
         navigateBack('cancelled');
@@ -420,16 +425,10 @@
     function initEditorZoom() {
       applyEditorZoom();
       const viewport = document.getElementById('doc-zoom-viewport');
-      if (!viewport) return;
-      viewport.addEventListener(
-        'wheel',
-        (e) => {
-          if (document.body.classList.contains('pdf-export')) return;
-          e.preventDefault();
-          setEditorZoom(editorZoomPct + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
-        },
-        { passive: false },
-      );
+      if (!viewport || !global.CrewHtmlFormEditorWheel) return;
+      global.CrewHtmlFormEditorWheel.attach(viewport, {
+        onZoomStep: (step) => setEditorZoom(editorZoomPct + step * ZOOM_STEP),
+      });
     }
 
     function resetEditorZoomForExport() {
@@ -479,6 +478,7 @@
           });
         }
       },
+      captureDirtyBaseline,
     };
   }
 

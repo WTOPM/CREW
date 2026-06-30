@@ -68,12 +68,18 @@ import { normalizeEtaLibrary } from '../models/eta.models';
 import {
   isCrewListForm05CssBox,
   normalizeCrewListDocumentPrefs,
+  type CrewEffectHtmlFormStampOptions,
   type PaxHtmlFormStampOptions,
   type PortOfCallHtmlFormStampOptions,
   type ShipStoresHtmlFormStampOptions,
+  type NilListHtmlFormStampOptions,
 } from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 import { normalizeCrewSignatureByRow } from '../utils/crew-effect-signature.util';
+import {
+  normalizeCrewSignatureCellByRow,
+  readCrewEffectHtmlOverlayBox,
+} from '../utils/crew-effect-html-overlay.util';
 
 /** Normalize raw (possibly legacy / partial) persisted data into a complete AppData. */
 export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): AppData {
@@ -356,10 +362,13 @@ function normalizeDocumentOverlay(
       shipStores03Raw as Partial<DocumentStampOptions> | undefined,
       defaults.shipStores03,
     ),
-    crewEffect: normalizeCrewEffectStampPrefs(raw?.crewEffect, defaults.crewEffect),
-    crewEffect02: normalizeCrewEffectStampPrefs(crewEffect02Raw, defaults.crewEffect02),
-    crewEffect03: normalizeCrewEffectStampPrefs(crewEffect03Raw, defaults.crewEffect03),
-    nilList: normalizeStampDocumentPrefs(raw?.nilList, defaults.nilList),
+    crewEffect: normalizeCrewEffectHtmlFormPrefs(raw?.crewEffect, defaults.crewEffect),
+    crewEffect02: normalizeCrewEffectHtmlFormPrefs(crewEffect02Raw, defaults.crewEffect02),
+    crewEffect03: normalizeCrewEffectStampPrefs(
+      crewEffect03Raw as Partial<CrewEffectStampOptions> | undefined,
+      defaults.crewEffect03,
+    ),
+    nilList: normalizeNilListHtmlFormPrefs(raw?.nilList, defaults.nilList),
     shipMoney: normalizeStampDocumentPrefs(raw?.shipMoney, defaults.shipMoney),
     cashAdvance: normalizeStampDocumentPrefs(raw?.cashAdvance, defaults.cashAdvance),
     crewMoney: normalizeStampDocumentPrefs(raw?.crewMoney, defaults.crewMoney),
@@ -425,6 +434,19 @@ function normalizeShipStoresHtmlFormPrefs(
   return out;
 }
 
+function normalizeNilListHtmlFormPrefs(
+  raw: Partial<NilListHtmlFormStampOptions> | undefined,
+  defaults: NilListHtmlFormStampOptions,
+): NilListHtmlFormStampOptions {
+  const base = normalizeStampDocumentPrefs(
+    raw as Partial<DocumentStampOptions>,
+    defaults as DocumentStampOptions,
+  );
+  const out: NilListHtmlFormStampOptions = { ...base };
+  preserveHtmlFormCssOverlayBoxes(raw, out);
+  return out;
+}
+
 function normalizePortOfCallHtmlFormPrefs(
   raw: Partial<PortOfCallHtmlFormStampOptions> | undefined,
   defaults: PortOfCallHtmlFormStampOptions,
@@ -476,6 +498,34 @@ function normalizePaxHtmlFormPrefs(
   return out;
 }
 
+function normalizeCrewEffectHtmlFormPrefs(
+  raw: Partial<CrewEffectHtmlFormStampOptions> | undefined,
+  defaults: CrewEffectHtmlFormStampOptions,
+): CrewEffectHtmlFormStampOptions {
+  const stampCss = readCrewEffectHtmlOverlayBox(raw?.stampBox);
+  const signatureCss = readCrewEffectHtmlOverlayBox(raw?.signatureBox, {
+    stampIsCss: !!stampCss,
+    isMasterSignature: true,
+  });
+  const out: CrewEffectHtmlFormStampOptions = {
+    useStamp: raw?.useStamp ?? defaults.useStamp ?? false,
+    useSignature: raw?.useSignature ?? defaults.useSignature ?? false,
+    useCrewSignatures: raw?.useCrewSignatures ?? defaults.useCrewSignatures ?? false,
+    crewSignatureByRow: normalizeCrewSignatureCellByRow(
+      raw?.crewSignatureByRow as Record<string, unknown> | undefined,
+    ),
+  };
+  if (stampCss) out.stampBox = stampCss;
+  if (signatureCss) out.signatureBox = signatureCss;
+  if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
+    out.cellStyles = raw.cellStyles;
+  }
+  if (raw?.cellValues && typeof raw.cellValues === 'object') {
+    out.cellValues = raw.cellValues;
+  }
+  return out;
+}
+
 function normalizeCrewEffectStampPrefs(
   raw: Partial<CrewEffectStampOptions> | undefined,
   defaults: CrewEffectStampOptions,
@@ -494,12 +544,6 @@ function normalizeCrewEffectStampPrefs(
     ),
   };
   preserveHtmlFormCssOverlayBoxes(raw, out);
-  if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
-    out.cellStyles = raw.cellStyles;
-  }
-  if (raw?.cellValues && typeof raw.cellValues === 'object') {
-    out.cellValues = raw.cellValues;
-  }
   return out;
 }
 

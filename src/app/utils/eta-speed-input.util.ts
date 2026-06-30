@@ -71,6 +71,13 @@ export function formatSpeedKnotsDisplay(n: number): string {
   return Number.isInteger(t) ? String(t) : t.toFixed(1);
 }
 
+/** Calculated speed — round to tenths (matches Result panel `number:'1.0-1'`). */
+export function formatSpeedKnotsCalculated(n: number): string {
+  const t = Math.round(n * 10) / 10;
+  if (t <= 0) return '';
+  return Number.isInteger(t) ? String(t) : t.toFixed(1);
+}
+
 /** Step speed by tenths of a knot (spinner buttons). */
 export function stepSpeedKnots(current: number | null, direction: 1 | -1): {
   text: string;

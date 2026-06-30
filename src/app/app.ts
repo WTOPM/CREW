@@ -15,7 +15,8 @@ import { DgPageArchiveService } from './services/dg-page-archive.service';
 import { ReeferPageArchiveService } from './services/reefer-page-archive.service';
 import { AppSnapshotArchiveService } from './services/app-snapshot-archive.service';
 import { CrewListHtmlFormExcelService } from './services/crew-list-html-form-excel.service';
-import { AppStateStore } from './services/app-state.store';
+import { DataSetupComponent } from './components/data-setup/data-setup.component';
+import { AppStateStore, type AppInitResult } from './services/app-state.store';
 import { SectionLockService } from './services/section-lock.service';
 import { SectionReadonlyDomService } from './services/section-readonly-dom.service';
 import { sectionFromRoutePath, AppSection } from './utils/app-data-section.util';
@@ -35,6 +36,7 @@ interface FolderOption {
     PkgBarComponent,
     ConfirmDialogComponent,
     ToastComponent,
+    DataSetupComponent,
     FormsModule,
   ],
   templateUrl: './app.html',
@@ -95,6 +97,7 @@ export class App implements OnInit {
   protected readonly cooperativeSharing = this.sectionLock.cooperativeMode;
   protected readonly refreshBusy = signal(false);
   protected readonly takeOverBusy = signal(false);
+  protected readonly dataSetup = signal<{ reason: AppInitResult } | null>(null);
 
   constructor() {
     effect(() => {
@@ -118,20 +121,39 @@ export class App implements OnInit {
       .subscribe((e) => {
         void this.onMainSectionNav(e.urlAfterRedirects);
       });
-    void this.storage.init().then(async () => {
+    void this.storage.init().then(async (result) => {
       if (embeddedExcel) {
+        if (result !== 'loaded') {
+          if (this.hasElectron) {
+            this.dataSetup.set({ reason: result });
+          }
+          return;
+        }
         await this.runEmbeddedHtmlFormExcelExport();
         return;
       }
-      this.dgPageArchive.restoreSession();
-      this.reeferPageArchive.restoreSession();
-      this.appSnapshotArchive.restoreSession();
-      await this.onMainSectionNav(this.router.url);
+      if (result !== 'loaded' && this.hasElectron) {
+        this.dataSetup.set({ reason: result });
+        return;
+      }
+      await this.finishAppStartup();
     });
     void this.folderAccess.restore();
     window.electronAPI?.onAppRestoredFromTray?.(() => {
       void this.onRestoredFromTray();
     });
+  }
+
+  protected onDataSetupResolved(): void {
+    this.dataSetup.set(null);
+    void this.finishAppStartup();
+  }
+
+  private async finishAppStartup(): Promise<void> {
+    this.dgPageArchive.restoreSession();
+    this.reeferPageArchive.restoreSession();
+    this.appSnapshotArchive.restoreSession();
+    await this.onMainSectionNav(this.router.url);
   }
 
   /** Hidden iframe from an HTML form editor — build Excel and post bytes to the parent page. */

@@ -80,15 +80,18 @@ body {
   object-fit: contain;
 }
 
+body.is-pdf-export,
 body.pdf-export {
   padding: 0;
   background: #fff;
 }
 
+body.is-pdf-export .poc-pages,
 body.pdf-export .poc-pages {
   gap: 0;
 }
 
+body.is-pdf-export .a4-page,
 body.pdf-export .a4-page {
   box-shadow: none;
   border: none;

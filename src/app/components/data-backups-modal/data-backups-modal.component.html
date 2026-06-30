@@ -1,0 +1,79 @@
+<div class="modal-backdrop data-backups-backdrop" (click)="close()">
+  <div
+    class="modal dg-archive-modal data-backups-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="data-backups-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dg-archive-modal__head">
+      <div class="dg-archive-modal__icon data-backups-modal__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path
+            fill="currentColor"
+            d="M4 4h16v4H4V4zm0 6h10v10H4V10zm12 0h4v10h-4V10zM6 12h2v2H6v-2zm0 3h2v2H6v-2zm4-3h2v2h-2v-2zm0 3h2v2h-2v-2z"
+          />
+        </svg>
+      </div>
+      <div class="dg-archive-modal__intro">
+        <h3 id="data-backups-title">JSON backups on this computer</h3>
+        <p class="data-backups-modal__lead">
+          Up to 22 automatic copies of <code>crew-data.json</code> are kept on this PC (PDFs and
+          signatures are not duplicated): 2 autosaves before each save (current + previous clock
+          hour), 10 when you close the app, and 10 when you minimize to tray. Sorted by date.
+        </p>
+        @if (backupsDir()) {
+          <p class="data-backups-modal__folder">
+            Backup folder on this PC:
+            <span>{{ backupsDir() }}</span>
+          </p>
+        }
+        @if (dataFile()) {
+          <p class="data-backups-modal__target">
+            Active database:
+            <span>{{ dataFile() }}</span>
+          </p>
+        }
+      </div>
+    </header>
+
+    @if (loading()) {
+      <p class="data-backups-modal__status">Loading backups…</p>
+    } @else if (!backups().length) {
+      <p class="data-backups-modal__status">
+        No backups on this computer yet. They appear after the first successful save or app exit.
+      </p>
+    } @else {
+      <ul class="data-backups-modal__list">
+        @for (item of backups(); track item.fileName) {
+          <li class="data-backups-modal__row">
+            <div class="data-backups-modal__meta">
+              <div class="data-backups-modal__meta-head">
+                <strong>{{ formatWhen(item.modifiedAt) }}</strong>
+                <span class="data-backups-modal__tag">{{ formatCategory(item.category) }}</span>
+              </div>
+              <span>{{ formatSize(item.size) }} · {{ item.fileName }}</span>
+            </div>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              [disabled]="busy()"
+              (click)="restore(item.fileName)"
+            >
+              Restore
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
+    <footer class="dg-archive-modal__foot">
+      <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="openFolder()">
+        Open backup folder
+      </button>
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="close()">
+        Close
+      </button>
+    </footer>
+  </div>
+</div>

@@ -19,6 +19,42 @@ const STORAGE_KEY = 'crew-app-data';
 
 export type PersistNotify = 'silent' | 'saved' | 'debounced';
 
+export type AppInitResult = 'loaded' | 'missing' | 'error';
+
+export interface DataPathDebugInfo {
+  execPath: string;
+  exeDir: string;
+  dataDir: string;
+  dataFile: string;
+  dataFileExists: boolean;
+  dataPathConfigFile: string;
+  dataPathConfigExists: boolean;
+  defaultDataDir: string;
+  portableExecutableDir: string | null;
+  portableExecutableFile: string | null;
+}
+
+export interface JsonBackupEntry {
+  fileName: string;
+  size: number;
+  modifiedAt: number;
+  category?: string;
+}
+
+export interface JsonBackupsListResult {
+  backupsDir: string;
+  dataFile: string;
+  backups: JsonBackupEntry[];
+}
+
+export interface DataStoreActionResult {
+  ok: boolean;
+  error?: string;
+  dataDir?: string;
+  dataFile?: string;
+  restoredFrom?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AppStateStore {
   private readonly toast = inject(ToastService);
@@ -27,24 +63,34 @@ export class AppStateStore {
   /** The single writable source of truth. Feature stores read/update this directly. */
   readonly data = signal<AppData>(createEmptyAppData());
 
+  /** Electron: false until crew-data.json is loaded or user completes first-run setup. */
+  private electronBootstrapComplete = false;
+
   /** Set when a modal form auto-saves silently; cleared after Saved toast on close. */
   private formSessionDirty = false;
 
-  async init(): Promise<void> {
+  async init(): Promise<AppInitResult> {
     const electron = window.electronAPI;
     if (electron) {
-      const loaded = await electron.readData();
-      if (loaded) {
-        const normalized = normalizeAppData(loaded);
-        this.data.set(normalized);
-        if ((loaded.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
-          await this.persist('silent');
+      try {
+        const loaded = await electron.readData();
+        if (loaded) {
+          const normalized = normalizeAppData(loaded);
+          this.data.set(normalized);
+          this.electronBootstrapComplete = true;
+          if ((loaded.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
+            await this.persist('silent');
+          }
+          return 'loaded';
         }
-        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to load saved data';
+        this.toast.showError(msg);
+        this.data.set(createEmptyAppData());
+        return 'error';
       }
       this.data.set(createEmptyAppData());
-      await this.persist('silent');
-      return;
+      return 'missing';
     }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -62,6 +108,60 @@ export class AppStateStore {
     } else {
       this.data.set(createEmptyAppData());
       await this.persist('silent');
+    }
+    return 'loaded';
+  }
+
+  async bootstrapCreateNew(): Promise<boolean> {
+    const electron = window.electronAPI;
+    if (!electron?.createNewDataStore) return false;
+    const res = await electron.createNewDataStore();
+    if (!res.ok) {
+      this.toast.showError(res.error ?? 'Could not create database');
+      return false;
+    }
+    this.data.set(createEmptyAppData());
+    await this.persist('silent');
+    this.electronBootstrapComplete = true;
+    return true;
+  }
+
+  async bootstrapUseExistingDirectory(dir: string): Promise<boolean> {
+    const electron = window.electronAPI;
+    if (!electron?.setDataDirectory) return false;
+    const res = await electron.setDataDirectory(dir);
+    if (!res.ok) {
+      this.toast.showError(res.error ?? 'Could not use this folder');
+      return false;
+    }
+    return this.completeBootstrapFromDisk();
+  }
+
+  /** Reload full AppData from disk (e.g. after restoring a JSON backup). */
+  reloadEntireAppFromDisk(): Promise<boolean> {
+    return this.completeBootstrapFromDisk();
+  }
+
+  private async completeBootstrapFromDisk(): Promise<boolean> {
+    const electron = window.electronAPI;
+    if (!electron) return false;
+    try {
+      const loaded = await electron.readData();
+      if (!loaded) {
+        this.toast.showError('Database file not found after setup');
+        return false;
+      }
+      const normalized = normalizeAppData(loaded);
+      this.data.set(normalized);
+      if ((loaded.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
+        await this.persist('silent');
+      }
+      this.electronBootstrapComplete = true;
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load saved data';
+      this.toast.showError(msg);
+      return false;
     }
   }
 
@@ -100,8 +200,15 @@ export class AppStateStore {
       return;
     }
 
-    const memory = { ...this.data(), seedVersion: APP_DATA_SCHEMA_VERSION };
     const electron = window.electronAPI;
+    if (electron && !this.electronBootstrapComplete) {
+      if (notify !== 'silent') {
+        this.toast.showError('Database is not ready — complete setup first');
+      }
+      return;
+    }
+
+    const memory = { ...this.data(), seedVersion: APP_DATA_SCHEMA_VERSION };
     const section = this.sectionLock.activeSection();
 
     if (electron) {
@@ -111,7 +218,8 @@ export class AppStateStore {
         const disk = normalizeAppData(loaded ?? createEmptyAppData());
         toWrite = mergeSectionForSave(disk, memory, section);
       }
-      await electron.writeData({ ...toWrite, seedVersion: APP_DATA_SCHEMA_VERSION });
+      const saved = await this.writeElectronData(toWrite);
+      if (!saved) return;
     } else {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(memory));
     }
@@ -126,16 +234,24 @@ export class AppStateStore {
     notify: PersistNotify = 'silent',
     savedMessage?: string,
   ): Promise<void> {
-    const memory = this.data();
     const electron = window.electronAPI;
+    if (electron && !this.electronBootstrapComplete) {
+      if (notify !== 'silent') {
+        this.toast.showError('Database is not ready — complete setup first');
+      }
+      return;
+    }
+
+    const memory = this.data();
     if (electron) {
       const loaded = await electron.readData();
       const disk = normalizeAppData(loaded ?? createEmptyAppData());
-      await electron.writeData({
+      const saved = await this.writeElectronData({
         ...disk,
         outputSettings: memory.outputSettings,
         seedVersion: APP_DATA_SCHEMA_VERSION,
       });
+      if (!saved) return;
     } else {
       localStorage.setItem(
         STORAGE_KEY,
@@ -157,16 +273,24 @@ export class AppStateStore {
       return;
     }
 
-    const memory = this.data();
     const electron = window.electronAPI;
+    if (electron && !this.electronBootstrapComplete) {
+      if (notify !== 'silent') {
+        this.toast.showError('Database is not ready — complete setup first');
+      }
+      return;
+    }
+
+    const memory = this.data();
     if (electron) {
       const loaded = await electron.readData();
       const disk = normalizeAppData(loaded ?? createEmptyAppData());
-      await electron.writeData({
+      const saved = await this.writeElectronData({
         ...disk,
         ship: memory.ship,
         seedVersion: APP_DATA_SCHEMA_VERSION,
       });
+      if (!saved) return;
     } else {
       localStorage.setItem(
         STORAGE_KEY,
@@ -174,6 +298,19 @@ export class AppStateStore {
       );
     }
     this.afterPersist(notify, savedMessage);
+  }
+
+  private async writeElectronData(toWrite: AppData): Promise<boolean> {
+    const electron = window.electronAPI;
+    if (!electron) return true;
+    try {
+      await electron.writeData({ ...toWrite, seedVersion: APP_DATA_SCHEMA_VERSION });
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not save data';
+      this.toast.showError(msg);
+      return false;
+    }
   }
 
   private afterPersist(notify: PersistNotify, savedMessage?: string): void {

@@ -15,16 +15,18 @@ import { type DgWeightViewOptions } from './dg-weight-view.util';
 export interface UnifeederDgPdfExportOptions {
   useGrossWeight?: boolean;
   roundWeights?: boolean;
+  mergeLines?: boolean;
   /** @deprecated Use roundWeights */
   grossTotalKg?: boolean;
 }
 
 function resolveUnifeederExportOptions(
   options: UnifeederDgPdfExportOptions = {},
-): DgWeightViewOptions {
+): import('./dg-unifeeder-weight.util').UnifeederWeightPipelineOptions {
   return {
     useGrossWeight: options.useGrossWeight !== false,
     roundWeights: options.roundWeights === true || options.grossTotalKg === true,
+    mergeLines: options.mergeLines !== false,
   };
 }
 

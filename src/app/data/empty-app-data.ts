@@ -32,7 +32,7 @@ import {
 } from '../models/ship-stores.models';
 
 /** Bump when saved JSON shape migrations are required (no bundled sample data). */
-export const APP_DATA_SCHEMA_VERSION = 17;
+export const APP_DATA_SCHEMA_VERSION = 18;
 
 /** Fresh install — no ship, crew, ports, or forms pre-filled. */
 export function createEmptyAppData(): AppData {

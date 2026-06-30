@@ -111,9 +111,12 @@
   border-bottom: 2px solid #94a3b8;
 }
 
-.ss-col-drag {
+.ss-table td.ss-col-drag,
+.ss-table th.ss-col-drag {
   width: 2.35rem;
   text-align: center;
+  vertical-align: middle;
+  padding: 0.35rem 0;
   background: #f1f5f9;
 }
 
@@ -121,7 +124,8 @@
   background: #e2e8f0;
 }
 
-.ss-col-no {
+.ss-table td.ss-col-no,
+.ss-table th.ss-col-no {
   width: 2.75rem;
   text-align: center;
   color: #475569;
@@ -131,7 +135,7 @@
   background: #f8fafc;
 }
 
-.ss-table thead .ss-col-no {
+.ss-table thead th.ss-col-no {
   background: #e8edf4;
   color: #334155;
 }

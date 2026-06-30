@@ -115,7 +115,7 @@
               [checked]="draft().scenario === 'planEta'"
               (change)="setScenario('planEta')"
             />
-            <span class="choice-segmented__text">Plan ETA</span>
+            <span class="choice-segmented__text">ETA</span>
           </label>
           <label
             class="choice-segmented__item eta-scenario-speed"
@@ -128,7 +128,7 @@
               [checked]="draft().scenario === 'meetEtaByDeparture'"
               (change)="setScenario('meetEtaByDeparture')"
             />
-            <span class="choice-segmented__text">Need speed</span>
+            <span class="choice-segmented__text">SPEED</span>
           </label>
           <label
             class="choice-segmented__item eta-scenario-dep"
@@ -141,7 +141,7 @@
               [checked]="draft().scenario === 'meetEtaBySpeed'"
               (change)="setScenario('meetEtaBySpeed')"
             />
-            <span class="choice-segmented__text">Need departure</span>
+            <span class="choice-segmented__text">ETD</span>
           </label>
         </div>
         <p class="eta-hint">{{ scenarioHint(draft().scenario) }}</p>
@@ -296,7 +296,7 @@
                         (blur)="onLegSpeedBlur(leg.id)"
                       />
                     } @else {
-                      <span class="eta-computed-inline">{{ legSpeedDisplay(i) || '—' }}</span>
+                      <span class="eta-computed-inline eta-computed-inline--kn">{{ legSpeedDisplay(i) || '—' }}</span>
                     }
                   </td>
                   <td class="eta-col-duration">
@@ -350,12 +350,11 @@
     </div>
 
     <aside class="card eta-summary">
-      <h2 class="eta-section__title">Result</h2>
+      <div class="eta-summary__head">
+        <h2 class="eta-summary__title">RESULT</h2>
+        <p class="eta-summary__mode">{{ scenarioShortLabel(draft().scenario) }}</p>
+      </div>
       <dl class="eta-summary-list">
-        <div class="eta-summary-row">
-          <dt>Mode</dt>
-          <dd>{{ scenarioLabel(draft().scenario) }}</dd>
-        </div>
         @if (calculation().requiredSpeedKnots != null) {
           <div class="eta-summary-row eta-summary-row--highlight">
             <dt>Required speed</dt>

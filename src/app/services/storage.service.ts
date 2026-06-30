@@ -19,7 +19,7 @@ import {
 import { createEmptyAppData } from '../data/empty-app-data';
 import { extractMainAppSnapshot, mergeMainAppSnapshotIntoLive } from '../utils/app-snapshot.util';
 import { normalizeAppData } from './app-data-normalizer';
-import { AppStateStore, type PersistNotify } from './app-state.store';
+import { AppStateStore, type PersistNotify, type AppInitResult } from './app-state.store';
 
 @Injectable({ providedIn: 'root' })
 export class StorageService {
@@ -102,8 +102,24 @@ export class StorageService {
   );
   readonly allPassengers = computed(() => this.data().passengers);
 
-  init(): Promise<void> {
+  init(): Promise<AppInitResult> {
     return this.state.init();
+  }
+
+  bootstrapCreateNew(): Promise<boolean> {
+    return this.state.bootstrapCreateNew();
+  }
+
+  bootstrapUseExistingDirectory(dir: string): Promise<boolean> {
+    return this.state.bootstrapUseExistingDirectory(dir);
+  }
+
+  reloadEntireAppFromDisk(): Promise<boolean> {
+    return this.state.reloadEntireAppFromDisk();
+  }
+
+  getDataPathDebug() {
+    return window.electronAPI?.getDataPathDebug() ?? Promise.resolve(null);
   }
 
   private persist(notify: PersistNotify = 'debounced', savedMessage?: string): Promise<void> {
