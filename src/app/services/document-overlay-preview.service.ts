@@ -89,9 +89,9 @@ export class DocumentOverlayPreviewService {
       case 'shipStores03':
         return this.shipStores03Pdf.build(data);
       case 'crewEffect':
-        return this.crewEffectPdf.build(data);
+        return this.crewEffectPdf.buildPdfBytes(data);
       case 'crewEffect02':
-        return this.crewEffect02Pdf.build(data);
+        return this.crewEffect02Pdf.buildPdfBytes(data);
       case 'crewEffect03':
         return this.crewEffect03Pdf.build(data);
       case 'nilList':

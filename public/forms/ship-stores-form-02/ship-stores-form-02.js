@@ -84,6 +84,9 @@
     const isArrival = mode === 'arrival';
     arrBox.textContent = isArrival ? '\u2713' : '';
     depBox.textContent = isArrival ? '' : '\u2713';
+    document.querySelectorAll('.ssd-ad-lbl').forEach((el) => {
+      el.classList.toggle('ssd-ad-lbl--active', el.dataset.ad === mode);
+    });
 
     const appData = global._appData;
     if (!appData?.ship) return;

@@ -120,6 +120,14 @@
   text-align: center;
 }
 
+.ssd-ad-lbl {
+  font-weight: 400;
+}
+
+.ssd-ad-lbl--active {
+  font-weight: 700;
+}
+
 .ssd-sheet--v2 .ssd-cell--checks {
   vertical-align: middle;
 }

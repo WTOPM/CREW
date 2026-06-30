@@ -165,13 +165,6 @@
       if (name === 'dateOfArrivalDeparture') setDateField(key, value);
       else setCi(key, value);
     }
-    const el = document.querySelector(`[data-ss-field="${name}"]`);
-    if (!el) return;
-    if (el.type === 'checkbox') {
-      el.checked = !!value;
-    } else if (!key) {
-      el.value = value == null ? '' : String(value);
-    }
   }
 
   function getField(name) {
@@ -183,10 +176,7 @@
     }
     const key = HDR_KEYS[name];
     if (key) return getCi(key);
-    const el = document.querySelector(`[data-ss-field="${name}"]`);
-    if (!el) return '';
-    if (el.type === 'checkbox') return el.checked;
-    return el.value;
+    return '';
   }
 
   function applyForm01(form01) {

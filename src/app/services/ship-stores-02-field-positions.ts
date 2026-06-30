@@ -34,7 +34,7 @@ export const SHIP_STORES_02_FIELDS = {
   captainName: { x: 293, y: 128, fontSize: SHIP_STORES_02_FONT, maxWidth: 280 },
 } as const satisfies Record<string, ShipStores02TextPlacement>;
 
-/** Last / next port — PORT / COUNTRY    PORT / COUNTRY. */
+/** Last / next port — PORT, COUNTRY    PORT, COUNTRY. */
 export function formatShipStores02PortsRoute(
   lastPortOfCall: string,
   nextPortOfCall: string,
@@ -47,7 +47,7 @@ export function formatShipStores02PortsRoute(
     const name = formatPort(portName);
     if (!name) return '';
     const country = portCountry(portName, ports);
-    return country ? `${name} / ${country}` : name;
+    return country ? `${name}, ${country}` : name;
   };
   const from = fmt(lastPortOfCall);
   const to = fmt(nextPortOfCall || portOfCall);

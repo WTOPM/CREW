@@ -178,8 +178,7 @@ body.ss-editor {
   border-top: 1px solid rgb(148 163 184 / 22%);
 }
 
-.side-panel__heading,
-.side-panel__title {
+.side-panel__heading {
   margin: 0;
   font-size: 0.65rem;
   font-weight: 700;

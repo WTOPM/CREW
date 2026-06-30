@@ -1,0 +1,248 @@
+/* IMO Crew's Effects Declaration v2 (Form 02) — print layout */
+
+.ced-sheet--v2 .ced-title {
+  margin: 0 0 8px;
+  font-size: 15pt;
+}
+
+.ced-sheet--v2 .ced-rail {
+  flex: 0 0 20px;
+  width: 20px;
+}
+
+.ced-sheet--v2 .ced-rail__vertical span {
+  font-size: 8pt;
+  font-weight: 700;
+}
+
+.ced-sheet--v2 .ced-table {
+  border: 1px solid #000;
+}
+
+.ced-sheet--v2 .ced-top-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 4px;
+  min-height: 34px;
+}
+
+.ced-sheet--v2 .ced-ad-checks {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ced-sheet--v2 .ced-page-no {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  margin-bottom: 0;
+}
+
+.ced-sheet--v2 .ced-page-no__cell {
+  position: relative;
+  width: 72px;
+  min-height: 34px;
+  padding: 2px 4px 0;
+  box-sizing: border-box;
+  border: 1px solid #000;
+  background: #fff;
+}
+
+.ced-sheet--v2 .ced-page-no__cell .ced-hdr-val--page {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1.3em;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.ced-sheet--v2 .ced-page-no__cell .ci.ci-hdr {
+  width: 100%;
+  text-align: center;
+  font-weight: 700;
+}
+
+.ced-sheet--v2 .ced-label--bold {
+  font-weight: 700;
+}
+
+.ced-sheet--v2 .ced-cb-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.ced-sheet--v2 .ced-cb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10pt;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ced-sheet--v2 .ced-cb-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #000;
+  font-size: 10pt;
+  line-height: 1;
+}
+
+.ced-sheet--v2 .ced-vlabel {
+  min-height: 72px;
+}
+
+.ced-sheet--v2 .ced-vlabel span {
+  font-size: 10pt;
+}
+
+.ced-sheet--v2 .ced-vlabel--multi {
+  gap: 1px;
+}
+
+.ced-sheet--v2 .ced-cell--wide-head {
+  vertical-align: middle;
+  text-align: center;
+  font-size: 11pt;
+  font-weight: 400;
+}
+
+.ced-sheet--v2 .ced-tr-top {
+  height: 36px;
+}
+
+.ced-sheet--v2 .ced-tr-eff {
+  height: 28px;
+}
+
+.ced-sheet--v2 .ced-tr-nat {
+  height: 40px;
+}
+
+.ced-sheet--v2 .ced-tr-hdr {
+  height: 36px;
+}
+
+.ced-sheet--v2 .ced-tr-hdr .ced-label {
+  white-space: normal;
+  line-height: 1.1;
+}
+
+.ced-sheet--v2 .ced-cell--effects-hdr {
+  vertical-align: top;
+  padding: 2px 4px 0;
+}
+
+.ced-sheet--v2 .ced-cell--effects-hdr .ced-label {
+  white-space: normal;
+  line-height: 1.15;
+  font-size: 8pt;
+}
+
+.ced-ad-lbl {
+  font-weight: 400;
+}
+
+.ced-ad-lbl--active {
+  font-weight: 700;
+}
+
+.ced-sheet--v2 .ced-tr-data {
+  height: 38px;
+}
+
+.ced-sheet--v2 .ced-tr-data .ced-input {
+  height: 36px;
+}
+
+.ced-sheet--v2 .ced-tr-data td:nth-child(8) .ced-data-val {
+  justify-content: center;
+}
+
+.ced-sheet--v2 .ced-tr-data td:nth-child(8) .ci {
+  text-align: center;
+}
+
+.ced-sheet--v2 .ced-form-footer {
+  margin-top: 2px;
+  flex-shrink: 0;
+  overflow: visible;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.ced-sheet--v2 .ced-foot-note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 8.5pt;
+  font-weight: 400;
+  line-height: 1.35;
+  color: #000;
+  white-space: nowrap;
+}
+
+.ced-sheet--v2 .ced-form-footer__data-row {
+  display: grid;
+  grid-template-columns: 7% 24% 12% 8% 8% 7% 9% 13% 12%;
+  align-items: baseline;
+  margin-top: calc(2 * 1.35em);
+  overflow: visible;
+}
+
+.ced-sheet--v2 .ced-form-footer .form-footer__date {
+  grid-column: 3;
+  width: 100%;
+  border: none;
+  font-size: 8pt;
+  font-weight: 700;
+  padding: 0 4px;
+  text-align: left;
+  white-space: nowrap;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.ced-sheet--v2 .ced-form-footer__master {
+  grid-column: 6 / 10;
+  display: flex;
+  align-items: baseline;
+  gap: 4mm;
+  padding: 0 4px;
+  min-width: 0;
+}
+
+.ced-sheet--v2 .ced-form-footer__master .sig-lbl {
+  font-size: 8pt;
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.ced-sheet--v2 .ced-form-footer .form-footer__master {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 50mm;
+  text-align: center;
+  font-size: 8pt;
+  font-weight: 700;
+  border: none;
+  border-bottom: 1px solid #000;
+  background: transparent;
+  padding: 0 2px 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

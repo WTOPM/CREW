@@ -481,7 +481,7 @@ function normalizeCrewEffectStampPrefs(
   defaults: CrewEffectStampOptions,
 ): CrewEffectStampOptions {
   const base = normalizeStampDocumentPrefs(raw, defaults);
-  return {
+  const out: CrewEffectStampOptions = {
     ...base,
     useCrewSignatures: raw?.useCrewSignatures ?? defaults.useCrewSignatures ?? false,
     ...(isValidStampBox(raw?.crewSignatureBase)
@@ -493,6 +493,14 @@ function normalizeCrewEffectStampPrefs(
       raw?.crewSignatureByRow as Record<string, unknown> | undefined,
     ),
   };
+  preserveHtmlFormCssOverlayBoxes(raw, out);
+  if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
+    out.cellStyles = raw.cellStyles;
+  }
+  if (raw?.cellValues && typeof raw.cellValues === 'object') {
+    out.cellValues = raw.cellValues;
+  }
+  return out;
 }
 
 function normalizePortCallHistory(raw: Partial<AppData>, ports: Port[]): PortCallHistoryEntry[] {

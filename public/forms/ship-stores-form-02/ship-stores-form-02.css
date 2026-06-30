@@ -10,13 +10,6 @@ body.pdf-export .ssd-sheet--v2 {
   overflow: hidden;
 }
 
-.ss-editor-hint {
-  margin: 0.75rem 0 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: #64748b;
-}
-
 .ss-editor .ssd-sheet--v2 .ssd-hdr-cell {
   position: relative;
   padding: 0;
@@ -27,6 +20,14 @@ body.pdf-export .ssd-sheet--v2 {
   display: block;
   padding: 1px 3px 0;
   pointer-events: none;
+}
+
+.ssd-ad-lbl {
+  font-weight: 400;
+}
+
+.ssd-ad-lbl--active {
+  font-weight: 700;
 }
 
 .ss-editor .ssd-sheet--v2 .ssd-hdr-cell .ssd-hdr-val {
@@ -117,9 +118,15 @@ body.pdf-export .ssd-sheet--v2 {
   text-align: center;
 }
 
-body.pdf-export .ssd-sheet--v2 .ssd-form-footer .form-footer__date,
+body.pdf-export .ssd-sheet--v2 .ssd-form-footer .form-footer__date {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
 body.pdf-export .ssd-sheet--v2 .ssd-form-footer .form-footer__master {
   border: none !important;
+  border-bottom: 1px solid #000 !important;
   outline: none !important;
   background: transparent !important;
 }

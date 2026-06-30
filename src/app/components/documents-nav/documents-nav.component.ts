@@ -52,6 +52,11 @@ import {
   SHIP_STORES_SETTINGS_PARAM,
 } from '../../models/ship-stores-form-01.paths';
 import { SHIP_STORES_FORM_02_FEEDBACK_PARAM } from '../../models/ship-stores-form-02.paths';
+import {
+  CREW_EFFECT_FORM_01_FEEDBACK_PARAM,
+  CREW_EFFECT_SETTINGS_PARAM,
+} from '../../models/crew-effect-form-01.paths';
+import { CREW_EFFECT_FORM_02_FEEDBACK_PARAM } from '../../models/crew-effect-form-02.paths';
 import { PartialDateInputComponent } from '../partial-date-input/partial-date-input.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
@@ -489,6 +494,31 @@ export class DocumentsNavComponent implements OnInit {
       this.toast.show(`Cancelled: ${ssForm02Label}`, 'info');
     }
 
+    const reopenCrewEffect = params.get(CREW_EFFECT_SETTINGS_PARAM) === '1';
+    const feedbackCe01 = params.get(CREW_EFFECT_FORM_01_FEEDBACK_PARAM);
+    const feedbackCe02 = params.get(CREW_EFFECT_FORM_02_FEEDBACK_PARAM);
+    const ceForm01Label = CREW_EFFECT_DOC_LABELS.crewEffect;
+    const ceForm02Label = CREW_EFFECT_DOC_LABELS.crewEffect02;
+
+    if (reopenCrewEffect) {
+      this.showCrewEffectSettings.set(true);
+    }
+    if (feedbackCe02) {
+      this.crewEffectSettingsDoc.set('crewEffect02');
+    } else if (feedbackCe01) {
+      this.crewEffectSettingsDoc.set('crewEffect');
+    }
+    if (feedbackCe01 === 'saved') {
+      this.toast.show(`Saved: ${ceForm01Label}`, 'success');
+    } else if (feedbackCe01 === 'cancelled') {
+      this.toast.show(`Cancelled: ${ceForm01Label}`, 'info');
+    }
+    if (feedbackCe02 === 'saved') {
+      this.toast.show(`Saved: ${ceForm02Label}`, 'success');
+    } else if (feedbackCe02 === 'cancelled') {
+      this.toast.show(`Cancelled: ${ceForm02Label}`, 'info');
+    }
+
     if (reopenPax) {
       this.showPaxSettings.set(true);
     }
@@ -546,11 +576,14 @@ export class DocumentsNavComponent implements OnInit {
       reopen ||
       reopenPoc ||
       reopenShipStores ||
+      reopenCrewEffect ||
       reopenPax ||
       feedbackPoc01 ||
       feedbackPoc02 ||
       feedbackSs01 ||
       feedbackSs02 ||
+      feedbackCe01 ||
+      feedbackCe02 ||
       feedback01 ||
       feedback02 ||
       feedback03 ||
@@ -571,6 +604,9 @@ export class DocumentsNavComponent implements OnInit {
       params.delete(SHIP_STORES_SETTINGS_DOC_PARAM);
       params.delete(SHIP_STORES_FORM_01_FEEDBACK_PARAM);
       params.delete(SHIP_STORES_FORM_02_FEEDBACK_PARAM);
+      params.delete(CREW_EFFECT_SETTINGS_PARAM);
+      params.delete(CREW_EFFECT_FORM_01_FEEDBACK_PARAM);
+      params.delete(CREW_EFFECT_FORM_02_FEEDBACK_PARAM);
       params.delete(PASSENGER_LIST_FORM_01_FEEDBACK_PARAM);
       params.delete(PASSENGER_LIST_FORM_02_FEEDBACK_PARAM);
       params.delete(CREW_LIST_FORM_01_FEEDBACK_PARAM);

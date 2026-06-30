@@ -63,7 +63,17 @@
   padding: 0 0.15rem;
 }
 
-.ce-hint {
+.ce-html-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ce-html-settings__btn {
+  width: 100%;
+}
+
+.ce-html-settings__hint {
   margin: 0;
   font-size: 0.78rem;
   color: var(--text-muted);

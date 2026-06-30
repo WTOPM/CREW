@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>02 - Crew Effect</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="../port-of-call-editor.css" />
+  <link rel="stylesheet" href="../crew-effect-editor-chrome.css" />
+  <link rel="stylesheet" href="../cell-align-toolbar.css" />
+  <link rel="stylesheet" href="../overlay-toolbar.css" />
+  <link rel="stylesheet" href="../crew-effect-form-01/crew-effect-declaration.css" />
+  <link rel="stylesheet" href="crew-effect-declaration-v2.css" />
+  <link rel="stylesheet" href="crew-effect-form-02.css" />
+  <link rel="stylesheet" href="../html-form-editor-chrome.css" />
+</head>
+<body class="poc-editor ce-editor">
+  <div class="side-panel side-panel--left">
+    <div class="side-panel__actions">
+      <button type="button" class="btn btn-save" onclick="persistAllChanges()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 9.5 17 19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Save
+      </button>
+      <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        Cancel
+      </button>
+    </div>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Format</h2>
+      <select id="tb-font" class="side-panel__select" onchange="applyFormat('fontFamily', this.value)">
+        <option value="Arial">Arial</option>
+        <option value="Calibri">Calibri</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Courier New">Courier New</option>
+      </select>
+      <select id="tb-size" class="side-panel__select" onchange="applyFormat('fontSize', this.value + 'pt')">
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8" selected>8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+      </select>
+      <div id="cell-align-toolbar" class="cell-align-toolbar" aria-label="Cell alignment"></div>
+    </section>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Zoom</h2>
+      <div class="zoom-controls">
+        <div class="zoom-controls__row">
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <span id="zoom-label" class="zoom-controls__pct">100%</span>
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="doc-zoom-viewport" id="doc-zoom-viewport">
+    <div class="doc-zoom-pad" id="doc-zoom-pad">
+      <div class="doc-zoom-slot" id="doc-zoom-slot">
+        <div class="doc-zoom-stage" id="doc-zoom-stage">
+          <div id="ce-page" class="ced-sheet ced-sheet--v2 a4-page">
+            <h1 class="ced-title">IMO CREW'S EFFECTS DECLARATION</h1>
+
+            <div class="ced-body">
+              <div class="ced-rail">
+                <div class="ced-rail__vertical">
+                  <span>IMO Convention on Facilitation of International Maritime Traffic</span>
+                </div>
+              </div>
+
+              <div class="ced-table-area">
+                <div class="ced-top-bar">
+                  <div class="ced-ad-checks">
+                    <div class="ced-cb-group">
+                      <label class="ced-cb-item" onclick="setCeAd('arrival')">
+                        <span class="ced-cb-box" id="ced-cb-arr">✓</span>
+                        <span>Arrival</span>
+                      </label>
+                      <label class="ced-cb-item" onclick="setCeAd('departure')">
+                        <span class="ced-cb-box" id="ced-cb-dep"></span>
+                        <span>Departure</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="ced-page-no">
+                    <div class="ced-page-no__cell">
+                      <label class="ced-label ced-label--bold">Page No.</label>
+                      <div class="ced-hdr-val ced-hdr-val--page">
+                        <input id="ced-page-no-input" class="ci ci-hdr" type="text" data-cell-key="h-pageNo" readonly tabindex="-1" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <table id="ced-grid" class="ced-table">
+                  <colgroup>
+                    <col style="width: 7%" />
+                    <col style="width: 24%" />
+                    <col style="width: 12%" />
+                    <col style="width: 8%" />
+                    <col style="width: 8%" />
+                    <col style="width: 7%" />
+                    <col style="width: 9%" />
+                    <col style="width: 13%" />
+                    <col style="width: 12%" />
+                  </colgroup>
+                  <tbody>
+                    <tr class="ced-tr-top">
+                      <td colspan="3" rowspan="2" class="ced-cell">
+                        <label class="ced-label">1.&nbsp;&nbsp;Name of ship</label>
+                        <div class="ced-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-nameOfShip" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="4" class="ced-cell">
+                        <label class="ced-label">2.&nbsp;&nbsp;Port of <span class="ced-ad-lbl" data-ad="arrival">arrival</span> / <span class="ced-ad-lbl" data-ad="departure">departure</span></label>
+                        <div class="ced-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-port" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td colspan="2" class="ced-cell">
+                        <label class="ced-label">3.&nbsp;&nbsp;Date of <span class="ced-ad-lbl" data-ad="arrival">arrival</span> / <span class="ced-ad-lbl" data-ad="departure">departure</span></label>
+                        <div class="ced-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-date" readonly tabindex="-1" placeholder="DD.MM.YYYY" />
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="ced-tr-eff">
+                      <td colspan="6" class="ced-cell ced-cell--effects-hdr">
+                        <label class="ced-label">
+                          5.&nbsp;&nbsp;Effects which are dutiable or subject to prohibitions or restrictions*
+                        </label>
+                      </td>
+                    </tr>
+                    <tr class="ced-tr-nat">
+                      <td colspan="3" class="ced-cell">
+                        <label class="ced-label">4.&nbsp;&nbsp;Nationality of ship</label>
+                        <div class="ced-hdr-val">
+                          <input class="ci ci-hdr" type="text" data-cell-key="h-nationality" readonly tabindex="-1" />
+                        </div>
+                      </td>
+                      <td rowspan="2" class="ced-cell ced-cell--vert">
+                        <div class="ced-vlabel"><span>Cigarettes</span></div>
+                      </td>
+                      <td rowspan="2" class="ced-cell ced-cell--vert">
+                        <div class="ced-vlabel ced-vlabel--multi"><span>Tobacco</span><span>Cigares</span></div>
+                      </td>
+                      <td rowspan="2" class="ced-cell ced-cell--vert">
+                        <div class="ced-vlabel"><span>Spirits</span></div>
+                      </td>
+                      <td rowspan="2" class="ced-cell ced-cell--vert">
+                        <div class="ced-vlabel"><span>BEER</span></div>
+                      </td>
+                      <td rowspan="2" class="ced-cell ced-cell--wide-head"><span>Other</span></td>
+                      <td rowspan="2" class="ced-cell ced-cell--wide-head"><span>Signature</span></td>
+                    </tr>
+                    <tr class="ced-tr-hdr">
+                      <td class="ced-cell">
+                        <label class="ced-label">6.&nbsp;&nbsp;No</label>
+                      </td>
+                      <td class="ced-cell">
+                        <label class="ced-label">7.&nbsp;&nbsp;Family name, given names</label>
+                      </td>
+                      <td class="ced-cell">
+                        <label class="ced-label">8.&nbsp;&nbsp;Rank or rating</label>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tbody id="ced-crew"></tbody>
+                </table>
+
+                <div class="ced-form-footer">
+                  <p class="ced-foot-note">
+                    9.&nbsp;&nbsp;Date and signature by master, authorized agent or officer
+                  </p>
+                  <div class="ced-form-footer__data-row">
+                    <input
+                      type="text"
+                      id="f-footer-date"
+                      class="ci form-footer__date"
+                      data-cell-key="footer-date"
+                      readonly
+                      tabindex="-1"
+                      placeholder="DD.MM.YYYY"
+                    />
+                    <div class="ced-form-footer__master">
+                      <span class="sig-lbl">Master</span>
+                      <input
+                        type="text"
+                        id="f-master-name"
+                        class="ci form-footer__master"
+                        data-cell-key="footer-master"
+                        readonly
+                        tabindex="-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="stamp-container" class="ss-stamp"></div>
+            <div id="sig-container" class="ss-signature"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-panel side-panel--right">
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Overlays</h2>
+      <div class="overlay-toolbar" aria-label="Stamp and signature">
+        <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
+        <button type="button" class="btn btn-s btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
+      </div>
+      <p class="side-panel__hint">Select cells to format. Data is loaded from CREW. Stamp and signature are draggable.</p>
+    </section>
+  </div>
+
+  <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
+    <div class="dg-archive-modal confirm-dialog confirm-dialog--danger" role="alertdialog" aria-modal="true"
+      aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" onclick="event.stopPropagation()">
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon confirm-dialog__icon confirm-dialog__icon--danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="confirm-dialog-title">Cancel changes</h3>
+          <p id="confirm-dialog-message" class="confirm-dialog__message">Are you sure you want to cancel? All unsaved changes will be lost.</p>
+        </div>
+      </header>
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmCancel()">Discard changes</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="../overlay-drag.js"></script>
+  <script src="../overlay-toolbar.js"></script>
+  <script src="../cell-align-toolbar.js"></script>
+  <script src="../html-form-pdf-snapshot.js"></script>
+  <script src="../html-form-date-format.js"></script>
+  <script src="../html-form-footer-fields.js"></script>
+  <script src="../crew-name-format.js"></script>
+  <script src="../crew-effect-pdf-common.js"></script>
+  <script src="crew-effect-form-02-data.js"></script>
+  <script src="../crew-effect-form-cells-v2.js"></script>
+  <script src="../crew-effect-form-editor.js"></script>
+  <script src="crew-effect-form-02.js"></script>
+</body>
+</html>

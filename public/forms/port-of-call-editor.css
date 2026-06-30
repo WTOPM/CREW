@@ -1,4 +1,4 @@
-/* HTML editor chrome (side panels, zoom, overlays) — Port of Call forms 01 & 02 */
+/* HTML form editor layout — viewport, overlays, cells, confirm dialog (POC + Ship Stores). */
 html:has(body.poc-editor) {
   height: 100%;
   overflow: hidden;
@@ -429,11 +429,6 @@ body.pdf-export .a4-page {
 
 .poc-editor .btn-danger:hover {
   background: #b91c1c;
-}
-
-body.is-pdf-export .side-panel,
-body.pdf-export .side-panel {
-  display: none !important;
 }
 
 body.is-pdf-export .poc-page-nav,

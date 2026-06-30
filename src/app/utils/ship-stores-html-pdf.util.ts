@@ -153,7 +153,8 @@ function buildForm01Data(data: AppData, formatForPdf: boolean): ShipStoresForm01
     departure: !isArrival,
     pageNo: cv['h-pageNo'] ?? '1',
     nameOfShip: cv['h-nameOfShip'] ?? formatPortCallPortName(ship.name),
-    portOfArrivalDeparture: cv['h-port'] ?? formatPortCallPortName(ship.portOfCall),
+    portOfArrivalDeparture:
+      cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, data.ports),
     dateOfArrivalDeparture:
       cv['h-date'] ?? formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
     nationalityOfShip: cv['h-nationality'] ?? formatPortCallPortName(ship.nationality),
@@ -187,6 +188,13 @@ function findMaster(crew: CrewMember[]): CrewMember | undefined {
 function formatCaptainName(member: Pick<CrewMember, 'familyName' | 'givenNames'>): string {
   const parts = [member.familyName?.trim(), member.givenNames?.trim()].filter(Boolean);
   return parts.join(' ').toUpperCase();
+}
+
+function formatPortWithCountry(portName: string, ports: AppData['ports']): string {
+  const name = formatPortCallPortName(portName);
+  if (!name) return '';
+  const country = portCountry(portName, ports);
+  return country ? `${name}, ${country.toUpperCase()}` : name;
 }
 
 function buildForm02Data(data: AppData, formatForPdf: boolean): ShipStoresForm02HtmlForm {
@@ -266,7 +274,8 @@ function buildForm02Data(data: AppData, formatForPdf: boolean): ShipStoresForm02
     nameOfShip: cv['h-nameOfShip'] ?? formatPortCallPortName(ship.name),
     imoNumber: cv['h-imo'] ?? ship.imoNo,
     callSign: cv['h-callSign'] ?? ship.callSign,
-    portOfArrivalDeparture: cv['h-port'] ?? formatPortCallPortName(ship.portOfCall),
+    portOfArrivalDeparture:
+      cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, data.ports),
     dateOfArrivalDeparture:
       cv['h-date'] ?? formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
     nationalityOfShip: cv['h-nationality'] ?? formatPortCallPortName(ship.nationality),

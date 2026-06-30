@@ -1,5 +1,5 @@
 /**
- * Ship Stores HTML editor shell — save, zoom, overlay persistence.
+ * Crew Effect HTML editor shell — save, zoom, overlay persistence.
  */
 (function (global) {
   const ZOOM_MIN = 50;
@@ -106,7 +106,8 @@
     }
 
     function isEditorDirty() {
-      if (global.ShipStoresFormCells?.isDirty?.()) return true;
+      if (global.CrewEffectFormCells?.isDirty?.()) return true;
+      if (global.CrewEffectFormCellsV2?.isDirty?.()) return true;
       const stampOn = global.CrewOverlayToolbar?.isStampOn() ?? false;
       const sigOn = global.CrewOverlayToolbar?.isSigOn() ?? false;
       return stampOn !== savedStampVisible || sigOn !== savedSigVisible;
@@ -123,8 +124,6 @@
       if (!cellBridge?.collectValues) return;
       if (!global._currentPositions) global._currentPositions = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
       global._currentPositions.cellValues = cellBridge.collectValues();
-      const depOn = document.getElementById('ssd-cb-dep')?.textContent === '\u2713';
-      global._currentPositions.cellValues._ssMode = depOn ? 'departure' : 'arrival';
     }
 
     function overlayBoxFromElement(el) {
@@ -164,7 +163,7 @@
     function navigateBack(feedback) {
       const params = new URLSearchParams(location.search);
       const returnRaw = params.get('return');
-      const base = returnRaw ? decodeURIComponent(returnRaw) : '/?shipStoresSettings=1';
+      const base = returnRaw ? decodeURIComponent(returnRaw) : '/?crewEffectSettings=1';
       const url = new URL(base, location.origin);
       url.searchParams.set(feedbackParam, feedback);
       window.location.href = url.pathname + url.search;
@@ -178,12 +177,6 @@
       if (!appData) {
         alert('Cannot save: application data is not loaded.');
         return;
-      }
-      if (overlayKey === 'shipStores' && global.ShipStoresForm01?.collectIntoAppData) {
-        global.ShipStoresForm01.collectIntoAppData(appData);
-      }
-      if (overlayKey === 'shipStores02' && global.ShipStoresForm02?.collectIntoAppData) {
-        global.ShipStoresForm02.collectIntoAppData(appData);
       }
       if (!appData.documentOverlay) appData.documentOverlay = {};
       const prev = appData.documentOverlay[overlayKey] || {};
@@ -265,7 +258,7 @@
     }
 
     async function loadAsset(kind) {
-      return global.CrewShipStoresPdf?.loadAsset?.(kind) ?? null;
+      return global.CrewCrewEffectPdf?.loadAsset?.(kind) ?? null;
     }
 
     function editorScaleFactor() {
@@ -316,7 +309,7 @@
       const url = await loadAsset('stamp');
       if (url) {
         const saved = loadPositions().stamp;
-        const defaults = global.CrewShipStoresPdf?.defaultStampCss?.() || {};
+        const defaults = global.CrewCrewEffectPdf?.defaultStampCss?.() || {};
         showOverlay(el, url, {
           left: saved.left || defaults.left,
           top: saved.top || defaults.top,
@@ -340,7 +333,7 @@
       const url = await loadAsset('signature');
       if (url) {
         const saved = loadPositions().sig;
-        const defaults = global.CrewShipStoresPdf?.defaultSignatureCss?.() || {};
+        const defaults = global.CrewCrewEffectPdf?.defaultSignatureCss?.() || {};
         showOverlay(el, url, {
           left: saved.left || defaults.left,
           top: saved.top || defaults.top,
@@ -380,7 +373,7 @@
       const stage = document.getElementById('doc-zoom-stage');
       const pad = document.getElementById('doc-zoom-pad');
       const slot = document.getElementById('doc-zoom-slot');
-      const page = stage?.querySelector('.a4-page, .ssd-sheet');
+      const page = stage?.querySelector('.a4-page, .ced-sheet');
       const label = document.getElementById('zoom-label');
       const scale = editorZoomPct / 100;
 
@@ -482,5 +475,5 @@
     };
   }
 
-  global.ShipStoresFormEditor = { createEditor };
+  global.CrewEffectFormEditor = { createEditor };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -599,7 +599,18 @@
       transform-origin: top left;
       flex-shrink: 0;
       width: max-content;
-    }
+    }
+
+
+
+
+
+
+
+
+
+
+
 
     .ci {
       border: none;
@@ -736,16 +747,7 @@
       border-bottom: 1px solid #000;
     }
 
-    /* ── Actions ── */
-    .actions {
-      margin-top: 5mm;
-      display: flex;
-      gap: 3mm;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-      flex-shrink: 0;
-    }
-
+    /* ── Buttons (confirm dialog) ── */
     .btn {
       font-family: Arial, sans-serif;
       font-size: 0.65rem;
@@ -792,7 +794,7 @@
         padding: 0;
       }
 
-      .actions,
+      .actions,
 
       @page {
         size: A4 portrait;
@@ -837,7 +839,6 @@
       padding: 6mm 10mm 6mm 0;
     }
 
-    body.is-pdf-export .actions,
     body.is-pdf-export .side-panel {
       display: none;
     }
@@ -864,24 +865,6 @@
     }
     .sheet-meta .cb-item {
       cursor: pointer;
-    }
-
-    /* Save / Cancel Button styling */
-    .btn-save {
-      background: #16a34a !important;
-      color: #fff !important;
-      border-color: #15803d !important;
-    }
-    .btn-save:hover {
-      background: #15803d !important;
-    }
-    .btn-cancel {
-      background: #f1f5f9 !important;
-      color: #475569 !important;
-      border-color: #cbd5e1 !important;
-    }
-    .btn-cancel:hover {
-      background: #e2e8f0 !important;
     }
 
     /* ── Confirm dialog (DG archive modal pattern) ── */

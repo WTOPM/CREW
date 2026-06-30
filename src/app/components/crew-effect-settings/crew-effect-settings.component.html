@@ -136,8 +136,19 @@
     </label>
   }
 
-  <app-document-stamp-options
-    [documentId]="stampDocumentId()"
-    [appendPassengers]="appendPassengers()"
-  />
+  @if (usesHtmlEditor()) {
+    <div class="ce-html-settings">
+      <button type="button" class="btn btn-placement ce-html-settings__btn" (click)="openHtmlFormSettings()">
+        ⚙ Settings
+      </button>
+      <p class="ce-html-settings__hint">
+        Open the HTML editor to format cells and place stamp and signature on {{ docLabel() }}.
+      </p>
+    </div>
+  } @else {
+    <app-document-stamp-options
+      [documentId]="stampDocumentId()"
+      [appendPassengers]="appendPassengers()"
+    />
+  }
 </section>

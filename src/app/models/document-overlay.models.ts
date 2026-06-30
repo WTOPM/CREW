@@ -9,14 +9,21 @@ export interface CrewSignatureRowTweak {
   height?: number;
 }
 
-/** Crew Effect forms — stamp/signature plus per-crew row signatures. */
+/** Crew Effect forms — stamp/signature plus per-crew row signatures and HTML cell overrides. */
 export interface CrewEffectStampOptions extends DocumentStampOptions {
-  /** Draw uploaded crew member signatures in table Signature cells. */
+  /** Draw uploaded crew member signatures in table Signature cells (pdf-lib forms 02/03). */
   useCrewSignatures?: boolean;
   /** Base placement for row 1 (index 0); other rows follow row Y + optional tweak. */
   crewSignatureBase?: PdfStampBox;
   /** Row index (0-based string key) → offset/size tweak. */
   crewSignatureByRow?: Record<string, CrewSignatureRowTweak>;
+  /** Form 01 HTML editor — per-cell font/alignment. */
+  cellStyles?: Record<
+    string,
+    { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
+  >;
+  /** Form 01 HTML editor — user-edited cell text (h-*, d-{row}-{col}, footer-date, footer-master). */
+  cellValues?: Record<string, string>;
 }
 
 /** Per-document PDF overlay toggles (stamp / signature) and placement. */

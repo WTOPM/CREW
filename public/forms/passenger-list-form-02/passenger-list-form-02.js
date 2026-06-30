@@ -816,7 +816,7 @@ const tbody = document.getElementById('tbody');
 
     function fmtDate(iso) {
       const F = window.HtmlFormDateFormat;
-      if (F) return F.format(iso, F.getActive());
+      if (F) return F.format(iso, 'dot');
       if (!iso) return '';
       const parts = iso.split('-');
       if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;

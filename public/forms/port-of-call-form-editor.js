@@ -1,5 +1,5 @@
 /**
- * Shared HTML editor chrome for Port of Call forms 01 & 02 (overlay, save, zoom).
+ * Port of Call HTML editor shell — save, zoom, overlay persistence.
  */
 (function (global) {
   const ZOOM_MIN = 50;

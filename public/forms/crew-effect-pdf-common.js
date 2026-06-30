@@ -1,5 +1,5 @@
 /**
- * Ship Stores HTML forms 01 & 02 — stamp/signature overlay helpers for PDF export.
+ * Crew Effect HTML forms — stamp/signature overlay helpers for PDF export.
  */
 (function (global) {
   const A4_W_PT = 595.28;
@@ -28,8 +28,8 @@
 
   function defaultStampCss() {
     return {
-      left: '125mm',
-      top: '235mm',
+      left: '120mm',
+      top: '240mm',
       width: '65mm',
       height: '28mm',
     };
@@ -126,12 +126,11 @@
     }
   }
 
-  global.CrewShipStoresPdf = global.CrewShipStoresPdf || {};
-  Object.assign(global.CrewShipStoresPdf, {
+  global.CrewCrewEffectPdf = {
     pdfBoxToCss,
     defaultStampCss,
     defaultSignatureCss,
     loadAsset,
     renderOverlays,
-  });
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

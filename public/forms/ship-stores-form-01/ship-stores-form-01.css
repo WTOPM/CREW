@@ -10,13 +10,6 @@ body.pdf-export .ssd-sheet {
   overflow: hidden;
 }
 
-.ss-editor-hint {
-  margin: 0.75rem 0 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: #64748b;
-}
-
 /* Header value cells — centred like Port of Call */
 .ss-editor .ssd-hdr-cell {
   position: relative;
@@ -223,9 +216,15 @@ body.pdf-export .ssd-sheet {
   text-align: center;
 }
 
-body.pdf-export .ssd-form-footer .form-footer__date,
+body.pdf-export .ssd-form-footer .form-footer__date {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
 body.pdf-export .ssd-form-footer .form-footer__master {
   border: none !important;
+  border-bottom: 1px solid #000 !important;
   outline: none !important;
   background: transparent !important;
 }

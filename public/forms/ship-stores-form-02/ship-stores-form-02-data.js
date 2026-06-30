@@ -24,15 +24,16 @@
     return found?.country ? String(found.country).trim().toUpperCase() : '';
   }
 
+  function formatPortWithCountry(portName, ports) {
+    const name = formatPortName(portName);
+    if (!name) return '';
+    const country = portCountry(portName, ports);
+    return country ? `${name}, ${country}` : name;
+  }
+
   function formatPortsRoute02(last, next, current, ports) {
-    const fmt = (portName) => {
-      const name = formatPortName(portName);
-      if (!name) return '';
-      const country = portCountry(portName, ports);
-      return country ? `${name} / ${country}` : name;
-    };
-    const from = fmt(last);
-    const to = fmt(next || current);
+    const from = formatPortWithCountry(last, ports);
+    const to = formatPortWithCountry(next || current, ports);
     if (from && to) return `${from}    ${to}`;
     return from || to;
   }
@@ -171,7 +172,8 @@
       nameOfShip: cv['h-nameOfShip'] ?? formatPortName(ship.name),
       imoNumber: cv['h-imo'] ?? String(ship.imoNo || '').trim(),
       callSign: cv['h-callSign'] ?? String(ship.callSign || '').trim(),
-      portOfArrivalDeparture: cv['h-port'] ?? formatPortName(ship.portOfCall),
+      portOfArrivalDeparture:
+        cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, appData.ports || []),
       dateOfArrivalDeparture:
         cv['h-date'] ??
         formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),

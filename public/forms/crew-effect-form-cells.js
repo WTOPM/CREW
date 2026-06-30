@@ -1,5 +1,5 @@
 /**
- * Cell selection, alignment and font formatting for Ship Stores Form 01 HTML editor.
+ * Cell selection, alignment and font formatting for Crew Effect Form 01 HTML editor.
  */
 (function (global) {
   let root = null;
@@ -10,7 +10,9 @@
 
   function editableRows() {
     if (!root) return [];
-    return Array.from(root.querySelectorAll('#ssd-articles tr, .ssd-tr-h, .ssd-tr-strip'));
+    return Array.from(
+      root.querySelectorAll('#ced-crew tr.ced-tr-data, .ced-tr-t, .ced-tr-n, .ced-tr-h'),
+    );
   }
 
   function rowCells(tr) {
@@ -52,15 +54,15 @@
   }
 
   function pageScope() {
-    return document.getElementById('ss-page') || root?.closest('.ssd-sheet') || root;
+    return document.getElementById('ce-page') || root?.closest('.ced-sheet') || root;
   }
 
   function resolveCell(target) {
     if (!target) return null;
-    const footer = target.closest(
-      '#f-footer-date, #f-master-name, .form-footer__date, .form-footer__master',
+    const outside = target.closest(
+      '#f-footer-date, #f-master-name, .form-footer__date, .form-footer__master, #ced-page-no-input, [data-cell-key="h-pageNo"]',
     );
-    if (footer && pageScope()?.contains(footer)) return footer;
+    if (outside && pageScope()?.contains(outside)) return outside;
     if (!root || !target || !root.contains(target)) return null;
     const direct = target.closest('.ci');
     if (direct) return direct;
@@ -115,29 +117,13 @@
   }
 
   function valWrapper(cell) {
-    const qtyHalf = cell.closest('.ssd-qty-half');
-    if (qtyHalf) return qtyHalf;
-    return cell.closest('.ssd-hdr-val, .ssd-data-val, .ssd-sign-val');
-  }
-
-  function qtyAlign(cell) {
-    const ta = (cell.style.textAlign || '').trim();
-    return ta === 'left' || ta === 'right' || ta === 'center' ? ta : 'center';
+    return cell.closest('.ced-hdr-val, .ced-data-val');
   }
 
   function syncCellFlexAlignment(cell) {
     const ta = cell.style.textAlign || '';
-    const wrapper = valWrapper(cell);
-    if (wrapper?.classList.contains('ssd-qty-half')) {
-      const align = qtyAlign(cell);
-      const jc = align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start';
-      wrapper.style.justifyContent = jc;
-      cell.style.display = 'block';
-      cell.style.width = '100%';
-      cell.style.textAlign = align;
-      return;
-    }
     const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
+    const wrapper = valWrapper(cell);
     if (wrapper && cell.classList.contains('ci')) {
       wrapper.style.justifyContent = jc;
       cell.style.display = 'block';
@@ -157,10 +143,6 @@
     cell.style.removeProperty('height');
     cell.style.display = 'block';
     cell.style.lineHeight = 'normal';
-    const wrapper = valWrapper(cell);
-    if (wrapper?.classList.contains('ssd-qty-half')) {
-      wrapper.style.removeProperty('justify-content');
-    }
     syncCellFlexAlignment(cell);
   }
 
@@ -192,7 +174,6 @@
 
   function isFooterField(input) {
     return (
-      input.classList.contains('ci-footer') ||
       input.classList.contains('form-footer__date') ||
       input.classList.contains('form-footer__master') ||
       input.dataset.cellKey === 'footer-date' ||
@@ -298,20 +279,8 @@
       replacement.style.background = 'transparent';
       replacement.style.overflow = 'hidden';
 
-      const half = input.closest('.ssd-qty-half');
       const wrapper = valWrapper(input);
-      if (half) {
-        replacement.style.display = 'block';
-        replacement.style.width = '100%';
-        replacement.style.lineHeight = '1.15';
-        replacement.style.padding = '0';
-        replacement.style.margin = '0';
-        replacement.style.whiteSpace = 'nowrap';
-        replacement.style.fontWeight = '700';
-        if (input.style.fontSize) replacement.style.fontSize = input.style.fontSize;
-        if (input.style.fontFamily) replacement.style.fontFamily = input.style.fontFamily;
-        replacement.style.textAlign = qtyAlign(input);
-      } else if (wrapper) {
+      if (wrapper) {
         replacement.style.display = 'block';
         replacement.style.width = '100%';
         replacement.style.lineHeight = 'normal';
@@ -347,7 +316,7 @@
     if (page) {
       page.addEventListener('mousedown', (e) => {
         const cell = e.target.closest(
-          '#f-footer-date, #f-master-name, .form-footer__date, .form-footer__master',
+          '#f-footer-date, #f-master-name, .form-footer__date, .form-footer__master, #ced-page-no-input, [data-cell-key="h-pageNo"]',
         );
         if (!cell) return;
         e.preventDefault();
@@ -399,7 +368,7 @@
     });
 
     document.body.addEventListener('mousedown', (e) => {
-      if (e.target.closest('#ss-page, .ssd-sheet, .a4-page')) return;
+      if (e.target.closest('#ce-page, .ced-sheet, .a4-page')) return;
       if (e.target.closest('.side-panel')) return;
       if (e.target.closest('.confirm-backdrop')) return;
       dismissSelection();
@@ -462,7 +431,7 @@
     });
   }
 
-  global.ShipStoresFormCells = {
+  global.CrewEffectFormCells = {
     init,
     collectCellStyles,
     collectCellValues,
@@ -471,7 +440,7 @@
     flattenInputsForExport,
     reflowAllWrappedCells() {
       document
-        .querySelectorAll('.ssd-hdr-val .ci, .ssd-data-val .ci, .ssd-sign-val .ci, .ssd-qty-half .ci')
+        .querySelectorAll('.ced-hdr-val .ci, .ced-data-val .ci')
         .forEach((el) => reflowCell(el));
     },
     getSelectedCells: () => selectedCells,
