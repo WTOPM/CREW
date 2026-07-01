@@ -2,6 +2,7 @@ import { Component, inject, input, linkedSignal, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CrewMember } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
+import { addYearsToIsoDate } from '../../utils/date.util';
 import { LookupSelectComponent } from '../lookup-select/lookup-select.component';
 import { DatePickerComponent } from '../date-picker/date-picker.component';
 import { PortSelectComponent } from '../port-select/port-select.component';
@@ -61,6 +62,19 @@ export class CrewEditModalComponent {
 
   protected updateField(field: keyof CrewMember, value: string | boolean): void {
     this.draft.update((d) => ({ ...d, [field]: value }));
+  }
+
+  protected onDocumentIssueDateCommitted(
+    expiryField: 'passportExpiryDate' | 'sbookExpiryDate' | 'cyprusExpiryDate',
+    issueIso: string,
+  ): void {
+    if (!issueIso || !/^\d{4}-\d{2}-\d{2}$/.test(issueIso)) return;
+    const expiry = this.draft()[expiryField];
+    if (expiryField === 'sbookExpiryDate' && expiry === 'UNLIMITED') return;
+    if (String(expiry ?? '').trim()) return;
+    const expiryIso = addYearsToIsoDate(issueIso, 10);
+    if (!expiryIso) return;
+    this.updateField(expiryField, expiryIso);
   }
 
   protected setYellowFeverExpiryIsText(checked: boolean): void {

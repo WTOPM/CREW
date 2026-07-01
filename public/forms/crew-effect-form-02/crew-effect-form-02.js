@@ -229,6 +229,7 @@
     document.body.classList.add('pdf-export', 'is-pdf-export');
     Cells?.reflowAllWrappedCells?.();
     Cells?.flattenInputsForExport?.();
+    global.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
     global.__pdfReady = true;
   }
 

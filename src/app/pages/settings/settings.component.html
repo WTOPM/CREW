@@ -251,27 +251,6 @@
     <app-custom-documents />
   </section>
 
-  @if (hasElectron) {
-    <div class="settings-tray-bar" tabindex="0" aria-describedby="settings-tray-tip">
-      <label class="settings-tray-bar__toggle">
-        <input
-          type="checkbox"
-          class="settings-tray-bar__input"
-          [ngModel]="minimizeToTray()"
-          (ngModelChange)="onMinimizeToTrayChange($event)"
-        />
-        <span class="settings-tray-bar__track" aria-hidden="true">
-          <span class="settings-tray-bar__thumb"></span>
-        </span>
-        <span class="settings-tray-bar__label">Minimize to system tray</span>
-      </label>
-      <span id="settings-tray-tip" class="settings-tray-bar__tooltip" role="tooltip">
-        When minimized or closed, CREW stays in the tray. Open from the tray icon — data is
-        refreshed from the shared folder.
-      </span>
-    </div>
-  }
-
   @if (dataPath()) {
     <button type="button" class="settings-data-path" (click)="openDataBackups()">
       <span class="settings-data-path__label">Data file</span>

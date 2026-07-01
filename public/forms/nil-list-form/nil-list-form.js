@@ -91,6 +91,7 @@
 
     const snapshot = global.CrewHtmlFormPdfSnapshot?.read();
     if (!snapshot?.form) {
+      global.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
       global.__pdfReady = true;
       return;
     }
@@ -109,6 +110,7 @@
       await pdfCommon.renderOverlays(page, OVERLAY_KEY, snapshot);
     }
 
+    global.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
     global.__pdfReady = true;
   }
 

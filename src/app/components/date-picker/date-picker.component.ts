@@ -73,6 +73,8 @@ export class DatePickerComponent implements OnDestroy {
   readonly value = input('');
   readonly size = input<DatePickerSize>('md');
   readonly valueChange = output<string>();
+  /** Fires when a full date is committed (blur after entry, calendar pick, Today). */
+  readonly committed = output<string>();
 
   protected readonly weekdays = EN_WEEKDAYS;
   protected readonly copied = signal(false);
@@ -196,6 +198,7 @@ export class DatePickerComponent implements OnDestroy {
     if (iso) {
       if (iso !== this.value()) this.valueChange.emit(iso);
       this.text.set(formatDisplayDate(iso));
+      this.committed.emit(iso);
     } else {
       this.text.set(formatDisplayDate(this.value()) || '');
     }
@@ -420,6 +423,7 @@ export class DatePickerComponent implements OnDestroy {
   protected selectIso(iso: string): void {
     if (!iso) return;
     this.valueChange.emit(iso);
+    this.committed.emit(iso);
     this.text.set(formatDisplayDate(iso));
     this.close();
   }

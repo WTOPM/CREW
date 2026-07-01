@@ -653,6 +653,9 @@ async function waitForHtmlFormPdfReady(webContents, timeoutMs = 20000) {
   throw new Error('HTML form failed to render for PDF export');
 }
 
+/** A4 at 96 CSS dpi — matches mm page roots in form CSS. */
+const HTML_FORM_PDF_A4_PX = { width: 794, height: 1123 };
+
 /**
  * Chromium printToPDF — vector text/lines (not html2canvas raster).
  * Snapshot is injected via sessionStorage on the app origin before loading the form.
@@ -666,11 +669,13 @@ ipcMain.handle('capture-html-form-pdf', async (_event, relativeUrl, snapshot, ca
   const formUrl = urlObj.toString();
   const snapshotJson = JSON.stringify(snapshot ?? {});
   const storageKey = 'crew-html-form-pdf-snapshot';
+  const winWidth = landscape ? HTML_FORM_PDF_A4_PX.height : HTML_FORM_PDF_A4_PX.width;
+  const winHeight = landscape ? HTML_FORM_PDF_A4_PX.width : HTML_FORM_PDF_A4_PX.height;
 
   const win = new BrowserWindow({
     show: false,
-    width: landscape ? 1280 : 900,
-    height: landscape ? 900 : 1280,
+    width: winWidth,
+    height: winHeight,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -678,7 +683,6 @@ ipcMain.handle('capture-html-form-pdf', async (_event, relativeUrl, snapshot, ca
     },
   });
 
-  let debuggerAttached = false;
   try {
     await win.loadURL(`${origin}/`);
     await win.webContents.executeJavaScript(
@@ -687,18 +691,20 @@ ipcMain.handle('capture-html-form-pdf', async (_event, relativeUrl, snapshot, ca
 
     await win.loadURL(formUrl);
     await waitForHtmlFormPdfReady(win.webContents);
-    await new Promise((resolve) => setTimeout(resolve, 250));
 
     const wc = win.webContents;
-    try {
-      if (!wc.debugger.isAttached()) {
-        wc.debugger.attach('1.3');
-        debuggerAttached = true;
+    await wc.executeJavaScript(`
+      if (window.CrewHtmlFormPdfSnapshot?.prepForPrint) {
+        window.CrewHtmlFormPdfSnapshot.prepForPrint();
       }
-      await wc.debugger.sendCommand('Emulation.setEmulatedMedia', { media: 'screen' });
-    } catch {
-      /* screen layout optional — print CSS still works */
-    }
+    `);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    const pageCount = await wc.executeJavaScript(`
+      window.CrewHtmlFormPdfSnapshot?.countPdfPages
+        ? window.CrewHtmlFormPdfSnapshot.countPdfPages()
+        : 1
+    `);
 
     const pdfBuffer = await wc.printToPDF({
       printBackground: true,
@@ -706,19 +712,11 @@ ipcMain.handle('capture-html-form-pdf', async (_event, relativeUrl, snapshot, ca
       margins: { marginType: 'none' },
       pageSize: 'A4',
       landscape,
+      pageRanges: `1-${pageCount}`,
     });
 
     return pdfBuffer.toString('base64');
   } finally {
-    if (debuggerAttached) {
-      try {
-        if (!win.isDestroyed() && win.webContents.debugger.isAttached()) {
-          win.webContents.debugger.detach();
-        }
-      } catch {
-        /* ignore */
-      }
-    }
     if (!win.isDestroyed()) win.destroy();
   }
 });

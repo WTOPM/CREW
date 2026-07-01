@@ -185,6 +185,7 @@
   }
 
   function finishPdfExport() {
+    global.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
     document.body.classList.add('pdf-export');
     global.__pdfReady = true;
   }

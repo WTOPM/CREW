@@ -304,7 +304,10 @@ body.pdf-export .overlay-h {
 body.is-pdf-export .a4-page,
 body.pdf-export .a4-page {
   height: 297mm;
+  max-height: 297mm;
   overflow: hidden;
+  page-break-after: avoid !important;
+  break-after: avoid !important;
 }
 
 .poc-editor .confirm-backdrop {
@@ -439,12 +442,25 @@ body.pdf-export .poc-page-nav {
 body.is-pdf-export .doc-zoom-viewport,
 body.pdf-export .doc-zoom-viewport {
   display: block;
-  height: auto !important;
-  max-height: none !important;
-  overflow: visible !important;
   padding: 0 !important;
   margin: 0 !important;
   background: #fff !important;
+}
+
+body.is-pdf-export .doc-zoom-viewport,
+body.pdf-export .doc-zoom-viewport,
+body.is-pdf-export .doc-zoom-pad,
+body.pdf-export .doc-zoom-pad,
+body.is-pdf-export .doc-zoom-slot,
+body.pdf-export .doc-zoom-slot,
+body.is-pdf-export .doc-zoom-stage,
+body.pdf-export .doc-zoom-stage,
+body.is-pdf-export .poc-pages,
+body.pdf-export .poc-pages {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
 }
 
 body.is-pdf-export .doc-zoom-pad,
@@ -477,9 +493,15 @@ body.pdf-export {
   padding: 0;
   margin: 0;
   background: #fff;
-  min-height: 0;
-  height: auto;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
   overflow: visible;
+}
+
+body.is-pdf-export.poc-editor,
+body.pdf-export.poc-editor {
+  width: 210mm;
 }
 
 html:has(body.is-pdf-export),

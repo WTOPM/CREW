@@ -129,6 +129,27 @@
     }
 
     <div class="top-nav__end">
+      @if (hasElectron) {
+        <div class="top-nav-tray" tabindex="0" aria-describedby="top-nav-tray-tip">
+          <label class="top-nav-tray__toggle">
+            <input
+              type="checkbox"
+              class="top-nav-tray__input"
+              [ngModel]="minimizeToTray()"
+              (ngModelChange)="onMinimizeToTrayChange($event)"
+            />
+            <span class="top-nav-tray__track" aria-hidden="true">
+              <span class="top-nav-tray__thumb"></span>
+            </span>
+            <span class="top-nav-tray__label">Minimize to system tray</span>
+          </label>
+          <span id="top-nav-tray-tip" class="top-nav-tray__tooltip" role="tooltip">
+            When minimized or closed, CREW stays in the tray. Open from the tray icon — data is
+            refreshed from the shared folder.
+          </span>
+        </div>
+      }
+
       <div
         class="output-bar"
         [class.output-bar--active]="outputSettings().saveToFolder"

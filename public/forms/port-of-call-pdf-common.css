@@ -86,9 +86,24 @@ body.pdf-export {
   background: #fff;
 }
 
+body.is-pdf-export.poc-editor,
+body.pdf-export.poc-editor {
+  display: block;
+  width: 210mm;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  background: #fff;
+}
+
 body.is-pdf-export .poc-pages,
 body.pdf-export .poc-pages {
   gap: 0;
+  margin: 0;
+  padding: 0;
 }
 
 body.is-pdf-export .a4-page,
@@ -96,6 +111,19 @@ body.pdf-export .a4-page {
   box-shadow: none;
   border: none;
   margin: 0;
+  width: 210mm;
+  height: 297mm;
+  max-height: 297mm;
+  min-height: 297mm;
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+body.is-pdf-export .a4-page:not(:last-child),
+body.pdf-export .a4-page:not(:last-child) {
+  page-break-after: always !important;
+  break-after: page !important;
 }
 
 @media print {
@@ -111,12 +139,17 @@ body.pdf-export .a4-page {
   .a4-page {
     box-shadow: none;
     border: none;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .a4-page:not(:last-child) {
     page-break-after: always;
     break-after: page;
   }
 
   .a4-page:last-child {
-    page-break-after: auto;
-    break-after: auto;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 }

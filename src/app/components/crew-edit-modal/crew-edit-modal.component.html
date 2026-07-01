@@ -85,6 +85,7 @@
             <app-date-picker
               [value]="draft().passportIssueDate"
               (valueChange)="updateField('passportIssueDate', $event)"
+              (committed)="onDocumentIssueDateCommitted('passportExpiryDate', $event)"
             />
           </label>
           <label>
@@ -119,6 +120,7 @@
             <app-date-picker
               [value]="draft().sbookIssueDate"
               (valueChange)="updateField('sbookIssueDate', $event)"
+              (committed)="onDocumentIssueDateCommitted('sbookExpiryDate', $event)"
             />
           </label>
           <label>
@@ -160,6 +162,7 @@
             <app-date-picker
               [value]="draft().cyprusIssueDate"
               (valueChange)="updateField('cyprusIssueDate', $event)"
+              (committed)="onDocumentIssueDateCommitted('cyprusExpiryDate', $event)"
             />
           </label>
           <label>

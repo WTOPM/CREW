@@ -1051,6 +1051,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
         // exactly the page content — capture target == document.body, no cropping needed.
         document.querySelectorAll('.side-panel').forEach((el) => el.remove());
         flattenInputsForExport();
+        window.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
       } else {
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {

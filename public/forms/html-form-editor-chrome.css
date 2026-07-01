@@ -2,6 +2,7 @@
  * Shared HTML form editor — side panels, actions, zoom, sections.
  * Used by Port of Call, Ship Stores, Crew/Passenger list HTML editors.
  */
+@import url('./html-form-pdf-export.css');
 
 body.poc-editor,
 body.ss-editor {

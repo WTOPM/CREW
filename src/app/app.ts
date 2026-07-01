@@ -17,6 +17,7 @@ import { AppSnapshotArchiveService } from './services/app-snapshot-archive.servi
 import { CrewListHtmlFormExcelService } from './services/crew-list-html-form-excel.service';
 import { DataSetupComponent } from './components/data-setup/data-setup.component';
 import { AppStateStore, type AppInitResult } from './services/app-state.store';
+import { ElectronLocalPrefsService } from './services/electron-local-prefs.service';
 import { SectionLockService } from './services/section-lock.service';
 import { SectionReadonlyDomService } from './services/section-readonly-dom.service';
 import { sectionFromRoutePath, AppSection } from './utils/app-data-section.util';
@@ -56,6 +57,7 @@ export class App implements OnInit {
   private readonly appSnapshotArchive = inject(AppSnapshotArchiveService);
   private readonly htmlFormExcel = inject(CrewListHtmlFormExcelService);
   private readonly appState = inject(AppStateStore);
+  private readonly localPrefs = inject(ElectronLocalPrefsService);
   protected readonly sectionLock = inject(SectionLockService);
   private readonly sectionReadonlyDom = inject(SectionReadonlyDomService);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
@@ -64,6 +66,7 @@ export class App implements OnInit {
   protected readonly outputSettings = this.storage.outputSettings;
   /** Desktop build writes to a typed absolute path. */
   protected readonly hasElectron = !!window.electronAPI;
+  protected readonly minimizeToTray = this.localPrefs.minimizeToTray;
   /** Website (Chrome/Edge) writes via granted folder handles. */
   protected readonly fsSupported = this.folderAccess.supported;
   /** Whether folder saving is possible at all in this environment. */
@@ -109,6 +112,8 @@ export class App implements OnInit {
   }
 
   ngOnInit(): void {
+    void this.localPrefs.load();
+
     const params = new URLSearchParams(window.location.search);
     const embeddedExcel = params.get('embed') === '1' && !!params.get('htmlFormExcel');
     if (embeddedExcel) {
@@ -189,6 +194,10 @@ export class App implements OnInit {
     } catch {
       /* parent may be gone */
     }
+  }
+
+  protected onMinimizeToTrayChange(enabled: boolean): void {
+    void this.localPrefs.setMinimizeToTray(enabled);
   }
 
   protected toggleSaveToFolder(saveToFolder: boolean): void {

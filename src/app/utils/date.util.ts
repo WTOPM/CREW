@@ -72,6 +72,19 @@ export function formatDisplayDate(value: string | undefined | null): string {
   return value;
 }
 
+/** Add calendar years to an ISO date (yyyy-MM-dd). */
+export function addYearsToIsoDate(iso: string, years: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  if (isNaN(date.getTime())) return '';
+  date.setFullYear(date.getFullYear() + years);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
 /** For PDF: show DOB — may be ISO or legacy excel serial stored as string number */
 export function formatBirthDate(value: string | undefined | null): string {
   if (!value) return '';

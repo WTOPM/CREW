@@ -168,6 +168,7 @@
     document.body.classList.add('pdf-export', 'is-pdf-export');
     global.CrewEffectFormCells?.reflowAllWrappedCells?.();
     global.CrewEffectFormCells?.flattenInputsForExport?.();
+    global.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
     global.__pdfReady = true;
   }
 

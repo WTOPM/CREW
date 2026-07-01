@@ -1,0 +1,55 @@
+/**
+ * Shared PDF export (Electron printToPDF) — vector text friendly.
+ * Scoped to export classes only; editor layout unchanged.
+ */
+html:has(body.is-pdf-export),
+html:has(body.pdf-export) {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  background: #fff !important;
+}
+
+body.is-pdf-export .side-panel,
+body.pdf-export .side-panel,
+body.is-pdf-export .confirm-backdrop,
+body.pdf-export .confirm-backdrop {
+  display: none !important;
+}
+
+body.is-pdf-export .doc-zoom-stage,
+body.pdf-export .doc-zoom-stage,
+body.is-pdf-export .doc-zoom-viewport,
+body.pdf-export .doc-zoom-viewport {
+  transform: none !important;
+  zoom: 1 !important;
+}
+
+/* contain:paint on page shells rasterizes text in printToPDF */
+body.is-pdf-export .a4-page,
+body.is-pdf-export .a4-landscape-page,
+body.pdf-export .a4-page,
+body.pdf-export .a4-landscape-page,
+body.is-pdf-export .ssd-sheet,
+body.pdf-export .ssd-sheet,
+body.is-pdf-export .ced-sheet,
+body.pdf-export .ced-sheet,
+body.is-pdf-export .nil-page,
+body.pdf-export .nil-page,
+body.is-pdf-export .poc-pages,
+body.pdf-export .poc-pages {
+  contain: none !important;
+  isolation: auto !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Flex-wrapped cell text can rasterize; block + text-align keeps vector glyphs */
+body.is-pdf-export div.ci,
+body.is-pdf-export div.fi,
+body.pdf-export div.ci,
+body.pdf-export div.fi {
+  display: block !important;
+  align-items: unset !important;
+  justify-content: unset !important;
+}

@@ -339,6 +339,7 @@
     document.body.classList.add('pdf-export', 'is-pdf-export');
     global.ShipStoresFormCells?.reflowAllWrappedCells?.();
     global.ShipStoresFormCells?.flattenInputsForExport?.();
+    global.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
     global.__pdfReady = true;
   }
 

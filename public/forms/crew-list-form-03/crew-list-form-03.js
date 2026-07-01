@@ -1150,6 +1150,7 @@ const MAX_ROWS = 15;
         // exactly the page content — capture target == document.body, no cropping needed.
         document.querySelectorAll('.side-panel').forEach((el) => el.remove());
         flattenInputsForExport();
+        window.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
       } else {
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {
