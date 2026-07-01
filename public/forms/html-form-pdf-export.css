@@ -54,6 +54,21 @@ body.pdf-export div.fi {
   justify-content: unset !important;
 }
 
+/* Crew/Passenger list data cells: .ci normally self-centres via flex, but the block
+   conversion above + base `.ci { height:100% }` makes it fill the cell and pins text to
+   the top. Shrink the text box to its content height so the cell centres it — vector-safe
+   (no flex on the text itself), matching the editor. Covers both layouts:
+   table forms (.ci directly in <td vertical-align:middle>) and the grid form 03
+   (.ci in .td-cell{display:flex;align-items:center}). Crew Effect is unaffected: its .ci
+   is wrapped in .ced-data-val, never a direct child of <td>/.td-cell. */
+body.is-pdf-export td > .ci,
+body.pdf-export td > .ci,
+body.is-pdf-export .td-cell > .ci,
+body.pdf-export .td-cell > .ci {
+  height: auto !important;
+  min-height: 0 !important;
+}
+
 body.is-pdf-export .ced-data-val,
 body.is-pdf-export .ced-hdr-val,
 body.pdf-export .ced-data-val,
