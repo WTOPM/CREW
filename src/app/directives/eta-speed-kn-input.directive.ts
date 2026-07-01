@@ -6,7 +6,7 @@ import {
   tenthsToSpeedKnots,
 } from '../utils/eta-speed-input.util';
 
-/** ETA leg speed (kn): select-all on focus, Enter to blur, ±0.1 stepper buttons. */
+/** ETA leg speed (kn): select-all on focus, Enter to blur, ±0.1 via spin buttons or ↑↓ keys. */
 @Directive({
   selector: 'input.eta-input--speed-kn',
 })
@@ -70,6 +70,16 @@ export class EtaSpeedKnInputDirective implements AfterViewInit, OnDestroy {
         if (e.key === 'Enter') {
           e.preventDefault();
           input.blur();
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          this.step(input, 1);
+          return;
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          this.step(input, -1);
         }
       }),
     );

@@ -43,6 +43,29 @@ export function timeFromMask(text: string): string | null {
   return clamped;
 }
 
+export type TimeMaskSegment = 'hours' | 'minutes';
+
+/** Adjust hours or minutes in an HH:MM mask by ±1 (wraps at range ends). */
+export function adjustTimeMaskSegment(
+  mask: string,
+  segment: TimeMaskSegment,
+  delta: number,
+): string | null {
+  const normalized = timeFromMask(mask);
+  if (!normalized) return null;
+  const [hhStr, mmStr] = normalized.split(':');
+  let hh = parseInt(hhStr, 10);
+  let mm = parseInt(mmStr, 10);
+
+  if (segment === 'hours') {
+    hh = (hh + delta + 24) % 24;
+  } else {
+    mm = (mm + delta + 60) % 60;
+  }
+
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
 export function defaultTimeMask(): string {
   return '00:00';
 }

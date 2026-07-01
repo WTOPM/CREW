@@ -609,8 +609,12 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    autoHideMenuBar: true,
   });
+
+  if (app.isPackaged) {
+    win.setMenu(null);
+    win.setMenuBarVisibility(false);
+  }
 
   mainWindow = win;
   attachTrayWindowHandlers(win);
@@ -625,6 +629,10 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(() => ({ action: 'allow' }));
   win.webContents.on('did-create-window', (childWindow) => {
     childWindow.maximize();
+    if (app.isPackaged) {
+      childWindow.setMenu(null);
+      childWindow.setMenuBarVisibility(false);
+    }
   });
 
   if (app.isPackaged) {
@@ -1265,6 +1273,7 @@ if (gotSingleInstanceLock) {
 
   app.whenReady().then(() => {
     if (app.isPackaged) {
+      Menu.setApplicationMenu(null);
       registerAppProtocol();
       logDataPathDiagnostics('app-ready');
     }

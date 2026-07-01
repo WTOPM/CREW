@@ -85,6 +85,42 @@ export function addYearsToIsoDate(iso: string, years: number): string {
   return `${yy}-${mm}-${dd}`;
 }
 
+export type DateMaskSegment = 'day' | 'month' | 'year';
+
+/** Adjust one segment of a DD.MM.YYYY mask by ±1; returns new mask or null. */
+export function adjustDisplayDateSegment(
+  mask: string,
+  segment: DateMaskSegment,
+  delta: number,
+): string | null {
+  const m = mask.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  const day = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10);
+  const year = parseInt(m[3], 10);
+  const date = new Date(year, month - 1, day);
+  if (isNaN(date.getTime())) return null;
+  if (date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) {
+    return null;
+  }
+
+  if (segment === 'day') date.setDate(date.getDate() + delta);
+  else if (segment === 'month') date.setMonth(date.getMonth() + delta);
+  else date.setFullYear(date.getFullYear() + delta);
+
+  const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const check = new Date(`${iso}T00:00:00`);
+  if (isNaN(check.getTime())) return null;
+  if (
+    check.getFullYear() !== date.getFullYear() ||
+    check.getMonth() !== date.getMonth() ||
+    check.getDate() !== date.getDate()
+  ) {
+    return null;
+  }
+  return formatDisplayDate(iso);
+}
+
 function isoFromDayMonthYear(dd: number, mm: number, yyyy: number): string | null {
   const iso = `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
   const date = new Date(`${iso}T00:00:00`);

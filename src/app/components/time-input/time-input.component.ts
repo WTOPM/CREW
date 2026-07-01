@@ -1,6 +1,7 @@
 import { Component, ElementRef, effect, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  adjustTimeMaskSegment,
   clampHoursSegment,
   clampMinutesSegment,
   digitAtOrAfterTime,
@@ -200,22 +201,26 @@ export class TimeInputComponent {
 
     if (key === 'ArrowLeft') {
       event.preventDefault();
-      const seg = timeSegmentBounds(pos);
-      if (pos <= seg.start) {
-        if (seg.start === 3) this.selectSegment('hours');
-      } else {
-        this.selectSegment(seg.start);
-      }
+      this.selectSegment('hours');
       return;
     }
     if (key === 'ArrowRight') {
       event.preventDefault();
+      this.selectSegment('minutes');
+      return;
+    }
+    if (key === 'ArrowUp' || key === 'ArrowDown') {
+      event.preventDefault();
+      const delta = key === 'ArrowUp' ? 1 : -1;
       const seg = timeSegmentBounds(pos);
-      if (pos >= seg.end - 1) {
-        if (seg.start === 0) this.selectSegment('minutes');
-      } else {
-        this.selectSegment(seg.end - 1);
-      }
+      const which: 'hours' | 'minutes' = seg.start === 0 ? 'hours' : 'minutes';
+      const current = clampMinutesSegment(clampHoursSegment(ensureTimeMaskText(el.value, this.value())));
+      const next = adjustTimeMaskSegment(current, which, delta);
+      if (!next) return;
+      el.value = next;
+      this.text.set(next);
+      this.emitFromMask(next);
+      queueMicrotask(() => this.selectSegment(which));
       return;
     }
     if (key === 'Backspace') {
@@ -238,7 +243,17 @@ export class TimeInputComponent {
       el.blur();
       return;
     }
-    if (key === 'Tab' || key === 'Escape' || key.length > 1 || event.ctrlKey || event.metaKey) {
+    if (key === 'Tab' || key === 'Escape' || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    if (
+      key.startsWith('Arrow') ||
+      key === 'Backspace' ||
+      key === 'Delete' ||
+      key === 'Home' ||
+      key === 'End' ||
+      key === 'Enter'
+    ) {
       return;
     }
     event.preventDefault();

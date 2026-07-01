@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { NgStyle } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { formatDisplayDate, parsePastedDateToIso } from '../../utils/date.util';
+import { formatDisplayDate, parsePastedDateToIso, adjustDisplayDateSegment } from '../../utils/date.util';
 import {
   EN_MONTHS,
   EN_WEEKDAYS,
@@ -266,23 +266,30 @@ export class DatePickerComponent implements OnDestroy {
     if (key === 'ArrowLeft') {
       event.preventDefault();
       const seg = this.segmentBounds(pos);
-      if (pos <= seg.start) {
-        if (seg.start === 3) this.selectSegment('day');
-        else if (seg.start === 6) this.selectSegment('month');
-      } else {
-        this.selectSegment(seg.start);
-      }
+      if (seg.start >= 6) this.selectSegment('month');
+      else this.selectSegment('day');
       return;
     }
     if (key === 'ArrowRight') {
       event.preventDefault();
       const seg = this.segmentBounds(pos);
-      if (pos >= seg.end - 1) {
-        if (seg.start === 0) this.selectSegment('month');
-        else if (seg.start === 3) this.selectSegment('year');
-      } else {
-        this.selectSegment(seg.end - 1);
-      }
+      if (seg.start === 0) this.selectSegment('month');
+      else this.selectSegment('year');
+      return;
+    }
+    if (key === 'ArrowUp' || key === 'ArrowDown') {
+      event.preventDefault();
+      const delta = key === 'ArrowUp' ? 1 : -1;
+      const seg = this.segmentBounds(pos);
+      const which: 'day' | 'month' | 'year' =
+        seg.start === 0 ? 'day' : seg.start === 3 ? 'month' : 'year';
+      const current = clampMonthSegment(clampDaySegment(this.ensureMaskText(el.value)));
+      const next = adjustDisplayDateSegment(current, which, delta);
+      if (!next) return;
+      el.value = next;
+      this.text.set(next);
+      this.emitFromMask(next);
+      queueMicrotask(() => this.selectSegment(which));
       return;
     }
     if (key === 'Backspace') {
@@ -310,7 +317,17 @@ export class DatePickerComponent implements OnDestroy {
       return;
     }
     // Let navigation / shortcuts through; block letters, dots, spaces, etc.
-    if (key === 'Tab' || key === 'Escape' || key.length > 1 || event.ctrlKey || event.metaKey) {
+    if (key === 'Tab' || key === 'Escape' || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    if (
+      key.startsWith('Arrow') ||
+      key === 'Backspace' ||
+      key === 'Delete' ||
+      key === 'Home' ||
+      key === 'End' ||
+      key === 'Enter'
+    ) {
       return;
     }
     event.preventDefault();
