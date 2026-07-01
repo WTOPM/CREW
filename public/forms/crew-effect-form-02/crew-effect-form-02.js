@@ -135,7 +135,7 @@
     const crew = form02.crew || [];
     for (let i = 0; i < ROW_COUNT; i++) {
       const row = crew[i] || {};
-      setCi(`d-${i}-0`, row.no || '');
+      setCi(`d-${i}-0`, CE?.normalizeCrewEffectRowNo?.(row, i) ?? row.no ?? '');
       setCi(`d-${i}-1`, row.familyGivenNames || '');
       setCi(`d-${i}-2`, row.rankOrRating || '');
       setCi(`d-${i}-3`, row.cigarettes || '');
@@ -227,7 +227,8 @@
 
   function finishPdfExport() {
     document.body.classList.add('pdf-export', 'is-pdf-export');
-    Cells?.reflowAllWrappedCells?.();
+    const table = document.getElementById('ced-grid');
+    if (table) Cells?.init?.(table);
     Cells?.flattenInputsForExport?.();
     global.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
     global.__pdfReady = true;
@@ -290,6 +291,8 @@
     }
     editor.resetEditorZoomForExport();
     buildCrewRows();
+    const table = document.getElementById('ced-grid');
+    if (table) Cells?.init?.(table);
     applyForm02(snapshot.form02);
     const overlayVariant = snapshot.documentOverlay?.[OVERLAY_KEY];
     if (overlayVariant?.cellValues) {

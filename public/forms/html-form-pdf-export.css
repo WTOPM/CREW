@@ -53,3 +53,79 @@ body.pdf-export div.fi {
   align-items: unset !important;
   justify-content: unset !important;
 }
+
+body.is-pdf-export .ced-data-val,
+body.is-pdf-export .ced-hdr-val,
+body.pdf-export .ced-data-val,
+body.pdf-export .ced-hdr-val,
+body.is-pdf-export .ssd-data-val,
+body.is-pdf-export .ssd-hdr-val,
+body.pdf-export .ssd-data-val,
+body.pdf-export .ssd-hdr-val {
+  display: block !important;
+  justify-content: unset !important;
+  align-items: unset !important;
+}
+
+/* Crew Effect — column defaults after flatten (printToPDF respects data-align + inline) */
+body.is-pdf-export .ci[data-align='left'],
+body.pdf-export .ci[data-align='left'] {
+  text-align: left !important;
+}
+
+body.is-pdf-export .ci[data-align='center'],
+body.pdf-export .ci[data-align='center'] {
+  text-align: center !important;
+}
+
+body.is-pdf-export .ci[data-align='right'],
+body.pdf-export .ci[data-align='right'] {
+  text-align: right !important;
+}
+
+body.is-pdf-export .ced-data-val:not(.ced-data-val--center) > .ci,
+body.pdf-export .ced-data-val:not(.ced-data-val--center) > .ci {
+  text-align: left !important;
+}
+
+body.is-pdf-export .ced-data-val--center > .ci,
+body.pdf-export .ced-data-val--center > .ci {
+  text-align: center !important;
+}
+
+/* Crew Effect — vertical centring in table cells (wrapper flex, text block in .ci) */
+body.is-pdf-export .ced-tr-data .ced-cell,
+body.pdf-export .ced-tr-data .ced-cell {
+  vertical-align: middle;
+}
+
+body.is-pdf-export .ced-data-val,
+body.pdf-export .ced-data-val,
+body.is-pdf-export .ced-hdr-val,
+body.pdf-export .ced-hdr-val {
+  display: flex !important;
+  align-items: center !important;
+  box-sizing: border-box;
+}
+
+body.is-pdf-export .ced-data-val,
+body.pdf-export .ced-data-val {
+  height: 100%;
+  min-height: 30px;
+  justify-content: flex-start !important;
+}
+
+body.is-pdf-export .ced-data-val--center,
+body.pdf-export .ced-data-val--center {
+  justify-content: center !important;
+}
+
+body.is-pdf-export .ced-hdr-val,
+body.pdf-export .ced-hdr-val {
+  justify-content: center !important;
+}
+
+body.is-pdf-export .ced-data-val > .ci:not(.ci-hdr),
+body.pdf-export .ced-data-val > .ci:not(.ci-hdr) {
+  font-weight: 400 !important;
+}

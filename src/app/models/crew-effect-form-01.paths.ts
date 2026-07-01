@@ -3,8 +3,8 @@ export const CREW_EFFECT_FORM_01_BASE_PATH = '/forms/crew-effect-form-01/';
 
 export const CREW_EFFECT_FORM_01_ROW_COUNT = 24;
 
-/** Crew/passenger rows filled from app data (legacy PDF had 13). */
-export const CREW_EFFECT_FORM_01_DATA_ROWS = 13;
+/** Crew/passenger rows filled from app data — all 24 rows are available. */
+export const CREW_EFFECT_FORM_01_DATA_ROWS = CREW_EFFECT_FORM_01_ROW_COUNT;
 
 export const CREW_EFFECT_FORM_01_FEEDBACK_PARAM = 'ceForm01Feedback';
 

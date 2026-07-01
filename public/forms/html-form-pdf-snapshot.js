@@ -100,15 +100,27 @@
     document.querySelectorAll('div.ci, div.fi').forEach((el) => {
       const display = el.style.display || window.getComputedStyle(el).display;
       if (display !== 'flex') return;
-      const ta = el.style.textAlign || window.getComputedStyle(el).textAlign || 'left';
+      const ta =
+        el.dataset.align ||
+        el.style.textAlign ||
+        window.getComputedStyle(el).textAlign ||
+        'left';
       el.style.display = 'block';
       el.style.width = el.style.width || '100%';
-      el.style.textAlign = ta;
+      el.style.setProperty('text-align', ta === 'start' ? 'left' : ta === 'end' ? 'right' : ta, 'important');
       el.style.alignItems = '';
       el.style.justifyContent = '';
       el.style.whiteSpace = el.style.whiteSpace || 'nowrap';
       el.style.overflow = el.style.overflow || 'hidden';
     });
+
+    if (document.querySelector('#ced-grid input.ci, #ced-crew input.ci')) {
+      if (window.CrewEffectFormCells?.flattenInputsForExport) {
+        window.CrewEffectFormCells.flattenInputsForExport();
+      } else if (window.CrewEffectFormCellsV2?.flattenInputsForExport) {
+        window.CrewEffectFormCellsV2.flattenInputsForExport();
+      }
+    }
   }
 
   function countPdfPages() {

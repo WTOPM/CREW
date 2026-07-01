@@ -20,6 +20,8 @@
       (mouseup)="onInputSelect()"
       (keydown)="onKeydown($event)"
       (keydown.escape)="close()"
+      (paste)="onPaste($event)"
+      (contextmenu)="onContextMenu($event)"
       (pointerdown)="onCopyPressStart($event)"
       (pointermove)="onCopyPressMove($event)"
       (pointerup)="onCopyPressEnd()"

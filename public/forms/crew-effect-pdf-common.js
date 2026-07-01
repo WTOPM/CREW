@@ -197,6 +197,36 @@
     }
   }
 
+  function crewEffectRowHasContent(row) {
+    if (!row || typeof row !== 'object') return false;
+    const keys = [
+      'familyGivenNames',
+      'rankOrRating',
+      'cigarettes',
+      'spirits',
+      'wines',
+      'others',
+      'signature',
+      'tobaccoCigares',
+      'beer',
+      'other',
+    ];
+    return keys.some((k) => String(row[k] || '').trim() !== '');
+  }
+
+  function normalizeCrewEffectRowNo(row, index) {
+    if (!crewEffectRowHasContent(row)) return '';
+    const no = String(row.no ?? '').trim();
+    return no || String(index + 1);
+  }
+
+  function normalizeCrewEffectRowNos(crew) {
+    return (crew || []).map((row, i) => ({
+      ...row,
+      no: normalizeCrewEffectRowNo(row, i),
+    }));
+  }
+
   global.CrewCrewEffectPdf = {
     pdfBoxToCss,
     defaultStampCss,
@@ -207,5 +237,8 @@
     signatureCssBelowStamp,
     loadAsset,
     renderOverlays,
+    crewEffectRowHasContent,
+    normalizeCrewEffectRowNo,
+    normalizeCrewEffectRowNos,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

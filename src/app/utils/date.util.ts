@@ -85,6 +85,35 @@ export function addYearsToIsoDate(iso: string, years: number): string {
   return `${yy}-${mm}-${dd}`;
 }
 
+function isoFromDayMonthYear(dd: number, mm: number, yyyy: number): string | null {
+  const iso = `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+  const date = new Date(`${iso}T00:00:00`);
+  if (isNaN(date.getTime())) return null;
+  if (date.getFullYear() !== yyyy || date.getMonth() + 1 !== mm || date.getDate() !== dd) return null;
+  return iso;
+}
+
+/** Parse common pasted date strings → ISO yyyy-MM-dd, or null. */
+export function parsePastedDateToIso(raw: string): string | null {
+  const v = raw.trim().replace(/\u00a0/g, ' ').replace(/\s+/g, '');
+  if (!v) return null;
+
+  let m = v.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$/);
+  if (m) return isoFromDayMonthYear(+m[1], +m[2], +m[3]);
+
+  m = v.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})$/);
+  if (m) return isoFromDayMonthYear(+m[3], +m[2], +m[1]);
+
+  m = v.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{2})$/);
+  if (m) {
+    let y = +m[3];
+    y += y < 50 ? 2000 : 1900;
+    return isoFromDayMonthYear(+m[1], +m[2], y);
+  }
+
+  return null;
+}
+
 /** For PDF: show DOB — may be ISO or legacy excel serial stored as string number */
 export function formatBirthDate(value: string | undefined | null): string {
   if (!value) return '';

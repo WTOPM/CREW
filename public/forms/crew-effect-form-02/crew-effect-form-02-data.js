@@ -122,9 +122,9 @@
     };
   }
 
-  function emptyRow(index) {
+  function emptyRow() {
     return {
-      no: String(index + 1),
+      no: '',
       familyGivenNames: '',
       rankOrRating: '',
       cigarettes: '',
@@ -155,24 +155,14 @@
 
     const defaultCrew = [];
     for (let i = 0; i < ROW_COUNT; i++) {
-      defaultCrew.push(members[i] ? baseRowFromMember(members[i], i, form) : emptyRow(i));
+      defaultCrew.push(members[i] ? baseRowFromMember(members[i], i, form) : emptyRow());
     }
 
+    // Crew grid is always live from the crew/passenger list — cell overlays never
+    // pin these rows, so the document can't freeze and no Reset is ever needed.
     const crew = [];
     for (let i = 0; i < ROW_COUNT; i++) {
-      const base = defaultCrew[i] || emptyRow(i);
-      crew.push({
-        no: cv[`d-${i}-0`] !== undefined ? String(cv[`d-${i}-0`]) : base.no,
-        familyGivenNames:
-          cv[`d-${i}-1`] !== undefined ? String(cv[`d-${i}-1`]) : base.familyGivenNames,
-        rankOrRating: cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.rankOrRating,
-        cigarettes: cv[`d-${i}-3`] !== undefined ? String(cv[`d-${i}-3`]) : base.cigarettes,
-        tobaccoCigares: cv[`d-${i}-4`] !== undefined ? String(cv[`d-${i}-4`]) : base.tobaccoCigares,
-        spirits: cv[`d-${i}-5`] !== undefined ? String(cv[`d-${i}-5`]) : base.spirits,
-        beer: cv[`d-${i}-6`] !== undefined ? String(cv[`d-${i}-6`]) : base.beer,
-        other: cv[`d-${i}-7`] !== undefined ? String(cv[`d-${i}-7`]) : base.other,
-        signature: cv[`d-${i}-8`] !== undefined ? String(cv[`d-${i}-8`]) : base.signature,
-      });
+      crew.push(defaultCrew[i] || emptyRow());
     }
 
     const voyageIso = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
@@ -186,7 +176,7 @@
         cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, appData.ports || []),
       dateOfArrivalDeparture: cv['h-date'] ?? formatDisplayDate(voyageIso),
       nationalityOfShip: cv['h-nationality'] ?? formatPortName(ship.nationality),
-      crew,
+      crew: global.CrewCrewEffectPdf.normalizeCrewEffectRowNos(crew),
       footerDate:
         cv['footer-date'] ??
         formatDisplayDate(voyageIso),

@@ -112,8 +112,13 @@ body.pdf-export .ced-sheet--v2 {
 .ce-editor .ced-sheet--v2 .ced-data-val .ci {
   width: 100%;
   font-size: 8.5pt;
+  font-weight: 400;
   padding: 0;
   margin: 0;
+}
+
+.ce-editor .ced-sheet--v2 .ced-data-val:not(.ced-data-val--center) .ci {
+  text-align: left;
 }
 
 .ce-editor .ced-sheet--v2 input.ci.selected,

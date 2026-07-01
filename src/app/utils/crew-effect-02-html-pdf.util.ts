@@ -66,9 +66,28 @@ function formatPortWithCountry(portName: string, ports: AppData['ports']): strin
   return country ? `${name}, ${country}` : name;
 }
 
-function emptyRow(index: number): CrewEffectForm02CrewRow {
+function crewRowHasContent(row: CrewEffectForm02CrewRow): boolean {
+  return !!(
+    row.familyGivenNames?.trim() ||
+    row.rankOrRating?.trim() ||
+    row.cigarettes?.trim() ||
+    row.tobaccoCigares?.trim() ||
+    row.spirits?.trim() ||
+    row.beer?.trim() ||
+    row.other?.trim() ||
+    row.signature?.trim()
+  );
+}
+
+function resolveRowNo(row: CrewEffectForm02CrewRow, index: number): string {
+  if (!crewRowHasContent(row)) return '';
+  const no = row.no?.trim();
+  return no || String(index + 1);
+}
+
+function emptyRow(): CrewEffectForm02CrewRow {
   return {
-    no: String(index + 1),
+    no: '',
     familyGivenNames: '',
     rankOrRating: '',
     cigarettes: '',
@@ -113,24 +132,16 @@ function buildForm02Data(data: AppData): CrewEffectForm02HtmlForm {
 
   const defaultCrew: CrewEffectForm02CrewRow[] = [];
   for (let i = 0; i < CREW_EFFECT_FORM_02_ROW_COUNT; i++) {
-    defaultCrew.push(members[i] ? baseRowFromMember(members[i], i, form) : emptyRow(i));
+    defaultCrew.push(members[i] ? baseRowFromMember(members[i], i, form) : emptyRow());
   }
 
+  // Crew grid is always live from the crew/passenger list — cell overlays never
+  // pin these rows, so the document can't freeze and no Reset is ever needed.
   const crew: CrewEffectForm02CrewRow[] = [];
   for (let i = 0; i < CREW_EFFECT_FORM_02_ROW_COUNT; i++) {
-    const base = defaultCrew[i] ?? emptyRow(i);
-    crew.push({
-      no: cv[`d-${i}-0`] !== undefined ? String(cv[`d-${i}-0`]) : base.no,
-      familyGivenNames:
-        cv[`d-${i}-1`] !== undefined ? String(cv[`d-${i}-1`]) : base.familyGivenNames,
-      rankOrRating: cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.rankOrRating,
-      cigarettes: cv[`d-${i}-3`] !== undefined ? String(cv[`d-${i}-3`]) : base.cigarettes,
-      tobaccoCigares: cv[`d-${i}-4`] !== undefined ? String(cv[`d-${i}-4`]) : base.tobaccoCigares,
-      spirits: cv[`d-${i}-5`] !== undefined ? String(cv[`d-${i}-5`]) : base.spirits,
-      beer: cv[`d-${i}-6`] !== undefined ? String(cv[`d-${i}-6`]) : base.beer,
-      other: cv[`d-${i}-7`] !== undefined ? String(cv[`d-${i}-7`]) : base.other,
-      signature: cv[`d-${i}-8`] !== undefined ? String(cv[`d-${i}-8`]) : base.signature,
-    });
+    const row = defaultCrew[i] ?? emptyRow();
+    row.no = resolveRowNo(row, i);
+    crew.push(row);
   }
 
   return {

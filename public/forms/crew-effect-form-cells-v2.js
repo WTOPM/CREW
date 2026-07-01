@@ -120,10 +120,51 @@
     return cell.closest('.ced-hdr-val, .ced-data-val');
   }
 
+  function normalizeTextAlign(value) {
+    const ta = String(value || '').trim().toLowerCase();
+    if (ta === 'center' || ta === 'right' || ta === 'left') return ta;
+    if (ta === 'start') return 'left';
+    if (ta === 'end') return 'right';
+    return '';
+  }
+
+  function columnDefaultTextAlign(wrapper) {
+    if (!wrapper) return '';
+    if (wrapper.classList.contains('ced-data-val--center')) return 'center';
+    if (wrapper.classList.contains('ced-data-val')) return 'left';
+    return '';
+  }
+
+  /** Resolve alignment for PDF export (column class, CSS, wrapper flex, saved inline). */
+  function effectiveCellTextAlign(input, wrapper) {
+    const inline = normalizeTextAlign(input.style.textAlign);
+    if (inline) return inline;
+
+    const columnDefault = columnDefaultTextAlign(wrapper);
+    if (columnDefault) return columnDefault;
+
+    const computed = normalizeTextAlign(window.getComputedStyle(input).textAlign);
+    if (computed) return computed;
+
+    if (wrapper) {
+      if (wrapper.classList.contains('ced-hdr-val')) return 'center';
+      const jc = (wrapper.style.justifyContent || window.getComputedStyle(wrapper).justifyContent || '')
+        .trim()
+        .toLowerCase();
+      if (jc === 'center') return 'center';
+      if (jc === 'flex-end' || jc === 'end') return 'right';
+      if (jc === 'flex-start' || jc === 'start') return 'left';
+      return 'left';
+    }
+
+    return 'left';
+  }
+
   function syncCellFlexAlignment(cell) {
-    const ta = cell.style.textAlign || '';
-    const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
     const wrapper = valWrapper(cell);
+    const ta =
+      normalizeTextAlign(cell.style.textAlign) || columnDefaultTextAlign(wrapper) || 'left';
+    const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
     if (wrapper && cell.classList.contains('ci')) {
       wrapper.style.justifyContent = jc;
       cell.style.display = 'block';
@@ -186,7 +227,8 @@
     const style = {};
     if (el.style.fontFamily) style.fontFamily = el.style.fontFamily;
     if (el.style.fontSize) style.fontSize = el.style.fontSize;
-    if (el.style.textAlign) style.textAlign = el.style.textAlign;
+    const ta = normalizeTextAlign(el.style.textAlign) || effectiveCellTextAlign(el, valWrapper(el));
+    if (ta) style.textAlign = ta;
     return Object.keys(style).length ? style : null;
   }
 
@@ -214,7 +256,8 @@
     const cellValues = {};
     scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
       const key = el.dataset.cellKey;
-      if (key) cellValues[key] = cellText(el);
+      // Crew grid cells (d-*) are always live — never persist them, or the list freezes.
+      if (key && !key.startsWith('d-')) cellValues[key] = cellText(el);
     });
     return cellValues;
   }
@@ -224,7 +267,8 @@
     if (!scope || !cellValues) return;
     scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
       const key = el.dataset.cellKey;
-      if (!key || cellValues[key] === undefined) return;
+      // Crew grid cells (d-*) are always applied fresh from live data — skip saved overrides.
+      if (!key || key.startsWith('d-') || cellValues[key] === undefined) return;
       setCellValue(el, cellValues[key]);
       reflowCell(el);
     });
@@ -262,19 +306,54 @@
     if (isFooterMaster(input)) {
       replacement.style.border = 'none';
       replacement.style.borderBottom = '1px solid #000';
-      replacement.style.textAlign = input.style.textAlign || 'center';
+      replacement.style.textAlign = effectiveCellTextAlign(input, valWrapper(input));
       replacement.style.padding = '0 2px 1px';
     } else {
       replacement.style.border = 'none';
     }
   }
 
-  function flattenInputsForExport(scopeEl) {
+  function applyExportTextAlign(el, align) {
+    const ta = normalizeTextAlign(align) || 'left';
+    el.dataset.align = ta;
+    el.style.setProperty('text-align', ta, 'important');
+  }
+
+  function exportFontWeight(input) {
+    if (input.classList.contains('ci-hdr')) return '700';
+    if (isFooterField(input) || isFooterMaster(input)) return '700';
+    const inline = (input.style.fontWeight || '').trim();
+    if (inline && inline !== 'inherit' && inline !== 'normal') return inline;
+    const computed = window.getComputedStyle(input).fontWeight;
+    if (computed && computed !== 'inherit' && computed !== 'normal') return computed;
+    return '400';
+  }
+
+  function applyExportFontStyles(replacement, input) {
+    replacement.style.fontWeight = exportFontWeight(input);
+    if (input.style.fontFamily) replacement.style.fontFamily = input.style.fontFamily;
+    if (input.style.fontSize) replacement.style.fontSize = input.style.fontSize;
+    else if (!input.style.fontSize && input.classList.contains('ci')) {
+      replacement.style.fontSize = window.getComputedStyle(input).fontSize;
+    }
+  }
+
+  function applyExportCellAlignment(scopeEl) {
     const scope = scopeEl || pageScope() || root || document;
     if (!scope) return;
     scope.querySelectorAll('input.ci').forEach((input) => {
+      applyExportTextAlign(input, effectiveCellTextAlign(input, valWrapper(input)));
+    });
+  }
+
+  function flattenInputsForExport(scopeEl) {
+    const scope = scopeEl || pageScope() || root || document;
+    if (!scope) return;
+    applyExportCellAlignment(scope);
+    scope.querySelectorAll('input.ci').forEach((input) => {
       const replacement = document.createElement('div');
       replacement.className = input.className;
+      if (input.dataset.cellKey) replacement.dataset.cellKey = input.dataset.cellKey;
       replacement.textContent = input.value || '';
       replacement.style.border = 'none';
       replacement.style.background = 'transparent';
@@ -282,6 +361,7 @@
 
       const wrapper = valWrapper(input);
       if (wrapper) {
+        const ta = effectiveCellTextAlign(input, wrapper);
         replacement.style.display = 'block';
         replacement.style.width = '100%';
         replacement.style.lineHeight = 'normal';
@@ -289,22 +369,20 @@
         replacement.style.margin = '0';
         replacement.style.textOverflow = 'ellipsis';
         replacement.style.whiteSpace = 'nowrap';
-        replacement.style.textAlign = input.style.textAlign || 'center';
-        replacement.style.fontWeight = '700';
+        applyExportTextAlign(replacement, ta);
+        applyExportFontStyles(replacement, input);
       } else if (isFooterField(input)) {
         applyFooterExportStyles(replacement, input);
+        applyExportTextAlign(replacement, effectiveCellTextAlign(input, valWrapper(input)));
       } else {
+        const ta = effectiveCellTextAlign(input, null);
         replacement.style.cssText = input.style.cssText;
-        replacement.style.display = 'flex';
-        replacement.style.alignItems = 'center';
-        replacement.style.justifyContent =
-          input.style.textAlign === 'center'
-            ? 'center'
-            : input.style.textAlign === 'right'
-              ? 'flex-end'
-              : 'flex-start';
+        replacement.style.display = 'block';
         replacement.style.width = '100%';
         replacement.style.height = '100%';
+        applyExportTextAlign(replacement, ta);
+        replacement.style.whiteSpace = 'nowrap';
+        replacement.style.overflow = 'hidden';
       }
       input.replaceWith(replacement);
     });
@@ -439,6 +517,7 @@
     restoreCellStyles,
     restoreCellValues,
     flattenInputsForExport,
+    applyExportCellAlignment,
     reflowAllWrappedCells() {
       document
         .querySelectorAll('.ced-hdr-val .ci, .ced-data-val .ci')

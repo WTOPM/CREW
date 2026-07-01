@@ -54,9 +54,27 @@ function formatCaptainName(member: Pick<CrewMember, 'familyName' | 'givenNames'>
   return parts.join(' ').toUpperCase();
 }
 
-function emptyRow(index: number): CrewEffectForm01CrewRow {
+function crewRowHasContent(row: CrewEffectForm01CrewRow): boolean {
+  return !!(
+    row.familyGivenNames?.trim() ||
+    row.rankOrRating?.trim() ||
+    row.cigarettes?.trim() ||
+    row.spirits?.trim() ||
+    row.wines?.trim() ||
+    row.others?.trim() ||
+    row.signature?.trim()
+  );
+}
+
+function resolveRowNo(row: CrewEffectForm01CrewRow, index: number): string {
+  if (!crewRowHasContent(row)) return '';
+  const no = row.no?.trim();
+  return no || String(index + 1);
+}
+
+function emptyRow(): CrewEffectForm01CrewRow {
   return {
-    no: String(index + 1),
+    no: '',
     familyGivenNames: '',
     rankOrRating: '',
     cigarettes: '',
@@ -98,24 +116,17 @@ function buildForm01Data(data: AppData): CrewEffectForm01HtmlForm {
     if (i < CREW_EFFECT_FORM_01_DATA_ROWS && members[i]) {
       defaultCrew.push(baseRowFromMember(members[i], i, form));
     } else {
-      defaultCrew.push(emptyRow(i));
+      defaultCrew.push(emptyRow());
     }
   }
 
+  // Crew grid is always live from the crew/passenger list — cell overlays never
+  // pin these rows, so the document can't freeze and no Reset is ever needed.
   const crew: CrewEffectForm01CrewRow[] = [];
   for (let i = 0; i < CREW_EFFECT_FORM_01_ROW_COUNT; i++) {
-    const base = defaultCrew[i] ?? emptyRow(i);
-    crew.push({
-      no: cv[`d-${i}-0`] !== undefined ? String(cv[`d-${i}-0`]) : base.no,
-      familyGivenNames:
-        cv[`d-${i}-1`] !== undefined ? String(cv[`d-${i}-1`]) : base.familyGivenNames,
-      rankOrRating: cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.rankOrRating,
-      cigarettes: cv[`d-${i}-3`] !== undefined ? String(cv[`d-${i}-3`]) : base.cigarettes,
-      spirits: cv[`d-${i}-4`] !== undefined ? String(cv[`d-${i}-4`]) : base.spirits,
-      wines: cv[`d-${i}-5`] !== undefined ? String(cv[`d-${i}-5`]) : base.wines,
-      others: cv[`d-${i}-6`] !== undefined ? String(cv[`d-${i}-6`]) : base.others,
-      signature: cv[`d-${i}-7`] !== undefined ? String(cv[`d-${i}-7`]) : base.signature,
-    });
+    const row = defaultCrew[i] ?? emptyRow();
+    row.no = resolveRowNo(row, i);
+    crew.push(row);
   }
 
   const footerMaster = cv['footer-master'] ?? (master ? formatCaptainName(master) : '');

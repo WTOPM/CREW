@@ -24,7 +24,7 @@ export const CREW_EFFECT_FIELDS = {
   nationality: { x: 150, y: pdfLibY(160), fontSize: CREW_EFFECT_FONT, maxWidth: 130 },
 } as const satisfies Record<string, CrewEffectTextPlacement>;
 
-export const CREW_EFFECT_ROW_COUNT = 13;
+export const CREW_EFFECT_ROW_COUNT = 24;
 
 export const CREW_EFFECT_COL = {
   rowNo: 65,

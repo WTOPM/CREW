@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { NgStyle } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { formatDisplayDate } from '../../utils/date.util';
+import { formatDisplayDate, parsePastedDateToIso } from '../../utils/date.util';
 import {
   EN_MONTHS,
   EN_WEEKDAYS,
@@ -90,8 +90,10 @@ export class DatePickerComponent implements OnDestroy {
   private readonly viewYear = signal(new Date().getFullYear());
   private readonly viewMonth = signal(new Date().getMonth());
   private copyPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private pastePressTimer: ReturnType<typeof setTimeout> | null = null;
   private copiedFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
   private copyPressOrigin: { x: number; y: number } | null = null;
+  private pastePressOrigin: { x: number; y: number } | null = null;
   private static readonly COPY_HOLD_MS = 500;
   private static readonly COPY_MOVE_TOLERANCE_PX = 6;
 
@@ -120,6 +122,7 @@ export class DatePickerComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.clearCopyPressTimer();
+    this.clearPastePressTimer();
     if (this.copiedFeedbackTimer != null) clearTimeout(this.copiedFeedbackTimer);
   }
 
@@ -303,6 +306,9 @@ export class DatePickerComponent implements OnDestroy {
       el.blur();
       return;
     }
+    if ((event.ctrlKey || event.metaKey) && key.toLowerCase() === 'v') {
+      return;
+    }
     // Let navigation / shortcuts through; block letters, dots, spaces, etc.
     if (key === 'Tab' || key === 'Escape' || key.length > 1 || event.ctrlKey || event.metaKey) {
       return;
@@ -438,7 +444,28 @@ export class DatePickerComponent implements OnDestroy {
     this.close();
   }
 
+  protected onPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const raw = event.clipboardData?.getData('text/plain') ?? '';
+    this.applyPastedText(raw, false);
+  }
+
+  protected onContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
   protected onCopyPressStart(event: PointerEvent): void {
+    if (event.pointerType === 'mouse' && event.button === 2) {
+      this.clearCopyPressTimer();
+      this.clearPastePressTimer();
+      this.pastePressOrigin = { x: event.clientX, y: event.clientY };
+      this.pastePressTimer = setTimeout(() => {
+        this.pastePressTimer = null;
+        this.pastePressOrigin = null;
+        void this.pasteFromClipboard(true);
+      }, DatePickerComponent.COPY_HOLD_MS);
+      return;
+    }
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     this.clearCopyPressTimer();
     this.copyPressOrigin = { x: event.clientX, y: event.clientY };
@@ -450,6 +477,14 @@ export class DatePickerComponent implements OnDestroy {
   }
 
   protected onCopyPressMove(event: PointerEvent): void {
+    if (this.pastePressTimer && this.pastePressOrigin) {
+      const dx = event.clientX - this.pastePressOrigin.x;
+      const dy = event.clientY - this.pastePressOrigin.y;
+      if (Math.hypot(dx, dy) > DatePickerComponent.COPY_MOVE_TOLERANCE_PX) {
+        this.onCopyPressEnd();
+      }
+      return;
+    }
     if (!this.copyPressTimer || !this.copyPressOrigin) return;
     const dx = event.clientX - this.copyPressOrigin.x;
     const dy = event.clientY - this.copyPressOrigin.y;
@@ -460,7 +495,52 @@ export class DatePickerComponent implements OnDestroy {
 
   protected onCopyPressEnd(): void {
     this.clearCopyPressTimer();
+    this.clearPastePressTimer();
     this.copyPressOrigin = null;
+    this.pastePressOrigin = null;
+  }
+
+  private clearPastePressTimer(): void {
+    if (this.pastePressTimer == null) return;
+    clearTimeout(this.pastePressTimer);
+    this.pastePressTimer = null;
+  }
+
+  private async pasteFromClipboard(showToast: boolean): Promise<void> {
+    let raw = '';
+    try {
+      raw = await navigator.clipboard.readText();
+    } catch {
+      return;
+    }
+    this.applyPastedText(raw, showToast);
+  }
+
+  private applyPastedText(raw: string, showToast: boolean): void {
+    const iso = parsePastedDateToIso(raw);
+    if (!iso) return;
+
+    const mask = formatDisplayDate(iso);
+    if (!mask || !isoFromMask(mask)) return;
+
+    const el = this.fieldRef()?.nativeElement;
+    if (el) el.value = mask;
+    this.text.set(mask);
+    if (iso !== this.value()) this.valueChange.emit(iso);
+    this.committed.emit(iso);
+
+    const parts = partsFromIso(iso);
+    if (parts) {
+      this.viewYear.set(parts.year);
+      this.viewMonth.set(parts.monthIndex);
+    }
+
+    if (showToast) {
+      this.flashCopiedFeedback();
+      this.toast.show(`Pasted: ${mask}`, 'success', 1800);
+    }
+
+    queueMicrotask(() => el?.blur());
   }
 
   private clearCopyPressTimer(): void {
