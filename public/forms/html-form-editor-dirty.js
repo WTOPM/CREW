@@ -1,9 +1,11 @@
 /**
- * Tracks whether an HTML form editor (03/04/05) has unsaved edits.
+ * Tracks whether an HTML form editor has unsaved edits.
  * Compares a baseline snapshot (captured after load) with the current DOM state.
  */
 (function (global) {
   let baseline = null;
+  let overlayBaseline = null;
+  let extraBaseline = null;
 
   function styleRecord(el) {
     if (!el) return null;
@@ -20,11 +22,33 @@
       return global.HtmlFormHeaderCells.collectStyles();
     }
     const cellStyles = {};
-    document.querySelectorAll('.a4-page input.fi.ci-hdr[id^="h-"], .a4-landscape-page input.fi.ci-hdr[id^="h-"]').forEach((el) => {
-      const style = styleRecord(el);
-      if (el.id && style) cellStyles[el.id] = style;
-    });
+    document
+      .querySelectorAll(
+        '.a4-page input.fi.ci-hdr[id^="h-"], .a4-landscape-page input.fi.ci-hdr[id^="h-"]',
+      )
+      .forEach((el) => {
+        const style = styleRecord(el);
+        if (el.id && style) cellStyles[el.id] = style;
+      });
     return cellStyles;
+  }
+
+  function collectHeaderValues() {
+    if (global.HtmlFormHeaderCells?.collectValues) {
+      return global.HtmlFormHeaderCells.collectValues();
+    }
+    const values = {};
+    document
+      .querySelectorAll(
+        '.a4-page input.fi[id^="h-"], .a4-landscape-page input.fi[id^="h-"], #f-footer-date, #f-master-name',
+      )
+      .forEach((el) => {
+        const key = el.id;
+        if (!key) return;
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') values[key] = el.value || '';
+        else values[key] = (el.textContent || '').trim();
+      });
+    return values;
   }
 
   function collectCellStyles(root) {
@@ -88,6 +112,7 @@
     return JSON.stringify({
       rows: collectTableRows(root),
       cellStyles: collectCellStyles(root),
+      headerValues: collectHeaderValues(),
       overlay: normalizeOverlay(positions),
       footerDate,
     });
@@ -106,9 +131,29 @@
     captureBaseline(options);
   }
 
+  /** Overlay / chrome dirty tracking for editors that manage stamp/sig themselves. */
+  function captureOverlayBaseline(getPositions, extra) {
+    const positions = typeof getPositions === 'function' ? getPositions() : getPositions || {};
+    overlayBaseline = JSON.stringify(normalizeOverlay(positions));
+    extraBaseline = extra === undefined ? null : JSON.stringify(extra);
+  }
+
+  function isOverlayDirty(getPositions, extra) {
+    if (overlayBaseline === null) return false;
+    const positions = typeof getPositions === 'function' ? getPositions() : getPositions || {};
+    if (JSON.stringify(normalizeOverlay(positions)) !== overlayBaseline) return true;
+    if (extraBaseline !== null) {
+      return JSON.stringify(extra === undefined ? null : extra) !== extraBaseline;
+    }
+    return false;
+  }
+
   global.CrewHtmlFormEditorDirty = {
     captureBaseline,
     isDirty,
     resetBaseline,
+    captureOverlayBaseline,
+    isOverlayDirty,
+    normalizeOverlay,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

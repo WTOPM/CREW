@@ -89,6 +89,28 @@
     };
   }
 
+  const CREW_CELL_FIELDS = [
+    'no',
+    'familyGivenNames',
+    'rankOrRating',
+    'cigarettes',
+    'spirits',
+    'wines',
+    'others',
+    'signature',
+  ];
+
+  /** Apply AA/Aa (and other) editor text overrides onto a live crew row. */
+  function applyCrewRowOverrides(row, rowIndex, cv) {
+    if (!cv || !row) return row;
+    const out = { ...row };
+    CREW_CELL_FIELDS.forEach((field, col) => {
+      const key = `d-${rowIndex}-${col}`;
+      if (cv[key] !== undefined) out[field] = cv[key];
+    });
+    return out;
+  }
+
   function formatDisplayDate(value) {
     if (!value) return '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -131,11 +153,10 @@
       }
     }
 
-    // Crew grid is always live from the crew/passenger list — cell overlays never
-    // pin these rows, so the document can't freeze and no Reset is ever needed.
+    // Live crew/passenger list first; overlay cellValues (AA/Aa etc.) override after.
     const crew = [];
     for (let i = 0; i < ROW_COUNT; i++) {
-      crew.push(defaultCrew[i] || emptyRow());
+      crew.push(applyCrewRowOverrides(defaultCrew[i] || emptyRow(), i, cv));
     }
 
     return {

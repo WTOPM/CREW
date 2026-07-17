@@ -286,6 +286,7 @@
     }
     window.PortOfCallFormCells.resetAllCellStyles();
     window.PortOfCallFormCells.captureDirtyBaseline();
+    editor.captureEditorDirtyBaseline?.();
     window.PortOfCallFormRows?.syncToolbarButtons?.();
     window.PortOfCallFormPages?.syncRowToolbar?.();
   }
@@ -374,6 +375,7 @@
     await editor.restoreOverlaySettings();
     editor.initOverlayToolbar();
     editor.initEditorZoom();
+    editor.captureEditorDirtyBaseline?.();
     window.__pdfReady = true;
   }
 

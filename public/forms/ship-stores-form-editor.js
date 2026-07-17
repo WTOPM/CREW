@@ -107,6 +107,10 @@
 
     function isEditorDirty() {
       if (global.ShipStoresFormCells?.isDirty?.()) return true;
+      savePositions();
+      if (global.CrewHtmlFormEditorDirty?.isOverlayDirty) {
+        return global.CrewHtmlFormEditorDirty.isOverlayDirty(() => loadPositions());
+      }
       const stampOn = global.CrewOverlayToolbar?.isStampOn() ?? false;
       const sigOn = global.CrewOverlayToolbar?.isSigOn() ?? false;
       return stampOn !== savedStampVisible || sigOn !== savedSigVisible;
@@ -216,8 +220,12 @@
     }
 
     function captureDirtyBaseline() {
+      savePositions();
       savedStampVisible = global.CrewOverlayToolbar?.isStampOn() ?? false;
       savedSigVisible = global.CrewOverlayToolbar?.isSigOn() ?? false;
+      if (global.CrewHtmlFormEditorDirty?.captureOverlayBaseline) {
+        global.CrewHtmlFormEditorDirty.captureOverlayBaseline(() => loadPositions());
+      }
     }
 
     function showConfirmModal() {

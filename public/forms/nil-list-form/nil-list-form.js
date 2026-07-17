@@ -125,6 +125,7 @@
     editor.initOverlayToolbar();
     await editor.restoreOverlaySettings();
     editor.initEditorZoom();
+    editor.captureEditorDirtyBaseline?.();
   }
 
   async function boot() {

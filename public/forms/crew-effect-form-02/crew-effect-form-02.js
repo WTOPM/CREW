@@ -281,6 +281,7 @@
     await editor.restoreOverlaySettings();
     if (crewSigModule) await crewSigModule.restore();
     editor.initEditorZoom();
+    editor.captureEditorDirtyBaseline?.();
   }
 
   async function initPdfExport() {

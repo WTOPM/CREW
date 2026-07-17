@@ -216,4 +216,32 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
     });
     expect(overlay.cellValues).toEqual({ 'h-pageNo': '1' });
   });
+
+  it('preserves HTML list overlay cellValues (AA/Aa text overrides)', () => {
+    const data = normalizeAppData({
+      documentOverlay: {
+        crewList: {
+          listType: 'type1Passport',
+          byType: {
+            type1Passport: {
+              useStamp: false,
+              useSignature: false,
+              cellValues: { '0-name': 'HONCHAR, Yurii', '0-0': 'Master' },
+            },
+          },
+        },
+        pax: {
+          useStamp: false,
+          useSignature: false,
+          cellValues: { '1-name': 'Smith, John' },
+        },
+      },
+    } as never);
+
+    expect(data.documentOverlay.crewList.byType.type1Passport?.cellValues).toEqual({
+      '0-name': 'HONCHAR, Yurii',
+      '0-0': 'Master',
+    });
+    expect(data.documentOverlay.pax.cellValues).toEqual({ '1-name': 'Smith, John' });
+  });
 });

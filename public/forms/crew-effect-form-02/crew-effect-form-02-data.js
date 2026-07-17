@@ -136,6 +136,28 @@
     };
   }
 
+  const CREW_CELL_FIELDS_02 = [
+    'no',
+    'familyGivenNames',
+    'rankOrRating',
+    'cigarettes',
+    'tobaccoCigares',
+    'spirits',
+    'beer',
+    'other',
+    'signature',
+  ];
+
+  function applyCrewRowOverrides(row, rowIndex, cv) {
+    if (!cv || !row) return row;
+    const out = { ...row };
+    CREW_CELL_FIELDS_02.forEach((field, col) => {
+      const key = `d-${rowIndex}-${col}`;
+      if (cv[key] !== undefined) out[field] = cv[key];
+    });
+    return out;
+  }
+
   function buildForm02FromAppData(appData, formatForPdf, options) {
     const ignoreOverlay = !!(options && options.ignoreOverlay);
     const ship = appData.ship || {};
@@ -158,11 +180,10 @@
       defaultCrew.push(members[i] ? baseRowFromMember(members[i], i, form) : emptyRow());
     }
 
-    // Crew grid is always live from the crew/passenger list — cell overlays never
-    // pin these rows, so the document can't freeze and no Reset is ever needed.
+    // Live crew/passenger list first; overlay cellValues (AA/Aa etc.) override after.
     const crew = [];
     for (let i = 0; i < ROW_COUNT; i++) {
-      crew.push(defaultCrew[i] || emptyRow());
+      crew.push(applyCrewRowOverrides(defaultCrew[i] || emptyRow(), i, cv));
     }
 
     const voyageIso = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;

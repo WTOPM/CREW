@@ -105,6 +105,8 @@ export interface PaxHtmlFormStampOptions extends DocumentStampOptions {
     string,
     { fontFamily?: string; fontSize?: string; textAlign?: string; verticalAlign?: string }
   >;
+  /** Editor overrides for cell text (e.g. AA/Aa). Applied after live passenger fill. */
+  cellValues?: Record<string, string>;
   footerSignatureDate?: string;
   footerMasterName?: string;
 }
@@ -232,6 +234,8 @@ export interface CrewListVariantSettings {
   stampBox?: PdfStampBox | CrewListForm05CssBox;
   signatureBox?: PdfStampBox | CrewListForm05CssBox;
   cellStyles?: Record<string, { fontFamily?: string; fontSize?: string; textAlign?: string }>;
+  /** Editor overrides for cell text (e.g. AA/Aa). Applied after live crew fill. */
+  cellValues?: Record<string, string>;
   /** Form 05 — editable date under table (field 12), aligned with column c2. */
   footerSignatureDate?: string;
   /** Footer master name override. */
@@ -363,6 +367,7 @@ const CREW_LIST_VARIANT_FIELD_NAMES = [
   'stampBox',
   'signatureBox',
   'cellStyles',
+  'cellValues',
   'footerSignatureDate',
   'footerMasterName',
 ] as const satisfies readonly (keyof CrewListVariantSettings)[];

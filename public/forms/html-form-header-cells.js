@@ -159,6 +159,20 @@
     return cellStyles;
   }
 
+  function collectValues() {
+    const cellValues = {};
+    headerFields().forEach((el) => {
+      const key = el.id || el.dataset.cellKey;
+      if (!key) return;
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        cellValues[key] = el.value || '';
+      } else {
+        cellValues[key] = (el.textContent || '').trim();
+      }
+    });
+    return cellValues;
+  }
+
   function restoreStyles(cellStyles) {
     if (!cellStyles) return;
     headerFields().forEach((el) => {
@@ -170,6 +184,27 @@
       if (style.textAlign) el.style.textAlign = style.textAlign;
       if (style.verticalAlign) applyVerticalAlignToCell(el, style.verticalAlign);
       else if (style.textAlign) syncCellFlexAlignment(el);
+    });
+  }
+
+  function restoreValues(cellValues) {
+    if (!cellValues || typeof cellValues !== 'object') return;
+    headerFields().forEach((el) => {
+      const key = el.id || el.dataset.cellKey;
+      if (!key || cellValues[key] === undefined) return;
+      const value = cellValues[key] == null ? '' : String(cellValues[key]);
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        el.value = value;
+        if (el.dataset.iso != null && global.HtmlFormDateFormat?.syncIsoFromDisplay) {
+          try {
+            global.HtmlFormDateFormat.syncIsoFromDisplay(el);
+          } catch (_) {
+            /* keep display text even if ISO parse fails */
+          }
+        }
+      } else {
+        el.textContent = value;
+      }
     });
   }
 
@@ -201,7 +236,9 @@
     applyFormat,
     applyVerticalAlign,
     collectStyles,
+    collectValues,
     restoreStyles,
+    restoreValues,
     resetAll,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

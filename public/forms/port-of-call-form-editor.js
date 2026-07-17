@@ -122,8 +122,38 @@
     function isEditorDirty() {
       captureRowsPerPage();
       if (global.PortOfCallFormCells?.isDirty?.()) return true;
-      if (savedRowsPerPage === null) return false;
-      return global._currentPositions?.rowsPerPage !== savedRowsPerPage;
+      if (savedRowsPerPage !== null && global._currentPositions?.rowsPerPage !== savedRowsPerPage) {
+        return true;
+      }
+      savePositions();
+      const extra = {
+        rowsPerPage: global._currentPositions?.rowsPerPage ?? null,
+        dateDisplayFormat:
+          global.HtmlFormDateFormat?.getActive?.() ||
+          global._currentPositions?.dateDisplayFormat ||
+          'dot',
+      };
+      if (global.CrewHtmlFormEditorDirty?.isOverlayDirty) {
+        return global.CrewHtmlFormEditorDirty.isOverlayDirty(() => loadPositions(), extra);
+      }
+      return false;
+    }
+
+    function captureEditorDirtyBaseline() {
+      loadPositions();
+      savePositions();
+      captureRowsPerPage();
+      savedRowsPerPage = global._currentPositions?.rowsPerPage ?? null;
+      const extra = {
+        rowsPerPage: savedRowsPerPage,
+        dateDisplayFormat:
+          global.HtmlFormDateFormat?.getActive?.() ||
+          global._currentPositions?.dateDisplayFormat ||
+          'dot',
+      };
+      if (global.CrewHtmlFormEditorDirty?.captureOverlayBaseline) {
+        global.CrewHtmlFormEditorDirty.captureOverlayBaseline(() => loadPositions(), extra);
+      }
     }
 
     function captureCellStyles() {
@@ -516,7 +546,9 @@
       },
       initSavedRowsBaseline() {
         loadPositions();
+        captureEditorDirtyBaseline();
       },
+      captureEditorDirtyBaseline,
       initOverlayToolbar() {
         if (global.CrewOverlayToolbar) {
           CrewOverlayToolbar.init({

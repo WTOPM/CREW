@@ -483,6 +483,9 @@ function normalizePaxHtmlFormPrefs(
   if (raw?.cellStyles && typeof raw.cellStyles === 'object') {
     out.cellStyles = raw.cellStyles;
   }
+  if (raw?.cellValues && typeof raw.cellValues === 'object') {
+    out.cellValues = raw.cellValues;
+  }
   if (typeof raw?.footerSignatureDate === 'string') {
     out.footerSignatureDate = raw.footerSignatureDate;
   }

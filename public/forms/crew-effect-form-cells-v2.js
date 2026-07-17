@@ -256,8 +256,7 @@
     const cellValues = {};
     scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
       const key = el.dataset.cellKey;
-      // Crew grid cells (d-*) are always live — never persist them, or the list freezes.
-      if (key && !key.startsWith('d-')) cellValues[key] = cellText(el);
+      if (key) cellValues[key] = cellText(el);
     });
     return cellValues;
   }
@@ -267,8 +266,7 @@
     if (!scope || !cellValues) return;
     scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
       const key = el.dataset.cellKey;
-      // Crew grid cells (d-*) are always applied fresh from live data — skip saved overrides.
-      if (!key || key.startsWith('d-') || cellValues[key] === undefined) return;
+      if (!key || cellValues[key] === undefined) return;
       setCellValue(el, cellValues[key]);
       reflowCell(el);
     });

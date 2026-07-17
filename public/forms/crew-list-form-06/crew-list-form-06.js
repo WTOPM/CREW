@@ -450,7 +450,8 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
                 width: sigCss?.width,
                 height: sigCss?.height
               },
-              cellStyles: variant.cellStyles || {}
+              cellStyles: variant.cellStyles || {},
+              cellValues: variant.cellValues || {}
             };
           }
         }
@@ -471,7 +472,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       }
 
       if (!loaded) {
-        loaded = { stamp: {}, sig: {}, cellStyles: {} };
+        loaded = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
       }
 
       window._currentPositions = loaded;
@@ -486,7 +487,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       
       // Update in-memory positions
       if (!window._currentPositions) {
-        window._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
+        window._currentPositions = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
       }
       window._currentPositions.stamp = { 
         visible: stampOn, 
@@ -532,6 +533,17 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       });
       HtmlFormHeaderCells.restoreStyles(cellStyles);
     }
+    function restoreCellValues() {
+      const saved = loadPositions();
+      const cellValues = saved.cellValues || {};
+      if (window.HtmlFormListCellPersist) {
+        window.HtmlFormListCellPersist.restoreValues(tbody, cellValues);
+      }
+      if (window.HtmlFormHeaderCells?.restoreValues) {
+        window.HtmlFormHeaderCells.restoreValues(cellValues);
+      }
+    }
+
 
     async function persistAllChanges() {
       savePositions(); // Make sure current stamp/sig positions are captured in window._currentPositions
@@ -567,9 +579,17 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       Object.assign(cellStyles, HtmlFormHeaderCells.collectStyles());
       
       if (!window._currentPositions) {
-        window._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
+        window._currentPositions = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
       }
       window._currentPositions.cellStyles = cellStyles;
+
+      const cellValues = {
+        ...(window.HtmlFormListCellPersist
+          ? window.HtmlFormListCellPersist.collectValues(tbody)
+          : {}),
+        ...(window.HtmlFormHeaderCells?.collectValues?.() || {}),
+      };
+      window._currentPositions.cellValues = cellValues;
 
       const appData = await readPersistedAppData();
       if (!appData || !appData.ship) {
@@ -599,6 +619,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
+        cellValues,
         footerSignatureDate,
         ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
@@ -684,6 +705,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       if (sizeSel) sizeSel.value = '6';
       if (window._currentPositions) {
         window._currentPositions.cellStyles = {};
+        window._currentPositions.cellValues = {};
       }
     }
 
@@ -692,6 +714,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         window._currentPositions.stamp = {};
         window._currentPositions.sig = {};
         window._currentPositions.cellStyles = {};
+        window._currentPositions.cellValues = {};
       }
       
       const stamp = document.getElementById('stamp-container');
@@ -1045,6 +1068,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       });
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
+      restoreCellValues();
       if (isPdfExport) {
         resetEditorZoomForExport();
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to

@@ -443,14 +443,15 @@ const tbody = document.getElementById('tbody');
                 width: sigCss?.width,
                 height: sigCss?.height
               },
-              cellStyles: variant.cellStyles || {}
+              cellStyles: variant.cellStyles || {},
+              cellValues: variant.cellValues || {}
             };
           }
         }
       } catch (e) { }
 
       if (!loaded) {
-        loaded = { stamp: {}, sig: {}, cellStyles: {} };
+        loaded = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
       }
 
       window._currentPositions = loaded;
@@ -465,7 +466,7 @@ const tbody = document.getElementById('tbody');
       
       // Update in-memory positions
       if (!window._currentPositions) {
-        window._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
+        window._currentPositions = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
       }
       window._currentPositions.stamp = { 
         visible: stampOn, 
@@ -511,6 +512,17 @@ const tbody = document.getElementById('tbody');
       });
       HtmlFormHeaderCells.restoreStyles(cellStyles);
     }
+    function restoreCellValues() {
+      const saved = loadPositions();
+      const cellValues = saved.cellValues || {};
+      if (window.HtmlFormListCellPersist) {
+        window.HtmlFormListCellPersist.restoreValues(tbody, cellValues);
+      }
+      if (window.HtmlFormHeaderCells?.restoreValues) {
+        window.HtmlFormHeaderCells.restoreValues(cellValues);
+      }
+    }
+
 
     async function persistAllChanges() {
       savePositions(); // Make sure current stamp/sig positions are captured in window._currentPositions
@@ -546,9 +558,17 @@ const tbody = document.getElementById('tbody');
       Object.assign(cellStyles, HtmlFormHeaderCells.collectStyles());
       
       if (!window._currentPositions) {
-        window._currentPositions = { stamp: {}, sig: {}, cellStyles: {} };
+        window._currentPositions = { stamp: {}, sig: {}, cellStyles: {}, cellValues: {} };
       }
       window._currentPositions.cellStyles = cellStyles;
+
+      const cellValues = {
+        ...(window.HtmlFormListCellPersist
+          ? window.HtmlFormListCellPersist.collectValues(tbody)
+          : {}),
+        ...(window.HtmlFormHeaderCells?.collectValues?.() || {}),
+      };
+      window._currentPositions.cellValues = cellValues;
 
       const appData = await readPersistedAppData();
       if (!appData || !appData.ship) {
@@ -572,6 +592,7 @@ const tbody = document.getElementById('tbody');
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
+        cellValues,
         footerSignatureDate,
         ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
@@ -650,6 +671,7 @@ const tbody = document.getElementById('tbody');
       if (sizeSel) sizeSel.value = '6';
       if (window._currentPositions) {
         window._currentPositions.cellStyles = {};
+        window._currentPositions.cellValues = {};
       }
     }
 
@@ -658,6 +680,7 @@ const tbody = document.getElementById('tbody');
         window._currentPositions.stamp = {};
         window._currentPositions.sig = {};
         window._currentPositions.cellStyles = {};
+        window._currentPositions.cellValues = {};
       }
       
       const stamp = document.getElementById('stamp-container');
@@ -1003,6 +1026,7 @@ const tbody = document.getElementById('tbody');
       });
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
+      restoreCellValues();
       if (isPdfExport) {
         resetEditorZoomForExport();
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to

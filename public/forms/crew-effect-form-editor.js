@@ -224,11 +224,29 @@
     function isEditorDirty() {
       if (global.CrewEffectFormCells?.isDirty?.()) return true;
       if (global.CrewEffectFormCellsV2?.isDirty?.()) return true;
+      if (crewSigBridge?.isDirty?.(savedUseCrewSignatures)) return true;
+      savePositions();
+      if (global.CrewHtmlFormEditorDirty?.isOverlayDirty) {
+        return global.CrewHtmlFormEditorDirty.isOverlayDirty(() => loadPositions(), {
+          useCrewSignatures: !!global._currentPositions?.useCrewSignatures,
+        });
+      }
       const stampOn = global.CrewOverlayToolbar?.isStampOn() ?? false;
       const sigOn = global.CrewOverlayToolbar?.isSigOn() ?? false;
       if (stampOn !== savedStampVisible || sigOn !== savedSigVisible) return true;
-      if (crewSigBridge?.isDirty?.(savedUseCrewSignatures)) return true;
       return false;
+    }
+
+    function captureEditorDirtyBaseline() {
+      savePositions();
+      savedStampVisible = global.CrewOverlayToolbar?.isStampOn() ?? false;
+      savedSigVisible = global.CrewOverlayToolbar?.isSigOn() ?? false;
+      savedUseCrewSignatures = !!global._currentPositions?.useCrewSignatures;
+      if (global.CrewHtmlFormEditorDirty?.captureOverlayBaseline) {
+        global.CrewHtmlFormEditorDirty.captureOverlayBaseline(() => loadPositions(), {
+          useCrewSignatures: savedUseCrewSignatures,
+        });
+      }
     }
 
     function captureCellStyles() {
@@ -620,6 +638,7 @@
       restoreOverlaySettings,
       initEditorZoom,
       resetEditorZoomForExport,
+      captureEditorDirtyBaseline,
       connectCellEditor(bridge) {
         cellBridge = bridge;
       },
