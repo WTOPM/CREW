@@ -1,0 +1,293 @@
+/**
+ * Form 01 — column widths from POC_COL_BOUNDS (2111 src units total).
+ * voy 3.7% | port 24.3% | country 19.5% | arrDate 11.6% | arrTime 12.8% | depDate 13.8% | depTime 14.3%
+ */
+.poc-form-01 .col-voy { width: 3.7%; }
+.poc-form-01 .col-port { width: 24.3%; }
+.poc-form-01 .col-country { width: 19.5%; }
+.poc-form-01 .col-arr-date { width: 11.6%; }
+.poc-form-01 .col-arr-time { width: 12.8%; }
+.poc-form-01 .col-dep-date { width: 13.8%; }
+.poc-form-01 .col-dep-time { width: 14.3%; }
+
+.poc-form-01 .poc-grid td.hdr-cell,
+.poc-form-01 .poc-grid td.th-voy,
+.poc-form-01 .poc-grid td.th-main,
+.poc-form-01 .poc-grid td.th-time-top,
+.poc-form-01 .poc-grid td.th-time-sub,
+.poc-form-01 .poc-grid .data-row td {
+  padding: 0;
+}
+
+.poc-form-01 .poc-grid {
+  border: 2px solid #000;
+}
+
+.poc-form-01 .poc-grid td {
+  border-width: 1px;
+}
+
+/* Header: label top-left + value centred (table-cell layout — no flex on td) */
+.poc-form-01 .hdr-cell {
+  height: 11mm;
+  padding: 0;
+  vertical-align: top;
+  position: relative;
+  overflow: hidden;
+}
+
+.poc-form-01 .hdr-cell--short {
+  height: 8mm;
+}
+
+.poc-form-01 .hdr-lbl {
+  display: block;
+  font-size: 6.5pt;
+  font-weight: 400;
+  line-height: 1.1;
+  text-align: left;
+  padding: 0.6mm 1.4mm 0;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.poc-form-01 .hdr-cell .poc-hdr-val {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 3.4mm;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 1mm;
+  box-sizing: border-box;
+}
+
+.poc-form-01 .hdr-cell--short .poc-hdr-val {
+  top: 2.6mm;
+}
+
+.poc-form-01 .hdr-cell .ci-hdr {
+  position: static;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: 100%;
+  font-size: 8pt;
+  font-weight: 700;
+  text-align: center;
+  display: block;
+  line-height: 1.12;
+  padding: 0;
+  margin: 0;
+  border: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poc-form-01 .hdr-cell--short .hdr-lbl {
+  padding-top: 0.4mm;
+}
+
+/* Table column headers (fields 8–14) — selectable via .ci-th */
+.poc-form-01 .th-voy,
+.poc-form-01 .th-main,
+.poc-form-01 .th-time-top,
+.poc-form-01 .th-time-sub {
+  padding: 0;
+  vertical-align: middle;
+  position: relative;
+  overflow: hidden;
+}
+
+.poc-form-01 .th-voy .ci-th,
+.poc-form-01 .th-main .ci-th,
+.poc-form-01 .th-time-top .ci-th,
+.poc-form-01 .th-time-sub .ci-th {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 6.5pt;
+  text-align: center;
+  padding: 0.5mm;
+  margin: 0;
+  min-height: 0;
+}
+
+.poc-form-01 .th-main .ci-th,
+.poc-form-01 .th-time-top .ci-th {
+  justify-content: flex-start;
+  text-align: left;
+  padding: 0.6mm 1.2mm;
+}
+
+.poc-form-01 .th-time-top .ci-th {
+  padding: 0.4mm 1.2mm;
+}
+
+.poc-form-01 .th-time-sub .ci-th {
+  font-size: 6pt;
+  font-weight: 700;
+  padding: 0;
+}
+
+.poc-form-01 .th-time-top {
+  height: 4.5mm;
+  border-bottom: none;
+}
+
+.poc-form-01 .th-time-sub {
+  height: 3.5mm;
+}
+
+.poc-form-01 tr.th-split-top td.th-time-top {
+  border-bottom: none;
+}
+
+.poc-form-01 tr.th-split-sub td {
+  border-top: none;
+}
+
+.poc-form-01 tr.th-band td {
+  border-bottom: 2px solid #000;
+}
+
+/* Data rows — .ci fills cell for vertical centre + selection */
+.poc-form-01 .data-row td {
+  height: 6.8mm;
+  padding: 0;
+  vertical-align: middle;
+  position: relative;
+  overflow: hidden;
+}
+
+.poc-form-01 .data-row td .poc-data-val {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 1mm;
+  box-sizing: border-box;
+}
+
+.poc-form-01 .data-row td .ci {
+  position: static;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: 100%;
+  font-size: 8.5pt;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.12;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poc-form-01 .data-row td .ci.ci-rno {
+  color: #444;
+}
+
+.poc-form-01 .data-row td.col-port-data,
+.poc-form-01 .data-row td.col-country-data {
+  text-align: center;
+}
+
+/* Bold bottom border closes the data table on each page */
+.poc-form-01 .poc-grid tbody tr.data-row:last-child td {
+  border-bottom: 2px solid #000;
+}
+
+/* Signature footer — crew list style (outside table) */
+.poc-form-01 .poc-form-footer {
+  margin-top: 2mm;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.poc-form-01 .poc-foot-note {
+  font-size: 6.5pt;
+  font-weight: 400;
+  color: #000;
+  margin: 0 0 2mm;
+}
+
+.poc-form-01 .poc-form-footer__sig-row {
+  /* pad | date @ Date of Arrival | Master @ arrival time … end */
+  display: grid;
+  grid-template-columns:
+    calc(3.7% + 24.3% + 19.5%)
+    11.6%
+    calc(12.8% + 13.8% + 14.3%);
+  align-items: baseline;
+  overflow: visible;
+}
+
+.poc-form-01 .poc-form-footer__sig-rest {
+  display: flex;
+  justify-content: flex-start;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.poc-form-01 .poc-form-footer__date {
+  width: auto;
+  max-width: 100%;
+  border: none !important;
+  border-bottom: none !important;
+  font-size: 8pt;
+  font-weight: 700;
+  padding: 0 1mm;
+  text-align: left;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.poc-form-01 .poc-form-footer__master {
+  width: 50mm;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 8pt;
+  font-weight: 700;
+  border-bottom: 1px solid #000;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.poc-form-01 .poc-sig-block {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 4mm;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.poc-form-01 .poc-sig-lbl {
+  font-size: 8pt;
+  font-weight: 700;
+  white-space: nowrap;
+}

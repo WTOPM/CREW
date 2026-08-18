@@ -1,0 +1,1010 @@
+* {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+      background: #d0d0d0;
+      padding: 16px;
+      color: #000;
+    }
+
+    /* ── A4 portrait ── */
+    .a4-page {
+      background: #fff;
+      width: 210mm;
+      height: 297mm;
+      margin: 0;
+      padding: 6mm 10mm 6mm 0;
+      /* left=0: side label sits outside table but inside page. Right padding 10mm ensures main-content is exactly 194mm wide */
+      border: 1px solid #999;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .25);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      flex-shrink: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    /* ── TITLE ── */
+    h1 {
+      text-align: center;
+      font-size: 11pt;
+      font-weight: 700;
+      letter-spacing: .22em;
+      margin: 0 0 4mm 14mm;
+      /* indent same as content area */
+    }
+
+    /* ═══════════════════════════════════════════════════
+   LAYOUT: side-label (outside) + main content
+═══════════════════════════════════════════════════ */
+    .body-row {
+      display: flex;
+      align-items: stretch;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Side label OUTSIDE the border */
+    .side-lbl {
+      width: 6mm;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      /* align to top of body-row, offset to hit first crew row */
+      justify-content: flex-start;
+      padding: 35.5mm 0.5mm 0 0;
+      gap: 10mm;
+    }
+
+    .side-lbl span {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font-size: 4.8pt;
+      line-height: 1;
+      letter-spacing: .03em;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .side-top {
+      align-self: flex-end;
+    }
+
+    .side-bot {
+      align-self: flex-end;
+      font-size: 4.2pt !important;
+    }
+
+    /* Main content area */
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      width: 100%;
+      position: relative; /* anchor for draggable overlays */
+      /* Column width ratios — IMO Form 01/02 (7 cols, total 194 parts) */
+      --form-w: 194;
+      --w-c0: 9;
+      --w-c1: 60;
+      --w-c2: 20;   /* 9. Rank — чуть уже */
+      --w-c3: 26;   /* 10. Nationality — шире */
+      --w-c4: 25;   /* 11a. Date of birth — равно с c5 */
+      --w-c5: 25;   /* 11b. Place of birth */
+      --w-c6: 29;
+      --w-h1: calc(var(--w-c0) + var(--w-c1));
+      --w-h2: calc(var(--w-c2) + var(--w-c3) + var(--w-c4) + var(--w-c5));
+      --w-h3: var(--w-c6);
+      /* Row 1 only: field 3 wider, field 2 narrower (row 2 stays table-aligned) */
+      --w-h23-shift: 14;
+    }
+
+    /* ── DRAGGABLE OVERLAYS (stamp / signature) ── */
+    .overlay-marker {
+      position: absolute;
+      display: none;
+      cursor: move;
+      mix-blend-mode: multiply;
+      z-index: 100;
+      user-select: none;
+      touch-action: none;
+      pointer-events: auto;
+    }
+
+    .overlay-marker.visible {
+      display: block;
+    }
+
+    /* dashed border only when NOT printing */
+    @media screen {
+      .overlay-marker.visible {
+        outline: 1.5px dashed #1a56db;
+        outline-offset: 2px;
+      }
+      .overlay-marker.visible:hover {
+        outline-color: #c026d3;
+      }
+    }
+
+    .overlay-marker img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    /* resize handle — bottom-right corner (proportional) */
+    .overlay-resize {
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      width: 10px;
+      height: 10px;
+      background: #1a56db;
+      border-radius: 2px;
+      cursor: nwse-resize;
+      z-index: 51;
+    }
+
+    /* edge handles — single-axis resize (transparent grab strips) */
+    .overlay-h {
+      position: absolute;
+      z-index: 50;
+      background: transparent;
+    }
+    .overlay-h--e { top: 12%; bottom: 12%; right: -3px; width: 8px; cursor: ew-resize; }
+    .overlay-h--w { top: 12%; bottom: 12%; left: -3px; width: 8px; cursor: ew-resize; }
+    .overlay-h--n { left: 12%; right: 12%; top: -3px; height: 8px; cursor: ns-resize; }
+    .overlay-h--s { left: 12%; right: 12%; bottom: -3px; height: 8px; cursor: ns-resize; }
+
+    @media print {
+      .overlay-resize, .overlay-h { display: none; }
+    }
+
+    /* ── FORM SHEET (one outer border for header + table) ── */
+    .form-sheet {
+      width: 100%;
+      border: 1px solid #000;
+      box-sizing: border-box;
+      flex-shrink: 0;
+    }
+
+    /* Arrival / Departure + page no. — above the table, not inside its side borders */
+    .sheet-meta {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      min-height: 6.5mm;
+      padding: 0;
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+
+    .sheet-meta .cb-group {
+      justify-content: center;
+      padding-bottom: 0.8mm;
+    }
+
+    .page-no-corner {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5mm;
+      font-size: 5.6pt;
+      font-weight: 700;
+      z-index: 2;
+      min-width: 22mm;
+      padding: 0.8mm 2mm;
+      box-sizing: border-box;
+      background: #fff;
+      border-top: 1px solid #000;
+      border-left: 1px solid #000;
+      border-right: 1px solid #000;
+      border-bottom: none;
+    }
+
+    /* ── HEADER BLOCK ── */
+    .header-block {
+      border: none;
+      flex-shrink: 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .hrow {
+      display: grid;
+      border-bottom: 1px solid #000;
+    }
+
+    .hrow:last-child {
+      border-bottom: none;
+    }
+
+    .page-no-label {
+      white-space: nowrap;
+      line-height: 1.1;
+    }
+
+    .page-no-input {
+      width: 5mm;
+      text-align: center;
+      font-size: 6.5pt;
+      font-weight: 700;
+      border: none !important;
+      border-bottom: none !important;
+      outline: none;
+      background: transparent;
+      padding: 0;
+      color: #000;
+      flex-shrink: 0;
+    }
+
+    .hcell--split {
+      display: flex;
+      padding: 0 !important;
+    }
+
+    .hcell-split-main {
+      flex: 1;
+      padding: 1mm 1.5mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 11mm;
+    }
+
+    .hcell-split-main--label-only {
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .hcell-split-main--label-only .lbl-row {
+      margin-bottom: 0;
+    }
+
+    .hcell-split-append {
+      width: 7mm;
+      border-left: 1px solid #000;
+      flex-shrink: 0;
+    }
+
+    /* Field 6 label — header cell only (doc type lives in table th.c6 below) */
+    .hcell--id {
+      justify-content: flex-start;
+      position: relative;
+    }
+
+    /* Hide table top border in col 6 only — no gap between label and doc type */
+    .hcell--id::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 1px;
+      background: #fff;
+      pointer-events: none;
+    }
+
+    .hcell-id__label-inner {
+      text-align: center;
+      line-height: 1.15;
+      font-size: 6pt;
+      color: #000;
+      width: 100%;
+      border: none !important;
+    }
+
+    .hcell-id__label-inner .fn {
+      font-size: 5.8pt;
+      color: #333;
+    }
+
+    .hcell-id__label-inner .flbl {
+      font-size: 6pt;
+      color: #000;
+    }
+
+    /* Passport / Seaman's Book — merged thead cell (col 6) */
+    .crew-tbl thead th.id-type-head {
+      text-align: center;
+      font-weight: 700;
+      border: 1px solid #000;
+      border-top: none;
+      border-right: none;
+    }
+
+    .id-type-lbl {
+      display: block;
+      font-size: 6pt;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.15;
+      border: none !important;
+    }
+
+    .cb-group {
+      display: flex;
+      align-items: center;
+      gap: 5mm;
+      white-space: nowrap;
+    }
+
+    .cb-item {
+      display: flex;
+      align-items: center;
+      gap: 1.5mm;
+      font-size: 7pt;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cb-box {
+      width: 3.5mm;
+      height: 3.5mm;
+      border: 1px solid #000;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7pt;
+      line-height: 1;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .ad-lbl--active {
+      font-weight: 700;
+    }
+
+    /* Rows 2 & 3 — same width fractions as table column groups */
+    .hrow-3col {
+      display: grid;
+      grid-template-columns:
+        calc(var(--w-h1) / var(--form-w) * 100%)
+        calc(var(--w-h2) / var(--form-w) * 100%)
+        calc(var(--w-h3) / var(--form-w) * 100%);
+      width: 100%;
+      min-height: 11mm;
+    }
+
+    /* Row 1 (fields 1–3): widen date cell at the expense of port cell */
+    .hrow-3col.hrow-top {
+      grid-template-columns:
+        calc(var(--w-h1) / var(--form-w) * 100%)
+        calc((var(--w-h2) - var(--w-h23-shift)) / var(--form-w) * 100%)
+        calc((var(--w-h3) + var(--w-h23-shift)) / var(--form-w) * 100%);
+    }
+
+    /* Header column groups (width comes from grid track) */
+    .hc1,
+    .hc2,
+    .hc3 {
+      min-width: 0;
+    }
+
+    .hcell {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 1mm 1.5mm;
+      border-right: 1px solid #000;
+      min-height: 11mm;
+    }
+
+    .hcell:last-child {
+      border-right: none;
+    }
+
+    .lbl-row {
+      display: flex;
+      align-items: baseline;
+      gap: 1mm;
+      margin-bottom: auto;
+    }
+
+    .fn {
+      font-size: 5.8pt;
+      color: #333;
+      line-height: 1.2;
+    }
+
+    .flbl {
+      font-size: 6pt;
+      color: #000;
+      line-height: 1.2;
+    }
+
+    .fi {
+      border: none;
+      border-bottom: 1px solid #666;
+      outline: none;
+      font-family: Arial, sans-serif;
+      font-size: 7pt;
+      padding: .4mm 0;
+      width: 100%;
+      background: transparent;
+      color: #000;
+    }
+
+    .hcell .fi {
+      margin-top: auto;
+      margin-bottom: 0;
+      padding-left: 0;
+      padding-right: 0;
+      text-align: center;
+    }
+
+    .fi:focus {
+      border-bottom-color: #1a56db;
+      background: #ebf1ff;
+    }
+
+    .fi[type="date"] {
+      font-size: 6pt;
+    }
+
+    /* ── CREW TABLE (no extra wrapper, fills form-sheet) ── */
+    .crew-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 6pt;
+      border: none;
+      border-top: 1px solid #000;
+      cursor: default;
+      user-select: none;
+      box-sizing: border-box;
+    }
+
+    /* All cells */
+    .crew-tbl th,
+    .crew-tbl td {
+      border: 1px solid #000;
+      padding: 0;
+      vertical-align: top;
+    }
+
+    /* Outer frame from .form-sheet — drop duplicate left/right on table edge cells */
+    .crew-tbl th:first-child,
+    .crew-tbl td:first-child {
+      border-left: none;
+    }
+
+    .crew-tbl th:last-child,
+    .crew-tbl td:last-child {
+      border-right: none;
+    }
+
+    /* Header rows */
+    .crew-tbl thead tr:first-child th {
+      /* top header row */
+      font-size: 5.6pt;
+      font-weight: 600;
+      padding: .8mm 1mm .5mm;
+      line-height: 1.25;
+      vertical-align: bottom;
+      word-break: break-word;
+      background: #fff;
+    }
+
+    .crew-tbl thead tr:last-child th {
+      /* sub-header row for DOB split */
+      font-size: 5.4pt;
+      font-weight: 600;
+      padding: .5mm 1mm;
+      line-height: 1.2;
+      vertical-align: bottom;
+      background: #fff;
+    }
+
+    .crew-tbl thead tr:first-child th.id-type-head {
+      vertical-align: middle;
+      padding: 0.4mm 1mm;
+    }
+
+    /* Data cells */
+    .crew-tbl td {
+      height: 5mm;
+      padding: 0;
+      vertical-align: middle;
+    }
+
+    .crew-tbl tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    /* ── Column widths (% of table = same fractions as header groups) ── */
+    .c0 {
+      width: calc(var(--w-c0) / var(--form-w) * 100%);
+    }
+
+    .c1 {
+      width: calc(var(--w-c1) / var(--form-w) * 100%);
+    }
+
+    .c2 {
+      width: calc(var(--w-c2) / var(--form-w) * 100%);
+    }
+
+    .c3 {
+      width: calc(var(--w-c3) / var(--form-w) * 100%);
+    }
+
+    .c4 {
+      width: calc(var(--w-c4) / var(--form-w) * 100%);
+    }
+
+    .c5 {
+      width: calc(var(--w-c5) / var(--form-w) * 100%);
+    }
+
+    .c6 {
+      width: calc(var(--w-c6) / var(--form-w) * 100%);
+    }
+
+    /* Ratios: header groups h1..h3 match table column groups | c0..c6 */
+
+    .rno,
+    .ci-rno {
+      font-size: 5.8pt;
+      color: #444;
+    }
+
+    body {
+      margin: 0;
+      background: #dfdfdf;
+      font-family: Arial, sans-serif;
+      color: #000;
+      padding: 5mm;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 5mm;
+      height: 100vh;
+      min-height: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .doc-zoom-viewport {
+      flex: 1 1 auto;
+      min-width: 0;
+      min-height: 0;
+      max-height: 100%;
+      overflow: auto;
+      display: block;
+      padding: 0 2mm 5mm;
+    }
+
+    .doc-zoom-pad {
+      margin: 0 auto;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .doc-zoom-stage {
+      transform-origin: top left;
+      flex-shrink: 0;
+      width: max-content;
+    }
+
+    .ci {
+      border: none;
+      outline: none;
+      font-family: Arial, sans-serif;
+      font-size: 6pt;
+      padding: .2mm 1mm;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      color: #000;
+      display: block;
+      cursor: default;
+      caret-color: transparent;
+      user-select: none;
+    }
+
+    .ci:focus {
+      outline: none;
+    }
+
+    .ci.selected {
+      background: #e6f0ff !important;
+      outline: 2px solid #1a56db !important;
+      outline-offset: -2px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .ci::placeholder {
+      color: transparent;
+      /* hide placeholder text */
+      font-size: 5pt;
+    }
+
+    .ci[type="date"] {
+      font-size: 5.5pt;
+      padding: .2mm .5mm;
+    }
+
+    /* Row numbers — must override .ci { display:block } */
+    .ci.ci-rno {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 5mm;
+      box-sizing: border-box;
+    }
+
+    .ci.ci-name {
+      display: flex;
+      align-items: center;
+      min-height: 5mm;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .crew-tbl tbody td.c0 {
+      padding: 0;
+      vertical-align: middle;
+      text-align: center;
+    }
+
+    /* ── FOOTER ── */
+    .form-footer {
+      margin-top: 2mm;
+      padding: 0 0 0 0;
+      flex-shrink: 0;
+    }
+
+    .foot-note {
+      font-size: 6pt;
+      color: #222;
+      margin-bottom: 2mm;
+    }
+
+    .form-footer__sig-row {
+      display: grid;
+      grid-template-columns:
+        calc(var(--w-h1) / var(--form-w) * 100%)
+        calc(var(--w-c2) / var(--form-w) * 100%)
+        1fr;
+      align-items: baseline;
+      margin-top: 1mm;
+    }
+
+    .form-footer__sig-rest {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+    }
+
+    .form-footer__date {
+      width: 100%;
+      border: none !important;
+      border-bottom: none !important;
+      font-size: 8pt;
+      padding: 0 1mm;
+      text-align: left;
+    }
+
+    .form-footer__date:focus {
+      background: #ebf1ff;
+      outline: none;
+    }
+
+    .form-footer__master {
+      width: 50mm;
+      text-align: center;
+      font-size: 8pt;
+      border-bottom-color: #000;
+    }
+
+    .sig-block {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      gap: 6mm;
+    }
+
+    .sig-lbl {
+      font-size: 8pt;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .sig-line {
+      flex: 0 0 50mm;
+      height: 0;
+      border-bottom: 1px solid #000;
+    }
+
+    /* ── Actions ── */
+    .actions {
+      margin-top: 5mm;
+      display: flex;
+      gap: 3mm;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      font-family: Arial, sans-serif;
+      font-size: 0.65rem;
+      padding: 0.28rem 0.45rem;
+      line-height: 1.25;
+      cursor: pointer;
+      border: 1px solid #1a3a5c;
+      border-radius: 3px;
+      transition: background-color 0.12s ease, border-color 0.12s ease;
+    }
+
+    .btn-p {
+      background: #1a3a5c;
+      color: #fff;
+    }
+
+    .btn-p:hover {
+      background: #0d2440;
+    }
+
+    .btn-s {
+      background: #fff;
+      color: #1a3a5c;
+    }
+
+    .btn-s:hover {
+      background: #eef2ff;
+    }
+
+    /* ── Print ── */
+    @media print {
+      body {
+        background: #fff;
+        padding: 0;
+      }
+
+      .a4-page {
+        box-shadow: none;
+        border: none;
+        width: 100%;
+        height: auto;
+        min-height: unset;
+        overflow: hidden;
+        padding: 0;
+      }
+
+      .actions,
+
+      @page {
+        size: A4 portrait;
+        margin: 8mm 6mm;
+      }
+    }
+
+    /* ── PDF export (headless capture) — fixed A4 page; overlays clipped at page edge. ── */
+    body.is-pdf-export {
+      display: block;
+      background: #fff;
+      margin: 0;
+      padding: 0;
+      width: 210mm;
+      overflow: hidden;
+    }
+
+    body.is-pdf-export .doc-zoom-viewport {
+      max-height: none;
+      overflow: hidden;
+      padding: 0;
+      display: block;
+    }
+
+    body.is-pdf-export .doc-zoom-stage {
+      transform: none !important;
+    }
+
+    body.is-pdf-export .doc-zoom-pad {
+      width: 210mm !important;
+      height: 297mm !important;
+      overflow: hidden;
+    }
+
+    body.is-pdf-export .a4-page {
+      box-shadow: none;
+      border: none;
+      width: 210mm;
+      height: 297mm;
+      min-height: unset;
+      overflow: hidden;
+      padding: 6mm 10mm 6mm 0;
+    }
+
+    body.is-pdf-export .actions,
+    body.is-pdf-export .side-panel {
+      display: none;
+    }
+
+    body.is-pdf-export .overlay-marker.visible {
+      outline: none;
+    }
+
+    body.is-pdf-export .overlay-resize,
+    body.is-pdf-export .overlay-h {
+      display: none;
+    }
+
+    /* Header ship fields are read-only; arrival/departure toggles stay clickable */
+    .header-block .fi {
+      border-bottom: none !important;
+    }
+
+    .header-block input.fi {
+      pointer-events: none;
+    }
+    .sheet-meta .cb-group {
+      cursor: default;
+    }
+    .sheet-meta .cb-item {
+      cursor: pointer;
+    }
+
+    /* Save / Cancel Button styling */
+    .btn-save {
+      background: #16a34a !important;
+      color: #fff !important;
+      border-color: #15803d !important;
+    }
+    .btn-save:hover {
+      background: #15803d !important;
+    }
+    .btn-cancel {
+      background: #f1f5f9 !important;
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    .btn-cancel:hover {
+      background: #e2e8f0 !important;
+    }
+
+    /* ── Confirm dialog (DG archive modal pattern) ── */
+    .confirm-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10050;
+      padding: 1rem;
+    }
+
+    .dg-archive-modal.confirm-dialog {
+      display: flex;
+      flex-direction: column;
+      width: min(30rem, calc(100vw - 1.5rem));
+      max-width: 30rem;
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid rgb(148 163 184 / 28%);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 24px 48px rgb(15 23 42 / 22%);
+      animation: modalFadeIn 0.15s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .dg-archive-modal__head {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      padding: 1.35rem 1.4rem 1.15rem;
+      border-bottom: 1px solid rgb(148 163 184 / 18%);
+      background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+    }
+
+    .confirm-dialog--danger .dg-archive-modal__head {
+      background: linear-gradient(135deg, #fef2f2 0%, #f8fafc 55%, #fff 100%);
+    }
+
+    .dg-archive-modal__icon {
+      flex-shrink: 0;
+      width: 2.85rem;
+      height: 2.85rem;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      color: #fff;
+    }
+
+    .dg-archive-modal__icon svg {
+      width: 1.45rem;
+      height: 1.45rem;
+    }
+
+    .confirm-dialog__icon--danger {
+      background: linear-gradient(145deg, #f87171, #dc2626);
+      box-shadow: 0 4px 14px rgb(220 38 38 / 28%);
+    }
+
+    .dg-archive-modal__intro {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .dg-archive-modal__intro h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1.08rem;
+      line-height: 1.25;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .confirm-dialog__message {
+      margin: 0;
+      font-size: 0.86rem;
+      color: #64748b;
+      line-height: 1.55;
+    }
+
+    .dg-archive-modal__foot {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.65rem;
+      margin-top: 0;
+      padding: 1rem 1.4rem 1.35rem;
+      border-top: 1px solid #e2e8f0;
+      background: #f1f5f9;
+    }
+
+    .dg-archive-modal__foot .btn {
+      min-width: 5.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btn-secondary {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      color: #0f172a;
+    }
+
+    .btn-secondary:hover {
+      background: #f8fafc;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+      border: 1px solid transparent;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }

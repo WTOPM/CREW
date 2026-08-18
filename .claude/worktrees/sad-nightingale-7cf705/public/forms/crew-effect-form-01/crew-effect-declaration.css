@@ -1,0 +1,297 @@
+/* IMO Crew's Effects Declaration (FAL Form 4) — print layout */
+
+.ced-sheet {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 12mm 8mm 8mm;
+  box-sizing: border-box;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.15;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+}
+
+.ced-sheet .ss-stamp,
+.ced-sheet .ss-signature,
+.ced-sheet #stamp-container,
+.ced-sheet #sig-container {
+  position: absolute;
+  display: none;
+  z-index: 5;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.ced-sheet .ss-stamp.visible,
+.ced-sheet .ss-signature.visible,
+.ced-sheet #stamp-container.visible,
+.ced-sheet #sig-container.visible {
+  display: block;
+}
+
+.ced-sheet .ss-stamp img,
+.ced-sheet .ss-signature img,
+.ced-sheet #stamp-container img,
+.ced-sheet #sig-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.ced-cell--sig .ced-data-val {
+  min-height: 16px;
+}
+
+.ced-title {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 16pt;
+  font-weight: 700;
+}
+
+.ced-body {
+  display: flex;
+  align-items: stretch;
+}
+
+.ced-rail {
+  position: relative;
+  flex: 0 0 22px;
+  width: 22px;
+}
+
+.ced-rail__vertical {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ced-rail__vertical span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+.ced-table-area {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ced-page-no {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -1px;
+}
+
+.ced-page-no__cell {
+  position: relative;
+  width: 20%;
+  min-height: 34px;
+  padding: 2px 4px 0;
+  box-sizing: border-box;
+  border: 1px solid #000;
+  background: #fff;
+}
+
+.ced-page-no__cell .ced-hdr-val--page {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1.3em;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.ced-page-no__cell .ci.ci-hdr {
+  width: 100%;
+  text-align: center;
+  font-weight: 700;
+}
+
+.ced-table {
+  width: 100%;
+  border: 1.5px solid #000;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.ced-cell {
+  border: 1px solid #000;
+  padding: 2px 4px 0;
+  vertical-align: top;
+}
+
+.ced-label {
+  display: block;
+  font-size: 8.5pt;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.ced-input {
+  width: 100%;
+  padding: 1px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #000;
+  font-family: inherit;
+  font-size: 8.5pt;
+}
+
+.ced-input--center {
+  text-align: center;
+}
+
+.ced-cell--vert {
+  padding: 0;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.ced-vlabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 92px;
+}
+
+.ced-vlabel span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  font-size: 9pt;
+}
+
+.ced-tr-t {
+  height: 48px;
+}
+
+.ced-cell--effects-hdr .ced-label {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.ced-tr-n {
+  height: 44px;
+}
+
+.ced-tr-h {
+  height: 52px;
+}
+
+.ced-tr-data {
+  height: 32px;
+}
+
+.ced-tr-data .ced-cell {
+  padding: 0 4px;
+}
+
+.ced-tr-data .ced-input {
+  height: 30px;
+}
+
+.ced-form-footer {
+  margin-top: 2px;
+  flex-shrink: 0;
+  overflow: visible;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.ced-foot-note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 8.5pt;
+  font-weight: 400;
+  line-height: 1.35;
+  color: #000;
+  white-space: nowrap;
+}
+
+.ced-form-footer__data-row {
+  display: grid;
+  grid-template-columns: 11% 30% 10% 6% 6% 6% 11% 20%;
+  align-items: baseline;
+  margin-top: calc(2 * 1.35em);
+  overflow: visible;
+}
+
+.ced-form-footer .form-footer__date {
+  grid-column: 3;
+  width: 100%;
+  border: none;
+  font-size: 8pt;
+  font-weight: 700;
+  padding: 0 4px;
+  text-align: left;
+  white-space: nowrap;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.ced-form-footer__master {
+  grid-column: 6 / 9;
+  display: flex;
+  align-items: baseline;
+  gap: 4mm;
+  padding: 0 4px;
+  min-width: 0;
+}
+
+.ced-form-footer__master .sig-lbl {
+  font-size: 8pt;
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.ced-form-footer .form-footer__master {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 50mm;
+  text-align: center;
+  font-size: 8pt;
+  font-weight: 700;
+  border: none;
+  border-bottom: 1px solid #000;
+  background: transparent;
+  padding: 0 2px 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media print {
+  .ced-sheet {
+    width: auto;
+    min-height: auto;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  .ced-table,
+  .ced-cell {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

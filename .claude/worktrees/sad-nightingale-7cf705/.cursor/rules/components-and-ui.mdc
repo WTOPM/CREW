@@ -1,0 +1,28 @@
+---
+description: Component, template, styles and Angular API conventions for the CREW app
+alwaysApply: true
+---
+
+Angular 21, standalone components, signals API. No NgModules.
+
+- Use `templateUrl` + `styleUrl` files — NEVER inline `template:`/`styles:` in a component.
+- Use signals: `signal`, `computed`, `linkedSignal`, `input()`, `output()`,
+  `viewChild()`, `inject()`. No constructor DI, no decorators-based `@Input/@Output`.
+- Components read state from `StorageService` (selectors) and write via the relevant
+  feature store (see state-architecture rule). Never mutate `AppData` from a component.
+
+Splitting large templates:
+- When a cohesive region grows large (modal, tab, edit form), extract it to a child
+  component. Pattern: `[input]` in, `(save)`/`(cancel)`/`(close)` out, local working copy
+  via `linkedSignal(() => ({ ...this.input() }))`. Examples: `crew-edit-modal`,
+  `dg-archive-modals`, `dg-unifeeder-inventory`.
+- Move the region's CSS too — Angular scopes component styles, so a child won't get the
+  parent's CSS. Shared/cross-component styles live in GLOBAL `src/styles.css`
+  (where modal/form/table/`.dg-*`/`.uf-*` styles already are). Keep class names namespaced
+  (`dg-`, `uf-`, `cma-`, `crew-form-`) so globalizing never collides.
+- Use `providers: [X]` on `@Component` for per-instance services (e.g. object-URL preview
+  lifecycle that must be revoked on destroy).
+
+Refactors are behavior-preserving (1:1) unless asked otherwise. After changes, run
+`npx tsc --noEmit -p tsconfig.app.json` and `npm run build`; both must be clean (exit 0,
+no `NG####` warnings) — AOT compiles templates, so a broken binding fails the build.

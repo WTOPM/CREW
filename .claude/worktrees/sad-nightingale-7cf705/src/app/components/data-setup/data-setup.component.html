@@ -1,0 +1,70 @@
+<div class="modal-backdrop data-setup-backdrop">
+  <div
+    class="modal dg-archive-modal data-setup-modal"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="data-setup-title"
+    aria-describedby="data-setup-message"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dg-archive-modal__head">
+      <div class="dg-archive-modal__icon data-setup-modal__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path
+            fill="currentColor"
+            d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5v4.25l3.15 1.84-.9 1.54L11 12.5V7h2z"
+          />
+        </svg>
+      </div>
+      <div class="dg-archive-modal__intro">
+        <h3 id="data-setup-title">{{ title() }}</h3>
+        <p id="data-setup-message" class="data-setup-modal__message">{{ message() }}</p>
+        @if (debug(); as info) {
+          <dl class="data-setup-modal__paths">
+            <div>
+              <dt>Expected file</dt>
+              <dd>{{ info.dataFile }}</dd>
+            </div>
+            <div>
+              <dt>Data folder</dt>
+              <dd>{{ info.dataDir }}</dd>
+            </div>
+            @if (info.dataPathConfigExists) {
+              <div>
+                <dt>Custom path (data-path.txt)</dt>
+                <dd>{{ info.dataPathConfigFile }}</dd>
+              </div>
+            } @else {
+              <div>
+                <dt>Default data folder</dt>
+                <dd>{{ info.defaultDataDir }}</dd>
+              </div>
+            }
+          </dl>
+          <p class="data-setup-modal__hint">
+            Diagnostics are also written to <code>crew-startup.log</code> next to the app.
+          </p>
+        }
+      </div>
+    </header>
+
+    <footer class="dg-archive-modal__foot data-setup-modal__foot">
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="busy()"
+        (click)="createNew()"
+      >
+        Create new database
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [disabled]="busy()"
+        (click)="openExisting()"
+      >
+        Open existing folder…
+      </button>
+    </footer>
+  </div>
+</div>

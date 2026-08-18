@@ -1,0 +1,242 @@
+.poc-editor .ssd-sheet {
+  height: auto;
+  min-height: 297mm;
+}
+
+body.pdf-export .ssd-sheet {
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  overflow: hidden;
+}
+
+/* Header value cells — centred like Port of Call */
+.ss-editor .ssd-hdr-cell {
+  position: relative;
+  padding: 0;
+  vertical-align: top;
+}
+
+.ss-editor .ssd-hdr-cell > .ssd-label {
+  display: block;
+  padding: 2px 4px 0;
+  pointer-events: none;
+}
+
+.ss-editor .ssd-hdr-cell .ssd-hdr-val {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1.3em;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.ss-editor .ssd-hdr-cell--tall .ssd-hdr-val {
+  top: 1.3em;
+}
+
+.ss-editor .ssd-hdr-val .ci.ci-hdr {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: 100%;
+  text-align: center;
+  font-weight: 700;
+  font-size: 8.5pt;
+  padding: 0;
+  margin: 0;
+}
+
+.ss-editor .ssd-cell--page-no .ci.ci-hdr {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 1.4em;
+  text-align: left;
+}
+
+.ssd-ad-lbl {
+  font-weight: 400;
+}
+
+.ssd-ad-lbl--active {
+  font-weight: 700;
+}
+
+.ssd-row-678-wrap {
+  padding: 0 !important;
+  vertical-align: top;
+}
+
+.ssd-row-678 {
+  display: grid;
+  grid-template-columns: 21% 14% 13% 26% 15% 11%;
+  min-height: 42px;
+  height: 100%;
+}
+
+.ssd-row-678__f6 {
+  grid-column: 1 / 4;
+  position: relative;
+  border-right: 1px solid #000;
+  box-sizing: border-box;
+}
+
+.ssd-row-678__right {
+  grid-column: 4 / 7;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-width: 0;
+}
+
+.ssd-row-678__right > .ssd-hdr-cell {
+  position: relative;
+  border-right: 1px solid #000;
+  box-sizing: border-box;
+}
+
+.ssd-row-678__right > .ssd-hdr-cell:last-child {
+  border-right: none;
+}
+
+.ss-editor .ssd-row-678 .ssd-hdr-cell > .ssd-label {
+  display: block;
+  padding: 2px 4px 0;
+  pointer-events: none;
+}
+
+.ss-editor .ssd-row-678 .ssd-hdr-cell .ssd-hdr-val {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1.3em;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.ss-editor .ssd-hdr-cell--persons .ssd-label {
+  white-space: nowrap;
+}
+
+.ss-editor .ssd-hdr-cell--period .ssd-label {
+  white-space: nowrap;
+}
+
+/* Article rows */
+.ss-editor .ssd-tr-data .ssd-cell {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.ss-editor .ssd-data-val {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  height: 100%;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.ss-editor .ssd-tr-data td:first-child .ssd-data-val {
+  justify-content: flex-start;
+}
+
+.ss-editor .ssd-data-val .ci {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  text-align: center;
+  font-weight: 700;
+  font-size: 8.5pt;
+  padding: 0;
+}
+
+.ss-editor .ssd-tr-data td:first-child .ssd-data-val .ci {
+  text-align: left;
+}
+
+.ss-editor .ssd-cell--qty {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.ss-editor .ssd-qty-half {
+  min-height: 20px;
+}
+
+.ss-editor .ssd-qty-val .ci {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: 0;
+  min-width: 0;
+  font-size: 8.5pt;
+  font-weight: 700;
+  padding: 0;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.poc-editor .ssd-sheet .ssd-qty-half .ci.selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+/* Footer — one row aligned to table columns 9–11 */
+.ss-editor .ssd-form-footer {
+  position: relative;
+  padding-top: 2px;
+}
+
+.ss-editor .ssd-foot-note {
+  pointer-events: none;
+}
+
+.ss-editor .ssd-form-footer .form-footer__date,
+.ss-editor .ssd-form-footer .form-footer__master {
+  min-height: 1.35em;
+  text-align: left;
+  font-weight: 700;
+  font-size: 8.5pt;
+  padding: 0 4px;
+}
+
+.ss-editor .ssd-form-footer .form-footer__master {
+  text-align: center;
+}
+
+body.pdf-export .ssd-form-footer .form-footer__date {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+body.pdf-export .ssd-form-footer .form-footer__master {
+  border: none !important;
+  border-bottom: 1px solid #000 !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+.poc-editor .ssd-sheet .form-footer__date.selected,
+.poc-editor .ssd-sheet .form-footer__master.selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.poc-editor .ssd-sheet .ci.ci-hdr,
+.poc-editor .ssd-sheet .ssd-data-val .ci {
+  height: auto;
+  min-height: 0;
+}

@@ -1,0 +1,83 @@
+<div
+  class="date-picker"
+  [class.date-picker--sm]="size() === 'sm'"
+  [class.date-picker--lg]="size() === 'lg'"
+>
+  <div class="date-picker-row">
+    <input
+      #field
+      class="date-picker-input"
+      [class.date-picker-input--copied]="copied()"
+      type="text"
+      inputmode="numeric"
+      autocomplete="off"
+      placeholder="DD.MM.YYYY"
+      maxlength="10"
+      [ngModel]="text()"
+      (ngModelChange)="onTextChange($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+      (mouseup)="onInputSelect()"
+      (keydown)="onKeydown($event)"
+      (keydown.escape)="close()"
+      (pointerdown)="onCopyPressStart($event)"
+      (pointermove)="onCopyPressMove($event)"
+      (pointerup)="onCopyPressEnd()"
+      (pointerleave)="onCopyPressEnd()"
+      (pointercancel)="onCopyPressEnd()"
+    />
+    <button
+      type="button"
+      class="date-picker-btn"
+      aria-label="Open calendar"
+      [attr.aria-expanded]="open()"
+      (click)="toggle($event)"
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1.5A2.5 2.5 0 0 1 22 6.5v13A2.5 2.5 0 0 1 19.5 22h-15A2.5 2.5 0 0 1 2 19.5v-13A2.5 2.5 0 0 1 4.5 4H6V3a1 1 0 0 1 1-1Zm12.5 6H4.5v11.5c0 .276.224.5.5.5h15c.276 0 .5-.224.5-.5V8ZM8 11.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-8 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"
+        />
+      </svg>
+    </button>
+  </div>
+
+  @if (open()) {
+    <div class="date-picker-popup" role="dialog" aria-label="Choose date" [ngStyle]="popupStyle()">
+      <div class="cal-head">
+        <button type="button" class="cal-nav" (click)="prevMonth()" aria-label="Previous month">
+          ‹
+        </button>
+        <div class="cal-title">{{ monthTitle() }}</div>
+        <button type="button" class="cal-nav" (click)="nextMonth()" aria-label="Next month">
+          ›
+        </button>
+      </div>
+      <div class="cal-weekdays">
+        @for (wd of weekdays; track wd) {
+          <span>{{ wd }}</span>
+        }
+      </div>
+      <div class="cal-grid">
+        @for (cell of cells(); track cell.key) {
+          <button
+            type="button"
+            class="cal-day"
+            [class.cal-day--outside]="!cell.inMonth"
+            [class.cal-day--today]="cell.isToday"
+            [class.cal-day--selected]="cell.isSelected"
+            (click)="selectIso(cell.iso)"
+          >
+            {{ cell.day }}
+          </button>
+        }
+      </div>
+      <div class="cal-foot">
+        <button type="button" class="cal-foot-btn" (click)="selectToday()">Today</button>
+        <button type="button" class="cal-foot-btn cal-foot-btn--muted" (click)="clear()">
+          Clear
+        </button>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Strip Cursor co-author / attribution trailers before commit is finalized.
+MSG_FILE="$1"
+[ -f "$MSG_FILE" ] || exit 0
+
+if command -v sed >/dev/null 2>&1; then
+  sed -i.bak \
+    -e '/^Co-authored-by: Cursor <cursoragent@cursor\.com>[[:space:]]*$/d' \
+    -e '/^Co-authored-by: Cursor <cursoragent@cursor.com>[[:space:]]*$/d' \
+    -e '/^Made-with: Cursor[[:space:]]*$/d' \
+    "$MSG_FILE"
+  rm -f "${MSG_FILE}.bak"
+fi
+
+exit 0

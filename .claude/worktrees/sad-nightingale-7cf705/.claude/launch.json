@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "dev", "runtimeExecutable": "npm", "runtimeArgs": ["start"], "port": 4200 },
+    { "name": "form03", "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8100", "--directory", "public/forms/crew-list-form-03"], "port": 8100 }
+  ]
+}

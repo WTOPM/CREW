@@ -1,0 +1,148 @@
+/* Ship Stores editors (01 & 02) — solid gray workspace like crew/passenger forms */
+
+html:has(body.ss-editor) {
+  background: #d0d0d0;
+}
+
+body.poc-editor.ss-editor {
+  background: #d0d0d0;
+}
+
+body.poc-editor.ss-editor .doc-zoom-viewport {
+  background: #d0d0d0;
+  overflow-x: hidden;
+}
+
+body.poc-editor.ss-editor .doc-zoom-pad {
+  display: block;
+  margin: 0 auto;
+  position: relative;
+  flex-shrink: 0;
+  background: transparent;
+}
+
+body.poc-editor.ss-editor .doc-zoom-slot {
+  display: block;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+body.poc-editor.ss-editor .doc-zoom-stage {
+  display: block;
+  width: max-content;
+  margin: 0;
+  background: transparent;
+  transform-origin: top left;
+}
+
+body.poc-editor.ss-editor .ssd-sheet.a4-page,
+body.poc-editor.ss-editor .ssd-sheet.ssd-sheet--v2 {
+  width: 210mm;
+  max-width: 210mm;
+  box-sizing: border-box;
+  overflow-x: clip;
+  overflow-y: visible;
+  contain: layout paint;
+  isolation: isolate;
+}
+
+body.poc-editor.ss-editor .ssd-body,
+body.poc-editor.ss-editor .ssd-table-area,
+body.poc-editor.ss-editor .ssd-table-wrap,
+body.poc-editor.ss-editor .ssd-table-col,
+body.poc-editor.ss-editor .ssd-table {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* ── PDF export (Electron printToPDF) — lock page to A4, reset editor zoom chrome ── */
+body.pdf-export.poc-editor.ss-editor,
+body.is-pdf-export.poc-editor.ss-editor {
+  display: block;
+  margin: 0;
+  padding: 0;
+  width: 210mm;
+  min-height: 297mm;
+  overflow: hidden;
+  background: #fff;
+}
+
+body.pdf-export .doc-zoom-viewport,
+body.is-pdf-export .doc-zoom-viewport {
+  display: block;
+  width: 210mm;
+  height: 297mm;
+  max-height: none;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  background: #fff;
+}
+
+body.pdf-export .doc-zoom-pad,
+body.is-pdf-export .doc-zoom-pad {
+  width: 210mm !important;
+  height: 297mm !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+body.pdf-export .doc-zoom-slot,
+body.is-pdf-export .doc-zoom-slot {
+  width: 210mm !important;
+  height: 297mm !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body.pdf-export .doc-zoom-stage,
+body.is-pdf-export .doc-zoom-stage {
+  width: 210mm !important;
+  max-width: 210mm !important;
+  transform: none !important;
+  zoom: 1 !important;
+  margin: 0 !important;
+}
+
+body.pdf-export .ssd-sheet.a4-page,
+body.is-pdf-export .ssd-sheet.a4-page,
+body.pdf-export .ssd-sheet.ssd-sheet--v2,
+body.is-pdf-export .ssd-sheet.ssd-sheet--v2 {
+  width: 210mm !important;
+  height: 297mm !important;
+  min-height: 297mm !important;
+  max-width: 210mm !important;
+  margin: 0 !important;
+  box-shadow: none;
+  border: none;
+  overflow: hidden;
+  contain: none;
+  isolation: auto;
+}
+
+body.pdf-export .ssd-body,
+body.pdf-export .ssd-table-area,
+body.pdf-export .ssd-table-wrap,
+body.pdf-export .ssd-table-col,
+body.pdf-export .ssd-table,
+body.is-pdf-export .ssd-body,
+body.is-pdf-export .ssd-table-area,
+body.is-pdf-export .ssd-table-wrap,
+body.is-pdf-export .ssd-table-col,
+body.is-pdf-export .ssd-table {
+  max-width: 100%;
+  overflow: visible;
+}
+
+body.pdf-export .a4-page.ss-page,
+body.is-pdf-export .a4-page.ss-page {
+  width: 210mm !important;
+  height: 297mm !important;
+  min-height: 297mm !important;
+  margin: 0 !important;
+  box-shadow: none;
+  border: none;
+  overflow: hidden;
+}

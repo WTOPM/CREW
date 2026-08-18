@@ -13,7 +13,13 @@ import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-d
 import { ToastService } from './toast.service';
 import { normalizeAppData } from './app-data-normalizer';
 import { SectionLockService } from './section-lock.service';
-import { AppSection, mergeSectionForSave, mergeSectionFromDisk, APP_SECTIONS } from '../utils/app-data-section.util';
+import {
+  AppSection,
+  mergeSectionForSave,
+  mergeSectionFromDisk,
+  APP_SECTIONS,
+} from '../utils/app-data-section.util';
+import { readLocalStorage, writeLocalStorage } from '../utils/browser-storage.util';
 
 const STORAGE_KEY = 'crew-app-data';
 
@@ -92,7 +98,7 @@ export class AppStateStore {
       this.data.set(createEmptyAppData());
       return 'missing';
     }
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readLocalStorage(STORAGE_KEY);
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as Partial<AppData>;
@@ -221,7 +227,7 @@ export class AppStateStore {
       const saved = await this.writeElectronData(toWrite);
       if (!saved) return;
     } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(memory));
+      writeLocalStorage(STORAGE_KEY, JSON.stringify(memory));
     }
     this.afterPersist(notify, savedMessage);
   }
@@ -253,7 +259,7 @@ export class AppStateStore {
       });
       if (!saved) return;
     } else {
-      localStorage.setItem(
+      writeLocalStorage(
         STORAGE_KEY,
         JSON.stringify({ ...memory, seedVersion: APP_DATA_SCHEMA_VERSION }),
       );
@@ -292,7 +298,7 @@ export class AppStateStore {
       });
       if (!saved) return;
     } else {
-      localStorage.setItem(
+      writeLocalStorage(
         STORAGE_KEY,
         JSON.stringify({ ...memory, seedVersion: APP_DATA_SCHEMA_VERSION }),
       );

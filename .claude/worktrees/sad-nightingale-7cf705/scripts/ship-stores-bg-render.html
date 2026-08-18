@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF to canvas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 794px; height: 1123px; overflow: hidden; background: #fff; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <script type="module">
+    try {
+      const params = new URLSearchParams(location.search);
+      const pdfUrl = params.get('pdf');
+      const scale = Number(params.get('scale') || '2');
+      const pdfjsLib = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+      const doc = await pdfjsLib.getDocument(pdfUrl).promise;
+      const page = await doc.getPage(1);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.getElementById('c');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      window.__renderDone = true;
+    } catch (err) {
+      window.__renderError = String(err?.message || err);
+      console.error(err);
+    }
+  </script>
+</body>
+</html>

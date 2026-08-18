@@ -1,0 +1,64 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <a routerLink="/" class="back-link">Home</a>
+      <h1>Crew Arr. — IMO CREW LIST</h1>
+      <p class="subtitle">IMO FAL Form 5 — 23 rows, data from the home page</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary" (click)="openPreview()">Open Crew List</button>
+      <button type="button" class="btn btn-secondary" (click)="generatePdf()">Download PDF</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>Form options</h2>
+    <div class="form-grid">
+      <div class="form-grid-span">
+        <span class="choice-group__legend">Direction</span>
+        <div class="choice-segmented choice-segmented--row" role="radiogroup">
+          <label class="choice-segmented__item">
+            <input
+              type="radio"
+              name="direction"
+              [checked]="crewArr().isArrival"
+              (change)="updateSetting('isArrival', true)"
+            />
+            <span class="choice-segmented__text">Arrival</span>
+          </label>
+          <label class="choice-segmented__item">
+            <input
+              type="radio"
+              name="direction"
+              [checked]="!crewArr().isArrival"
+              (change)="updateSetting('isArrival', false)"
+            />
+            <span class="choice-segmented__text">Departure</span>
+          </label>
+        </div>
+      </div>
+      <label>
+        <span>Page No.</span>
+        <input
+          type="number"
+          min="1"
+          [ngModel]="crewArr().pageNo"
+          (ngModelChange)="updateSetting('pageNo', +$event)"
+        />
+      </label>
+      <label>
+        <span>Identity document (field 6)</span>
+        <input
+          [ngModel]="crewArr().identityDocumentType"
+          (ngModelChange)="updateSetting('identityDocumentType', $event)"
+          placeholder="Passport"
+        />
+      </label>
+    </div>
+    <p class="hint">
+      Ship, ports, dates, and crew (up to 23 people) come from the
+      <a routerLink="/">home page</a>. Click <strong>Open Crew List</strong> to open a PDF preview
+      in a new browser window.
+    </p>
+  </section>
+</div>

@@ -10,6 +10,11 @@ import {
 import { normalizeReeferLibrary, type ReeferLibrarySettings } from '../models/reefer.models';
 import type { Port, ShipInfo } from '../models/crew.models';
 import { reeferPageShipContextFromLibrary } from '../utils/page-ship-context.util';
+import {
+  readLocalStorage,
+  removeLocalStorage,
+  writeLocalStorage,
+} from '../utils/browser-storage.util';
 import { StorageService } from './storage.service';
 import { ReeferStore } from './reefer.store';
 
@@ -134,16 +139,16 @@ export class ReeferPageArchiveService {
       loadedId: loaded.id,
       liveBackup: cloneLiveBackup(this.liveBackup, this.storage.ports()),
     };
-    localStorage.setItem(REEFER_PAGE_ARCHIVE_SESSION_KEY, JSON.stringify(session));
+    writeLocalStorage(REEFER_PAGE_ARCHIVE_SESSION_KEY, JSON.stringify(session));
   }
 
   private clearSession(): void {
-    localStorage.removeItem(REEFER_PAGE_ARCHIVE_SESSION_KEY);
+    removeLocalStorage(REEFER_PAGE_ARCHIVE_SESSION_KEY);
   }
 
   private readSession(): ReeferPageArchiveSession | null {
     try {
-      const raw = localStorage.getItem(REEFER_PAGE_ARCHIVE_SESSION_KEY);
+      const raw = readLocalStorage(REEFER_PAGE_ARCHIVE_SESSION_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== 'object') return null;
@@ -174,7 +179,7 @@ export class ReeferPageArchiveService {
 
   private readEntries(): ReeferPageSnapshot[] {
     try {
-      const raw = localStorage.getItem(REEFER_PAGE_ARCHIVE_STORAGE_KEY);
+      const raw = readLocalStorage(REEFER_PAGE_ARCHIVE_STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw) as unknown;
       if (!Array.isArray(parsed)) return [];
@@ -189,7 +194,7 @@ export class ReeferPageArchiveService {
   }
 
   private writeEntries(): void {
-    localStorage.setItem(REEFER_PAGE_ARCHIVE_STORAGE_KEY, JSON.stringify(this.entries()));
+    writeLocalStorage(REEFER_PAGE_ARCHIVE_STORAGE_KEY, JSON.stringify(this.entries()));
   }
 
   private normalizeEntry(raw: unknown): ReeferPageSnapshot | null {

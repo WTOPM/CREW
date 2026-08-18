@@ -83,5 +83,14 @@
     "portable": {
       "artifactName": "CREW-Documents.exe"
     }
+  },
+  "allowScripts": {
+    "@parcel/watcher@2.5.6": true,
+    "canvas@3.2.3": true,
+    "core-js@3.49.0": true,
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.27.3": true,
+    "lmdb@3.5.1": true,
+    "msgpackr-extract@3.0.4": true
   }
 }

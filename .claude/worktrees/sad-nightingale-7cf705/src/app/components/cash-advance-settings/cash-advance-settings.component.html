@@ -1,0 +1,50 @@
+<section class="doc-form-settings">
+  <label class="doc-field doc-field--wide">
+    <span class="doc-label">Title (change only if different from the printed form heading)</span>
+    <input
+      type="text"
+      class="doc-input doc-input--wide"
+      [ngModel]="form().title"
+      (ngModelChange)="onTitleChange($event)"
+    />
+  </label>
+  <label class="doc-field">
+    <span class="doc-label">Payroll date (empty = arrival date)</span>
+    <input
+      type="text"
+      class="doc-input"
+      [ngModel]="form().payrollDate"
+      (ngModelChange)="onPayrollDateChange($event)"
+      placeholder="24.12.2025"
+    />
+  </label>
+
+  <h4 class="doc-section-title">Crew amounts (arrival list order)</h4>
+  <ul class="doc-crew-list">
+    @for (member of crew(); track member.id) {
+      <li class="doc-crew-row">
+        <span class="doc-crew-name">{{ crewLabel(member) }}</span>
+        <label class="doc-field">
+          <span class="doc-label">USD</span>
+          <input
+            type="text"
+            class="doc-input"
+            [ngModel]="amountsFor(form(), member.id).usd"
+            (ngModelChange)="onAmountChange(member.id, 'usd', $event)"
+          />
+        </label>
+        <label class="doc-field">
+          <span class="doc-label">EUR</span>
+          <input
+            type="text"
+            class="doc-input"
+            [ngModel]="amountsFor(form(), member.id).eur"
+            (ngModelChange)="onAmountChange(member.id, 'eur', $event)"
+          />
+        </label>
+      </li>
+    }
+  </ul>
+
+  <app-document-stamp-options documentId="cashAdvance" />
+</section>

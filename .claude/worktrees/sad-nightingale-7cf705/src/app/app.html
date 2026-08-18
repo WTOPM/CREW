@@ -1,0 +1,236 @@
+<div class="app-shell">
+  <nav class="top-nav">
+    <div class="top-nav__start">
+      <a
+        routerLink="/"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="brand"
+      >
+        <img class="brand-logo" src="logo.svg" width="44" height="44" alt="" />
+        <span class="brand-text">
+          <span class="brand-title">CREW</span>
+          <span class="brand-subtitle">Documents</span>
+          <span class="brand-version">v0.91</span>
+        </span>
+      </a>
+
+      <div class="nav-links" aria-label="Main navigation">
+        <a
+          routerLink="/"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          class="nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('home') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('home') === 'other'"
+          [title]="navLockTooltip('home')"
+          >Home
+          @if (navLockBadge('home'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('home') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
+          routerLink="/dg"
+          routerLinkActive="active"
+          class="nav-dg nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('dg') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('dg') === 'other'"
+          [title]="navLockTooltip('dg')"
+          >DG
+          @if (navLockBadge('dg'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('dg') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
+          routerLink="/reefer"
+          routerLinkActive="active"
+          class="nav-reefer nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('reefer') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('reefer') === 'other'"
+          [title]="navLockTooltip('reefer')"
+          >REEFER
+          @if (navLockBadge('reefer'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('reefer') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
+          routerLink="/eta"
+          routerLinkActive="active"
+          class="nav-eta nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('eta') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('eta') === 'other'"
+          [title]="navLockTooltip('eta')"
+          >ETA
+          @if (navLockBadge('eta'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('eta') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
+          routerLink="/settings"
+          routerLinkActive="active"
+          class="nav-settings nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('settings') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('settings') === 'other'"
+          [title]="navLockTooltip('settings')"
+        >
+          <svg class="gear-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"
+            />
+          </svg>
+          Settings
+          @if (navLockBadge('settings'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('settings') === 'mine'"
+              >{{ badge }}</span
+            >
+          }
+        </a>
+      </div>
+
+      @if (cooperativeSharing()) {
+        <button
+          type="button"
+          class="nav-refresh-btn"
+          title="Refresh current section from shared data folder"
+          [disabled]="refreshBusy()"
+          (click)="refreshFromDisk()"
+        >
+          <span class="nav-refresh-btn__icon" [class.nav-refresh-btn__icon--spin]="refreshBusy()"
+            >↻</span
+          >
+          <span class="nav-refresh-btn__label">Refresh</span>
+        </button>
+      }
+    </div>
+
+    @if (showPkgBar()) {
+      <div class="top-nav__center">
+        <app-pkg-bar />
+      </div>
+    }
+
+    <div class="top-nav__end">
+      @if (hasElectron) {
+        <div class="top-nav-tray" tabindex="0" aria-describedby="top-nav-tray-tip">
+          <label class="top-nav-tray__toggle">
+            <input
+              type="checkbox"
+              class="top-nav-tray__input"
+              [ngModel]="minimizeToTray()"
+              (ngModelChange)="onMinimizeToTrayChange($event)"
+            />
+            <span class="top-nav-tray__track" aria-hidden="true">
+              <span class="top-nav-tray__thumb"></span>
+            </span>
+            <span class="top-nav-tray__label">Minimize to system tray</span>
+          </label>
+          <span id="top-nav-tray-tip" class="top-nav-tray__tooltip" role="tooltip">
+            When minimized or closed, CREW stays in the tray. Open from the tray icon — data is
+            refreshed from the shared folder.
+          </span>
+        </div>
+      }
+
+      <div
+        class="output-bar"
+        [class.output-bar--active]="outputSettings().saveToFolder"
+        [attr.aria-label]="
+          outputSettings().saveToFolder ? 'Saving to folder is ON' : 'Saving to folder is off'
+        "
+      >
+        <button
+          type="button"
+          class="output-toggle-btn"
+          [class.output-toggle-btn--on]="outputSettings().saveToFolder"
+          title="Save to selected folder — click to toggle"
+          [attr.aria-pressed]="outputSettings().saveToFolder"
+          (click)="toggleSaveToFolder(!outputSettings().saveToFolder)"
+        >
+          {{ outputSettings().saveToFolder ? 'ON' : 'OFF' }}
+        </button>
+
+        @if (canSaveToFolder) {
+          <select
+            class="output-select"
+            [ngModel]="activeFolderId()"
+            (ngModelChange)="selectFolder($event)"
+            [disabled]="folderOptions().length === 0"
+            title="Active save folder"
+          >
+            @if (folderOptions().length === 0) {
+              <option value="">No folder — click 📁</option>
+            }
+            @for (f of folderOptions(); track f.id) {
+              <option [value]="f.id">{{ f.label }}</option>
+            }
+          </select>
+          <button
+            type="button"
+            class="output-btn"
+            [title]="folderBtnTitle()"
+            (mousedown)="onFolderBtnDown($event)"
+            (mouseup)="onFolderBtnUp()"
+            (mouseleave)="onFolderBtnLeave()"
+          >
+            📁
+          </button>
+          <button
+            type="button"
+            class="output-btn"
+            title="Remove selected folder"
+            [disabled]="!activeFolderId()"
+            (click)="removeActiveFolder()"
+          >
+            ×
+          </button>
+        } @else {
+          <span class="output-note">Folder saving needs Chrome or Edge</span>
+        }
+      </div>
+    </div>
+  </nav>
+  @if (sectionLockBanner(); as banner) {
+    <div
+      class="section-lock-banner"
+      [class.section-lock-banner--displaced]="banner.kind === 'displaced'"
+      role="status"
+    >
+      <span class="section-lock-banner__text">{{ banner.message }}</span>
+      <button
+        type="button"
+        class="section-lock-takeover-btn"
+        [disabled]="takeOverBusy()"
+        (click)="takeOverSection()"
+      >
+        TAKE OVER CONTROL
+      </button>
+    </div>
+  }
+  <main class="app-main" [class.app-main--readonly]="sectionReadOnly()">
+    <router-outlet />
+  </main>
+  <app-confirm-dialog />
+  <app-toast />
+  @if (dataSetup(); as setup) {
+    <app-data-setup [reason]="setup.reason" (resolved)="onDataSetupResolved()" />
+  }
+</div>

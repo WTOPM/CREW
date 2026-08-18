@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>05 - CREW LIST - SBK E</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="crew-list-form-05.css" />
+  <link rel="stylesheet" href="../cell-align-toolbar.css" />
+  <link rel="stylesheet" href="../html-form-header-cells.css" />
+  <link rel="stylesheet" href="../overlay-toolbar.css" />
+  <link rel="stylesheet" href="../html-form-excel-export.css" />
+  <link rel="stylesheet" href="../html-form-editor-chrome.css" />
+</head>
+<body>
+<!-- LEFT TOOLBAR (Formatting) -->
+  <div class="side-panel side-panel--left">
+    <div class="side-panel__actions">
+      <button type="button" class="btn btn-save" onclick="persistAllChanges()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 9.5 17 19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Save
+      </button>
+      <button type="button" class="btn btn-cancel" onclick="showConfirmModal()">
+        <svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        Cancel
+      </button>
+    </div>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Format</h2>
+    <select id="tb-font" class="side-panel__select" onchange="applyFormat('fontFamily', this.value)">
+      <option value="Arial">Arial</option>
+      <option value="Calibri">Calibri</option>
+      <option value="Times New Roman">Times New Roman</option>
+      <option value="Courier New">Courier New</option>
+    </select>
+    <select id="tb-size" class="side-panel__select" onchange="applyFormat('fontSize', this.value + 'pt')">
+      <option value="5">5</option>
+      <option value="6" selected>6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10">10</option>
+      <option value="11">11</option>
+      <option value="12">12</option>
+    </select>
+      <div id="cell-align-toolbar" class="cell-align-toolbar" aria-label="Cell alignment"></div>
+    </section>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Zoom</h2>
+      <div class="zoom-controls">
+        <div class="zoom-controls__row">
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <span id="zoom-label" class="zoom-controls__pct">100%</span>
+          <button type="button" class="zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <button type="button" class="btn btn-excel" id="btn-export-excel" onclick="exportToExcel()">Excel</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="doc-zoom-viewport" id="doc-zoom-viewport">
+    <div class="doc-zoom-stage" id="doc-zoom-stage">
+  <div class="a4-page">
+    <h1>CREW&nbsp;&nbsp;LIST</h1>
+
+    <div class="body-row">
+
+      <!-- ══ SIDE LABEL — outside the border ══ -->
+      <div class="side-lbl">
+        <span class="side-top">IMO Convention on Facilitation of International Maritime Traffic</span>
+        <span class="side-bot">II-1969 IMO FAL Form 5</span>
+      </div>
+
+      <!-- ══ MAIN CONTENT ══ -->
+      <div class="main-content">
+
+        <!-- HEADER + TABLE — single outer frame so vertical edges align -->
+        <div class="form-sheet">
+
+        <div class="header-block">
+
+          <!-- Row 1 -->
+          <div class="hrow hrow-top">
+            <div class="agency-wrap">
+              <span class="lbl-agency">AGENCY:</span>
+              <input type="text" class="fi" id="h-agency" style="flex:1" value="ALGIERS SHIPPING AGENCY S.P.A." readonly />
+            </div>
+            <div class="cb-group">
+              <label class="cb-item" onclick="setAD('arrival')">
+                <span class="cb-box" id="cb-arr">✓</span> <span class="ad-lbl" data-ad="arrival">Arrival</span>
+              </label>
+              <label class="cb-item" onclick="setAD('departure')">
+                <span class="cb-box" id="cb-dep"></span> <span class="ad-lbl" data-ad="departure">Departure</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="hrow hrow-3col">
+            <div class="hcell hc1">
+              <div class="lbl-row"><span class="fn">1.</span> <span class="flbl">Name of ship</span></div>
+              <input type="text" class="fi" id="h-ship-name" value="MV JUDITH" readonly />
+            </div>
+            <div class="hcell hc2">
+              <div class="lbl-row"><span class="fn">2.</span> <span class="flbl">Port of <span class="ad-lbl" data-ad="arrival">arrival</span> / <span class="ad-lbl" data-ad="departure">departure</span></span>
+              </div>
+              <input type="text" class="fi" id="h-port" value="ALGIERS" readonly />
+            </div>
+            <div class="hcell hc3">
+              <div class="lbl-row"><span class="fn">3.</span> <span class="flbl">Date of <span class="ad-lbl" data-ad="arrival">arrival</span> / <span class="ad-lbl" data-ad="departure">departure</span></span>
+              </div>
+              <input type="text" class="fi" id="h-date" value="2025-06-23" readonly />
+            </div>
+          </div>
+
+          <!-- Row 3 -->
+          <div class="hrow hrow-3col">
+            <div class="hcell hc1">
+              <div class="lbl-row"><span class="fn">4.</span> <span class="flbl">Nationality of ship</span></div>
+              <input type="text" class="fi" id="h-nat" value="MALTA" readonly />
+            </div>
+            <div class="hcell hc2">
+              <div class="lbl-row"><span class="fn">5.</span> <span class="flbl">Port arrived from / Port of
+                  destination</span></div>
+              <input type="text" class="fi" id="h-from" value="GENOA / ALGIERS" readonly />
+            </div>
+            <div class="hcell hc3" style="justify-content:space-between;padding-top:1mm">
+              <div class="lbl-row"><span class="fn">6.</span> <span class="flbl">Nature and No. of identity
+                  document</span></div>
+            </div>
+          </div>
+
+        </div><!-- /header-block -->
+
+        <!-- CREW TABLE -->
+        <table class="crew-tbl">
+          <colgroup>
+            <col class="c0">
+            <col class="c1">
+            <col class="c2">
+            <col class="c3">
+            <col class="c4">
+            <col class="c5">
+            <col class="c6">
+            <col class="c7">
+          </colgroup>
+          <thead>
+            <!-- Main header row -->
+            <tr>
+              <th class="c0" rowspan="2">7. No.</th>
+              <th class="c1" rowspan="2">8. Family name, given names</th>
+              <th class="c2" rowspan="2">9. Rank or rating</th>
+              <th class="c3" rowspan="2">10. Nationality</th>
+              <!-- colspan=2 for the split DOB column -->
+              <th colspan="2" style="text-align:center">11. Date and place of birth</th>
+              <th class="c6" rowspan="2">Seamans Book No.</th>
+              <th class="c7" rowspan="2">Seamans Book Expiry</th>
+            </tr>
+            <!-- Sub-header: DOB split -->
+            <tr>
+              <th class="c4" style="font-weight:500">Date of birth</th>
+              <th class="c5" style="font-weight:500">Place of birth</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+
+        </div><!-- /form-sheet -->
+
+        <div class="form-footer">
+          <p class="foot-note">12. Date and signature by master, authorized agent or officer</p>
+          <div class="form-footer__sig-row">
+            <div class="form-footer__pad-h1" aria-hidden="true"></div>
+            <input type="text" id="f-footer-date" class="fi form-footer__date" placeholder="DD.MM.YYYY" />
+            <div class="form-footer__sig-rest">
+              <div class="sig-block">
+                <span class="sig-lbl">Master</span>
+                <div id="f-master-name" class="fi form-footer__master"
+                  style="width: 50mm; text-align: center; font-size: 8pt;"
+                  aria-readonly="true"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DRAGGABLE OVERLAYS — positioned inside main-content -->
+        <div id="stamp-container" class="overlay-marker"></div>
+        <div id="sig-container" class="overlay-marker"></div>
+
+      </div><!-- /main-content -->
+    </div><!-- /body-row -->
+  </div><!-- /a4-page -->
+    </div><!-- /doc-zoom-stage -->
+  </div><!-- /doc-zoom-viewport -->
+
+  <!-- CONFIRM CANCEL DIALOG (DG-style) -->
+  <div id="confirm-modal" class="confirm-backdrop" style="display: none;" onclick="if (event.target === this) closeConfirmModal()">
+    <div
+      class="dg-archive-modal confirm-dialog confirm-dialog--danger"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-dialog-title"
+      aria-describedby="confirm-dialog-message"
+      onclick="event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon confirm-dialog__icon confirm-dialog__icon--danger" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path fill="currentColor" d="M12 2 1 21h22L12 2zm0 4.2L19.5 19H4.5L12 6.2zM11 10v5h2v-5h-2zm0 7v2h2v-2h-2z"/>
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="confirm-dialog-title">Cancel changes</h3>
+          <p id="confirm-dialog-message" class="confirm-dialog__message">Are you sure you want to cancel? All unsaved changes will be lost.</p>
+        </div>
+      </header>
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmCancel()">Discard changes</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- RIGHT TOOLBAR (Rows) -->
+  <div class="side-panel side-panel--right">
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Rows</h2>
+    <button type="button" class="btn btn-s side-panel__row-btn" onclick="addRow()"><svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Add row</button>
+    <button type="button" class="btn btn-s side-panel__row-btn side-panel__row-btn--muted" onclick="removeRow()"><svg class="side-panel__ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg> Remove last</button>
+    </section>
+    <section class="side-panel__section">
+      <h2 class="side-panel__heading">Overlays</h2>
+      <div class="overlay-toolbar" aria-label="Stamp and signature">
+        <div id="overlay-toolbar-toggles" class="overlay-toolbar__toggles" role="group" aria-label="Overlays"></div>
+        <button type="button" class="btn btn-s btn--compact overlay-toolbar__reset" onclick="resetPositions()">Reset positions</button>
+      </div>
+    </section>
+  </div>
+
+  <datalist id="ranks">
+    <option value="Master">
+    <option value="Chief Officer">
+    <option value="2nd Officer">
+    <option value="3rd Officer">
+    <option value="Chief Engineer">
+    <option value="2nd Engineer">
+    <option value="3rd Engineer">
+    <option value="4th Engineer">
+    <option value="Bosun">
+    <option value="AB Seaman">
+    <option value="OS Seaman">
+    <option value="Cook">
+    <option value="Steward">
+    <option value="Electrician">
+    <option value="Motorman">
+    <option value="Fitter">
+    <option value="Cadet">
+    <option value="Other">
+  </datalist>
+  <script src="../overlay-drag.js"></script>
+  <script src="../port-format.js"></script>
+  <script src="../crew-name-format.js"></script>
+  <script src="../overlay-toolbar.js"></script>
+  <script src="../html-form-date-format.js"></script>
+  <script src="../html-form-footer-fields.js"></script>
+  <script src="../html-form-editor-overlay.js"></script>
+  <script src="../html-form-editor-wheel.js"></script>
+  <script src="../cell-align-toolbar.js"></script>
+  <script src="../html-form-header-cells.js"></script>
+  <script src="../html-form-editor-dirty.js"></script>
+  <script src="../html-form-excel-export.js"></script>
+  <script src="../html-form-pdf-snapshot.js"></script>
+  <script src="crew-list-form-05.js"></script>
+</body>
+</html>

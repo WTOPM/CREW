@@ -1,0 +1,63 @@
+.sm-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.sm-section-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sm-entry-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sm-entry-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.sm-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.sm-input {
+  width: 6.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.sm-remove {
+  font-size: 0.78rem;
+  padding: 0;
+  margin-bottom: 0.25rem;
+}
+
+.sm-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}

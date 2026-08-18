@@ -1,0 +1,86 @@
+.nil-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.nil-section-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.nil-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.nil-phrase-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.nil-phrase-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.nil-phrase-check {
+  flex: 0 0 auto;
+}
+
+.nil-input {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.nil-input--phrase {
+  flex: 1;
+  min-width: 0;
+}
+
+.nil-remove {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  padding: 0;
+}
+
+.nil-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nil-add .nil-input {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.nil-html-settings {
+  padding-top: 0.35rem;
+}
+
+.nil-html-settings__btn {
+  width: 100%;
+}
+
+.nil-html-settings__hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #64748b;
+}

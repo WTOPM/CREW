@@ -1,0 +1,200 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Times New Roman', Times, serif;
+  background: #d0d0d0;
+  color: #000;
+}
+
+body:not(.poc-editor) {
+  padding: 16px;
+}
+
+.nil-page {
+  background: #fff;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 18mm 16mm 16mm;
+  border: 1px solid #999;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.nil-title {
+  text-align: center;
+  font-size: 14pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0 0 10mm;
+}
+
+.nil-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4mm 8mm;
+  margin-bottom: 4mm;
+}
+
+.nil-field {
+  display: flex;
+  gap: 2mm;
+  font-size: 11pt;
+  line-height: 1.45;
+}
+
+.nil-label {
+  white-space: nowrap;
+}
+
+.nil-value {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.nil-rule {
+  border: none;
+  border-top: 1px solid #000;
+  margin: 0 0 12mm;
+}
+
+.nil-body {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 8mm;
+  font-size: 11pt;
+}
+
+.nil-phrases {
+  grid-column: 1 / -1;
+  padding-left: 22%;
+}
+
+.nil-phrase {
+  font-size: 11pt;
+  line-height: 1.5;
+  text-transform: uppercase;
+  margin: 0 0 6mm;
+}
+
+.nil-phrase:last-child {
+  margin-bottom: 0;
+}
+
+.nil-master {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 4.5em;
+}
+
+.nil-master-inner {
+  width: 62mm;
+}
+
+.nil-master-line {
+  display: flex;
+  align-items: flex-end;
+  gap: 2mm;
+  font-size: 11pt;
+  line-height: 1;
+}
+
+.nil-master-label {
+  flex-shrink: 0;
+  white-space: nowrap;
+  line-height: 1;
+  margin-bottom: 1px;
+}
+
+.nil-master-rule {
+  position: relative;
+  flex: 1;
+  min-width: 38mm;
+  height: 1.15em;
+  border-bottom: 1px solid #000;
+}
+
+.nil-master-name {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  background: #fff;
+  padding-left: 1mm;
+}
+
+body.nil-editor {
+  font-family: 'Times New Roman', Times, serif;
+}
+
+.nil-editor .nil-page {
+  margin: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+#stamp-container,
+#sig-container {
+  position: absolute;
+  display: none;
+  z-index: 5;
+  pointer-events: none;
+}
+
+#stamp-container.visible,
+#sig-container.visible {
+  display: block;
+}
+
+#stamp-container img,
+#sig-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+body.pdf-export {
+  padding: 0;
+  background: #fff;
+}
+
+body.pdf-export .nil-page {
+  box-shadow: none;
+  margin: 0;
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  overflow: hidden;
+}
+
+@media print {
+  body {
+    padding: 0;
+    background: #fff;
+    margin: 0;
+  }
+
+  .nil-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    box-shadow: none;
+    border: none;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}

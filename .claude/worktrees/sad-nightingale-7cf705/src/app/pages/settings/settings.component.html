@@ -1,0 +1,566 @@
+<div class="page settings-page">
+  <header class="page-header settings-page-header">
+    <div>
+      <a routerLink="/" class="back-link">Home</a>
+      <h1>Settings</h1>
+    </div>
+  </header>
+
+  <section class="card ship-settings-card">
+    <div class="ship-settings-head">
+      <h2>SHIP INFORMATION</h2>
+    </div>
+
+    <div class="ship-settings-layout">
+      <div class="ship-block ship-block--vessel">
+        <h3 class="ship-block-title">Vessel</h3>
+        <div class="ship-block-grid ship-block-grid--4">
+          <label class="ship-field">
+            <span>Name</span>
+            <input [ngModel]="ship().name" (ngModelChange)="onShipChange('name', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>Call sign</span>
+            <input [ngModel]="ship().callSign" (ngModelChange)="onShipChange('callSign', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>Nationality</span>
+            <input
+              [ngModel]="ship().nationality"
+              (ngModelChange)="onShipChange('nationality', $event)"
+            />
+          </label>
+          <label class="ship-field ship-field--wide">
+            <span>Homeport</span>
+            <input [ngModel]="ship().homeport" (ngModelChange)="onShipChange('homeport', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>IMO No</span>
+            <input [ngModel]="ship().imoNo" (ngModelChange)="onShipChange('imoNo', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>Type</span>
+            <input [ngModel]="ship().type" (ngModelChange)="onShipChange('type', $event)" />
+          </label>
+          <label class="ship-field">
+            <span>Charterer</span>
+            <input
+              [ngModel]="ship().charterer"
+              (ngModelChange)="onShipChange('charterer', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>Voyage Number</span>
+            <input
+              [ngModel]="ship().voyageNumber"
+              (ngModelChange)="onShipChange('voyageNumber', $event)"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="ship-block ship-block--issc">
+        <h3 class="ship-block-title">ISSC - Ship Security Certificate</h3>
+        <div class="ship-block-grid ship-block-grid--issc-row">
+          <label class="ship-field ship-field--sso">
+            <span>Ship Security Officer</span>
+            <input
+              [ngModel]="ship().shipSecurityOfficer"
+              (ngModelChange)="onShipChange('shipSecurityOfficer', $event)"
+              placeholder="Auto: SSO rank or Ch.Off if empty"
+            />
+          </label>
+          <label class="ship-field ship-field--date">
+            <span>ISSC issued on</span>
+            <app-date-picker
+              [value]="ship().isscIssueDate"
+              (valueChange)="onShipChange('isscIssueDate', $event)"
+            />
+          </label>
+          <label class="ship-field ship-field--date">
+            <span>ISSC expiry</span>
+            <app-date-picker
+              [value]="ship().isscExpiryDate"
+              (valueChange)="onShipChange('isscExpiryDate', $event)"
+            />
+          </label>
+          <label class="ship-field ship-field--rso">
+            <span>ISSC issued by (RSO)</span>
+            <input
+              [ngModel]="ship().isscIssuedByRso"
+              (ngModelChange)="onShipChange('isscIssuedByRso', $event)"
+            />
+          </label>
+          <label class="ship-field ship-field--marsec">
+            <span>MARSEC level</span>
+            <select
+              [ngModel]="ship().presentMarsecLevel"
+              (ngModelChange)="onShipChange('presentMarsecLevel', $event)"
+            >
+              @for (lvl of marsecLevelOptions; track lvl) {
+                <option [value]="lvl">{{ lvl }}</option>
+              }
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="ship-block ship-block--sanitation">
+        <h3 class="ship-block-title">Sanitation certificate</h3>
+        <div class="ship-block-grid ship-block-grid--3">
+          <label class="ship-field">
+            <span>Certificate No.</span>
+            <input
+              [ngModel]="ship().sanitationCertificateNo"
+              (ngModelChange)="onShipChange('sanitationCertificateNo', $event)"
+            />
+          </label>
+          <label class="ship-field ship-field--wide">
+            <span>Issued at</span>
+            <app-port-select
+              [value]="ship().sanitationCertificateIssuedAt"
+              [ports]="ports()"
+              (valueChange)="onShipChange('sanitationCertificateIssuedAt', $event)"
+            />
+          </label>
+          <label class="ship-field">
+            <span>Issue date</span>
+            <app-date-picker
+              [value]="ship().sanitationCertificateIssueDate"
+              (valueChange)="onShipChange('sanitationCertificateIssueDate', $event)"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="ship-settings-split">
+        <div class="ship-block ship-block--water">
+          <h3 class="ship-block-title">Water test</h3>
+          <div class="ship-block-grid ship-block-grid--2">
+            <label class="ship-field ship-field--wide">
+              <span>Port</span>
+              <app-port-select
+                [value]="ship().waterTestPort"
+                [ports]="ports()"
+                (valueChange)="onShipChange('waterTestPort', $event)"
+              />
+            </label>
+            <label class="ship-field">
+              <span>Date</span>
+              <app-date-picker
+                [value]="ship().waterTestDate"
+                (valueChange)="onShipChange('waterTestDate', $event)"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div class="ship-block ship-block--tonnage">
+          <h3 class="ship-block-title">Tonnage</h3>
+          <div class="ship-block-grid ship-block-grid--2">
+            <label class="ship-field">
+              <span>Gross</span>
+              <input
+                [ngModel]="ship().grossTonnage"
+                (ngModelChange)="onShipChange('grossTonnage', $event)"
+              />
+            </label>
+            <label class="ship-field">
+              <span>Net</span>
+              <input
+                [ngModel]="ship().netTonnage"
+                (ngModelChange)="onShipChange('netTonnage', $event)"
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card stamp-settings-card">
+    <h2>Ship stamp &amp; captain signature</h2>
+    <app-document-stamp-upload />
+  </section>
+
+  <section class="card ref-settings-card">
+    <h2>Reference data</h2>
+    <p class="section-desc">Directories used in crew forms and port lists.</p>
+    <div class="settings-tiles settings-tiles--ref">
+      <button type="button" class="ref-tile ref-tile--ports" (click)="openPorts()">
+        <span class="ref-tile__glow" aria-hidden="true"></span>
+        <span class="ref-tile__icon-wrap" aria-hidden="true">⚓</span>
+        <span class="ref-tile__body">
+          <span class="ref-tile__title">Ports</span>
+          <span class="ref-tile__desc">Names, UN/LOCODE, country &amp; terminals</span>
+          <span class="ref-tile__stats">
+            <span class="ref-tile__chip">{{ ports().length }} ports</span>
+            @if (totalPortTerminals() > 0) {
+              <span class="ref-tile__chip ref-tile__chip--soft"
+                >{{ totalPortTerminals() }} terminals</span
+              >
+            }
+          </span>
+        </span>
+        <span class="ref-tile__arrow" aria-hidden="true">→</span>
+      </button>
+      <button type="button" class="ref-tile ref-tile--ranks" (click)="openRanks()">
+        <span class="ref-tile__glow" aria-hidden="true"></span>
+        <span class="ref-tile__icon-wrap" aria-hidden="true">★</span>
+        <span class="ref-tile__body">
+          <span class="ref-tile__title">Ranks</span>
+          <span class="ref-tile__desc">Crew rank list for forms &amp; crew list</span>
+          <span class="ref-tile__stats">
+            <span class="ref-tile__chip">{{ ranks().length }} ranks</span>
+          </span>
+        </span>
+        <span class="ref-tile__arrow" aria-hidden="true">→</span>
+      </button>
+      <button type="button" class="ref-tile ref-tile--nationalities" (click)="openNationalities()">
+        <span class="ref-tile__glow" aria-hidden="true"></span>
+        <span class="ref-tile__icon-wrap" aria-hidden="true">🌍</span>
+        <span class="ref-tile__body">
+          <span class="ref-tile__title">Nationalities</span>
+          <span class="ref-tile__desc">Nationality options in crew records</span>
+          <span class="ref-tile__stats">
+            <span class="ref-tile__chip">{{ nationalities().length }} entries</span>
+          </span>
+        </span>
+        <span class="ref-tile__arrow" aria-hidden="true">→</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="card ref-settings-card">
+    <h2>Printing</h2>
+    <p class="section-desc">
+      Per-port document packages — open or print a chosen set of documents at once.
+    </p>
+    <div class="settings-tiles">
+      <button type="button" class="settings-tile settings-tile--packages" (click)="openPackages()">
+        <span class="tile-icon" aria-hidden="true">🖨️</span>
+        <span class="tile-title">Document packages</span>
+        <span class="tile-count">{{ printPackages().length }} port(s)</span>
+      </button>
+    </div>
+
+    <h3 class="settings-subhead">Uploaded documents</h3>
+    <p class="section-desc">
+      Add static PDFs (e.g. Ship's Particulars). They appear in the document list of every package.
+    </p>
+    <app-custom-documents />
+  </section>
+
+  @if (dataPath()) {
+    <button type="button" class="settings-data-path" (click)="openDataBackups()">
+      <span class="settings-data-path__label">Data file</span>
+      <span class="settings-data-path__value">{{ dataPath() }}</span>
+      <span class="settings-data-path__action">Backups on this PC →</span>
+    </button>
+  }
+</div>
+
+@if (showDataBackupsModal()) {
+  <app-data-backups-modal (closed)="closeDataBackups()" (restored)="closeDataBackups()" />
+}
+
+@if (showPackagesModal()) {
+  <app-print-packages (closed)="closePackages()" />
+}
+
+@if (showPortsModal()) {
+  <div class="modal-backdrop">
+    <div
+      class="modal ref-modal ref-modal--ports"
+      appClickOutside
+      (appClickOutside)="closePorts()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="ref-modal__head">
+        <span class="ref-modal__mark" aria-hidden="true">⚓</span>
+        <div class="ref-modal__head-text">
+          <h3>Ports</h3>
+          <p class="ref-modal__hint">
+            Port directory for forms, manifests and document packages. Terminals are optional per
+            port.
+          </p>
+        </div>
+      </header>
+
+      <div class="ref-modal__add ref-modal__add--grid">
+        <label class="ref-field">
+          <span>Name</span>
+          <input
+            placeholder="Hamburg"
+            [ngModel]="newPortName()"
+            (ngModelChange)="newPortName.set($event)"
+          />
+        </label>
+        <label class="ref-field ref-field--code">
+          <span>UN/LOCODE</span>
+          <input
+            placeholder="DEHAM"
+            [ngModel]="newPortCode()"
+            (ngModelChange)="newPortCode.set($event)"
+          />
+        </label>
+        <label class="ref-field">
+          <span>Country</span>
+          <input
+            placeholder="GERMANY"
+            [ngModel]="newPortCountry()"
+            (ngModelChange)="newPortCountry.set($event)"
+            (keyup.enter)="addPortItem()"
+          />
+        </label>
+        <button
+          type="button"
+          class="ref-add-btn ref-add-btn--ports"
+          title="Add port"
+          (click)="addPortItem()"
+        >
+          +
+        </button>
+      </div>
+
+      <div class="ref-modal__list-wrap">
+        <ul class="ref-modal__list port-list" cdkDropList (cdkDropListDropped)="dropPort($event)">
+          @for (p of ports(); track p.name) {
+            <li
+              cdkDrag
+              class="ref-modal__row port-list-item"
+              [class.port-list-item--open]="expandedPort() === p.name"
+            >
+              <div class="port-list-main">
+                <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
+                <button
+                  type="button"
+                  class="port-term-toggle"
+                  [class.port-term-toggle--open]="expandedPort() === p.name"
+                  [title]="expandedPort() === p.name ? 'Hide terminals' : 'Terminals'"
+                  (click)="togglePortTerminals(p.name)"
+                >
+                  {{ expandedPort() === p.name ? '▾' : '▸' }}
+                </button>
+                <div class="port-list-label">
+                  <span class="port-list-name">{{ p.name }}</span>
+                  <span class="port-list-meta">
+                    @if (p.code) {
+                      <span class="port-meta-chip">{{ p.code }}</span>
+                    }
+                    @if (p.country) {
+                      <span class="port-meta-chip port-meta-chip--muted">{{ p.country }}</span>
+                    }
+                  </span>
+                </div>
+                @if (portTerminalCount(p) > 0) {
+                  <span class="port-term-badge">{{ portTerminalCount(p) }}</span>
+                }
+                <button
+                  type="button"
+                  class="ref-row-remove"
+                  title="Remove port"
+                  (click)="removePortItem(p.name)"
+                >
+                  ×
+                </button>
+              </div>
+              @if (expandedPort() === p.name) {
+                <div class="port-terminals">
+                  @if (portTerminalCount(p) === 0) {
+                    <div class="port-term-intro">
+                      <span class="port-term-intro__icon" aria-hidden="true">🏗</span>
+                      <div class="port-term-intro__text">
+                        <strong>Terminals are optional</strong>
+                        <p>
+                          Leave empty if this port has a single berth. Otherwise add
+                          <span class="port-term-example"
+                            ><kbd>EGH</kbd> Eurogate Terminal Hamburg</span
+                          >
+                          — short code first, then full name.
+                        </p>
+                      </div>
+                    </div>
+                  }
+                  @for (t of p.terminals ?? []; track $index) {
+                    <div class="port-terminal-row">
+                      <span class="port-terminal-abbrev">{{ t.abbrev || '—' }}</span>
+                      <span class="port-terminal-name">{{ t.name }}</span>
+                      <button
+                        type="button"
+                        class="ref-row-remove ref-row-remove--sm"
+                        title="Remove terminal"
+                        (click)="removePortTerminalItem(p.name, $index)"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  }
+                  <div class="port-terminal-add">
+                    <label class="ref-field ref-field--inline">
+                      <span>Abbrev</span>
+                      <input
+                        placeholder="EGH"
+                        [ngModel]="newTerminalAbbrev()"
+                        (ngModelChange)="newTerminalAbbrev.set($event)"
+                        (keyup.enter)="addPortTerminalItem(p.name)"
+                      />
+                    </label>
+                    <label class="ref-field ref-field--inline ref-field--grow">
+                      <span>Full name</span>
+                      <input
+                        placeholder="Eurogate Terminal Hamburg"
+                        [ngModel]="newTerminalName()"
+                        (ngModelChange)="newTerminalName.set($event)"
+                        (keyup.enter)="addPortTerminalItem(p.name)"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      class="ref-add-btn ref-add-btn--ports"
+                      title="Add terminal"
+                      [disabled]="!newTerminalAbbrev().trim() && !newTerminalName().trim()"
+                      (click)="addPortTerminalItem(p.name)"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      </div>
+
+      <div class="modal-actions ref-modal__actions">
+        <button type="button" class="btn btn-primary" (click)="closePorts()">Done</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showRanksModal()) {
+  <div class="modal-backdrop">
+    <div
+      class="modal ref-modal ref-modal--ranks"
+      appClickOutside
+      (appClickOutside)="closeRanks()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="ref-modal__head">
+        <span class="ref-modal__mark" aria-hidden="true">★</span>
+        <div class="ref-modal__head-text">
+          <h3>Ranks</h3>
+          <p class="ref-modal__hint">
+            Order matters — drag rows to set rank priority on crew lists.
+          </p>
+        </div>
+      </header>
+
+      <div class="ref-modal__add">
+        <label class="ref-field ref-field--grow">
+          <span>New rank</span>
+          <input
+            placeholder="e.g. Master, Ch.Off…"
+            [ngModel]="newRank()"
+            (ngModelChange)="newRank.set($event)"
+            (keyup.enter)="addRankItem()"
+          />
+        </label>
+        <button
+          type="button"
+          class="ref-add-btn ref-add-btn--ranks"
+          title="Add rank"
+          (click)="addRankItem()"
+        >
+          +
+        </button>
+      </div>
+
+      <div class="ref-modal__list-wrap">
+        <ul class="ref-modal__list" cdkDropList (cdkDropListDropped)="dropRank($event)">
+          @for (r of ranks(); track r) {
+            <li cdkDrag class="ref-modal__row">
+              <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
+              <span class="ref-modal__row-label">{{ r }}</span>
+              <button
+                type="button"
+                class="ref-row-remove"
+                title="Remove rank"
+                (click)="removeRankItem(r)"
+              >
+                ×
+              </button>
+            </li>
+          }
+        </ul>
+      </div>
+
+      <div class="modal-actions ref-modal__actions">
+        <button type="button" class="btn btn-primary" (click)="closeRanks()">Done</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showNationalitiesModal()) {
+  <div class="modal-backdrop">
+    <div
+      class="modal ref-modal ref-modal--nationalities"
+      appClickOutside
+      (appClickOutside)="closeNationalities()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="ref-modal__head">
+        <span class="ref-modal__mark" aria-hidden="true">🌍</span>
+        <div class="ref-modal__head-text">
+          <h3>Nationalities</h3>
+          <p class="ref-modal__hint">Used in crew member records and exported documents.</p>
+        </div>
+      </header>
+
+      <div class="ref-modal__add">
+        <label class="ref-field ref-field--grow">
+          <span>New nationality</span>
+          <input
+            placeholder="e.g. Cyprus, Ukraine…"
+            [ngModel]="newNationality()"
+            (ngModelChange)="newNationality.set($event)"
+            (keyup.enter)="addNationalityItem()"
+          />
+        </label>
+        <button
+          type="button"
+          class="ref-add-btn ref-add-btn--nationalities"
+          title="Add nationality"
+          (click)="addNationalityItem()"
+        >
+          +
+        </button>
+      </div>
+
+      <div class="ref-modal__list-wrap">
+        <ul class="ref-modal__list" cdkDropList (cdkDropListDropped)="dropNationality($event)">
+          @for (n of nationalities(); track n) {
+            <li cdkDrag class="ref-modal__row">
+              <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
+              <span class="ref-modal__row-label">{{ n }}</span>
+              <button
+                type="button"
+                class="ref-row-remove"
+                title="Remove nationality"
+                (click)="removeNationalityItem(n)"
+              >
+                ×
+              </button>
+            </li>
+          }
+        </ul>
+      </div>
+
+      <div class="modal-actions ref-modal__actions">
+        <button type="button" class="btn btn-primary" (click)="closeNationalities()">Done</button>
+      </div>
+    </div>
+  </div>
+}

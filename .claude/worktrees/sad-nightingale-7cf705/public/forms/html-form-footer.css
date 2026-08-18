@@ -1,0 +1,17 @@
+/* Shared footer master name field — underline + min height for empty div/input */
+#f-master-name.fi,
+input#f-master-name,
+input.form-footer__master,
+.fi.form-footer__master,
+.fi.sig-name,
+input.sig-name {
+  border-bottom: 1px solid #000 !important;
+  min-height: 1.15em;
+  box-sizing: border-box;
+}
+
+#f-master-name,
+input#f-master-name {
+  display: inline-block;
+  vertical-align: baseline;
+}

@@ -1,0 +1,154 @@
+@if (showSave()) {
+  <div class="modal-backdrop dg-archive-backdrop">
+    <div
+      class="modal dg-archive-modal dg-archive-modal--save"
+      role="dialog"
+      aria-labelledby="eta-archive-save-title"
+      appClickOutside
+      (appClickOutside)="cancelSave()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon dg-archive-modal__icon--save" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+            />
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="eta-archive-save-title">Save ETA voyage</h3>
+          <p class="dg-archive-modal__hint">
+            Saves route, legs, schedule and time zones. Ports from → to are stored with the voyage.
+          </p>
+        </div>
+      </header>
+
+      <div class="dg-archive-modal__body">
+        @if (routeHint()) {
+          <p class="eta-archive-route-hint">{{ routeHint() }}</p>
+        }
+        <label class="dg-archive-field">
+          <span class="dg-archive-field__label">Voyage name</span>
+          <input
+            type="text"
+            class="dg-archive-field__input"
+            [ngModel]="saveLabel()"
+            (ngModelChange)="saveLabel.set($event)"
+            placeholder="Voyage name"
+            maxlength="80"
+            autofocus
+            (keydown.enter)="confirmSave()"
+            (keydown.escape)="cancelSave()"
+          />
+        </label>
+      </div>
+
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" (click)="cancelSave()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--save"
+          (click)="confirmSave()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+            />
+          </svg>
+          Save
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (showLoad()) {
+  <div class="modal-backdrop dg-archive-backdrop">
+    <div
+      class="modal dg-archive-modal dg-archive-modal--load"
+      role="dialog"
+      aria-labelledby="eta-archive-load-title"
+      appClickOutside
+      (appClickOutside)="onCloseLoad()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon dg-archive-modal__icon--load" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+            />
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="eta-archive-load-title">Load saved voyage</h3>
+          <p class="dg-archive-modal__hint">
+            Fills the calculator with saved data. Edit anything and save again under a new name.
+          </p>
+        </div>
+      </header>
+
+      <div class="dg-archive-modal__body dg-archive-modal__body--list">
+        @if (savedPlans().length === 0) {
+          <div class="dg-archive-empty">
+            <span class="dg-archive-empty__title">No saved voyages yet</span>
+            <span class="dg-archive-empty__text">
+              Use <strong>Save</strong> in the page header to store the current calculation.
+            </span>
+          </div>
+        } @else {
+          <ul class="dg-archive-load-list">
+            @for (plan of savedPlans(); track plan.id) {
+              <li class="dg-archive-load-row">
+                <button
+                  type="button"
+                  class="dg-archive-load-card"
+                  (click)="pickPlan(plan.id)"
+                >
+                  <span class="dg-archive-load-card__header">
+                    <span class="dg-archive-load-card__label">{{ plan.name }}</span>
+                  </span>
+                  @if (planRoute(plan)) {
+                    <span class="dg-archive-load-card__meta">{{ planRoute(plan) }}</span>
+                  }
+                  <span class="dg-archive-load-card__stats">
+                    saved {{ formatSavedAt(plan.updatedAt) }}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="dg-archive-load-delete"
+                  title="Delete voyage"
+                  [attr.aria-label]="'Delete ' + plan.name"
+                  (click)="deletePlan(plan, $event)"
+                >
+                  ×
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <footer class="dg-archive-modal__foot">
+        <button
+          type="button"
+          class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--load"
+          (click)="onCloseLoad()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+            />
+          </svg>
+          Done
+        </button>
+      </footer>
+    </div>
+  </div>
+}

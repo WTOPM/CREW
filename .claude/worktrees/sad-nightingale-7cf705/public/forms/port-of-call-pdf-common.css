@@ -1,0 +1,155 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  background: #d0d0d0;
+  padding: 16px;
+  color: #000;
+}
+
+.poc-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.a4-page {
+  background: #fff;
+  width: 210mm;
+  min-height: 297mm;
+  height: 297mm;
+  margin: 0;
+  padding: 10mm 12mm 8mm;
+  border: 1px solid #999;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.poc-title {
+  text-align: center;
+  font-size: 13pt;
+  font-weight: 700;
+  text-decoration: underline;
+  margin: 0 0 3mm;
+  flex-shrink: 0;
+}
+
+.poc-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  flex-shrink: 0;
+}
+
+.poc-grid td {
+  border: 1px solid #000;
+  padding: 0.8mm 1.2mm;
+  vertical-align: middle;
+  font-size: 7.5pt;
+  line-height: 1.12;
+  word-wrap: break-word;
+  overflow: hidden;
+}
+
+.poc-stamp,
+.poc-signature {
+  position: absolute;
+  display: none;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.poc-stamp.visible,
+.poc-signature.visible {
+  display: block;
+}
+
+.poc-stamp img,
+.poc-signature img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+body.is-pdf-export,
+body.pdf-export {
+  padding: 0;
+  background: #fff;
+}
+
+body.is-pdf-export.poc-editor,
+body.pdf-export.poc-editor {
+  display: block;
+  width: 210mm;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  background: #fff;
+}
+
+body.is-pdf-export .poc-pages,
+body.pdf-export .poc-pages {
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+body.is-pdf-export .a4-page,
+body.pdf-export .a4-page {
+  box-shadow: none;
+  border: none;
+  margin: 0;
+  width: 210mm;
+  height: 297mm;
+  max-height: 297mm;
+  min-height: 297mm;
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+body.is-pdf-export .a4-page:not(:last-child),
+body.pdf-export .a4-page:not(:last-child) {
+  page-break-after: always !important;
+  break-after: page !important;
+}
+
+@media print {
+  body {
+    padding: 0;
+    background: #fff;
+  }
+
+  .poc-pages {
+    gap: 0;
+  }
+
+  .a4-page {
+    box-shadow: none;
+    border: none;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .a4-page:not(:last-child) {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .a4-page:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+}

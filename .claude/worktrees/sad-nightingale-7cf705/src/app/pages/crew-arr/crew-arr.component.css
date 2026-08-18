@@ -1,0 +1,15 @@
+.form-grid-span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hint {
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.hint a {
+  color: var(--accent);
+}

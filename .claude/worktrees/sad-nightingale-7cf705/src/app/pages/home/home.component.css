@@ -1,0 +1,516 @@
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.home-archive-banner {
+  margin: 0 0 1rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.home-archive-banner strong {
+  color: #78350f;
+}
+
+.page--archive .voyage-card {
+  box-shadow: 0 0 0 1px rgb(245 158 11 / 22%);
+}
+
+.section-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.crew-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  background: var(--bg, #f1f5f9);
+  border-radius: 8px;
+}
+
+.crew-tabs--four {
+  flex-wrap: wrap;
+}
+
+.crew-tabs--four .crew-tab {
+  flex: 1 1 calc(50% - 0.2rem);
+  min-width: 0;
+  font-size: 0.72rem;
+  padding: 0.5rem 0.35rem;
+}
+
+@media (min-width: 960px) {
+  .crew-tabs--four .crew-tab {
+    flex: 1;
+    font-size: 0.78rem;
+    padding: 0.55rem 0.5rem;
+  }
+}
+
+.crew-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.crew-tab:hover {
+  color: var(--text);
+  background: rgb(255 255 255 / 70%);
+}
+
+.crew-tab--active {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+}
+
+.crew-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.crew-tab--active .crew-tab-count {
+  background: var(--accent);
+  color: #fff;
+}
+
+.page-header-docs {
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.page-header-docs app-documents-nav {
+  display: block;
+  width: 100%;
+}
+
+.section-head h2 {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+}
+
+.list-sync-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #0369a1;
+  background: #e0f2fe;
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+  max-width: 100%;
+}
+
+.list-sync-badge--split {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.list-sync-legend {
+  font-weight: 700;
+}
+
+.list-sync-legend--arrival {
+  color: #2563eb;
+}
+
+.list-sync-legend--departure {
+  color: #dc2626;
+}
+
+.crew-table tbody tr.crew-row--diff-arrival {
+  background: #eff6ff;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.crew-table tbody tr.crew-row--diff-arrival:hover {
+  background: #dbeafe;
+}
+
+.crew-table tbody tr.crew-row--diff-departure {
+  background: #fef2f2;
+  box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.crew-table tbody tr.crew-row--diff-departure:hover {
+  background: #fee2e2;
+}
+
+.section-desc {
+  margin: -0.5rem 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.voyage-card {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #f8fcff 0%, var(--surface) 100%);
+}
+
+.voyage-card h2 {
+  color: #0369a1;
+  letter-spacing: 0.02em;
+}
+
+.voyage-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.voyage-row {
+  display: grid;
+  gap: 0.85rem 1rem;
+}
+
+.voyage-row--ports {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.voyage-row--dates {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.voyage-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+}
+
+.voyage-field > span {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.voyage-field--port {
+  background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+  border-color: #93c5fd;
+}
+
+.voyage-field--port > span {
+  color: #1e40af;
+}
+
+.voyage-field--current {
+  background: linear-gradient(180deg, #bfdbfe 0%, #dbeafe 100%);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 15%);
+}
+
+.voyage-field--current > span {
+  color: #1d4ed8;
+}
+
+.voyage-field--arrival {
+  background: linear-gradient(180deg, #bbf7d0 0%, #ecfdf5 100%);
+  border-color: #4ade80;
+}
+
+.voyage-field--arrival > span {
+  color: #166534;
+}
+
+.voyage-field--departure {
+  background: linear-gradient(180deg, #fed7aa 0%, #fff7ed 100%);
+  border-color: #fb923c;
+}
+
+.voyage-field--departure > span {
+  color: #9a3412;
+}
+
+.voyage-field--port ::ng-deep .port-select,
+.voyage-field--date ::ng-deep .date-picker-input {
+  border: 1px solid rgb(15 23 42 / 12%);
+}
+
+.voyage-field--arrival ::ng-deep .date-picker-btn {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #4ade80;
+}
+
+.voyage-field--departure ::ng-deep .date-picker-btn {
+  background: #ffedd5;
+  color: #9a3412;
+  border-color: #fb923c;
+}
+
+@media (max-width: 768px) {
+  .voyage-row--ports,
+  .voyage-row--dates {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.actions-icons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+}
+
+.crew-table td.actions,
+.table-wrap td.actions {
+  text-align: right;
+  vertical-align: middle;
+}
+
+.table-wrap tbody tr {
+  display: table-row;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-wrap tbody td {
+  display: table-cell;
+  border-bottom: none;
+}
+
+.crew-table {
+  width: 100%;
+  min-width: 52rem;
+}
+
+.crew-table th,
+.crew-table td {
+  vertical-align: middle;
+}
+
+.crew-table .col-index {
+  width: 2.25rem;
+  white-space: nowrap;
+}
+
+.crew-table .col-nowrap {
+  white-space: nowrap;
+}
+
+.crew-table .col-actions {
+  width: 7.4rem;
+  min-width: 7.4rem;
+  white-space: nowrap;
+}
+
+.crew-action-spacer {
+  visibility: hidden;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.crew-table tbody:not(.cdk-drop-list-dragging) > tr.cdk-drag {
+  transform: none !important;
+}
+
+.crew-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.crew-action:hover {
+  transform: translateY(-1px) scale(1.06);
+}
+
+.crew-action:active {
+  transform: scale(0.96);
+}
+
+.col-scans {
+  width: 5.5rem;
+  white-space: nowrap;
+}
+
+.crew-doc-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.crew-action--edit {
+  color: #16a34a;
+}
+
+.crew-action--edit:hover {
+  background: rgb(34 197 94 / 14%);
+  box-shadow: 0 4px 12px rgb(34 197 94 / 22%);
+}
+
+.crew-action--off-departure,
+.crew-action--off-arrival {
+  color: #64748b;
+}
+
+.crew-action--off-departure:hover,
+.crew-action--off-arrival:hover {
+  background: rgb(100 116 139 / 14%);
+  box-shadow: 0 4px 12px rgb(100 116 139 / 20%);
+}
+
+.section-head--archive {
+  justify-content: flex-start;
+}
+
+.section-head--archive h2 {
+  flex-shrink: 0;
+}
+
+.archive-search-slot {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  padding: 0 0.75rem;
+}
+
+.archive-search-input {
+  width: 11rem;
+  max-width: min(11rem, 40vw);
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.82rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.archive-search-input:focus {
+  outline: 2px solid #93c5fd;
+  border-color: #3b82f6;
+}
+
+.crew-action--archive {
+  color: #d97706;
+}
+
+.crew-action--archive:hover {
+  background: rgb(245 158 11 / 16%);
+  box-shadow: 0 4px 12px rgb(245 158 11 / 25%);
+}
+
+.crew-action--restore {
+  color: #2563eb;
+}
+
+.crew-action--restore:hover {
+  background: rgb(59 130 246 / 14%);
+  box-shadow: 0 4px 12px rgb(59 130 246 / 22%);
+}
+
+.crew-action--delete {
+  color: #dc2626;
+}
+
+.crew-action--delete:hover {
+  background: rgb(239 68 68 / 14%);
+  box-shadow: 0 4px 12px rgb(239 68 68 / 28%);
+}
+
+.muted {
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
+
+.col-drag {
+  width: 2rem;
+  padding: 0;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  text-align: center;
+  user-select: none;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.crew-table tbody.cdk-drop-list-dragging tr:not(.cdk-drag-placeholder) {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.crew-table tr.cdk-drag-preview {
+  display: table;
+  background: var(--surface);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+}
+
+.crew-table tr.cdk-drag-placeholder {
+  opacity: 0.35;
+  background: var(--accent-soft, #e8f4fc);
+}

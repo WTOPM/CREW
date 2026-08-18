@@ -1,9 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 import type { SectionLockBanner } from '../../electron';
-import {
-  APP_SECTION_LABELS,
-  AppSection,
-} from '../utils/app-data-section.util';
+import { APP_SECTION_LABELS, AppSection } from '../utils/app-data-section.util';
+import { readLocalStorage, writeLocalStorage } from '../utils/browser-storage.util';
 
 export interface SectionLockRecord {
   section: AppSection;
@@ -63,7 +61,7 @@ export class SectionLockService {
     if (this.initialized) return;
     this.initialized = true;
     try {
-      const stored = localStorage.getItem(CLIENT_ID_KEY);
+      const stored = readLocalStorage(CLIENT_ID_KEY);
       if (stored) {
         this.clientId = stored;
       } else {
@@ -71,7 +69,7 @@ export class SectionLockService {
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
             : `crew-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        localStorage.setItem(CLIENT_ID_KEY, this.clientId);
+        writeLocalStorage(CLIENT_ID_KEY, this.clientId);
       }
     } catch {
       this.clientId = `crew-${Date.now()}`;

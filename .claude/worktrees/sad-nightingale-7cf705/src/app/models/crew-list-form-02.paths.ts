@@ -1,0 +1,28 @@
+/** Form 02 - IMO CREW LIST - SBK — static HTML editor (`public/forms/crew-list-form-02/`). */
+export const CREW_LIST_FORM_02_MAX_ROWS = 23;
+
+export const CREW_LIST_FORM_02_BASE_PATH = '/forms/crew-list-form-02/';
+
+/** Query param on return URL after Save/Cancel in the HTML editor. */
+export const CREW_LIST_FORM_02_FEEDBACK_PARAM = 'form02Feedback';
+
+export type CrewListForm02Feedback = 'saved' | 'cancelled';
+
+export interface CrewListForm02UrlParams {
+  mode?: 'arrival' | 'departure';
+  /** Encoded return URL (e.g. `/?crewListSettings=1`). */
+  return?: string;
+  pdfExport?: '1';
+  /** JSON snapshot for headless PDF capture. */
+  data?: string;
+}
+
+export function crewListForm02EditorUrl(params: CrewListForm02UrlParams = {}): string {
+  const q = new URLSearchParams();
+  if (params.mode) q.set('mode', params.mode);
+  if (params.return) q.set('return', params.return);
+  if (params.pdfExport) q.set('pdfExport', params.pdfExport);
+  if (params.data) q.set('data', params.data);
+  const qs = q.toString();
+  return qs ? `${CREW_LIST_FORM_02_BASE_PATH}?${qs}` : CREW_LIST_FORM_02_BASE_PATH;
+}

@@ -1,0 +1,435 @@
+<div class="page eta-page">
+  <header class="page-header eta-page-header">
+    <div>
+      <a routerLink="/" class="back-link">Home</a>
+      <h1>ETA Calculator</h1>
+    </div>
+    <div class="eta-page-actions dg-page-actions">
+      <button type="button" class="btn btn-secondary" [title]="etaTips.newPlan" (click)="newPlan()">New</button>
+      <button
+        type="button"
+        class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
+        title="Save current voyage"
+        (click)="startSave()"
+      >
+        <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+          />
+        </svg>
+        <span>Save</span>
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary dg-page-action-btn dg-page-action-btn--load"
+        title="Load saved voyage"
+        (click)="openLoad()"
+      >
+        <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+          />
+        </svg>
+        <span>Load</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="eta-layout">
+    <div class="eta-layout__main">
+      <section class="card eta-section">
+        <h2 class="eta-section__title">Route</h2>
+        <div class="eta-route-grid">
+          <div class="eta-route-block eta-route-block--dep" [title]="etaTips.routeDepBlock">
+            <label class="eta-field" [title]="etaTips.fromPort">
+              <span class="eta-field__label">From</span>
+              <app-port-select
+                [ports]="ports()"
+                [value]="draft().fromPort"
+                (valueChange)="setFromPort($event)"
+              />
+            </label>
+            <label class="eta-field eta-field--tz" [title]="etaTips.departureUtc">
+              <span class="eta-field__label">Departure UTC</span>
+              <input
+                type="text"
+                class="eta-input eta-input--tz eta-route-tz"
+                inputmode="decimal"
+                [ngModel]="utcOffsetModel('departureUtcOffsetHours')"
+                (ngModelChange)="onUtcOffsetChange('departureUtcOffsetHours', $event)"
+                (mousedown)="onUtcOffsetMouseDown($event)"
+                (focus)="onUtcOffsetFocus('departureUtcOffsetHours', $event)"
+                (blur)="onUtcOffsetBlur('departureUtcOffsetHours')"
+                (keydown)="onUtcOffsetKeydown('departureUtcOffsetHours', $event)"
+                (keydown.enter)="onUtcOffsetEnter('departureUtcOffsetHours', $event)"
+                placeholder="+2"
+              />
+            </label>
+          </div>
+          <div class="eta-route-block eta-route-block--arr" [title]="etaTips.routeArrBlock">
+            <label class="eta-field" [title]="etaTips.toPort">
+              <span class="eta-field__label">To</span>
+              <app-port-select
+                [ports]="ports()"
+                [value]="draft().toPort"
+                (valueChange)="setToPort($event)"
+              />
+            </label>
+            <label class="eta-field eta-field--tz" [title]="etaTips.arrivalUtc">
+              <span class="eta-field__label">Arrival UTC</span>
+              <input
+                type="text"
+                class="eta-input eta-input--tz eta-route-tz"
+                inputmode="decimal"
+                [ngModel]="utcOffsetModel('arrivalUtcOffsetHours')"
+                (ngModelChange)="onUtcOffsetChange('arrivalUtcOffsetHours', $event)"
+                (mousedown)="onUtcOffsetMouseDown($event)"
+                (focus)="onUtcOffsetFocus('arrivalUtcOffsetHours', $event)"
+                (blur)="onUtcOffsetBlur('arrivalUtcOffsetHours')"
+                (keydown)="onUtcOffsetKeydown('arrivalUtcOffsetHours', $event)"
+                (keydown.enter)="onUtcOffsetEnter('arrivalUtcOffsetHours', $event)"
+                placeholder="+1"
+              />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="card eta-section">
+        <h2 class="eta-section__title">Calculation mode</h2>
+        <div
+          class="choice-segmented choice-segmented--row eta-scenario-segmented"
+          role="radiogroup"
+          aria-label="Calculation mode"
+        >
+          <label
+            class="choice-segmented__item eta-scenario-plan"
+            [title]="scenarioTooltip('planEta')"
+          >
+            <input
+              type="radio"
+              name="eta-scenario"
+              value="planEta"
+              [checked]="draft().scenario === 'planEta'"
+              (change)="setScenario('planEta')"
+            />
+            <span class="choice-segmented__text">ETA</span>
+          </label>
+          <label
+            class="choice-segmented__item eta-scenario-speed"
+            [title]="scenarioTooltip('meetEtaByDeparture')"
+          >
+            <input
+              type="radio"
+              name="eta-scenario"
+              value="meetEtaByDeparture"
+              [checked]="draft().scenario === 'meetEtaByDeparture'"
+              (change)="setScenario('meetEtaByDeparture')"
+            />
+            <span class="choice-segmented__text">SPEED</span>
+          </label>
+          <label
+            class="choice-segmented__item eta-scenario-dep"
+            [title]="scenarioTooltip('meetEtaBySpeed')"
+          >
+            <input
+              type="radio"
+              name="eta-scenario"
+              value="meetEtaBySpeed"
+              [checked]="draft().scenario === 'meetEtaBySpeed'"
+              (change)="setScenario('meetEtaBySpeed')"
+            />
+            <span class="choice-segmented__text">ETD</span>
+          </label>
+        </div>
+        <p class="eta-hint">{{ scenarioHint(draft().scenario) }}</p>
+
+        <div class="eta-schedule-grid">
+          <div class="eta-schedule-block eta-schedule-block--dep" [class.eta-schedule-block--computed]="!isDepartureEditable()">
+            <h3 class="eta-schedule-block__title">Departure</h3>
+            @if (isDepartureEditable()) {
+              <div class="eta-schedule-block__fields">
+                <label class="eta-field" [title]="etaTips.departureDate">
+                  <span class="eta-field__label">Date</span>
+                  <app-date-picker
+                    class="eta-sched-date"
+                    size="lg"
+                    [value]="draft().departureDate"
+                    (valueChange)="setDepartureDate($event)"
+                  />
+                </label>
+                <label class="eta-field" [title]="etaTips.departureTime">
+                  <span class="eta-field__label">Time <span class="eta-sched-lt">LT</span></span>
+                  <div class="eta-sched-time-row">
+                    <app-time-input
+                      class="eta-sched-time"
+                      size="lg"
+                      [value]="draft().departureTime"
+                      (valueChange)="setDepartureTime($event)"
+                    />
+                    <span class="eta-sched-tz" [title]="etaTips.utcBadge">{{ departureOffsetLabel() }}</span>
+                  </div>
+                </label>
+              </div>
+            } @else {
+              @let dep = departureScheduleParts();
+              <p class="eta-computed-value eta-sched-display">
+                @if (dep.empty) {
+                  —
+                } @else {
+                  <span class="eta-sched-date">{{ dep.date }}</span>
+                  <span class="eta-sched-time">{{ dep.time }}</span>
+                  <span class="eta-sched-tz">{{ dep.tz }}</span>
+                }
+              </p>
+            }
+          </div>
+
+          <div class="eta-schedule-block eta-schedule-block--arr" [class.eta-schedule-block--computed]="!isArrivalEditable()">
+            <h3 class="eta-schedule-block__title">Arrival (ETA)</h3>
+            @if (isArrivalEditable()) {
+              <div class="eta-schedule-block__fields">
+                <label class="eta-field" [title]="etaTips.arrivalDate">
+                  <span class="eta-field__label">Date</span>
+                  <app-date-picker
+                    class="eta-sched-date"
+                    size="lg"
+                    [value]="draft().arrivalDate"
+                    (valueChange)="setArrivalDate($event)"
+                  />
+                </label>
+                <label class="eta-field" [title]="etaTips.arrivalTime">
+                  <span class="eta-field__label">Time <span class="eta-sched-lt">LT</span></span>
+                  <div class="eta-sched-time-row">
+                    <app-time-input
+                      class="eta-sched-time"
+                      size="lg"
+                      [value]="draft().arrivalTime"
+                      (valueChange)="setArrivalTime($event)"
+                    />
+                    <span class="eta-sched-tz" [title]="etaTips.utcBadge">{{ arrivalOffsetLabel() }}</span>
+                  </div>
+                </label>
+              </div>
+            } @else {
+              @let arr = arrivalScheduleParts();
+              <p class="eta-computed-value eta-sched-display">
+                @if (arr.empty) {
+                  —
+                } @else {
+                  <span class="eta-sched-date">{{ arr.date }}</span>
+                  <span class="eta-sched-time">{{ arr.time }}</span>
+                  <span class="eta-sched-tz">{{ arr.tz }}</span>
+                }
+              </p>
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="card eta-section">
+        <div class="eta-section__head">
+          <h2 class="eta-section__title">Distance &amp; speed legs</h2>
+          <button type="button" class="btn btn-secondary btn--compact" [title]="etaTips.addLeg" (click)="addLeg()">+ Add leg</button>
+        </div>
+        <p class="eta-hint">
+          Time = distance ÷ speed (NM ÷ kn). ETA = departure + time. Name intermediate legs yourself if needed.
+        </p>
+
+        <div class="table-wrap eta-table-wrap">
+          <table class="crew-table eta-legs-table">
+            <thead>
+              <tr>
+                <th class="eta-col-no">#</th>
+                <th class="eta-col-route" [title]="etaTips.fromPort">From</th>
+                <th class="eta-col-route" [title]="etaTips.toPort">To</th>
+                <th class="eta-col-nm" [title]="etaTips.legDistance">NM</th>
+                <th class="eta-col-kn" [title]="etaTips.legSpeed">kn</th>
+                <th class="eta-col-duration" [title]="etaTips.legDuration">Dur.</th>
+                <th class="eta-col-eta" [title]="etaTips.legEta">ETA</th>
+                <th class="eta-col-actions" aria-label="Actions"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (leg of draft().legs; track trackLegId($index, leg); let i = $index) {
+                @let dur = legDurationParts(i);
+                @let eta = legEtaParts(i);
+                <tr>
+                  <td class="eta-col-no">{{ i + 1 }}</td>
+                  <td class="eta-col-from">
+                    <span class="eta-route-end">{{ calculation().legs[i]?.fromLabel || '—' }}</span>
+                  </td>
+                  <td class="eta-col-to">
+                    @if (isLastLeg(i)) {
+                      <span class="eta-route-end eta-route-end--port">{{ calculation().legs[i]?.toLabel || '—' }}</span>
+                    } @else {
+                      <input
+                        type="text"
+                        class="eta-input eta-input--route"
+                        [title]="etaTips.legWaypoint"
+                        [ngModel]="leg.toLabel"
+                        (ngModelChange)="onLegToLabel(leg.id, $event)"
+                        placeholder="Intermediate point"
+                      />
+                    }
+                  </td>
+                  <td class="eta-col-nm" [title]="etaTips.legDistance">
+                    <input
+                      type="number"
+                      class="eta-input eta-input--num"
+                      min="0"
+                      step="0.1"
+                      [ngModel]="leg.distanceNm || ''"
+                      (ngModelChange)="onLegDistance(leg.id, $event)"
+                    />
+                  </td>
+                  <td class="eta-col-kn" [title]="etaTips.legSpeed">
+                    @if (isSpeedEditable()) {
+                      <input
+                        type="text"
+                        class="eta-input eta-input--num eta-input--speed-kn"
+                        inputmode="decimal"
+                        [ngModel]="legSpeedInput(leg.id, i)"
+                        (ngModelChange)="onLegSpeedChange(leg.id, $event)"
+                        (blur)="onLegSpeedBlur(leg.id)"
+                      />
+                    } @else {
+                      <span class="eta-computed-inline eta-computed-inline--kn">{{ legSpeedDisplay(i) || '—' }}</span>
+                    }
+                  </td>
+                  <td class="eta-col-duration">
+                    <span class="eta-leg-result eta-leg-result--dur">
+                      @if (dur.empty) {
+                        <span class="eta-leg-result__val">—</span>
+                      } @else {
+                        <span class="eta-leg-result__val eta-leg-duration">
+                          @if (dur.hours != null) {
+                            <span class="eta-dur-h">{{ dur.hours }}h</span>
+                          }
+                          @if (dur.hours != null && dur.minutes != null) {
+                            <span class="eta-dur-gap"> </span>
+                          }
+                          @if (dur.minutes != null) {
+                            <span class="eta-dur-m">{{ dur.minutes }}m</span>
+                          }
+                        </span>
+                      }
+                    </span>
+                  </td>
+                  <td class="eta-col-eta">
+                    <span class="eta-leg-result eta-leg-result--eta" [title]="legEtaTitle(i)">
+                      @if (eta.empty) {
+                        <span class="eta-leg-result__val">—</span>
+                      } @else {
+                        <span class="eta-leg-result__val">
+                          <span class="eta-leg-datetime">{{ eta.dateTime }}</span>
+                          <span class="eta-leg-tz">{{ eta.tz }}</span>
+                        </span>
+                      }
+                    </span>
+                  </td>
+                  <td class="eta-col-actions">
+                    <button
+                      type="button"
+                      class="btn btn-cancel btn--compact"
+                      title="Remove leg"
+                      [disabled]="draft().legs.length <= 1"
+                      (click)="removeLeg(leg.id)"
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <aside class="card eta-summary">
+      <div class="eta-summary__head">
+        <h2 class="eta-summary__title">RESULT</h2>
+        <p class="eta-summary__mode">{{ scenarioShortLabel(draft().scenario) }}</p>
+      </div>
+      <dl class="eta-summary-list">
+        @if (calculation().requiredSpeedKnots != null) {
+          <div class="eta-summary-row eta-summary-row--highlight">
+            <dt>Required speed</dt>
+            <dd>{{ calculation().requiredSpeedKnots | number: '1.0-1' }} kn</dd>
+          </div>
+        }
+        <div class="eta-summary-row">
+          <dt>Total distance</dt>
+          <dd>{{ calculation().totalDistanceNm | number: '1.0-1' }} NM</dd>
+        </div>
+        <div class="eta-summary-row">
+          <dt>Total time</dt>
+          <dd>{{ calculation().totalDurationLabel }}</dd>
+        </div>
+        <div class="eta-summary-row eta-summary-row--highlight">
+          <dt>Departure</dt>
+          <dd class="eta-sched-display">
+            @let depSum = departureScheduleParts();
+            @if (depSum.empty) {
+              —
+            } @else {
+              <span class="eta-sched-date">{{ depSum.date }}</span>
+              <span class="eta-sched-time">{{ depSum.time }}</span>
+              <span class="eta-sched-tz">{{ depSum.tz }}</span>
+            }
+          </dd>
+        </div>
+        <div class="eta-summary-row eta-summary-row--highlight">
+          <dt>Arrival (ETA)</dt>
+          <dd class="eta-sched-display">
+            @let arrSum = arrivalScheduleParts();
+            @if (arrSum.empty) {
+              —
+            } @else {
+              <span class="eta-sched-date">{{ arrSum.date }}</span>
+              <span class="eta-sched-time">{{ arrSum.time }}</span>
+              <span class="eta-sched-tz">{{ arrSum.tz }}</span>
+            }
+          </dd>
+        </div>
+      </dl>
+
+      @if (calculation().routePoints.length > 0) {
+        <div class="eta-route-chain">
+          <span class="eta-field__label">Route</span>
+          <p class="eta-route-chain__path">
+            @for (point of calculation().routePoints; track point; let i = $index; let last = $last) {
+              <span
+                class="eta-route-chain__point"
+                [class.eta-route-chain__point--from]="i === 0"
+                [class.eta-route-chain__point--to]="last && i > 0"
+                [class.eta-route-chain__point--via]="i > 0 && !last"
+              >{{ point }}</span>
+              @if (!last) {
+                <span class="eta-route-chain__arrow" aria-hidden="true">→</span>
+              }
+            }
+          </p>
+        </div>
+      }
+
+      @if (calculation().warnings.length) {
+        <ul class="eta-warnings">
+          @for (msg of calculation().warnings; track msg) {
+            <li>{{ msg }}</li>
+          }
+        </ul>
+      }
+    </aside>
+  </div>
+</div>
+
+<app-eta-archive-modals
+  [showSave]="showSaveModal()"
+  [showLoad]="showLoadModal()"
+  (closeSave)="showSaveModal.set(false)"
+  (closeLoad)="showLoadModal.set(false)"
+/>

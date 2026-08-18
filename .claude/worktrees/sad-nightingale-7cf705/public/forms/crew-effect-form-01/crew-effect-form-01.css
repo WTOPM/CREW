@@ -1,0 +1,158 @@
+.poc-editor .ced-sheet {
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+}
+
+body.pdf-export .ced-sheet {
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  overflow: hidden;
+}
+
+.ce-editor .ced-cell {
+  position: relative;
+}
+
+.ce-editor .ced-tr-t .ced-cell,
+.ce-editor .ced-tr-n .ced-cell {
+  padding: 0;
+  vertical-align: top;
+}
+
+.ce-editor .ced-tr-t .ced-label,
+.ce-editor .ced-tr-n .ced-label,
+.ce-editor .ced-tr-h .ced-label {
+  display: block;
+  padding: 2px 4px 0;
+  pointer-events: none;
+}
+
+.ce-editor .ced-hdr-val {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1.3em;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.ce-editor .ced-hdr-val .ci.ci-hdr {
+  width: 100%;
+  text-align: center;
+  font-weight: 700;
+  font-size: 8.5pt;
+  padding: 0;
+  margin: 0;
+}
+
+.ce-editor .ced-page-no__cell {
+  position: relative;
+  padding: 0;
+  vertical-align: top;
+}
+
+.ce-editor .ced-page-no__cell .ced-label {
+  display: block;
+  padding: 2px 4px 0;
+  pointer-events: none;
+}
+
+.ce-editor .ced-page-no__cell .ced-hdr-val--page {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1.3em;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.ce-editor .ced-page-no__cell .ci.ci-hdr {
+  text-align: center;
+}
+
+.ce-editor .ced-data-val {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  min-height: 30px;
+  box-sizing: border-box;
+}
+
+.ce-editor .ced-data-val .ci {
+  width: 100%;
+  font-size: 8.5pt;
+  padding: 0;
+  margin: 0;
+}
+
+.ce-editor .ced-data-val--center {
+  justify-content: center;
+}
+
+.ce-editor .ced-data-val--center .ci {
+  text-align: center;
+}
+
+.ce-editor input.ci.selected,
+.ce-editor div.ci.selected {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.ce-editor .ced-form-footer {
+  margin-top: 2px;
+  margin-left: 0;
+  overflow: visible;
+}
+
+.ce-editor .ced-form-footer .form-footer__date,
+.ce-editor .ced-form-footer .form-footer__master {
+  outline: none;
+  font-family: inherit;
+  color: #000;
+  cursor: text;
+}
+
+.ce-editor .ced-form-footer .form-footer__master {
+  min-height: 1.2em;
+}
+
+body.pdf-export .ced-form-footer .form-footer__date {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  font-weight: 700;
+}
+
+body.pdf-export .ced-form-footer .form-footer__master {
+  border: none !important;
+  border-bottom: 1px solid #000 !important;
+  outline: none !important;
+  background: transparent !important;
+  font-weight: 700;
+}
+
+.poc-editor .ced-sheet .form-footer__date.selected,
+.poc-editor .ced-sheet .form-footer__master.selected {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+body.pdf-export .ced-sheet,
+body.is-pdf-export .ced-sheet {
+  box-shadow: none;
+}

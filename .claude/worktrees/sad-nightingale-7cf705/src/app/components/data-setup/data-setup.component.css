@@ -1,0 +1,58 @@
+.data-setup-backdrop {
+  z-index: 10060;
+}
+
+.data-setup-modal {
+  width: min(34rem, calc(100vw - 1.5rem));
+  max-width: 34rem;
+}
+
+.data-setup-modal__icon {
+  background: linear-gradient(145deg, #fbbf24, #d97706);
+  box-shadow: 0 4px 14px rgb(217 119 6 / 28%);
+}
+
+.data-setup-modal__message {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.data-setup-modal__paths {
+  margin: 0.85rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  font-size: 0.78rem;
+}
+
+.data-setup-modal__paths div + div {
+  margin-top: 0.55rem;
+}
+
+.data-setup-modal__paths dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.data-setup-modal__paths dd {
+  margin: 0.15rem 0 0;
+  word-break: break-all;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.76rem;
+}
+
+.data-setup-modal__hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.data-setup-modal__foot {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

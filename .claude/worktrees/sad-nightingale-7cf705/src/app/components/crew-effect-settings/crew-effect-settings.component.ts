@@ -1,0 +1,99 @@
+import { Component, computed, inject, input } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { CrewEffectDocId, CREW_EFFECT_DOC_LABELS } from '../../models/crew.models';
+import { DocumentOverlayId } from '../../models/document-overlay.models';
+import {
+  CREW_EFFECT_SETTINGS_PARAM,
+  crewEffectForm01EditorUrl,
+} from '../../models/crew-effect-form-01.paths';
+import { crewEffectForm02EditorUrl } from '../../models/crew-effect-form-02.paths';
+import { StorageService } from '../../services/storage.service';
+import { FormsStore } from '../../services/forms.store';
+import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
+
+@Component({
+  selector: 'app-crew-effect-settings',
+  imports: [FormsModule, DocumentStampOptionsComponent],
+  templateUrl: './crew-effect-settings.component.html',
+  styleUrl: './crew-effect-settings.component.css',
+})
+export class CrewEffectSettingsComponent {
+  private readonly storage = inject(StorageService);
+  private readonly forms = inject(FormsStore);
+
+  readonly docId = input<CrewEffectDocId>('crewEffect');
+
+  protected readonly isForm02 = computed(() => this.docId() === 'crewEffect02');
+  protected readonly isGermany = computed(() => this.docId() === 'crewEffect03');
+
+  protected readonly form01 = computed(() => this.storage.crewEffectForm());
+  protected readonly form02 = computed(() => this.storage.crewEffectForm02());
+  protected readonly form03 = computed(() => this.storage.crewEffectForm03());
+
+  protected readonly stampDocumentId = computed((): DocumentOverlayId => {
+    const id = this.docId();
+    if (id === 'crewEffect03') return 'crewEffect03';
+    if (id === 'crewEffect02') return 'crewEffect02';
+    return 'crewEffect';
+  });
+
+  protected readonly usesHtmlEditor = computed(() => {
+    const id = this.docId();
+    return id === 'crewEffect' || id === 'crewEffect02';
+  });
+
+  protected docLabel(): string {
+    return CREW_EFFECT_DOC_LABELS[this.docId()];
+  }
+
+  protected openHtmlFormSettings(): void {
+    const q = new URLSearchParams({ [CREW_EFFECT_SETTINGS_PARAM]: '1' });
+    const returnTo = encodeURIComponent(`/?${q.toString()}`);
+    if (this.docId() === 'crewEffect02') {
+      window.location.href = crewEffectForm02EditorUrl({ return: returnTo });
+      return;
+    }
+    window.location.href = crewEffectForm01EditorUrl({ return: returnTo });
+  }
+
+  protected onNilToggle01(
+    field: 'nilCigarettes' | 'nilSpirits' | 'nilWines',
+    value: boolean,
+  ): void {
+    this.forms.updateCrewEffectForm('crewEffect', { [field]: value }, 'saved');
+  }
+
+  protected onNilToggle02(
+    field: 'nilCigarettes' | 'nilTobaccoCigars' | 'nilSpirits' | 'nilBeer',
+    value: boolean,
+  ): void {
+    this.forms.updateCrewEffectForm('crewEffect02', { [field]: value }, 'saved');
+  }
+
+  protected onNilToggle03(
+    field: 'nilCigarettes' | 'nilCigars' | 'nilSpirits' | 'nilWeapons' | 'nilAmmunition',
+    value: boolean,
+  ): void {
+    this.forms.updateCrewEffectForm('crewEffect03', { [field]: value }, 'saved');
+  }
+
+  protected onOthersChange(value: string): void {
+    this.forms.updateCrewEffectForm(this.docId(), { others: value });
+  }
+
+  protected appendPassengers = computed(() => {
+    if (this.isGermany()) return this.form03().appendPassengers;
+    if (this.isForm02()) return this.form02().appendPassengers;
+    return this.form01().appendPassengers;
+  });
+
+  protected onAppendPassengersChange(value: boolean): void {
+    this.forms.updateCrewEffectForm(this.docId(), { appendPassengers: value }, 'saved');
+  }
+
+  protected othersValue(): string {
+    if (this.isGermany()) return this.form03().others;
+    if (this.isForm02()) return this.form02().others;
+    return this.form01().others;
+  }
+}

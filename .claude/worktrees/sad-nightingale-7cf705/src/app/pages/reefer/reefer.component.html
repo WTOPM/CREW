@@ -1,0 +1,607 @@
+<div class="page reefer-page">
+  <header class="page-header reefer-page-header">
+    <div>
+      <a routerLink="/" class="back-link">Home</a>
+      <h1>CMA CGM - REEFER LIST</h1>
+    </div>
+    <div class="dg-page-actions">
+      <button
+        type="button"
+        class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
+        title="Save current reefer page to archive"
+        [disabled]="reeferArchive.saving()"
+        (click)="startArchiveSave()"
+      >
+        <svg
+          class="dg-page-action-btn__icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="currentColor"
+            d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+          />
+        </svg>
+        <span>{{ reeferArchive.saving() ? 'Saving…' : 'Save snapshot' }}</span>
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary dg-page-action-btn dg-page-action-btn--load"
+        title="Load saved reefer page from archive"
+        (click)="openArchiveLoad()"
+      >
+        <svg
+          class="dg-page-action-btn__icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="currentColor"
+            d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+          />
+        </svg>
+        <span>Load snapshot</span>
+      </button>
+      @if (reeferArchive.loaded()) {
+        <button
+          type="button"
+          class="btn btn-secondary dg-page-action-btn dg-page-action-btn--apply"
+          title="Keep current page as live reefer data (including edits)"
+          (click)="commitArchiveAsLive()"
+        >
+          Apply as live
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary dg-page-action-btn dg-page-action-btn--reset"
+          title="Return to live reefer data"
+          (click)="resetArchiveView()"
+        >
+          Reset to live
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (ship().name || ship().voyageNumber) {
+    <section class="card reefer-voyage-strip">
+      <div class="reefer-voyage-item reefer-voyage-item--readonly">
+        <span class="reefer-voyage-label">Vessel</span>
+        <strong>{{ ship().name || '—' }}</strong>
+      </div>
+      <div class="reefer-voyage-item reefer-voyage-item--readonly">
+        <span class="reefer-voyage-label">Voyage</span>
+        <strong>{{ ship().voyageNumber || '—' }}</strong>
+      </div>
+      <label class="reefer-voyage-item reefer-voyage-item--field">
+        <span class="reefer-voyage-label">Port of call</span>
+        <app-port-select
+          [ports]="ports()"
+          [value]="library().pageContext.portOfCall"
+          (valueChange)="onPageContextChange('portOfCall', $event)"
+        />
+      </label>
+      <label class="reefer-voyage-item reefer-voyage-item--field">
+        <span class="reefer-voyage-label">Departure</span>
+        <app-date-picker
+          size="sm"
+          [value]="library().pageContext.dateOfDeparture"
+          (valueChange)="onPageContextChange('dateOfDeparture', $event)"
+        />
+      </label>
+    </section>
+  }
+
+  <div class="reefer-layout">
+    <aside class="card reefer-import-panel">
+      <h2 class="reefer-panel-title">Import history</h2>
+      <div
+        class="reefer-drop-zone"
+        [class.reefer-drop-zone--active]="dragOver()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave()"
+        (drop)="onDrop($event)"
+        (click)="pickPdf()"
+      >
+        <input
+          #pdfFile
+          type="file"
+          accept=".pdf,application/pdf"
+          hidden
+          (change)="onPdfInput($event)"
+        />
+        @if (importing()) {
+          <span>Importing PDF…</span>
+        } @else {
+          <span class="reefer-drop-zone__icon" aria-hidden="true">📄</span>
+          <span>Drop PDF or click</span>
+        }
+      </div>
+      @if (importHistory().length === 0) {
+        <p class="reefer-empty-hint">No imports yet.</p>
+      } @else {
+        <ul class="reefer-import-list">
+          @for (doc of importHistory(); track doc.id) {
+            <li
+              class="reefer-import-item"
+              [class.reefer-import-item--all-discharged]="manifestFullyDischarged(doc.id)"
+            >
+              <div class="reefer-import-text">
+                <span class="reefer-import-name">{{ doc.sourceName }}</span>
+                <span class="reefer-import-meta">
+                  {{ doc.unitCount }} unit(s)
+                  @if (doc.documentDate) {
+                    · {{ formatDate(doc.documentDate) }}
+                  }
+                </span>
+                @if (manifestFullyDischarged(doc.id)) {
+                  <span class="reefer-import-discharged-note">All containers discharged</span>
+                }
+              </div>
+              <button
+                type="button"
+                class="reefer-import-remove"
+                title="Remove import"
+                (click)="removeManifest(doc.id, $event)"
+              >
+                ×
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+
+    <section
+      class="card reefer-inventory"
+      [class.reefer-inventory--archive]="reeferArchive.loaded()"
+    >
+      @if (reeferArchive.loaded(); as snap) {
+        <div class="reefer-archive-banner" role="status">
+          Page state loaded from archive:
+          <strong>{{ snap.label }}</strong>
+          · Voy {{ snap.ship.voyageNumber || '—' }} ·
+          {{ formatDate(snap.ship.dateOfDeparture) || '—' }}
+        </div>
+      }
+      <nav class="reefer-inventory-tabs" aria-label="Reefer inventory type">
+        <button type="button" class="reefer-inventory-tab reefer-inventory-tab--active">
+          CMA CGM - REEFER LIST
+        </button>
+      </nav>
+      <div class="reefer-inventory-head">
+        <div class="reefer-inventory-head__title">
+          <p class="reefer-inventory-meta">
+            <span>{{ stats().unitCount }} container(s)</span>
+            @if (stats().dischargedCount > 0) {
+              <span>{{ stats().dischargedCount }} discharged</span>
+            }
+          </p>
+        </div>
+        <div class="reefer-inventory-search-slot">
+          <input
+            type="search"
+            class="reefer-inventory-search-input"
+            placeholder="Search"
+            aria-label="Search reefer inventory"
+            [ngModel]="inventorySearch()"
+            (ngModelChange)="inventorySearch.set($event)"
+          />
+        </div>
+      </div>
+
+      <div class="reefer-inventory-toolbar">
+        <div
+          class="reefer-toolbar-panel reefer-toolbar-panel--display"
+          role="group"
+          aria-label="Inventory display options"
+        >
+          <span class="reefer-toolbar-panel__label">Display</span>
+          <div class="reefer-toolbar-panel__body reefer-toolbar-panel__body--wrap">
+            <label class="choice-label reefer-view-option">
+              <input
+                type="checkbox"
+                [ngModel]="library().showDischarged"
+                (ngModelChange)="toggleShowDischarged($event)"
+              />
+              Show discharged
+            </label>
+            <label class="choice-label reefer-view-option">
+              <input
+                type="checkbox"
+                [ngModel]="library().monitoringAddNextDays"
+                (ngModelChange)="toggleMonitoringAddNextDays($event)"
+              />
+              Add next days
+            </label>
+            <select
+              class="reefer-days-select"
+              [ngModel]="library().monitoringNextDays"
+              [disabled]="!library().monitoringAddNextDays"
+              (ngModelChange)="onMonitoringNextDaysChange($event)"
+            >
+              @for (days of nextDayOptions; track days) {
+                <option [value]="days">{{ days }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div
+          class="reefer-toolbar-panel reefer-toolbar-panel--generate section-readonly-allow"
+          role="group"
+          aria-label="Generate monitoring log"
+        >
+          <span class="reefer-toolbar-panel__label">Generate</span>
+          <div class="reefer-toolbar-panel__body">
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm reefer-pdf-btn"
+              [disabled]="exportingPdf()"
+              (click)="exportPdf()"
+            >
+              PDF
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm reefer-excel-btn"
+              [disabled]="exportingExcel()"
+              (click)="exportExcel()"
+            >
+              Excel
+            </button>
+          </div>
+        </div>
+        <div
+          class="reefer-toolbar-panel reefer-toolbar-panel--add"
+          role="group"
+          aria-label="Add reefer container"
+        >
+          <span class="reefer-toolbar-panel__label">Add</span>
+          <div class="reefer-toolbar-panel__body">
+            <button type="button" class="btn btn-primary btn-sm" (click)="addUnit()">
+              + Container
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <section class="reefer-signoff-panel" aria-label="Monitoring log daily check signatures">
+        <h3 class="reefer-signoff-panel__title">Daily check signatures</h3>
+        <p class="reefer-signoff-panel__hint">
+          Two names per line — <strong>bold and underlined</strong> in PDF / Excel (<span
+            class="reefer-signoff-hint__sample"
+            >OS Surname N.</span
+          >).
+        </p>
+        <div class="reefer-signoff-rows">
+          <label class="reefer-signoff-row">
+            <span class="reefer-signoff-row__time">08:30</span>
+            <div class="reefer-signoff-slots">
+              @for (slot of signerSlots; track slot) {
+                <input
+                  type="text"
+                  class="reefer-signoff-name"
+                  [ngModel]="library().monitoringMorningSigners[slot].name"
+                  (ngModelChange)="onMonitoringSignerChange('morning', slot, 'name', $event)"
+                  [placeholder]="'OS name ' + (slot + 1)"
+                  [attr.aria-label]="'Morning check name ' + (slot + 1)"
+                />
+              }
+            </div>
+          </label>
+          <label class="reefer-signoff-row">
+            <span class="reefer-signoff-row__time">16:55</span>
+            <div class="reefer-signoff-slots">
+              @for (slot of signerSlots; track slot) {
+                <input
+                  type="text"
+                  class="reefer-signoff-name"
+                  [ngModel]="library().monitoringEveningSigners[slot].name"
+                  (ngModelChange)="onMonitoringSignerChange('evening', slot, 'name', $event)"
+                  [placeholder]="'OS name ' + (slot + 1)"
+                  [attr.aria-label]="'Evening check name ' + (slot + 1)"
+                />
+              }
+            </div>
+          </label>
+        </div>
+      </section>
+
+      @if (visibleUnits().length === 0) {
+        <p class="reefer-empty-hint">
+          No containers onboard. Import a CMA reefer manifest or add a container manually.
+        </p>
+      } @else {
+        <div class="reefer-table-wrap">
+          <table class="reefer-table">
+            <thead>
+              <tr>
+                <th class="col-index">#</th>
+                <th
+                  class="col-container reefer-sort-th"
+                  [class.reefer-sort-th--active]="library().inventorySortColumn === 'containerNo'"
+                  [class.reefer-sort-th--desc]="
+                    library().inventorySortColumn === 'containerNo' &&
+                    library().inventorySortDirection === 'desc'
+                  "
+                  title="Sort by container"
+                  (click)="toggleInventorySort('containerNo')"
+                >
+                  Container No
+                </th>
+                <th
+                  class="col-pol reefer-sort-th"
+                  [class.reefer-sort-th--active]="library().inventorySortColumn === 'loadPort'"
+                  [class.reefer-sort-th--desc]="
+                    library().inventorySortColumn === 'loadPort' &&
+                    library().inventorySortDirection === 'desc'
+                  "
+                  title="Sort by POL"
+                  (click)="toggleInventorySort('loadPort')"
+                >
+                  POL
+                </th>
+                <th
+                  class="col-pod reefer-sort-th"
+                  [class.reefer-sort-th--active]="library().inventorySortColumn === 'dischargePort'"
+                  [class.reefer-sort-th--desc]="
+                    library().inventorySortColumn === 'dischargePort' &&
+                    library().inventorySortDirection === 'desc'
+                  "
+                  title="Sort by POD"
+                  (click)="toggleInventorySort('dischargePort')"
+                >
+                  POD
+                </th>
+                <th class="col-set">Set point °C</th>
+                <th
+                  class="col-position reefer-sort-th"
+                  [class.reefer-sort-th--active]="library().inventorySortColumn === 'position'"
+                  [class.reefer-sort-th--desc]="
+                    library().inventorySortColumn === 'position' &&
+                    library().inventorySortDirection === 'desc'
+                  "
+                  title="Sort by position"
+                  (click)="toggleInventorySort('position')"
+                >
+                  Position
+                </th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (unit of visibleUnits(); track unit.id; let i = $index) {
+                <tr [class.reefer-row--discharged]="unit.status === 'discharged'">
+                  <td class="col-index">{{ i + 1 }}</td>
+                  <td class="col-container">
+                    <input
+                      type="text"
+                      class="reefer-cell-input reefer-cell-input--mono"
+                      [ngModel]="unit.containerNo"
+                      (ngModelChange)="onUnitChange(unit.id, 'containerNo', $event)"
+                      placeholder="—"
+                    />
+                  </td>
+                  <td class="col-pol">
+                    <app-port-select
+                      [ports]="ports()"
+                      [value]="unit.loadPort"
+                      [compact]="true"
+                      (valueChange)="onUnitChange(unit.id, 'loadPort', $event)"
+                    />
+                  </td>
+                  <td class="col-pod">
+                    <app-port-select
+                      [ports]="ports()"
+                      [value]="unit.dischargePort"
+                      [compact]="true"
+                      (valueChange)="onUnitChange(unit.id, 'dischargePort', $event)"
+                    />
+                  </td>
+                  <td class="col-set">
+                    <input
+                      type="text"
+                      class="reefer-cell-input reefer-cell-input--mono"
+                      [ngModel]="unit.setPointTemp"
+                      (ngModelChange)="onUnitChange(unit.id, 'setPointTemp', $event)"
+                      placeholder="—"
+                    />
+                  </td>
+                  <td class="col-position">
+                    <input
+                      type="text"
+                      class="reefer-cell-input"
+                      [ngModel]="unit.position"
+                      (ngModelChange)="onUnitChange(unit.id, 'position', $event)"
+                      placeholder="—"
+                    />
+                  </td>
+                  <td class="col-actions">
+                    <div class="reefer-row-actions">
+                      @if (unit.status === 'discharged') {
+                        <button
+                          type="button"
+                          class="reefer-act reefer-act--restore"
+                          title="Restore onboard"
+                          (click)="restoreOnboard(unit.id)"
+                        >
+                          <dg-act-icon kind="restore" />
+                        </button>
+                      } @else {
+                        <button
+                          type="button"
+                          class="reefer-act reefer-act--discharge"
+                          title="Mark discharged"
+                          (click)="markDischarged(unit.id)"
+                        >
+                          <dg-act-icon kind="discharge" />
+                        </button>
+                      }
+                      <button
+                        type="button"
+                        class="reefer-act reefer-act--remove"
+                        title="Remove container"
+                        (click)="removeUnit(unit.id)"
+                      >
+                        <dg-act-icon kind="remove" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="reefer-export-note">
+          PDF and Excel use Display settings (discharged, monitoring days), table sort order, and
+          ship voyage data.
+        </p>
+      }
+    </section>
+  </div>
+</div>
+
+@if (showArchiveSaveModal()) {
+  <div class="modal-backdrop dg-archive-backdrop">
+    <div
+      class="modal dg-archive-modal dg-archive-modal--save"
+      role="dialog"
+      aria-labelledby="reefer-archive-save-title"
+      appClickOutside
+      (appClickOutside)="cancelArchiveSave()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon dg-archive-modal__icon--save" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+            />
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="reefer-archive-save-title">Save reefer page snapshot</h3>
+          <p class="dg-archive-modal__hint">
+            Saves onboard inventory, import history, voyage and departure shown on this page.
+          </p>
+        </div>
+      </header>
+      <div class="dg-archive-modal__body">
+        <label class="dg-archive-field">
+          <span class="dg-archive-field__label">Snapshot name</span>
+          <input
+            type="text"
+            class="dg-archive-field__input"
+            [(ngModel)]="archiveSaveLabel"
+            placeholder="Snapshot name"
+            maxlength="80"
+            autofocus
+            (keydown.enter)="confirmArchiveSave()"
+            (keydown.escape)="cancelArchiveSave()"
+          />
+        </label>
+      </div>
+      <footer class="dg-archive-modal__foot">
+        <button type="button" class="btn btn-secondary" (click)="cancelArchiveSave()">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--save"
+          [disabled]="reeferArchive.saving()"
+          (click)="confirmArchiveSave()"
+        >
+          {{ reeferArchive.saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (showArchiveLoadModal()) {
+  <div class="modal-backdrop dg-archive-backdrop">
+    <div
+      class="modal dg-archive-modal dg-archive-modal--load"
+      role="dialog"
+      aria-labelledby="reefer-archive-load-title"
+      appClickOutside
+      (appClickOutside)="closeArchiveLoad()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div class="dg-archive-modal__icon dg-archive-modal__icon--load" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+            />
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="reefer-archive-load-title">Load reefer page snapshot</h3>
+          <p class="dg-archive-modal__hint">
+            Restores onboard inventory, import history, voyage and departure from a saved snapshot.
+          </p>
+        </div>
+      </header>
+      <div class="dg-archive-modal__body dg-archive-modal__body--list">
+        @if (reeferArchive.entriesNewestFirst().length === 0) {
+          <div class="dg-archive-empty">
+            <span class="dg-archive-empty__title">No snapshots yet</span>
+            <span class="dg-archive-empty__text"
+              >Use <strong>Save snapshot</strong> in the page header to store the current reefer
+              page.</span
+            >
+          </div>
+        } @else {
+          <ul class="dg-archive-load-list">
+            @for (entry of reeferArchive.entriesNewestFirst(); track entry.id) {
+              <li class="dg-archive-load-row">
+                <button
+                  type="button"
+                  class="dg-archive-load-card"
+                  [class.dg-archive-load-card--active]="reeferArchive.loaded()?.id === entry.id"
+                  (click)="pickArchiveSnapshot(entry)"
+                >
+                  <span class="dg-archive-load-card__header">
+                    <span class="dg-archive-load-card__label">{{ entry.label }}</span>
+                    @if (reeferArchive.loaded()?.id === entry.id) {
+                      <span class="dg-archive-load-card__badge">Loaded</span>
+                    }
+                  </span>
+                  <span class="dg-archive-load-card__meta">{{
+                    formatDate(entry.savedAt.slice(0, 10)) || entry.savedAt
+                  }}</span>
+                  <span class="dg-archive-load-card__stats"
+                    >{{ entry.reeferLibrary.onboard.length }} container(s)</span
+                  >
+                </button>
+                <button
+                  type="button"
+                  class="dg-archive-load-delete"
+                  title="Delete snapshot"
+                  aria-label="Delete snapshot {{ entry.label }}"
+                  (click)="deleteArchiveSnapshot(entry.id, $event)"
+                >
+                  ×
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+      <footer class="dg-archive-modal__foot">
+        <button
+          type="button"
+          class="btn btn-primary dg-archive-modal__submit dg-archive-modal__submit--load"
+          (click)="closeArchiveLoad()"
+        >
+          Close
+        </button>
+      </footer>
+    </div>
+  </div>
+}

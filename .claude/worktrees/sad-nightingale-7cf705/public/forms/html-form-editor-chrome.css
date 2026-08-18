@@ -1,0 +1,316 @@
+/**
+ * Shared HTML form editor — side panels, actions, zoom, sections.
+ * Used by Port of Call, Ship Stores, Crew/Passenger list HTML editors.
+ */
+@import url('./html-form-pdf-export.css');
+
+body.poc-editor,
+body.ss-editor {
+  gap: 12px;
+}
+
+.side-panel {
+  --sp-w: 12.5rem;
+  --sp-pad: 0.65rem;
+  --sp-gap: 0.55rem;
+  --sp-radius: 12px;
+  --sp-border: rgb(148 163 184 / 35%);
+  --sp-bg: #ffffff;
+  --sp-surface: #f8fafc;
+  --sp-text: #0f172a;
+  --sp-muted: #64748b;
+  --sp-accent: #2563eb;
+  --sp-accent-soft: #eff6ff;
+  --sp-save: #15803d;
+  --sp-save-hover: #166534;
+  --sp-danger: #dc2626;
+
+  position: sticky;
+  top: 12px;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-gap);
+  width: var(--sp-w);
+  flex: 0 0 var(--sp-w);
+  min-width: 0;
+  max-height: calc(100vh - 24px);
+  padding: var(--sp-pad);
+  box-sizing: border-box;
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius);
+  box-shadow:
+    0 1px 2px rgb(15 23 42 / 6%),
+    0 8px 24px rgb(15 23 42 / 8%);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.side-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.side-panel::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.side-panel--right {
+  top: 12px;
+}
+
+/* ── Save / Cancel ── */
+.side-panel__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.side-panel .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.5rem 0.45rem;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.side-panel .btn:active {
+  transform: scale(0.97);
+}
+
+.side-panel__ico {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.side-panel .btn-save {
+  background: var(--sp-save);
+  border-color: var(--sp-save);
+  color: #fff;
+  box-shadow: 0 1px 2px rgb(21 128 61 / 25%);
+}
+
+.side-panel .btn-save:hover {
+  background: var(--sp-save-hover);
+  border-color: var(--sp-save-hover);
+}
+
+.side-panel .btn-cancel {
+  background: var(--sp-surface);
+  border-color: var(--sp-border);
+  color: var(--sp-text);
+}
+
+.side-panel .btn-cancel:hover {
+  background: #fff;
+  border-color: #94a3b8;
+}
+
+.side-panel .btn-s,
+.side-panel .btn-excel,
+.side-panel .btn--compact {
+  background: var(--sp-surface);
+  border-color: var(--sp-border);
+  color: var(--sp-text);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.45rem 0.5rem;
+}
+
+.side-panel .btn-s:hover,
+.side-panel .btn-excel:hover,
+.side-panel .btn--compact:hover {
+  background: #fff;
+  border-color: #94a3b8;
+}
+
+.side-panel .btn-s:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.side-panel .btn-excel {
+  margin-top: 0.35rem;
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
+}
+
+.side-panel .btn-excel:hover {
+  background: #d1fae5;
+  border-color: #34d399;
+}
+
+/* ── Sections ── */
+.side-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.side-panel__section + .side-panel__section {
+  padding-top: 0.15rem;
+  border-top: 1px solid rgb(148 163 184 / 22%);
+}
+
+.side-panel__heading {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sp-muted);
+  line-height: 1.2;
+}
+
+.side-panel__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.side-panel__select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.42rem 0.5rem;
+  border: 1px solid var(--sp-border);
+  border-radius: 8px;
+  background: var(--sp-surface);
+  color: var(--sp-text);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.side-panel__select:hover {
+  border-color: #94a3b8;
+}
+
+.side-panel__select:focus-visible {
+  outline: none;
+  border-color: var(--sp-accent);
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 15%);
+}
+
+/* ── Zoom ── */
+.side-panel .zoom-controls {
+  margin: 0;
+  min-width: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.side-panel .zoom-controls__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: stretch;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.side-panel .zoom-controls__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1;
+  max-height: 2.35rem;
+  padding: 0;
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
+  border-radius: 8px;
+  color: var(--sp-text);
+}
+
+.side-panel .zoom-controls__btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.side-panel .zoom-controls__btn:hover {
+  background: #fff;
+  border-color: var(--sp-accent);
+  color: var(--sp-accent);
+}
+
+.side-panel .zoom-controls__pct {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 0.15rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--sp-text);
+  text-align: center;
+  line-height: 1;
+}
+
+/* Right panel row tools */
+.side-panel--right .side-panel__section {
+  gap: 0.35rem;
+}
+
+.side-panel--right .btn-s {
+  width: 100%;
+}
+
+.side-panel__row-btn {
+  justify-content: flex-start;
+  padding-left: 0.55rem;
+  text-align: left;
+}
+
+.side-panel__row-btn--muted {
+  color: var(--sp-muted);
+}
+
+.side-panel__row-btn--muted:hover {
+  color: var(--sp-text);
+}
+
+.side-panel__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--sp-muted);
+}
+
+body.is-pdf-export .side-panel,
+body.pdf-export .side-panel {
+  display: none !important;
+}

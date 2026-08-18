@@ -1,0 +1,1121 @@
+<div
+  class="page dg-page dg-page--wide"
+  [class.dg-page--cma]="activeInventoryTab() === 'cmaCgm'"
+  [class.dg-page--uf]="activeInventoryTab() === 'unifeeder'"
+>
+  <header class="page-header dg-page-header">
+    <a routerLink="/" class="back-link">Home</a>
+    <div class="dg-page-actions">
+      <a routerLink="/dg/reference" class="btn btn-secondary btn-sm dg-ref-link">DG reference</a>
+      <button
+        type="button"
+        class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
+        title="Save current DG page to archive"
+        [disabled]="dgArchive.saving()"
+        (click)="startArchiveSave()"
+      >
+        <svg
+          class="dg-page-action-btn__icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="currentColor"
+            d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+          />
+        </svg>
+        <span>{{ dgArchive.saving() ? 'Saving…' : 'Save snapshot' }}</span>
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary dg-page-action-btn dg-page-action-btn--load"
+        title="Load saved DG page from archive"
+        (click)="openArchiveLoad()"
+      >
+        <svg
+          class="dg-page-action-btn__icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            fill="currentColor"
+            d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+          />
+        </svg>
+        <span>Load snapshot</span>
+      </button>
+      @if (dgArchive.loaded()) {
+        <button
+          type="button"
+          class="btn btn-secondary dg-page-action-btn dg-page-action-btn--apply"
+          title="Keep current page as live DG data (including edits)"
+          (click)="commitArchiveAsLive()"
+        >
+          Apply as live
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary dg-page-action-btn dg-page-action-btn--reset"
+          title="Return to live DG data"
+          (click)="resetArchiveView()"
+        >
+          Reset to live
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (ship().name || ship().voyageNumber) {
+    <section class="card dg-voyage-strip">
+      <div class="dg-voyage-item dg-voyage-item--readonly">
+        <span class="dg-voyage-label">Vessel</span>
+        <strong>{{ ship().name || '—' }}</strong>
+        @if (ship().callSign) {
+          <span class="dg-voyage-muted">/ {{ ship().callSign }}</span>
+        }
+      </div>
+      <div class="dg-voyage-item dg-voyage-item--readonly">
+        <span class="dg-voyage-label">Voyage</span>
+        <strong>{{ ship().voyageNumber || '—' }}</strong>
+      </div>
+      <label class="dg-voyage-item dg-voyage-item--field">
+        <span class="dg-voyage-label">Port of call</span>
+        <app-port-select
+          [ports]="ports()"
+          [value]="library().pageContext.portOfCall"
+          (valueChange)="onPageContextChange('portOfCall', $event)"
+        />
+      </label>
+      <label class="dg-voyage-item dg-voyage-item--field">
+        <span class="dg-voyage-label">Departure</span>
+        <app-date-picker
+          size="sm"
+          [value]="library().pageContext.dateOfDeparture"
+          (valueChange)="onPageContextChange('dateOfDeparture', $event)"
+        />
+      </label>
+      <label class="dg-voyage-item dg-voyage-item--field">
+        <span class="dg-voyage-label">Port of arrival</span>
+        <app-port-select
+          [ports]="ports()"
+          [value]="library().pageContext.nextPortOfCall"
+          (valueChange)="onPageContextChange('nextPortOfCall', $event)"
+        />
+      </label>
+      <label class="dg-voyage-item dg-voyage-item--field">
+        <span class="dg-voyage-label">Arrival</span>
+        <app-date-picker
+          size="sm"
+          [value]="library().pageContext.dateOfArrival"
+          (valueChange)="onPageContextChange('dateOfArrival', $event)"
+        />
+      </label>
+    </section>
+  }
+
+  <div class="dg-layout dg-layout--wide">
+    <main class="dg-main">
+      <section
+        class="card dg-inventory"
+        [class.dg-inventory--archive]="dgArchive.loaded()"
+        [class.dg-inventory--wide]="true"
+        [class.dg-inventory--cma]="activeInventoryTab() === 'cmaCgm'"
+        [class.dg-inventory--unifeeder]="activeInventoryTab() === 'unifeeder'"
+      >
+        @if (dgArchive.loaded(); as snap) {
+          <div class="dg-archive-banner" role="status">
+            Page state loaded from archive:
+            <strong>{{ snap.label }}</strong>
+            · Voy {{ snap.ship.voyageNumber || '—' }} ·
+            {{ formatDate(snap.ship.dateOfDeparture) || '—' }}
+          </div>
+        }
+
+        <nav class="dg-inventory-tabs" aria-label="DG inventory type">
+          <button
+            type="button"
+            class="dg-inventory-tab"
+            [class.dg-inventory-tab--active]="activeInventoryTab() === 'cmaCgm'"
+            (click)="setInventoryTab('cmaCgm')"
+          >
+            CMA CGM - DG
+          </button>
+          <button
+            type="button"
+            class="dg-inventory-tab"
+            [class.dg-inventory-tab--active]="activeInventoryTab() === 'unifeeder'"
+            (click)="setInventoryTab('unifeeder')"
+          >
+            DP WORLD - DG
+          </button>
+          <div class="dg-inventory-tab-actions">
+            <button
+              type="button"
+              class="dg-inventory-transfer-btn"
+              [title]="dgTransferButtonTitle()"
+              [attr.aria-label]="dgTransferButtonTitle()"
+              (click)="transferDgInventoryToOpposite()"
+            >
+              <svg class="dg-inventory-transfer-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 9.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="dg-inventory-clear-btn"
+              [title]="dgClearButtonTitle()"
+              [attr.aria-label]="dgClearButtonTitle()"
+              (click)="clearActiveDgInventory()"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+        </nav>
+
+        @if (activeInventoryTab() === 'cmaCgm') {
+          <div
+            class="cma-page-center"
+            [class.dg-tonnage-gross]="library().manifestUseGrossWeight"
+            [class.dg-tonnage-net]="!library().manifestUseGrossWeight"
+          >
+            <header class="cma-header">
+              <section class="cma-header__import-row" aria-label="CMA CGM import">
+                <div class="cma-import-panel">
+                  <div
+                    class="dg-drop-compact cma-drop--import"
+                    [class.dg-drop-compact--active]="dragOver()"
+                    [class.dg-drop-compact--busy]="importing()"
+                    (click)="pickPdf()"
+                    (dragover)="onDragOver($event)"
+                    (dragleave)="onDragLeave()"
+                    (drop)="onDrop($event)"
+                  >
+                    <input
+                      #pdfFile
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      hidden
+                      (change)="onPdfInput($event)"
+                    />
+                    @if (importing()) {
+                      <span class="cma-drop__label">…</span>
+                    } @else {
+                      <span class="dg-drop-compact-icon" aria-hidden="true">📄</span>
+                      <span class="cma-drop__label">Drop</span>
+                    }
+                  </div>
+
+                  @if (importHistory().length > 0) {
+                    <ul class="cma-manifest-list" aria-label="Imported manifests">
+                      @for (doc of importHistory(); track doc.id) {
+                        <li
+                          class="cma-manifest-chip"
+                          [class.cma-manifest-chip--all-discharged]="
+                            manifestFullyDischarged(doc.id)
+                          "
+                          [attr.title]="
+                            manifestDischargedTooltip(doc.id) || manifestLabel(doc) || null
+                          "
+                        >
+                          <span class="cma-manifest-chip__icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" focusable="false">
+                              <path
+                                fill="currentColor"
+                                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2.5L18.5 10H13V4.5zM8 13h8v1.5H8V13zm0 3h5v1.5H8V16z"
+                              />
+                            </svg>
+                          </span>
+                          <div class="cma-manifest-chip__body">
+                            <span class="cma-manifest-chip__name">{{
+                              manifestDisplayName(doc)
+                            }}</span>
+                            @if (manifestLabel(doc)) {
+                              <span class="cma-manifest-chip__meta">{{ manifestLabel(doc) }}</span>
+                            }
+                            @if (manifestFullyDischarged(doc.id)) {
+                              <span class="cma-manifest-chip__discharged">All discharged</span>
+                            }
+                          </div>
+                          <button
+                            type="button"
+                            class="cma-manifest-chip__remove"
+                            title="Remove manifest and all its containers"
+                            (click)="removeManifest(doc.id, $event)"
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  } @else {
+                    <p class="cma-import-hint">Drop PDF manifest or prestow positions</p>
+                  }
+                </div>
+              </section>
+
+              @if (visibleContainers().length > 0 && classSummaries().length > 0) {
+                <section class="cma-header__totals-row" aria-label="Manifest totals">
+                  <div class="cma-class-summary-panel">
+                    <div class="dg-master-total">
+                      <div class="dg-master-total-inner">
+                        <span class="dg-master-total-main">
+                          Onboard total:
+                          <strong class="dg-master-total-kg">{{
+                            formatSummaryKg(stats().totalKg)
+                          }}</strong>
+                        </span>
+                        <span class="dg-master-total-counts">
+                          {{ stats().containerCount }} containers {{ stats().lineCount }} lines
+                        </span>
+                      </div>
+                    </div>
+                    <div class="dg-class-summary-wrap">
+                      <table class="dg-class-summary">
+                        <thead>
+                          <tr>
+                            <th class="dg-class-summary-class">Class</th>
+                            <th class="dg-class-summary-total">
+                              {{ formatSummaryKg(stats().totalKg) }}
+                            </th>
+                            <th class="dg-class-summary-un-head">
+                              UN numbers for operation report
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (row of classSummaries(); track row.dgClass) {
+                            <tr>
+                              <td class="dg-class-summary-class">
+                                <span
+                                  class="dg-hint-tooltip-host dg-class-summary-class__hint"
+                                  [appDgClassTooltip]="row.dgClass"
+                                >
+                                  {{ row.dgClass }}
+                                </span>
+                              </td>
+                              <td class="dg-class-summary-kg">
+                                {{ formatSummaryKg(row.totalKg) }}
+                              </td>
+                              <td class="dg-class-summary-un">{{ row.unNumbers.join(' ') }}</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </section>
+              }
+
+              <section class="cma-header__controls-row" aria-label="Inventory controls">
+                <div class="cma-controls-panel">
+                  <div class="cma-controls-panel__actions">
+                    <label class="uf-toggle" title="Show discharged containers">
+                      <input
+                        type="checkbox"
+                        [ngModel]="library().showDischarged"
+                        (ngModelChange)="toggleShowDischarged($event)"
+                      />
+                      <span>Discharged</span>
+                    </label>
+                    <label
+                      class="uf-toggle"
+                      title="Combine lines in the same container when class, UN, name and MP/LQ match (same as PDF export)"
+                    >
+                      <input
+                        type="checkbox"
+                        [ngModel]="library().manifestMergeLines"
+                        (ngModelChange)="toggleManifestMergeLines($event)"
+                      />
+                      <span>Consolidate lines</span>
+                    </label>
+                    @if (library().manifestMergeLines) {
+                      <span
+                        class="dg-consolidated-legend"
+                        title="Rows where 2+ cargo lines were combined"
+                      >
+                        merged rows
+                      </span>
+                    }
+                    <div
+                      class="choice-segmented choice-segmented--row dg-weight-mode"
+                      [class.dg-weight-mode--gross]="library().manifestUseGrossWeight"
+                      [class.dg-weight-mode--net]="!library().manifestUseGrossWeight"
+                      role="radiogroup"
+                      aria-label="Weight tonnage"
+                      title="Gross or net weight for display and totals"
+                    >
+                      <label class="choice-segmented__item dg-weight-mode__gross">
+                        <input
+                          type="radio"
+                          name="cmaWeightTonnage"
+                          [checked]="library().manifestUseGrossWeight"
+                          (change)="setManifestWeightTonnage(true)"
+                        />
+                        <span class="choice-segmented__text">Gross</span>
+                      </label>
+                      <label class="choice-segmented__item dg-weight-mode__net">
+                        <input
+                          type="radio"
+                          name="cmaWeightTonnage"
+                          [checked]="!library().manifestUseGrossWeight"
+                          (change)="setManifestWeightTonnage(false)"
+                        />
+                        <span class="choice-segmented__text">Net</span>
+                      </label>
+                    </div>
+                    <label class="uf-toggle" title="Round displayed weights and totals to whole kg">
+                      <input
+                        type="checkbox"
+                        [ngModel]="library().manifestRoundWeights"
+                        (ngModelChange)="toggleManifestRoundWeights($event)"
+                      />
+                      <span>Round weight</span>
+                    </label>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm dg-pdf-btn section-readonly-allow"
+                      [disabled]="exportingPdf()"
+                      (click)="exportPdf()"
+                    >
+                      PDF
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm dg-excel-btn section-readonly-allow"
+                      [disabled]="exportingExcel()"
+                      (click)="exportExcel()"
+                    >
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm dg-add-container-btn"
+                      (click)="addContainer()"
+                    >
+                      + Container
+                    </button>
+                  </div>
+
+                  <div class="cma-controls-panel__stats">
+                    <label
+                      class="uf-search-box"
+                      [class.uf-search-box--filled]="inventorySearch().trim().length > 0"
+                    >
+                      <span class="uf-search-box__label">Search</span>
+                      <input
+                        type="search"
+                        class="uf-search-box__input"
+                        aria-label="Search DG inventory"
+                        [ngModel]="inventorySearch()"
+                        (ngModelChange)="inventorySearch.set($event)"
+                      />
+                    </label>
+
+                    <div class="uf-inventory-strip">
+                      <span
+                        ><strong>{{ stats().containerCount }}</strong> ctr</span
+                      >
+                      <span class="uf-inventory-strip__sep">·</span>
+                      <span
+                        ><strong>{{ stats().lineCount }}</strong> lines</span
+                      >
+                      @if (stats().dischargedCount > 0) {
+                        <span class="uf-inventory-strip__sep">·</span>
+                        <span class="uf-inventory-strip__muted"
+                          >{{ stats().dischargedCount }} disch.</span
+                        >
+                      }
+                      <span class="uf-inventory-strip__weight"
+                        >{{ formatSummaryKg(stats().totalKg) }} kg</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </header>
+
+            @if (visibleContainers().length === 0) {
+              <p class="dg-empty-hint">
+                No containers onboard. Import a port manifest or add a container manually.
+              </p>
+            } @else {
+              <div class="table-wrap dg-master-wrap dg-master-card">
+                <table class="dg-master-table">
+                  <colgroup>
+                    <col class="col-index" />
+                    <col class="col-container" />
+                    <col class="col-type" />
+                    <col class="col-port" />
+                    <col class="col-port" />
+                    <col class="col-stowage" />
+                    <col class="col-class" />
+                    <col class="col-un" />
+                    <col class="col-mp-lq" />
+                    <col class="col-flash" />
+                    <col class="col-weight" />
+                    <col class="col-name" />
+                    <col class="col-line-act" />
+                    <col class="col-actions" />
+                  </colgroup>
+                  <thead>
+                    <tr class="dg-table-head">
+                      <th class="col-index dg-th--group-start">#</th>
+                      <th
+                        class="col-container dg-sort-th"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'containerNo'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'containerNo' &&
+                          inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by container"
+                        (click)="toggleInventorySort('containerNo')"
+                      >
+                        Container
+                      </th>
+                      <th
+                        class="col-type dg-sort-th"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'type'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'type' && inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by type"
+                        (click)="toggleInventorySort('type')"
+                      >
+                        Type
+                      </th>
+                      <th
+                        class="col-port dg-sort-th dg-th--group-start"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'loadPort'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'loadPort' &&
+                          inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by load port"
+                        (click)="toggleInventorySort('loadPort')"
+                      >
+                        Load
+                      </th>
+                      <th
+                        class="col-port dg-sort-th"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'dischargePort'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'dischargePort' &&
+                          inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by discharge port"
+                        (click)="toggleInventorySort('dischargePort')"
+                      >
+                        Disch.
+                      </th>
+                      <th
+                        class="col-stowage dg-sort-th"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'stowage'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'stowage' && inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by stowage"
+                        (click)="toggleInventorySort('stowage')"
+                      >
+                        Stow.
+                      </th>
+                      <th
+                        class="col-class dg-sort-th dg-th--group-start"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'dgClass'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'dgClass' && inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by class"
+                        (click)="toggleInventorySort('dgClass')"
+                      >
+                        Cl.
+                      </th>
+                      <th
+                        class="col-un dg-sort-th"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'unNo'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'unNo' && inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by UN number"
+                        (click)="toggleInventorySort('unNo')"
+                      >
+                        UN
+                      </th>
+                      <th class="col-mp-lq" title="Marine Pollutant / Limited Quantity">MP/LQ</th>
+                      <th class="col-flash" title="Flash point">
+                        <span class="dg-th-stack"><span>Flash</span><span>point</span></span>
+                      </th>
+                      <th
+                        class="col-weight dg-sort-th"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'weightKg'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'weightKg' &&
+                          inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by weight"
+                        (click)="toggleInventorySort('weightKg')"
+                      >
+                        kg
+                      </th>
+                      <th
+                        class="col-name dg-sort-th"
+                        [class.dg-sort-th--active]="inventorySortColumn() === 'properShippingName'"
+                        [class.dg-sort-th--desc]="
+                          inventorySortColumn() === 'properShippingName' &&
+                          inventorySortDirection() === 'desc'
+                        "
+                        title="Sort by proper shipping name"
+                        (click)="toggleInventorySort('properShippingName')"
+                      >
+                        <span class="dg-th-stack"
+                          ><span>Proper</span><span>shipping name</span></span
+                        >
+                      </th>
+                      <th class="col-line-act dg-th--group-start" aria-label="Remove line"></th>
+                      <th class="col-actions" aria-label="Container actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (container of visibleContainers(); track container.id; let ci = $index) {
+                      @if (container.lines.length === 0) {
+                        <tr
+                          class="dg-master-row dg-master-row--container-start dg-master-row--container-end"
+                          [class.dg-master-row--container-gap]="ci > 0"
+                          [attr.data-container-id]="container.id"
+                          [class.dg-master-row--discharged]="container.status === 'discharged'"
+                          [class.dg-master-row--group-active]="isContainerGroupActive(container.id)"
+                          [class.dg-master-row--container-focus]="
+                            isContainerGroupFocus(container.id)
+                          "
+                          (mouseenter)="setContainerGroupHover(container.id)"
+                          (mouseleave)="onContainerGroupLeave($event, container.id)"
+                        >
+                          <td class="col-index col-group">{{ ci + 1 }}</td>
+                          <td class="col-container col-group">
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--mono"
+                              [ngModel]="container.containerNo"
+                              (ngModelChange)="
+                                onContainerChange(container.id, 'containerNo', $event)
+                              "
+                              placeholder="—"
+                            />
+                          </td>
+                          <td class="col-type col-group">
+                            <span
+                              class="dg-hint-tooltip-host"
+                              [appContainerTypeTooltip]="container.type"
+                            >
+                              <input
+                                type="text"
+                                class="dg-cell-input dg-cell-input--mono"
+                                [ngModel]="container.type"
+                                (ngModelChange)="onContainerChange(container.id, 'type', $event)"
+                                placeholder="—"
+                              />
+                            </span>
+                          </td>
+                          <td class="col-port col-group">
+                            <div class="dg-cell-port-select">
+                              <app-port-select
+                                [ports]="ports()"
+                                [value]="container.loadPort"
+                                [compact]="true"
+                                (valueChange)="onContainerChange(container.id, 'loadPort', $event)"
+                              />
+                            </div>
+                          </td>
+                          <td class="col-port col-group">
+                            <div class="dg-cell-port-select">
+                              <app-port-select
+                                [ports]="ports()"
+                                [value]="container.dischargePort"
+                                [compact]="true"
+                                (valueChange)="
+                                  onContainerChange(container.id, 'dischargePort', $event)
+                                "
+                              />
+                            </div>
+                          </td>
+                          <td class="col-stowage col-group">
+                            <input
+                              type="text"
+                              class="dg-cell-input dg-cell-input--stowage"
+                              [ngModel]="container.stowage"
+                              (ngModelChange)="onContainerChange(container.id, 'stowage', $event)"
+                              placeholder="—"
+                            />
+                          </td>
+                          <td colspan="6" class="dg-master-empty-cargo col-cargo">
+                            <button
+                              type="button"
+                              class="dg-act dg-act--add dg-act--wide"
+                              title="Add DG line"
+                              (click)="addLine(container.id)"
+                            >
+                              <dg-act-icon kind="add" />
+                              <span>Line</span>
+                            </button>
+                          </td>
+                          <td class="col-line-act col-cargo"></td>
+                          <td class="col-actions col-group">
+                            <div class="dg-row-actions">
+                              @if (container.status === 'discharged') {
+                                <button
+                                  type="button"
+                                  class="dg-act dg-act--restore"
+                                  title="Restore onboard"
+                                  (click)="restoreOnboard(container.id)"
+                                >
+                                  <dg-act-icon kind="restore" />
+                                </button>
+                              } @else {
+                                <button
+                                  type="button"
+                                  class="dg-act dg-act--discharge"
+                                  title="Mark discharged"
+                                  (click)="markDischarged(container.id)"
+                                >
+                                  <dg-act-icon kind="discharge" />
+                                </button>
+                              }
+                              <button
+                                type="button"
+                                class="dg-act dg-act--add"
+                                title="Add DG line"
+                                (click)="addLine(container.id)"
+                              >
+                                <dg-act-icon kind="add" />
+                              </button>
+                              <button
+                                type="button"
+                                class="dg-act dg-act--remove"
+                                title="Remove container"
+                                (click)="removeContainer(container.id)"
+                              >
+                                <dg-act-icon kind="remove" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      } @else {
+                        @for (
+                          line of containerDisplayLines(container);
+                          track line.id;
+                          let first = $first;
+                          let last = $last
+                        ) {
+                          <tr
+                            class="dg-master-row"
+                            [attr.data-container-id]="container.id"
+                            [class.dg-master-row--discharged]="container.status === 'discharged'"
+                            [class.dg-master-row--container-start]="first"
+                            [class.dg-master-row--container-end]="last"
+                            [class.dg-master-row--container-gap]="first && ci > 0"
+                            [class.dg-master-row--single-line]="
+                              containerDisplayLineCount(container) === 1
+                            "
+                            [class.dg-master-row--group-active]="
+                              isContainerGroupActive(container.id)
+                            "
+                            [class.dg-master-row--container-focus]="
+                              isContainerGroupFocus(container.id)
+                            "
+                            [class.dg-master-row--line-hovered]="
+                              isCargoLineHovered(container.id, line.id)
+                            "
+                            [class.dg-master-row--consolidated]="line.consolidated"
+                            [attr.title]="
+                              line.consolidated
+                                ? 'Consolidated: ' +
+                                  line.sourceLineIds.length +
+                                  ' source lines merged'
+                                : null
+                            "
+                            (mouseenter)="setLineHover(container.id, line.id)"
+                            (mouseleave)="onContainerGroupLeave($event, container.id)"
+                          >
+                            @if (first) {
+                              <td
+                                class="col-index col-group"
+                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.data-container-id]="container.id"
+                                (mouseenter)="setContainerGroupHover(container.id)"
+                              >
+                                {{ ci + 1 }}
+                              </td>
+                              <td
+                                class="col-container col-group"
+                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.data-container-id]="container.id"
+                                (mouseenter)="setContainerGroupHover(container.id)"
+                              >
+                                <input
+                                  type="text"
+                                  class="dg-cell-input dg-cell-input--mono"
+                                  [ngModel]="container.containerNo"
+                                  (ngModelChange)="
+                                    onContainerChange(container.id, 'containerNo', $event)
+                                  "
+                                  placeholder="—"
+                                />
+                              </td>
+                              <td
+                                class="col-type col-group"
+                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.data-container-id]="container.id"
+                                (mouseenter)="setContainerGroupHover(container.id)"
+                              >
+                                <span
+                                  class="dg-hint-tooltip-host"
+                                  [appContainerTypeTooltip]="container.type"
+                                >
+                                  <input
+                                    type="text"
+                                    class="dg-cell-input dg-cell-input--mono"
+                                    [ngModel]="container.type"
+                                    (ngModelChange)="
+                                      onContainerChange(container.id, 'type', $event)
+                                    "
+                                    placeholder="—"
+                                  />
+                                </span>
+                              </td>
+                              <td
+                                class="col-port col-group"
+                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.data-container-id]="container.id"
+                                (mouseenter)="setContainerGroupHover(container.id)"
+                              >
+                                <div class="dg-cell-port-select">
+                                  <app-port-select
+                                    [ports]="ports()"
+                                    [value]="container.loadPort"
+                                    [compact]="true"
+                                    (valueChange)="
+                                      onContainerChange(container.id, 'loadPort', $event)
+                                    "
+                                  />
+                                </div>
+                              </td>
+                              <td
+                                class="col-port col-group"
+                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.data-container-id]="container.id"
+                                (mouseenter)="setContainerGroupHover(container.id)"
+                              >
+                                <div class="dg-cell-port-select">
+                                  <app-port-select
+                                    [ports]="ports()"
+                                    [value]="container.dischargePort"
+                                    [compact]="true"
+                                    (valueChange)="
+                                      onContainerChange(container.id, 'dischargePort', $event)
+                                    "
+                                  />
+                                </div>
+                              </td>
+                              <td
+                                class="col-stowage col-group"
+                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.data-container-id]="container.id"
+                                (mouseenter)="setContainerGroupHover(container.id)"
+                              >
+                                <input
+                                  type="text"
+                                  class="dg-cell-input dg-cell-input--stowage"
+                                  [ngModel]="container.stowage"
+                                  (ngModelChange)="
+                                    onContainerChange(container.id, 'stowage', $event)
+                                  "
+                                  placeholder="—"
+                                />
+                              </td>
+                            }
+                            <td class="col-class col-cargo">
+                              @if (line.editable) {
+                                <span
+                                  class="dg-hint-tooltip-host"
+                                  [appDgClassTooltip]="line.dgClass"
+                                >
+                                  <input
+                                    type="text"
+                                    class="dg-cell-input"
+                                    [ngModel]="line.dgClass"
+                                    (ngModelChange)="
+                                      onLineChange(
+                                        container.id,
+                                        line.sourceLineIds[0],
+                                        'dgClass',
+                                        $event
+                                      )
+                                    "
+                                    placeholder="—"
+                                  />
+                                </span>
+                              } @else {
+                                <span
+                                  class="dg-hint-tooltip-host"
+                                  [appDgClassTooltip]="line.dgClass"
+                                >
+                                  <input
+                                    type="text"
+                                    class="dg-cell-input dg-cell-input--readonly"
+                                    [ngModel]="line.dgClass || '—'"
+                                    readonly
+                                    tabindex="-1"
+                                  />
+                                </span>
+                              }
+                            </td>
+                            <td class="col-un col-cargo">
+                              @if (line.editable) {
+                                <span [appUnNumberTooltip]="line.unNo">
+                                  <input
+                                    type="text"
+                                    class="dg-cell-input dg-cell-input--mono"
+                                    [ngModel]="line.unNo"
+                                    (ngModelChange)="
+                                      onLineChange(
+                                        container.id,
+                                        line.sourceLineIds[0],
+                                        'unNo',
+                                        $event
+                                      )
+                                    "
+                                    (blur)="
+                                      onCmaUnNoCommit(container.id, line.sourceLineIds[0], $event)
+                                    "
+                                    (keydown)="onUnNoEnter($event)"
+                                    placeholder="—"
+                                  />
+                                </span>
+                              } @else {
+                                <span class="dg-hint-tooltip-host" [appUnNumberTooltip]="line.unNo">
+                                  <input
+                                    type="text"
+                                    class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
+                                    [ngModel]="line.unNo || '—'"
+                                    readonly
+                                    tabindex="-1"
+                                  />
+                                </span>
+                              }
+                            </td>
+                            <td class="col-mp-lq col-cargo">
+                              @if (line.editable) {
+                                <input
+                                  type="text"
+                                  class="dg-cell-input dg-cell-input--mono"
+                                  [ngModel]="line.mpLq"
+                                  (ngModelChange)="
+                                    onLineChange(
+                                      container.id,
+                                      line.sourceLineIds[0],
+                                      'mpLq',
+                                      $event
+                                    )
+                                  "
+                                  placeholder="—"
+                                />
+                              } @else {
+                                <input
+                                  type="text"
+                                  class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
+                                  [ngModel]="line.mpLq || '—'"
+                                  readonly
+                                  tabindex="-1"
+                                />
+                              }
+                            </td>
+                            <td class="col-flash col-cargo">
+                              @if (line.editable) {
+                                <input
+                                  type="text"
+                                  class="dg-cell-input dg-cell-input--mono"
+                                  [class.dg-flash--negative]="
+                                    flashPointTone(line.flashPoint) === 'negative'
+                                  "
+                                  [class.dg-flash--positive]="
+                                    flashPointTone(line.flashPoint) === 'positive'
+                                  "
+                                  [ngModel]="line.flashPoint"
+                                  (ngModelChange)="
+                                    onLineChange(
+                                      container.id,
+                                      line.sourceLineIds[0],
+                                      'flashPoint',
+                                      $event
+                                    )
+                                  "
+                                  placeholder="—"
+                                />
+                              } @else {
+                                <input
+                                  type="text"
+                                  class="dg-cell-input dg-cell-input--mono dg-cell-input--readonly"
+                                  [class.dg-flash--negative]="
+                                    flashPointTone(line.flashPoint) === 'negative'
+                                  "
+                                  [class.dg-flash--positive]="
+                                    flashPointTone(line.flashPoint) === 'positive'
+                                  "
+                                  [ngModel]="line.flashPoint || '—'"
+                                  readonly
+                                  tabindex="-1"
+                                />
+                              }
+                            </td>
+                            <td class="col-weight col-cargo">
+                              @if (line.editable) {
+                                <input
+                                  type="text"
+                                  class="dg-cell-input dg-cell-input--weight"
+                                  [ngModel]="line.weightKgDisplay"
+                                  (ngModelChange)="
+                                    onLineChange(
+                                      container.id,
+                                      line.sourceLineIds[0],
+                                      'weightKg',
+                                      $event
+                                    )
+                                  "
+                                  (blur)="
+                                    onCmaLineWeightBlur(
+                                      container.id,
+                                      line.sourceLineIds[0],
+                                      $any($event.target).value
+                                    )
+                                  "
+                                  inputmode="decimal"
+                                  placeholder="—"
+                                />
+                              } @else {
+                                <input
+                                  type="text"
+                                  class="dg-cell-input dg-cell-input--weight dg-cell-input--readonly"
+                                  [ngModel]="line.weightKgDisplay || '—'"
+                                  readonly
+                                  tabindex="-1"
+                                />
+                              }
+                            </td>
+                            <td class="col-name col-cargo">
+                              @if (line.editable) {
+                                <textarea
+                                  rows="1"
+                                  class="dg-cell-input dg-cell-input--name"
+                                  [ngModel]="line.properShippingName"
+                                  (ngModelChange)="
+                                    onLineChange(
+                                      container.id,
+                                      line.sourceLineIds[0],
+                                      'properShippingName',
+                                      $event
+                                    )
+                                  "
+                                  [title]="line.properShippingName"
+                                  placeholder="—"
+                                ></textarea>
+                              } @else {
+                                <textarea
+                                  rows="1"
+                                  class="dg-cell-input dg-cell-input--name dg-cell-input--readonly"
+                                  [ngModel]="line.properShippingName || '—'"
+                                  [title]="line.properShippingName"
+                                  readonly
+                                  tabindex="-1"
+                                ></textarea>
+                              }
+                            </td>
+                            <td class="col-line-act col-cargo">
+                              @if (line.editable) {
+                                <button
+                                  type="button"
+                                  class="dg-act dg-act--line-remove"
+                                  title="Remove DG line"
+                                  (click)="removeLine(container.id, line.sourceLineIds[0])"
+                                >
+                                  <dg-act-icon kind="line-remove" />
+                                </button>
+                              }
+                            </td>
+                            @if (first) {
+                              <td
+                                class="col-actions col-group"
+                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.data-container-id]="container.id"
+                                (mouseenter)="setContainerGroupHover(container.id)"
+                              >
+                                <div class="dg-row-actions">
+                                  @if (container.status !== 'discharged') {
+                                    <span class="dg-container-kg" [title]="'Container total, kg'">
+                                      {{ formatSummaryKg(containerTotalKg(container)) }}
+                                    </span>
+                                  }
+                                  @if (container.status === 'discharged') {
+                                    <button
+                                      type="button"
+                                      class="dg-act dg-act--restore"
+                                      title="Restore onboard"
+                                      (click)="restoreOnboard(container.id)"
+                                    >
+                                      <dg-act-icon kind="restore" />
+                                    </button>
+                                  } @else {
+                                    <button
+                                      type="button"
+                                      class="dg-act dg-act--discharge"
+                                      title="Mark discharged"
+                                      (click)="markDischarged(container.id)"
+                                    >
+                                      <dg-act-icon kind="discharge" />
+                                    </button>
+                                  }
+                                  <button
+                                    type="button"
+                                    class="dg-act dg-act--add"
+                                    title="Add DG line"
+                                    (click)="addLine(container.id)"
+                                  >
+                                    <dg-act-icon kind="add" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="dg-act dg-act--remove"
+                                    title="Remove container"
+                                    (click)="removeContainer(container.id)"
+                                  >
+                                    <dg-act-icon kind="remove" />
+                                  </button>
+                                </div>
+                              </td>
+                            }
+                          </tr>
+                        }
+                      }
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        } @else {
+          <app-dg-unifeeder-inventory />
+        }
+      </section>
+    </main>
+  </div>
+</div>
+
+<app-dg-archive-modals
+  [showSave]="showArchiveSaveModal()"
+  [showLoad]="showArchiveLoadModal()"
+  (closeSave)="showArchiveSaveModal.set(false)"
+  (closeLoad)="showArchiveLoadModal.set(false)"
+/>

@@ -69,6 +69,8 @@ cd CREW
 npm install
 ```
 
+Short command sheet (Windows / PowerShell): [docs/electron.md](docs/electron.md).
+
 ### Build portable executable
 
 ```bash

@@ -7,6 +7,11 @@ import {
   type AppSnapshotSession,
 } from '../models/app-snapshot.models';
 import { cloneMainAppSnapshot, extractMainAppSnapshot } from '../utils/app-snapshot.util';
+import {
+  readLocalStorage,
+  removeLocalStorage,
+  writeLocalStorage,
+} from '../utils/browser-storage.util';
 import { StorageService } from './storage.service';
 
 /** Full app snapshots (except DG / Reefer) — stored separately from crew-data.json. */
@@ -124,16 +129,16 @@ export class AppSnapshotArchiveService {
       loadedId: loaded.id,
       liveBackup: cloneMainAppSnapshot(this.liveBackup),
     };
-    localStorage.setItem(APP_SNAPSHOT_SESSION_KEY, JSON.stringify(session));
+    writeLocalStorage(APP_SNAPSHOT_SESSION_KEY, JSON.stringify(session));
   }
 
   private clearSession(): void {
-    localStorage.removeItem(APP_SNAPSHOT_SESSION_KEY);
+    removeLocalStorage(APP_SNAPSHOT_SESSION_KEY);
   }
 
   private readSession(): AppSnapshotSession | null {
     try {
-      const raw = localStorage.getItem(APP_SNAPSHOT_SESSION_KEY);
+      const raw = readLocalStorage(APP_SNAPSHOT_SESSION_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== 'object') return null;
@@ -151,7 +156,7 @@ export class AppSnapshotArchiveService {
 
   private readEntries(): AppSnapshotEntry[] {
     try {
-      const raw = localStorage.getItem(APP_SNAPSHOT_STORAGE_KEY);
+      const raw = readLocalStorage(APP_SNAPSHOT_STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw) as unknown;
       if (!Array.isArray(parsed)) return [];
@@ -166,7 +171,7 @@ export class AppSnapshotArchiveService {
   }
 
   private writeEntries(): void {
-    localStorage.setItem(APP_SNAPSHOT_STORAGE_KEY, JSON.stringify(this.entries()));
+    writeLocalStorage(APP_SNAPSHOT_STORAGE_KEY, JSON.stringify(this.entries()));
   }
 
   private normalizeEntry(raw: unknown): AppSnapshotEntry | null {

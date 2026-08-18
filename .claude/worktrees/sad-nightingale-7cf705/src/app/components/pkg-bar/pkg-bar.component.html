@@ -1,0 +1,206 @@
+<div class="pkg-bar-cluster" [class.pkg-bar-cluster--archive]="archive.loaded()">
+  <div class="pkg-bar pkg-bar--snapshots">
+    <div class="pkg-bar-side">
+      <button
+        type="button"
+        class="pkg-mini-btn"
+        title="Save app snapshot (crew, voyage, forms — not DG / Reefer). Reference lists and archives are preserved on load."
+        [disabled]="!canSave()"
+        (click)="startSave()"
+      >
+        {{ archive.saving() ? '…' : 'Save' }}
+      </button>
+      <button
+        type="button"
+        class="pkg-mini-btn"
+        title="Load saved app snapshot"
+        (click)="openLoad()"
+      >
+        Load
+      </button>
+      @if (archive.loaded()) {
+        <button
+          type="button"
+          class="pkg-mini-btn pkg-mini-btn--apply"
+          title="Keep current data as live and discard the pre-load backup"
+          (click)="commitArchiveAsLive()"
+        >
+          Apply as live
+        </button>
+        <button
+          type="button"
+          class="pkg-mini-btn pkg-mini-btn--reset"
+          title="Back to live data"
+          (click)="resetArchive()"
+        >
+          Reset
+        </button>
+      }
+      <button
+        type="button"
+        class="pkg-help-btn"
+        title="Save / load full app state (crew, voyage, forms). DG and Reefer are excluded. On load, ports, ranks, nationalities, document packages and archives are never reduced."
+        aria-label="About Save and Load"
+      >
+        ?
+      </button>
+    </div>
+
+    @if (showSavePanel()) {
+      <div class="pkg-panel pkg-panel--save" appClickOutside (appClickOutside)="cancelSave()">
+        <input
+          type="text"
+          class="pkg-panel-input"
+          [(ngModel)]="saveLabel"
+          placeholder="Snapshot name"
+          maxlength="80"
+          (keydown.enter)="confirmSave()"
+          (keydown.escape)="cancelSave()"
+        />
+        <button type="button" class="pkg-mini-btn pkg-mini-btn--ok" (click)="confirmSave()">
+          OK
+        </button>
+        <button type="button" class="pkg-mini-btn" (click)="cancelSave()">×</button>
+      </div>
+    }
+  </div>
+
+  <div class="pkg-bar pkg-bar--port">
+    <div class="pkg-bar-main">
+      @if (archive.loaded(); as snap) {
+        <span
+          class="pkg-archive-warn"
+          title="Working from a loaded snapshot — Reset or Apply as live when done"
+        >
+          Snapshot: {{ snap.label }} · {{ snap.portName || '—' }} · arr.
+          {{ formatDate(snap.arrivalDate) }}
+        </span>
+      }
+
+      <span class="pkg-bar-port" [class.pkg-bar-port--archive]="archive.loaded()">
+        {{ packageRunner.currentPort() || '—' }}
+        @if (packageRunner.currentBreakdown(); as bd) {
+          <span class="pkg-tip">
+            <span class="pkg-tip-title">
+              @if (archive.loaded(); as snap) {
+                {{ snap.label }} — {{ snap.portName }}
+              } @else {
+                {{ packageRunner.currentPort() }} — to print
+              }
+            </span>
+            @for (auth of bd.authorities; track $index) {
+              <span class="pkg-tip-auth">{{ auth.name }}</span>
+              @for (it of auth.items; track $index) {
+                <span class="pkg-tip-line"
+                  ><span>{{ it.label }}</span
+                  ><span class="pkg-tip-qty">×{{ it.copies }}</span></span
+                >
+              }
+              @if (auth.items.length === 0) {
+                <span class="pkg-tip-line pkg-tip-muted">no documents</span>
+              }
+            }
+            <span class="pkg-tip-sep"></span>
+            <span class="pkg-tip-auth pkg-tip-total">Total</span>
+            @for (s of bd.summary; track $index) {
+              <span class="pkg-tip-line"
+                ><span>{{ s.label }}</span
+                ><span class="pkg-tip-qty">×{{ s.copies }}</span></span
+              >
+            }
+          </span>
+        }
+      </span>
+
+      <button
+        type="button"
+        class="pkg-bar-btn"
+        [disabled]="packageRunner.busy() || packageRunner.currentPrintItemCount() === 0"
+        (click)="packageRunner.openAll()"
+      >
+        Open all
+      </button>
+      <button
+        type="button"
+        class="pkg-bar-btn pkg-bar-btn--primary"
+        [disabled]="packageRunner.busy() || packageRunner.currentPrintItemCount() === 0"
+        (click)="packageRunner.printAll()"
+      >
+        Print all
+      </button>
+    </div>
+  </div>
+</div>
+
+@if (showLoadModal()) {
+  <div class="modal-backdrop">
+    <div
+      class="modal pkg-load-modal"
+      appClickOutside
+      (appClickOutside)="closeLoad()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="pkg-load-head">
+        <div class="pkg-load-head__mark" aria-hidden="true"></div>
+        <div class="pkg-load-head__text">
+          <h3>Load snapshot</h3>
+          <p class="pkg-load-modal-hint">
+            Pick a saved app snapshot. Crew, voyage and forms are restored. Ports, ranks,
+            nationalities, document packages and crew/passenger archives are kept as complete as
+            possible — nothing is removed.
+          </p>
+        </div>
+      </header>
+
+      <div class="pkg-load-body">
+        @if (archive.entriesNewestFirst().length === 0) {
+          <div class="pkg-load-modal-empty">
+            <span class="pkg-load-modal-empty__title">No snapshots yet</span>
+            <span class="pkg-load-modal-empty__text">
+              Use <strong>Save</strong> on the bar to store the current app state.
+            </span>
+          </div>
+        } @else {
+          <ul class="pkg-load-list">
+            @for (entry of archive.entriesNewestFirst(); track entry.id) {
+              <li class="pkg-load-row">
+                <button
+                  type="button"
+                  class="pkg-load-card"
+                  [class.pkg-load-card--active]="archive.loaded()?.id === entry.id"
+                  (click)="pickArchive(entry)"
+                >
+                  <span class="pkg-load-card__header">
+                    <span class="pkg-load-card__label">{{ entry.label }}</span>
+                    @if (archive.loaded()?.id === entry.id) {
+                      <span class="pkg-load-card__badge">Loaded</span>
+                    }
+                  </span>
+                  <span class="pkg-load-card__chips">
+                    <span class="pkg-load-chip">{{ entry.portName || '—' }}</span>
+                    <span class="pkg-load-chip">Voy {{ entry.voyageNumber || '—' }}</span>
+                    <span class="pkg-load-chip">Arr. {{ formatDate(entry.arrivalDate) }}</span>
+                  </span>
+                  <span class="pkg-load-card__when">Saved {{ formatSavedAt(entry.savedAt) }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="pkg-load-delete"
+                  title="Delete snapshot"
+                  aria-label="Delete snapshot {{ entry.label }}"
+                  (click)="deleteSnapshot(entry, $event)"
+                >
+                  ×
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="modal-actions pkg-load-actions">
+        <button type="button" class="btn btn-primary" (click)="closeLoad()">Done</button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,19 @@
+---
+description: How to write and run tests in the CREW app
+alwaysApply: true
+---
+
+Runner: vitest via `@angular/build:unit-test`. Run with `npm test`
+(one-shot: `npx ng test --watch=false`). Specs are excluded from the production build.
+
+- Prefer pure unit tests. Pure functions (`app-data-normalizer.ts`, utils) test directly.
+- For a feature store: `state = TestBed.inject(AppStateStore)`,
+  `state.data.set(createEmptyAppData())`, `store = TestBed.inject(TheStore)`, then call
+  store methods and assert on `state.data()`. See `crew.store.spec.ts`,
+  `reference-lists.store.spec.ts`, `app-data-normalizer.spec.ts`.
+- Cover first: `app-data-normalizer.ts` (additive schema / migrations — riskiest to break
+  silently) and feature-store mutations. Add tests when you touch store/normalizer/util logic.
+- Components using `RouterLink`/router need `provideRouter([])` in TestBed providers.
+- When a test fails, check whether the test's expectation is wrong before assuming the code
+  is — tests here have already documented real behavior (e.g. `mergeUniqueList` dedupes
+  exact duplicates only; `mergePorts` adds a `terminals` field).

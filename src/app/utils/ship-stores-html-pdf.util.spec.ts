@@ -30,20 +30,22 @@ describe('buildShipStoresHtmlPdfSnapshot', () => {
     expect(snap.form01?.articles).toHaveLength(27);
   });
 
-  it('builds form 02 header with departure mark when not arrival', () => {
+  it('builds form 02 with departure mode when overlay marks departure', () => {
     const data = createEmptyAppData();
-    data.crewArr.isArrival = false;
     data.ship.name = 'Long Ship';
     data.ship.imoNo = '1234567';
     data.shipStoresForm02.placeOfStorage = 'Store';
+    data.documentOverlay.shipStores02.cellValues = { _ssMode: 'departure' };
 
     const snap = buildShipStoresHtmlPdfSnapshot(data, true, '02');
 
     expect(snap.variant).toBe('02');
     expect(snap.overlayKey).toBe('shipStores02');
-    expect(snap.header?.['arrivalMark']).toBe('');
-    expect(snap.header?.['departureMark']).toBe('X');
-    expect(snap.header?.['imoNo']).toBe('1234567');
+    expect(snap.form02).toBeDefined();
+    expect(snap.form02?.arrival).toBe(false);
+    expect(snap.form02?.departure).toBe(true);
+    expect(snap.form02?.imoNumber).toBe('1234567');
+    expect(snap.form02?.placeOfStorage).toBe('Store');
     expect(snap.withOverlay).toBe(true);
   });
 });

@@ -1,0 +1,57 @@
+<section class="sm-settings">
+  <h4 class="sm-section-title">Amount &amp; currency</h4>
+
+  <ul class="sm-entry-list">
+    @for (entry of form().entries; track entry.id) {
+      <li class="sm-entry-item">
+        <label class="sm-field">
+          <span class="sm-label">Amount</span>
+          <input
+            type="text"
+            class="sm-input"
+            [ngModel]="entry.amount"
+            (ngModelChange)="onEntryChange(entry.id, 'amount', $event)"
+          />
+        </label>
+        <label class="sm-field">
+          <span class="sm-label">Currency</span>
+          <input
+            type="text"
+            class="sm-input"
+            [ngModel]="entry.currency"
+            (ngModelChange)="onEntryChange(entry.id, 'currency', $event)"
+          />
+        </label>
+        <button type="button" class="btn btn-link warn sm-remove" (click)="removeEntry(entry.id)">
+          Remove
+        </button>
+      </li>
+    }
+  </ul>
+
+  <div class="sm-add">
+    <label class="sm-field">
+      <span class="sm-label">Amount</span>
+      <input
+        type="text"
+        class="sm-input"
+        [ngModel]="draftAmount()"
+        (ngModelChange)="draftAmount.set($event)"
+        placeholder="2800"
+      />
+    </label>
+    <label class="sm-field">
+      <span class="sm-label">Currency</span>
+      <input
+        type="text"
+        class="sm-input"
+        [ngModel]="draftCurrency()"
+        (ngModelChange)="draftCurrency.set($event)"
+        placeholder="USD"
+      />
+    </label>
+    <button type="button" class="btn btn-secondary" (click)="addEntry()">Add row</button>
+  </div>
+
+  <app-document-stamp-options documentId="shipMoney" />
+</section>

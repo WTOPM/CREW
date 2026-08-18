@@ -11,6 +11,11 @@ import { normalizeDgLibrary, type DgLibrarySettings } from '../models/dg-manifes
 import type { Port, ShipInfo } from '../models/crew.models';
 import { dgPageShipContextFromLibrary } from '../utils/page-ship-context.util';
 import { formatDisplayDate } from '../utils/date.util';
+import {
+  readLocalStorage,
+  removeLocalStorage,
+  writeLocalStorage,
+} from '../utils/browser-storage.util';
 import { StorageService } from './storage.service';
 import { DgManifestStore } from './dg-manifest.store';
 
@@ -131,16 +136,16 @@ export class DgPageArchiveService {
       loadedId: loaded.id,
       liveBackup: cloneLiveBackup(this.liveBackup, this.storage.ports()),
     };
-    localStorage.setItem(DG_PAGE_ARCHIVE_SESSION_KEY, JSON.stringify(session));
+    writeLocalStorage(DG_PAGE_ARCHIVE_SESSION_KEY, JSON.stringify(session));
   }
 
   private clearSession(): void {
-    localStorage.removeItem(DG_PAGE_ARCHIVE_SESSION_KEY);
+    removeLocalStorage(DG_PAGE_ARCHIVE_SESSION_KEY);
   }
 
   private readSession(): DgPageArchiveSession | null {
     try {
-      const raw = localStorage.getItem(DG_PAGE_ARCHIVE_SESSION_KEY);
+      const raw = readLocalStorage(DG_PAGE_ARCHIVE_SESSION_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as unknown;
       if (!parsed || typeof parsed !== 'object') return null;
@@ -173,7 +178,7 @@ export class DgPageArchiveService {
 
   private readEntries(): DgPageSnapshot[] {
     try {
-      const raw = localStorage.getItem(DG_PAGE_ARCHIVE_STORAGE_KEY);
+      const raw = readLocalStorage(DG_PAGE_ARCHIVE_STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw) as unknown;
       if (!Array.isArray(parsed)) return [];
@@ -188,7 +193,7 @@ export class DgPageArchiveService {
   }
 
   private writeEntries(): void {
-    localStorage.setItem(DG_PAGE_ARCHIVE_STORAGE_KEY, JSON.stringify(this.entries()));
+    writeLocalStorage(DG_PAGE_ARCHIVE_STORAGE_KEY, JSON.stringify(this.entries()));
   }
 
   private normalizeEntry(raw: unknown): DgPageSnapshot | null {

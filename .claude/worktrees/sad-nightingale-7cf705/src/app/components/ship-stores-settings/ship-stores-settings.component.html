@@ -1,0 +1,95 @@
+<section class="ss-settings">
+  <label class="ss-field">
+    <span class="ss-label">Place of storage (field 8)</span>
+    <input
+      type="text"
+      class="ss-input"
+      [ngModel]="form().placeOfStorage"
+      (ngModelChange)="onPlaceOfStorageChange($event)"
+      placeholder="e.g. Provision Room"
+    />
+  </label>
+
+  <div class="ss-table-panel">
+    <div class="ss-table-head">
+      <h4 class="ss-section-title">Articles</h4>
+      <p class="ss-hint">
+        Edit cells directly. Drag <span class="ss-hint__icon" aria-hidden="true">⠿</span> to reorder.
+        Quantity <strong>0</strong> prints as <strong>NIL</strong>; empty quantity stays blank.
+      </p>
+    </div>
+
+    <div class="ss-table-wrap">
+      <table class="ss-table">
+        <thead>
+          <tr>
+            <th class="ss-col-drag" aria-label="Reorder"></th>
+            <th class="ss-col-no">#</th>
+            <th class="ss-col-article">Article</th>
+            <th class="ss-col-qty">Qty</th>
+            <th class="ss-col-unit">Unit</th>
+          </tr>
+        </thead>
+        <tbody cdkDropList (cdkDropListDropped)="onRowDrop($event)">
+          @for (row of form().rows; track $index) {
+            <tr class="ss-table-row" cdkDrag>
+              <td class="ss-col-drag">
+                <span class="ss-drag-handle" cdkDragHandle title="Drag to reorder" aria-label="Drag to reorder"
+                  >⠿</span
+                >
+              </td>
+              <td class="ss-col-no">{{ $index + 1 }}</td>
+              <td class="ss-col-article">
+                <input
+                  type="text"
+                  class="ss-cell-input"
+                  [value]="row.name"
+                  placeholder="Article description"
+                  (focus)="onCellFocus($index, 'name', $event)"
+                  (blur)="onCellCommit($index, 'name', $event)"
+                  (keydown)="onCellKeydown($index, 'name', $event)"
+                />
+              </td>
+              <td class="ss-col-qty">
+                <input
+                  type="text"
+                  class="ss-cell-input ss-cell-input--qty"
+                  [value]="row.quantity"
+                  placeholder="—"
+                  inputmode="decimal"
+                  (focus)="onCellFocus($index, 'quantity', $event)"
+                  (blur)="onCellCommit($index, 'quantity', $event)"
+                  (keydown)="onCellKeydown($index, 'quantity', $event)"
+                />
+              </td>
+              <td class="ss-col-unit">
+                <input
+                  type="text"
+                  class="ss-cell-input ss-cell-input--unit"
+                  [value]="unitDisplay(row.unit)"
+                  placeholder="Pcs, Ltrs…"
+                  (focus)="onCellFocus($index, 'unit', $event)"
+                  (blur)="onCellCommit($index, 'unit', $event)"
+                  (keydown)="onCellKeydown($index, 'unit', $event)"
+                />
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  @if (usesHtmlEditor()) {
+    <div class="ss-html-settings">
+      <button type="button" class="btn btn-placement ss-html-settings__btn" (click)="openHtmlFormSettings()">
+        ⚙ Settings
+      </button>
+      <p class="ss-html-settings__hint">
+        Open the HTML editor to place stamp and signature on {{ docLabel() }}.
+      </p>
+    </div>
+  } @else {
+    <app-document-stamp-options [documentId]="stampDocumentId()" />
+  }
+</section>

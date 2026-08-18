@@ -1,0 +1,290 @@
+/* SHIP'S STORES DECLARATION — form 02 (long table) */
+.ssd-sheet.ssd-sheet--v2 {
+  display: flex;
+  flex-direction: column;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0;
+  padding: 10mm 8mm 6mm;
+  box-sizing: border-box;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8pt;
+  line-height: 1.1;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ssd-sheet--v2 .ssd-title {
+  margin: 0 0 6px;
+  text-align: center;
+  font-size: 14pt;
+  font-weight: 700;
+}
+
+.ssd-sheet--v2 .ssd-body {
+  display: block;
+  min-width: 0;
+}
+
+.ssd-sheet--v2 .ssd-table-area {
+  min-width: 0;
+}
+
+.ssd-sheet--v2 .ssd-table-wrap {
+  display: flex;
+  align-items: stretch;
+}
+
+.ssd-sheet--v2 .ssd-table-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ssd-sheet--v2 .ssd-table-col .ssd-table {
+  flex: 0 0 auto;
+}
+
+.ssd-sheet--v2 .ssd-rail {
+  flex: 0 0 24px;
+  width: 24px;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  overflow: hidden;
+}
+
+.ssd-sheet--v2 .ssd-rail__vertical {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ssd-sheet--v2 .ssd-rail__vertical span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  font-size: 8.5pt;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: clip;
+  max-height: 100%;
+}
+
+.ssd-sheet--v2 .ssd-rail__id {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 1mm;
+  flex-shrink: 0;
+}
+
+.ssd-sheet--v2 .ssd-rail__id span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 7pt;
+  line-height: 1;
+}
+
+.ssd-sheet--v2 .ssd-table {
+  width: 100%;
+  border: 1.5px solid #000;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.ssd-sheet--v2 .ssd-cell {
+  border: 1px solid #000;
+  padding: 1px 3px 0;
+  vertical-align: top;
+}
+
+.ssd-sheet--v2 .ssd-label {
+  display: block;
+  font-size: 7.5pt;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.ssd-sheet--v2 .ssd-label--center {
+  text-align: center;
+}
+
+.ssd-ad-lbl {
+  font-weight: 400;
+}
+
+.ssd-ad-lbl--active {
+  font-weight: 700;
+}
+
+.ssd-sheet--v2 .ssd-cell--checks {
+  vertical-align: middle;
+}
+
+.ssd-sheet--v2 .ssd-cb-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.ssd-sheet--v2 .ssd-cb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  font-size: 8pt;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ssd-sheet--v2 .ssd-cb-box {
+  width: 11px;
+  height: 11px;
+  border: 1px solid #000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.ssd-sheet--v2 .ssd-strip-label {
+  font-size: 8pt;
+  font-weight: 700;
+}
+
+.ssd-sheet--v2 .ssd-page-no-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ssd-sheet--v2 .ssd-tr-strip {
+  height: 16px;
+}
+
+.ssd-sheet--v2 .ssd-tr-h {
+  height: 30px;
+}
+
+.ssd-sheet--v2 .ssd-tr-cols {
+  height: 16px;
+}
+
+.ssd-sheet--v2 .ssd-tr-data {
+  height: 14px;
+}
+
+.ssd-sheet--v2 .ssd-tr-data .ssd-cell {
+  padding: 0 2px;
+  vertical-align: middle;
+}
+
+.ssd-sheet--v2 .ssd-form-footer {
+  margin-top: 2px;
+  margin-left: 24px;
+  flex-shrink: 0;
+  overflow: visible;
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+}
+
+.ssd-sheet--v2 .ssd-foot-note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 8.5pt;
+  font-weight: 400;
+  line-height: 1.35;
+  color: #000;
+  white-space: nowrap;
+}
+
+.ssd-sheet--v2 .ssd-form-footer__data-row {
+  display: grid;
+  grid-template-columns: 21% 12% 12% 6% 21% 20% 5% 3%;
+  align-items: baseline;
+  margin-top: calc(2 * 1.35em);
+  overflow: visible;
+}
+
+.ssd-sheet--v2 .ssd-form-footer .form-footer__date {
+  grid-column: 3;
+  width: 100%;
+  border: none;
+  font-size: 8pt;
+  font-weight: 700;
+  padding: 0 4px;
+  text-align: left;
+  white-space: nowrap;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.ssd-sheet--v2 .ssd-form-footer__master {
+  grid-column: 5 / 9;
+  display: flex;
+  align-items: baseline;
+  gap: 4mm;
+  padding: 0 4px;
+  min-width: 0;
+}
+
+.ssd-sheet--v2 .ssd-form-footer__master .sig-lbl {
+  font-size: 8pt;
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.ssd-sheet--v2 .ssd-form-footer .form-footer__master {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 50mm;
+  text-align: center;
+  font-size: 8pt;
+  font-weight: 700;
+  border: none;
+  border-bottom: 1px solid #000;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+body.pdf-export .ssd-sheet--v2 {
+  box-shadow: none;
+  margin: 0;
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  overflow: hidden;
+}
+
+@media print {
+  .ssd-sheet--v2 {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .ssd-sheet--v2 .ssd-table,
+  .ssd-sheet--v2 .ssd-cell {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
