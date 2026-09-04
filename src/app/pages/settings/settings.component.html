@@ -74,14 +74,14 @@
             <span>ISSC issued on</span>
             <app-date-picker
               [value]="ship().isscIssueDate"
-              (valueChange)="onShipChange('isscIssueDate', $event)"
+              (committed)="onShipDateCommit('isscIssueDate', $event)"
             />
           </label>
           <label class="ship-field ship-field--date">
             <span>ISSC expiry</span>
             <app-date-picker
               [value]="ship().isscExpiryDate"
-              (valueChange)="onShipChange('isscExpiryDate', $event)"
+              (committed)="onShipDateCommit('isscExpiryDate', $event)"
             />
           </label>
           <label class="ship-field ship-field--rso">
@@ -127,7 +127,7 @@
             <span>Issue date</span>
             <app-date-picker
               [value]="ship().sanitationCertificateIssueDate"
-              (valueChange)="onShipChange('sanitationCertificateIssueDate', $event)"
+              (committed)="onShipDateCommit('sanitationCertificateIssueDate', $event)"
             />
           </label>
         </div>
@@ -149,7 +149,7 @@
               <span>Date</span>
               <app-date-picker
                 [value]="ship().waterTestDate"
-                (valueChange)="onShipChange('waterTestDate', $event)"
+                (committed)="onShipDateCommit('waterTestDate', $event)"
               />
             </label>
           </div>

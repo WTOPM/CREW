@@ -672,7 +672,7 @@
                   <td class="poc-cell poc-cell--date">
                     <app-partial-date-input
                       [value]="row.arrivalDate"
-                      (valueChange)="updatePortCallField(row.id, 'arrivalDate', $event)"
+                      (committed)="onPortCallDateCommit(row.id, 'arrivalDate', $event)"
                     />
                   </td>
                   <td class="poc-cell poc-cell--time">
@@ -684,7 +684,7 @@
                   <td class="poc-cell poc-cell--date">
                     <app-partial-date-input
                       [value]="row.departureDate"
-                      (valueChange)="updatePortCallField(row.id, 'departureDate', $event)"
+                      (committed)="onPortCallDateCommit(row.id, 'departureDate', $event)"
                     />
                   </td>
                   <td class="poc-cell poc-cell--time">

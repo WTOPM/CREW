@@ -9,6 +9,11 @@ export interface EtaLeg {
   speedKnots: number;
   /** Manual name for this leg's end (intermediate). Last leg uses plan.toPort. */
   toLabel: string;
+  /**
+   * Manual ETA display UTC offset for this leg (hours).
+   * null = auto (departure offset for intermediate legs, arrival offset for the last leg).
+   */
+  etaUtcOffsetHours: number | null;
 }
 
 export interface EtaPlan {
@@ -46,12 +51,111 @@ export interface EtaLibrarySettings {
 
 import { truncateSpeedKnotsTenths } from '../utils/eta-speed-input.util';
 
+function clampOffsetHours(hours: number): number {
+  return Math.max(-12, Math.min(14, Math.round(hours * 2) / 2));
+}
+
+export function normalizeUtcOffsetHours(raw: unknown, fallback = 0): number {
+  if (typeof raw === 'number' && isFinite(raw)) return clampOffsetHours(raw);
+  const s = String(raw ?? '')
+    .trim()
+    .replace(/^UTC/i, '')
+    .replace(',', '.');
+  if (!s) return fallback;
+  const n = parseFloat(s);
+  return isFinite(n) ? clampOffsetHours(n) : fallback;
+}
+
+export function normalizeOptionalUtcOffsetHours(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'number' && isFinite(raw)) return clampOffsetHours(raw);
+  const s = String(raw).trim();
+  if (!s) return null;
+  return normalizeUtcOffsetHours(s, 0);
+}
+
+/** Inclusive offsets between the two ports, e.g. −1…+2 → [-1, 0, 1, 2]. */
+export function legEtaUtcOffsetRange(
+  departureUtcOffsetHours: number,
+  arrivalUtcOffsetHours: number,
+): number[] {
+  const a = clampOffsetHours(departureUtcOffsetHours);
+  const b = clampOffsetHours(arrivalUtcOffsetHours);
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  const step = Number.isInteger(a) && Number.isInteger(b) ? 1 : 0.5;
+  const out: number[] = [];
+  for (let h = lo; h <= hi + 1e-9; h += step) {
+    out.push(clampOffsetHours(h));
+  }
+  return out.length ? out : [a];
+}
+
+export function defaultLegEtaUtcOffsetHours(
+  legIndex: number,
+  legCount: number,
+  departureUtcOffsetHours: number,
+  arrivalUtcOffsetHours: number,
+): number {
+  return legIndex === legCount - 1 ? arrivalUtcOffsetHours : departureUtcOffsetHours;
+}
+
+export function clampLegEtaUtcOffsetHours(
+  hours: number,
+  departureUtcOffsetHours: number,
+  arrivalUtcOffsetHours: number,
+): number {
+  const range = legEtaUtcOffsetRange(departureUtcOffsetHours, arrivalUtcOffsetHours);
+  if (range.includes(hours)) return hours;
+  return range.reduce((best, h) =>
+    Math.abs(h - hours) < Math.abs(best - hours) ? h : best,
+  );
+}
+
+export function resolveLegEtaUtcOffsetHours(
+  leg: Pick<EtaLeg, 'etaUtcOffsetHours'>,
+  legIndex: number,
+  legCount: number,
+  departureUtcOffsetHours: number,
+  arrivalUtcOffsetHours: number,
+): number {
+  if (leg.etaUtcOffsetHours != null) {
+    return clampLegEtaUtcOffsetHours(
+      leg.etaUtcOffsetHours,
+      departureUtcOffsetHours,
+      arrivalUtcOffsetHours,
+    );
+  }
+  return defaultLegEtaUtcOffsetHours(
+    legIndex,
+    legCount,
+    departureUtcOffsetHours,
+    arrivalUtcOffsetHours,
+  );
+}
+
+/** Step ±1 along the departure↔arrival offset range. */
+export function stepLegEtaUtcOffsetHours(
+  current: number,
+  departureUtcOffsetHours: number,
+  arrivalUtcOffsetHours: number,
+  delta: number,
+): number {
+  const range = legEtaUtcOffsetRange(departureUtcOffsetHours, arrivalUtcOffsetHours);
+  if (range.length <= 1) return range[0] ?? current;
+  let idx = range.indexOf(clampLegEtaUtcOffsetHours(current, departureUtcOffsetHours, arrivalUtcOffsetHours));
+  if (idx < 0) idx = 0;
+  const next = Math.max(0, Math.min(range.length - 1, idx + (delta < 0 ? -1 : delta > 0 ? 1 : 0)));
+  return range[next]!;
+}
+
 export function createEtaLeg(partial: Partial<EtaLeg> = {}): EtaLeg {
   return {
     id: partial.id?.trim() || crypto.randomUUID(),
     distanceNm: clampPositive(partial.distanceNm, 0),
     speedKnots: truncateSpeedKnotsTenths(clampPositive(partial.speedKnots, 0)),
     toLabel: (partial.toLabel ?? '').trim(),
+    etaUtcOffsetHours: normalizeOptionalUtcOffsetHours(partial.etaUtcOffsetHours),
   };
 }
 
@@ -90,32 +194,29 @@ function clampPositive(value: unknown, fallback: number): number {
   return n;
 }
 
-function clampOffsetHours(hours: number): number {
-  return Math.max(-12, Math.min(14, Math.round(hours * 2) / 2));
-}
-
-export function normalizeUtcOffsetHours(raw: unknown, fallback = 0): number {
-  if (typeof raw === 'number' && isFinite(raw)) return clampOffsetHours(raw);
-  const s = String(raw ?? '')
-    .trim()
-    .replace(/^UTC/i, '')
-    .replace(',', '.');
-  if (!s) return fallback;
-  const n = parseFloat(s);
-  return isFinite(n) ? clampOffsetHours(n) : fallback;
-}
-
 export function stepUtcOffsetHours(hours: number, delta: number): number {
   return clampOffsetHours(hours + delta);
 }
 
-function normalizeLeg(raw: unknown): EtaLeg {
-  const r = raw as Partial<EtaLeg>;
+type LegacyEtaLeg = Partial<EtaLeg> & { etaTzSource?: 'departure' | 'arrival' | null };
+
+function normalizeLeg(
+  raw: unknown,
+  departureUtcOffsetHours: number,
+  arrivalUtcOffsetHours: number,
+): EtaLeg {
+  const r = raw as LegacyEtaLeg;
+  let etaUtcOffsetHours = normalizeOptionalUtcOffsetHours(r?.etaUtcOffsetHours);
+  if (etaUtcOffsetHours == null) {
+    if (r?.etaTzSource === 'arrival') etaUtcOffsetHours = arrivalUtcOffsetHours;
+    else if (r?.etaTzSource === 'departure') etaUtcOffsetHours = departureUtcOffsetHours;
+  }
   return createEtaLeg({
     id: r?.id,
     distanceNm: r?.distanceNm,
     speedKnots: r?.speedKnots,
     toLabel: r?.toLabel,
+    etaUtcOffsetHours,
   });
 }
 
@@ -174,7 +275,12 @@ function normalizePlan(raw: unknown, fallbackName: string): EtaPlan {
   const now = new Date().toISOString();
   const scenario = normalizeScenario(r);
   const schedule = migrateScheduleFields(r, scenario);
-  const legsRaw = Array.isArray(r?.legs) && r.legs.length ? r.legs.map(normalizeLeg) : [createEtaLeg()];
+  const departureUtcOffsetHours = normalizeUtcOffsetHours(r?.departureUtcOffsetHours, 0);
+  const arrivalUtcOffsetHours = normalizeUtcOffsetHours(r?.arrivalUtcOffsetHours, 0);
+  const legsRaw =
+    Array.isArray(r?.legs) && r.legs.length
+      ? r.legs.map((leg) => normalizeLeg(leg, departureUtcOffsetHours, arrivalUtcOffsetHours))
+      : [createEtaLeg()];
   const intermediatePorts = Array.isArray(r?.intermediatePorts)
     ? r.intermediatePorts.map((p) => String(p ?? '').trim())
     : [];
@@ -187,8 +293,8 @@ function normalizePlan(raw: unknown, fallbackName: string): EtaPlan {
     intermediatePorts,
     scenario,
     ...schedule,
-    departureUtcOffsetHours: normalizeUtcOffsetHours(r?.departureUtcOffsetHours, 0),
-    arrivalUtcOffsetHours: normalizeUtcOffsetHours(r?.arrivalUtcOffsetHours, 0),
+    departureUtcOffsetHours,
+    arrivalUtcOffsetHours,
     legs,
     createdAt: (r?.createdAt ?? '').trim() || now,
     updatedAt: (r?.updatedAt ?? '').trim() || now,

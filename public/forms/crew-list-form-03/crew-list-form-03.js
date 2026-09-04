@@ -91,7 +91,7 @@ const MAX_ROWS = 15;
     <div class="td-cell ch-name"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></div>
     <div class="td-cell ch-rank"><input class="ci" type="text" value="${escAttr(d.rank)}" readonly tabindex="-1"></div>
     <div class="td-cell ch-nat"><input class="ci" type="text" value="${escAttr(d.nat)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-birth"><input class="ci" type="text" value="${escAttr(d.birth)}" readonly tabindex="-1"></div>
+    <div class="td-cell ch-birth"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${escAttr(d.dob || '')}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1"><input class="ci ci-birth-place" type="text" value="${escAttr(d.pob || '')}" readonly tabindex="-1"></div></div>
     <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc1)}" readonly tabindex="-1"></div>
     <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc2)}" readonly tabindex="-1"></div>
     <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinDate)}"${dateIsoAttr(d.joinDateIso)} readonly tabindex="-1"></div>
@@ -617,7 +617,8 @@ const MAX_ROWS = 15;
       const cellStyles = saved.cellStyles || {};
       const rows = tableBody.querySelectorAll('.table-row');
       rows.forEach((rowEl, rowIndex) => {
-        const inputs = rowEl.querySelectorAll('input.ci');
+        const inputs = window.HtmlFormListCellPersist?.dataInputs?.(rowEl)
+          || Array.from(rowEl.querySelectorAll('input.ci'));
         inputs.forEach((input, colIndex) => {
           const style = cellStyles[`${rowIndex}-${colIndex}`];
           if (style) {
@@ -628,6 +629,15 @@ const MAX_ROWS = 15;
             else if (style.textAlign) syncCellFlexAlignment(input);
           }
         });
+        const pob = rowEl.querySelector('.ci-birth-place');
+        const pobStyle = cellStyles[`${rowIndex}-pob`];
+        if (pob && pobStyle) {
+          if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
+          if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
+          if (pobStyle.textAlign) pob.style.textAlign = pobStyle.textAlign;
+          if (pobStyle.verticalAlign) applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
+          else if (pobStyle.textAlign) syncCellFlexAlignment(pob);
+        }
         const nameCell = rowEl.querySelector('.ci-name');
         const nameStyle = cellStyles[`${rowIndex}-name`];
         if (nameCell && nameStyle) {
@@ -659,7 +669,8 @@ const MAX_ROWS = 15;
       const cellStyles = {};
       const rows = tableBody.querySelectorAll('.table-row');
       rows.forEach((rowEl, rowIndex) => {
-        const inputs = rowEl.querySelectorAll('input.ci');
+        const inputs = window.HtmlFormListCellPersist?.dataInputs?.(rowEl)
+          || Array.from(rowEl.querySelectorAll('input.ci'));
         inputs.forEach((input, colIndex) => {
           const style = {};
           if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
@@ -670,6 +681,17 @@ const MAX_ROWS = 15;
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
+        const pob = rowEl.querySelector('.ci-birth-place');
+        if (pob) {
+          const pobStyle = {};
+          if (pob.style.fontFamily) pobStyle.fontFamily = pob.style.fontFamily;
+          if (pob.style.fontSize) pobStyle.fontSize = pob.style.fontSize;
+          if (pob.style.textAlign) pobStyle.textAlign = pob.style.textAlign;
+          if (pob.dataset.verticalAlign) pobStyle.verticalAlign = pob.dataset.verticalAlign;
+          if (Object.keys(pobStyle).length > 0) {
+            cellStyles[`${rowIndex}-pob`] = pobStyle;
+          }
+        }
         const nameCell = rowEl.querySelector('.ci-name');
         if (nameCell) {
           const nameStyle = {};
@@ -1058,12 +1080,13 @@ const MAX_ROWS = 15;
 
         crewList.forEach(c => {
           const name = CrewNameFormat.formatCrewListName(c);
-          const birth = [fmtDate(c.dateOfBirth), c.placeOfBirth].filter(Boolean).join(' ');
           addRow({
             name,
             rank: c.rank || '',
             nat: c.nationality || '',
-            birth,
+            dob: fmtDate(c.dateOfBirth),
+            dobIso: c.dateOfBirth || '',
+            pob: c.placeOfBirth || '',
             doc1: c.passport || '',
             doc2: c.seamansBook || '',
             joinDate: fmtDate(c.joiningDate),

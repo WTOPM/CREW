@@ -98,16 +98,27 @@
     });
 
     document.querySelectorAll('div.ci, div.fi').forEach((el) => {
-      const display = el.style.display || window.getComputedStyle(el).display;
+      const cs = window.getComputedStyle(el);
+      const display = el.style.display || cs.display;
       if (display !== 'flex') return;
-      const ta =
+      // Flex cells often center via justify-content only (e.g. .ci-rno). printToPDF
+      // needs text-align on block boxes — map justify-content when text-align is default.
+      const jc = (el.style.justifyContent || cs.justifyContent || '').toLowerCase();
+      let ta =
         el.dataset.align ||
         el.style.textAlign ||
-        window.getComputedStyle(el).textAlign ||
-        'left';
+        '';
+      if (!ta || ta === 'start') {
+        if (jc === 'center') ta = 'center';
+        else if (jc === 'flex-end' || jc === 'end' || jc === 'right') ta = 'right';
+        else if (jc === 'flex-start' || jc === 'left') ta = 'left';
+        else ta = cs.textAlign || 'left';
+      }
+      if (ta === 'start') ta = 'left';
+      if (ta === 'end') ta = 'right';
       el.style.display = 'block';
       el.style.width = el.style.width || '100%';
-      el.style.setProperty('text-align', ta === 'start' ? 'left' : ta === 'end' ? 'right' : ta, 'important');
+      el.style.setProperty('text-align', ta, 'important');
       el.style.alignItems = '';
       el.style.justifyContent = '';
       el.style.whiteSpace = el.style.whiteSpace || 'nowrap';

@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
-import { PORT_SEC_LVL_OPTIONS, PortTerminal, ShipInfo } from '../../models/crew.models';
+import { PORT_SEC_LVL_OPTIONS, PortTerminal, ShipInfo, shipFieldUpdatedMessage } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 import { ReferenceListsStore } from '../../services/reference-lists.store';
 import { DocumentStampUploadComponent } from '../../components/document-stamp-upload/document-stamp-upload.component';
@@ -74,7 +74,12 @@ export class SettingsComponent {
   }
 
   protected onShipChange(field: keyof ShipInfo, value: string): void {
-    this.storage.updateShip({ [field]: value });
+    if (this.ship()[field] === value) return;
+    this.storage.updateShip({ [field]: value }, undefined, shipFieldUpdatedMessage(field));
+  }
+
+  protected onShipDateCommit(field: keyof ShipInfo, value: string): void {
+    this.onShipChange(field, value);
   }
 
   protected openPackages(): void {

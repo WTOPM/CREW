@@ -45,7 +45,7 @@ const tbody = document.getElementById('tbody');
     <td class="c1"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></td>
     <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly tabindex="-1"></td>
     <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly tabindex="-1"></td>
-    <td class="c4"><input class="ci" type="text" value="${d.birth || ''}" readonly tabindex="-1"></td>
+    <td class="c4"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${d.dob || ''}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1"><input class="ci ci-birth-place" type="text" value="${d.pob || ''}" readonly tabindex="-1"></div></td>
     <td class="c5"><input class="ci" type="text" value="${d.passport || ''}" readonly tabindex="-1"></td>
     <td class="c6"><input class="ci" type="text" value="${d.expiry || ''}"${dateIsoAttr(d.expiryIso)} placeholder="DD.MM.YYYY" readonly tabindex="-1"></td>
     <td class="c7"><input class="ci" type="text" value="${d.issue || ''}" readonly tabindex="-1"></td>
@@ -488,7 +488,8 @@ const tbody = document.getElementById('tbody');
       const cellStyles = saved.cellStyles || {};
       const rows = tbody.querySelectorAll('tr');
       rows.forEach((tr, rowIndex) => {
-        const inputs = tr.querySelectorAll('input.ci');
+        const inputs = window.HtmlFormListCellPersist?.dataInputs?.(tr)
+          || Array.from(tr.querySelectorAll('input.ci'));
         inputs.forEach((input, colIndex) => {
           const style = cellStyles[`${rowIndex}-${colIndex}`];
           if (style) {
@@ -499,6 +500,15 @@ const tbody = document.getElementById('tbody');
             else if (style.textAlign) syncCellFlexAlignment(input);
           }
         });
+        const pob = tr.querySelector('.ci-birth-place');
+        const pobStyle = cellStyles[`${rowIndex}-pob`];
+        if (pob && pobStyle) {
+          if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
+          if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
+          if (pobStyle.textAlign) pob.style.textAlign = pobStyle.textAlign;
+          if (pobStyle.verticalAlign) applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
+          else if (pobStyle.textAlign) syncCellFlexAlignment(pob);
+        }
         const nameCell = tr.querySelector('.ci-name');
         const nameStyle = cellStyles[`${rowIndex}-name`];
         if (nameCell && nameStyle) {
@@ -530,7 +540,8 @@ const tbody = document.getElementById('tbody');
       const cellStyles = {};
       const rows = tbody.querySelectorAll('tr');
       rows.forEach((tr, rowIndex) => {
-        const inputs = tr.querySelectorAll('input.ci');
+        const inputs = window.HtmlFormListCellPersist?.dataInputs?.(tr)
+          || Array.from(tr.querySelectorAll('input.ci'));
         inputs.forEach((input, colIndex) => {
           const style = {};
           if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
@@ -541,6 +552,17 @@ const tbody = document.getElementById('tbody');
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
+        const pob = tr.querySelector('.ci-birth-place');
+        if (pob) {
+          const pobStyle = {};
+          if (pob.style.fontFamily) pobStyle.fontFamily = pob.style.fontFamily;
+          if (pob.style.fontSize) pobStyle.fontSize = pob.style.fontSize;
+          if (pob.style.textAlign) pobStyle.textAlign = pob.style.textAlign;
+          if (pob.dataset.verticalAlign) pobStyle.verticalAlign = pob.dataset.verticalAlign;
+          if (Object.keys(pobStyle).length > 0) {
+            cellStyles[`${rowIndex}-pob`] = pobStyle;
+          }
+        }
         const nameCell = tr.querySelector('.ci-name');
         if (nameCell) {
           const nameStyle = {};
@@ -923,13 +945,14 @@ const tbody = document.getElementById('tbody');
 
         crewList.forEach(c => {
           const name = CrewNameFormat.formatCrewListName(c, { upper: true });
-          const birth = [fmtDate(c.dateOfBirth), c.placeOfBirth].filter(Boolean).join(' ');
           const gender = c.gender === 'MALE' || c.gender === 'FEMALE' ? c.gender : '';
           addRow({
             name,
             rank: c.rank || '',
             nat: c.nationality || '',
-            birth,
+            dob: fmtDate(c.dateOfBirth),
+            dobIso: c.dateOfBirth || '',
+            pob: c.placeOfBirth || '',
             passport: c.passport || '',
             expiry: fmtDate(c.passportExpiryDate),
             expiryIso: c.passportExpiryDate || '',

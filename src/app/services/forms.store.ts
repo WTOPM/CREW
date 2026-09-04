@@ -352,7 +352,20 @@ export class FormsStore {
     id: string,
     partial: Partial<PortCallHistoryEntry>,
     notify?: 'silent' | 'saved',
+    savedMessage?: string,
   ): void {
+    const current = this.data().portCallHistory.find((e) => e.id === id);
+    if (!current) return;
+    const keys = Object.keys(partial) as (keyof PortCallHistoryEntry)[];
+    const changed = keys.some((key) => {
+      const nextVal = partial[key];
+      if (key === 'secLvl' && nextVal != null) {
+        return current.secLvl !== normalizePortSecLvl(String(nextVal));
+      }
+      return current[key] !== nextVal;
+    });
+    if (!changed) return;
+
     this.data.update((d) => ({
       ...d,
       portCallHistory: d.portCallHistory.map((e) => {
@@ -367,7 +380,7 @@ export class FormsStore {
       (partial.portName != null || partial.arrivalDate != null || partial.departureDate != null
         ? 'saved'
         : 'silent');
-    void this.state.persist(resolved);
+    void this.state.persist(resolved, savedMessage);
   }
 
   removePortCallEntry(id: string): void {

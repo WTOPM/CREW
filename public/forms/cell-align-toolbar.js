@@ -18,6 +18,11 @@
     { value: 'right', tip: 'Align right', icon: 'hRight' },
   ];
 
+  /** Row № cells support align/font; letter-case tools still skip them. */
+  function alignableCells(getSelectedCells) {
+    return getSelectedCells() || [];
+  }
+
   function editableCells(getSelectedCells) {
     return (getSelectedCells() || []).filter((cell) => !cell.classList.contains('ci-rno'));
   }
@@ -72,10 +77,15 @@
   }
 
   function readHorizontalAlign(cell) {
-    const ta = (cell.style.textAlign || 'left').toLowerCase();
+    const ta = (cell.style.textAlign || '').toLowerCase();
     if (ta === 'start') return 'left';
     if (ta === 'end') return 'right';
     if (ta === 'center' || ta === 'right' || ta === 'left') return ta;
+    const jc = (cell.style.justifyContent || '').toLowerCase();
+    if (jc === 'center') return 'center';
+    if (jc === 'flex-end' || jc === 'end') return 'right';
+    if (jc === 'flex-start') return 'left';
+    if (cell.classList.contains('ci-rno')) return 'center';
     return 'left';
   }
 
@@ -89,7 +99,7 @@
   }
 
   function syncActiveButtons(mount, getSelectedCells) {
-    const cells = editableCells(getSelectedCells);
+    const cells = alignableCells(getSelectedCells);
     mount.querySelectorAll('.cell-align-toolbar__btn[data-value]').forEach((btn) => {
       btn.classList.remove('cell-align-toolbar__btn--active');
       btn.removeAttribute('aria-pressed');
@@ -249,7 +259,16 @@
     },
     resetAllCells(root) {
       if (!root) return;
+      // Clear overrides on data cells; row № keeps default flex centering from CSS.
       root.querySelectorAll('.ci:not(.ci-rno)').forEach((cell) => this.clearCell(cell));
+      root.querySelectorAll('.ci.ci-rno').forEach((cell) => {
+        cell.style.removeProperty('font-family');
+        cell.style.removeProperty('font-size');
+        cell.style.removeProperty('text-align');
+        cell.style.removeProperty('justify-content');
+        cell.style.removeProperty('align-items');
+        delete cell.dataset.verticalAlign;
+      });
     },
     toAllCaps,
     toTitleCase,

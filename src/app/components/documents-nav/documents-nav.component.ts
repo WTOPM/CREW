@@ -789,7 +789,31 @@ export class DocumentsNavComponent implements OnInit {
     field: keyof PortCallHistoryEntry,
     value: string,
   ): void {
-    this.forms.updatePortCallEntry(id, { [field]: value });
+    const message =
+      field === 'portName'
+        ? 'Port of call updated'
+        : field === 'arrivalDate'
+          ? 'Port-call arrival date updated'
+          : field === 'departureDate'
+            ? 'Port-call departure date updated'
+            : field === 'arrivalTime'
+              ? 'Port-call arrival time updated'
+              : field === 'departureTime'
+                ? 'Port-call departure time updated'
+                : field === 'country'
+                  ? 'Port-call country updated'
+                  : field === 'secLvl'
+                    ? 'Port-call security level updated'
+                    : undefined;
+    this.forms.updatePortCallEntry(id, { [field]: value }, undefined, message);
+  }
+
+  protected onPortCallDateCommit(
+    id: string,
+    field: 'arrivalDate' | 'departureDate',
+    value: string,
+  ): void {
+    this.updatePortCallField(id, field, value);
   }
 
   protected onPortCallPortChange(id: string, portName: string): void {
@@ -801,6 +825,7 @@ export class DocumentsNavComponent implements OnInit {
         ...(country ? { country } : {}),
       },
       'saved',
+      'Port of call updated',
     );
   }
 

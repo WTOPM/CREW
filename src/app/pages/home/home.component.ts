@@ -183,16 +183,24 @@ export class HomeComponent {
   };
 
   protected onShipChange(field: keyof ShipInfo, value: string): void {
+    if (this.ship()[field] === value) return;
     const message = HomeComponent.VOYAGE_FIELD_MESSAGES[field];
     this.storage.updateShip({ [field]: value }, undefined, message);
   }
 
+  protected onShipDateCommit(field: 'dateOfArrival' | 'dateOfDeparture', value: string): void {
+    this.onShipChange(field, value);
+  }
+
   protected startEdit(member: CrewMember): void {
-    this.cancelPassengerEdit();
+    this.cancelPassengerEdit(true);
     this.editingCrew.set(member);
   }
 
-  protected cancelEdit(): void {
+  protected cancelEdit(quiet = false): void {
+    if (!quiet && this.editingCrew()) {
+      this.toast.showCancelled('Crew edit cancelled');
+    }
     this.editingCrew.set(null);
   }
 
@@ -200,16 +208,19 @@ export class HomeComponent {
     const m = this.editingCrew();
     if (!m) return;
     this.crew.updateCrewMember(m.id, this.crewProfilePatch(draft), 'silent');
-    this.cancelEdit();
-    this.toast.showSaved();
+    this.editingCrew.set(null);
+    this.toast.showSaved('Crew member saved');
   }
 
   protected startPassengerEdit(member: PassengerMember): void {
-    this.cancelEdit();
+    this.cancelEdit(true);
     this.editingPax.set(member);
   }
 
-  protected cancelPassengerEdit(): void {
+  protected cancelPassengerEdit(quiet = false): void {
+    if (!quiet && this.editingPax()) {
+      this.toast.showCancelled('Passenger edit cancelled');
+    }
     this.editingPax.set(null);
   }
 
@@ -217,8 +228,8 @@ export class HomeComponent {
     const p = this.editingPax();
     if (!p) return;
     this.passengers.updatePassenger(p.id, this.passengerProfilePatch(draft), 'silent');
-    this.cancelPassengerEdit();
-    this.toast.showSaved();
+    this.editingPax.set(null);
+    this.toast.showSaved('Passenger saved');
   }
 
   protected addMemberToArrival(): void {
@@ -453,6 +464,7 @@ export class HomeComponent {
       passport: draft.passport,
       passportIssueDate: draft.passportIssueDate,
       passportExpiryDate: draft.passportExpiryDate,
+      voyageStays: draft.voyageStays,
     };
   }
 

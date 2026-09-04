@@ -160,21 +160,72 @@
 }
 
 .crew-table tbody tr.crew-row--diff-arrival {
-  background: #eff6ff;
   box-shadow: inset 3px 0 0 #2563eb;
 }
 
-.crew-table tbody tr.crew-row--diff-arrival:hover {
-  background: #dbeafe;
-}
-
 .crew-table tbody tr.crew-row--diff-departure {
-  background: #fef2f2;
   box-shadow: inset 3px 0 0 #dc2626;
 }
 
-.crew-table tbody tr.crew-row--diff-departure:hover {
+.crew-table tbody tr.crew-row--diff-arrival > td {
+  background: #eff6ff;
+}
+
+.crew-table tbody tr.crew-row--diff-departure > td {
+  background: #fef2f2;
+}
+
+/* When hovering a value, lightly emphasize that column's header (odd/even colors). */
+.table-wrap thead th[data-col] {
+  transition: color 0.12s ease;
+}
+
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='index']:hover) thead th[data-col='index'],
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='family']:hover) thead th[data-col='family'],
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='given']:hover) thead th[data-col='given'],
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='rank']:hover) thead th[data-col='rank'],
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='nationality']:hover) thead th[data-col='nationality'],
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='passport']:hover) thead th[data-col='passport'],
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='scans']:hover) thead th[data-col='scans'],
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='joiningDate']:hover) thead th[data-col='joiningDate'],
+.table-wrap table:has(tbody tr:nth-child(odd) td[data-col='joiningPort']:hover) thead th[data-col='joiningPort'] {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='index']:hover) thead th[data-col='index'],
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='family']:hover) thead th[data-col='family'],
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='given']:hover) thead th[data-col='given'],
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='rank']:hover) thead th[data-col='rank'],
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='nationality']:hover) thead th[data-col='nationality'],
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='passport']:hover) thead th[data-col='passport'],
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='scans']:hover) thead th[data-col='scans'],
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='joiningDate']:hover) thead th[data-col='joiningDate'],
+.table-wrap table:has(tbody tr:nth-child(even) td[data-col='joiningPort']:hover) thead th[data-col='joiningPort'] {
+  font-weight: 600;
+  color: #15803d;
+}
+
+/* Row hover only: odd and even use slightly different tints. */
+.crew-table tbody tr:nth-child(odd):hover > td {
+  background: #e2ebf8;
+}
+
+.crew-table tbody tr:nth-child(even):hover > td {
+  background: #e7f2e4;
+}
+
+.crew-table tbody tr.crew-row--diff-arrival:hover > td {
+  background: #dbeafe;
+}
+
+.crew-table tbody tr.crew-row--diff-departure:hover > td {
   background: #fee2e2;
+}
+
+.crew-table tbody tr.cdk-drag-preview:hover > td,
+.crew-table tbody.cdk-drop-list-dragging tr:hover > td {
+  background: inherit;
 }
 
 .section-desc {
@@ -306,14 +357,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.35rem;
+  gap: 0.15rem;
   flex-wrap: nowrap;
+  max-width: 100%;
 }
 
 .crew-table td.actions,
 .table-wrap td.actions {
   text-align: right;
   vertical-align: middle;
+}
+
+.table-wrap {
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 .table-wrap tbody tr {
@@ -326,29 +383,43 @@
   border-bottom: none;
 }
 
+/* Stay on the global centered .page (1200px) — fit columns inside, don't stretch full screen. */
 .crew-table {
   width: 100%;
-  min-width: 52rem;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .crew-table th,
 .crew-table td {
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.45rem 0.35rem;
 }
 
 .crew-table .col-index {
-  width: 2.25rem;
+  width: 1.75rem;
   white-space: nowrap;
 }
 
 .crew-table .col-nowrap {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* edit + spacer + archive */
 .crew-table .col-actions {
-  width: 7.4rem;
-  min-width: 7.4rem;
+  width: 6.6rem;
   white-space: nowrap;
+  overflow: hidden;
+  padding-left: 0.2rem;
+  padding-right: 0.2rem;
+}
+
+.crew-table--pax .col-actions {
+  width: 6.6rem;
 }
 
 .crew-action-spacer {
@@ -365,12 +436,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 1.9rem;
+  height: 1.9rem;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
+  flex-shrink: 0;
   cursor: pointer;
   transition:
     transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
@@ -386,15 +458,24 @@
   transform: scale(0.96);
 }
 
+/* P + S + CY icons (3 × 1.55rem + gaps) — no ellipsis clipping */
 .col-scans {
-  width: 5.5rem;
+  width: 5.75rem;
   white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.crew-table td.col-scans,
+.crew-table th.col-scans {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .crew-doc-icons {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.15rem;
 }
 
 .crew-action--edit {
@@ -482,9 +563,12 @@
   font-size: 0.85rem;
 }
 
-.col-drag {
-  width: 2rem;
-  padding: 0;
+.col-drag,
+.crew-table td.drag-handle {
+  width: 1.75rem;
+  padding: 0.2rem 0;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .drag-handle {

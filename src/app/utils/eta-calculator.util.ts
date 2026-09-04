@@ -1,4 +1,5 @@
 import type { EtaLeg, EtaPlan, EtaScenario } from '../models/eta.models';
+import { resolveLegEtaUtcOffsetHours } from '../models/eta.models';
 
 export interface EtaLegResult {
   legIndex: number;
@@ -283,7 +284,13 @@ export function calculateEta(plan: EtaPlan): EtaCalculation {
     const cumulativeHours = legDurations
       .slice(0, index + 1)
       .reduce<number>((sum, h) => sum + (h ?? 0), 0);
-    const legEndOffset = index === legs.length - 1 ? arrOffset : depOffset;
+    const legEndOffset = resolveLegEtaUtcOffsetHours(
+      leg,
+      index,
+      legs.length,
+      depOffset,
+      arrOffset,
+    );
     const effectiveSpeed = legSpeeds[index] ?? null;
 
     return {
@@ -392,6 +399,7 @@ export const ETA_FIELD_TOOLTIPS = {
   legDistance: 'Distance in nautical miles (NM)',
   legSpeed: 'Speed in knots (kn)',
   legDuration: 'Leg duration: distance ÷ speed',
-  legEta: 'ETA at end of leg (local time)',
+  legEta: 'ETA at end of leg (local time). Use ± to step timezone between departure and arrival ports',
+  legEtaTz: 'Step this leg ETA timezone through the range between departure and arrival UTC offsets',
   addLeg: 'Add another distance / speed segment',
 } as const;

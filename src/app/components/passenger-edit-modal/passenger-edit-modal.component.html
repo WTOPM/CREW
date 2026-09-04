@@ -81,6 +81,68 @@
           </label>
         </div>
       </section>
+
+      <section class="crew-form-block crew-form-block--joining crew-form-block--voyage">
+        <h4 class="crew-form-block-title">Embarkation / Disembarkation</h4>
+        <div class="pax-voyage-list">
+          @for (stay of draft().voyageStays; track stay.id; let i = $index) {
+            <div class="pax-voyage-row">
+              <label>
+                <span>Embarkation date</span>
+                <app-date-picker
+                  [value]="stay.embarkationDate"
+                  (valueChange)="updateStayField(stay.id, 'embarkationDate', $event)"
+                />
+              </label>
+              <label>
+                <span>Embarkation port</span>
+                <app-port-select
+                  [value]="stay.embarkationPort"
+                  [ports]="ports()"
+                  (valueChange)="updateStayField(stay.id, 'embarkationPort', $event)"
+                />
+              </label>
+              <label>
+                <span>Disembarkation port</span>
+                <app-port-select
+                  [value]="stay.disembarkationPort"
+                  [ports]="ports()"
+                  (valueChange)="updateStayField(stay.id, 'disembarkationPort', $event)"
+                />
+              </label>
+              <label>
+                <span>Disembarkation date</span>
+                <app-date-picker
+                  [value]="stay.disembarkationDate"
+                  (valueChange)="updateStayField(stay.id, 'disembarkationDate', $event)"
+                />
+              </label>
+              <div class="pax-voyage-row__actions">
+                @if (draft().voyageStays.length > 1) {
+                  <button
+                    type="button"
+                    class="btn btn-cancel btn--compact pax-voyage-row__btn"
+                    title="Remove this visit"
+                    (click)="removeVoyageStay(stay.id)"
+                  >
+                    −
+                  </button>
+                }
+                @if (i === draft().voyageStays.length - 1) {
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn--compact pax-voyage-row__btn"
+                    title="Add another embarkation / disembarkation"
+                    (click)="addVoyageStay()"
+                  >
+                    +
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
     </div>
 
     <div class="modal-actions">

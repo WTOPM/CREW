@@ -47,7 +47,7 @@
           <app-date-picker
             size="lg"
             [value]="ship().dateOfArrival"
-            (valueChange)="onShipChange('dateOfArrival', $event)"
+            (committed)="onShipDateCommit('dateOfArrival', $event)"
           />
         </label>
         <label class="voyage-field voyage-field--date voyage-field--departure">
@@ -55,7 +55,7 @@
           <app-date-picker
             size="lg"
             [value]="ship().dateOfDeparture"
-            (valueChange)="onShipChange('dateOfDeparture', $event)"
+            (committed)="onShipDateCommit('dateOfDeparture', $event)"
           />
         </label>
       </div>
@@ -157,20 +157,21 @@
           <thead>
             <tr>
               <th class="col-drag" aria-hidden="true"></th>
-              <th class="col-index">#</th>
-              <th>Family Name</th>
-              <th>Given Names</th>
-              <th class="col-nowrap">Rank</th>
-              <th class="col-nowrap">Nationality</th>
-              <th class="col-nowrap">Passport</th>
+              <th class="col-index" data-col="index">#</th>
+              <th data-col="family">Family Name</th>
+              <th data-col="given">Given Names</th>
+              <th class="col-nowrap" data-col="rank">Rank</th>
+              <th class="col-nowrap" data-col="nationality">Nationality</th>
+              <th class="col-nowrap" data-col="passport">Passport</th>
               <th
                 class="col-scans"
+                data-col="scans"
                 title="P passport · S seaman's book · CY Cyprus book · hold filled icon to delete"
               >
                 Scans
               </th>
-              <th class="col-nowrap">Joining Date</th>
-              <th>Joining Port</th>
+              <th class="col-nowrap" data-col="joiningDate">Joining Date</th>
+              <th data-col="joiningPort">Joining Port</th>
               <th class="col-actions"></th>
             </tr>
           </thead>
@@ -183,13 +184,13 @@
                 [attr.title]="crewMemberDiffTitle(member)"
               >
                 <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
-                <td class="col-index">{{ i + 1 }}</td>
-                <td>{{ member.familyName }}</td>
-                <td>{{ member.givenNames }}</td>
-                <td class="col-nowrap">{{ member.rank }}</td>
-                <td class="col-nowrap">{{ member.nationality }}</td>
-                <td class="col-nowrap">{{ member.passport }}</td>
-                <td class="col-scans">
+                <td class="col-index" data-col="index">{{ i + 1 }}</td>
+                <td data-col="family">{{ member.familyName }}</td>
+                <td data-col="given">{{ member.givenNames }}</td>
+                <td class="col-nowrap" data-col="rank">{{ member.rank }}</td>
+                <td class="col-nowrap" data-col="nationality">{{ member.nationality }}</td>
+                <td class="col-nowrap" data-col="passport">{{ member.passport }}</td>
+                <td class="col-scans" data-col="scans">
                   <div class="crew-doc-icons">
                     <app-crew-doc-icon
                       [member]="member"
@@ -208,8 +209,8 @@
                     />
                   </div>
                 </td>
-                <td class="col-nowrap">{{ formatDate(member.joiningDate) }}</td>
-                <td>{{ member.joiningPort }}</td>
+                <td class="col-nowrap" data-col="joiningDate">{{ formatDate(member.joiningDate) }}</td>
+                <td data-col="joiningPort">{{ member.joiningPort }}</td>
                 <td class="actions col-actions">
                   <div class="actions-icons">
                     @if (crewListKind() === 'arrival') {
@@ -360,12 +361,12 @@
           <thead>
             <tr>
               <th class="col-drag" aria-hidden="true"></th>
-              <th class="col-index">#</th>
-              <th>Family Name</th>
-              <th>Given Names</th>
-              <th class="col-nowrap">Rank</th>
-              <th class="col-nowrap">Nationality</th>
-              <th class="col-nowrap">Passport</th>
+              <th class="col-index" data-col="index">#</th>
+              <th data-col="family">Family Name</th>
+              <th data-col="given">Given Names</th>
+              <th class="col-nowrap" data-col="rank">Rank</th>
+              <th class="col-nowrap" data-col="nationality">Nationality</th>
+              <th class="col-nowrap" data-col="passport">Passport</th>
               <th class="col-actions"></th>
             </tr>
           </thead>
@@ -373,12 +374,12 @@
             @for (member of listPassengers(); track member.id; let i = $index) {
               <tr cdkDrag>
                 <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
-                <td class="col-index">{{ i + 1 }}</td>
-                <td>{{ member.familyName }}</td>
-                <td>{{ member.givenNames }}</td>
-                <td class="col-nowrap">{{ passengerRank }}</td>
-                <td class="col-nowrap">{{ member.nationality }}</td>
-                <td class="col-nowrap">{{ member.passport }}</td>
+                <td class="col-index" data-col="index">{{ i + 1 }}</td>
+                <td data-col="family">{{ member.familyName }}</td>
+                <td data-col="given">{{ member.givenNames }}</td>
+                <td class="col-nowrap" data-col="rank">{{ passengerRank }}</td>
+                <td class="col-nowrap" data-col="nationality">{{ member.nationality }}</td>
+                <td class="col-nowrap" data-col="passport">{{ member.passport }}</td>
                 <td class="actions col-actions">
                   <div class="actions-icons">
                     @if (paxListKind() === 'arrival') {
@@ -514,22 +515,22 @@
           <table>
             <thead>
               <tr>
-                <th>Family Name</th>
-                <th>Given Names</th>
-                <th>Rank</th>
-                <th>Nationality</th>
-                <th class="col-scans" title="Hold filled icon ~0.5s to delete scan">Scans</th>
+                <th data-col="family">Family Name</th>
+                <th data-col="given">Given Names</th>
+                <th data-col="rank">Rank</th>
+                <th data-col="nationality">Nationality</th>
+                <th class="col-scans" data-col="scans" title="Hold filled icon ~0.5s to delete scan">Scans</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               @for (member of filteredArchivedCrew(); track member.id) {
                 <tr>
-                  <td>{{ member.familyName }}</td>
-                  <td>{{ member.givenNames }}</td>
-                  <td>{{ member.rank }}</td>
-                  <td>{{ member.nationality }}</td>
-                  <td class="col-scans">
+                  <td data-col="family">{{ member.familyName }}</td>
+                  <td data-col="given">{{ member.givenNames }}</td>
+                  <td data-col="rank">{{ member.rank }}</td>
+                  <td data-col="nationality">{{ member.nationality }}</td>
+                  <td class="col-scans" data-col="scans">
                     <div class="crew-doc-icons">
                       <app-crew-doc-icon
                         [member]="member"
@@ -640,18 +641,18 @@
           <table>
             <thead>
               <tr>
-                <th>Family Name</th>
-                <th>Given Names</th>
-                <th>Nationality</th>
+                <th data-col="family">Family Name</th>
+                <th data-col="given">Given Names</th>
+                <th data-col="nationality">Nationality</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               @for (member of filteredArchivedPassengers(); track member.id) {
                 <tr>
-                  <td>{{ member.familyName }}</td>
-                  <td>{{ member.givenNames }}</td>
-                  <td>{{ member.nationality }}</td>
+                  <td data-col="family">{{ member.familyName }}</td>
+                  <td data-col="given">{{ member.givenNames }}</td>
+                  <td data-col="nationality">{{ member.nationality }}</td>
                   <td class="actions">
                     <div class="actions-icons">
                       <button

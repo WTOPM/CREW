@@ -50,6 +50,17 @@
     return (el.textContent || '').trim();
   }
 
+  function rowDataInputs(row) {
+    if (global.HtmlFormListCellPersist?.dataInputs) {
+      return global.HtmlFormListCellPersist.dataInputs(row);
+    }
+    return Array.from(row.querySelectorAll('input.ci'));
+  }
+
+  function birthPlaceText(row) {
+    return cellText(row.querySelector('.ci-birth-place'));
+  }
+
   function rowHasData(row, cellSelector) {
     return Array.from(row.querySelectorAll(cellSelector)).some((cell) => {
       if (cell.classList.contains('ci-rno')) return false;
@@ -192,16 +203,14 @@
     if (tbody) {
       Array.from(tbody.children).forEach((tr) => {
         if (!rowHasData(tr, '.ci')) return;
-        const inputs = tr.querySelectorAll('input.ci');
+        const inputs = rowDataInputs(tr);
         const name = cellText(tr.querySelector('.ci-name'));
-        const birth = cellText(inputs[2]);
-        const birthParts = birth.split(/\s+/);
         crew.push({
           ...splitName(name),
           rank: cellText(inputs[0]),
           nationality: cellText(inputs[1]),
-          dateOfBirth: birthParts[0] || birth,
-          placeOfBirth: birthParts.slice(1).join(' '),
+          dateOfBirth: cellText(inputs[2]),
+          placeOfBirth: birthPlaceText(tr),
           passport: cellText(inputs[3]),
           passportExpiryDate: cellText(inputs[4]),
           passportPlaceOfIssue: cellText(inputs[5]),
@@ -226,14 +235,14 @@
     if (tableBody) {
       Array.from(tableBody.children).forEach((row) => {
         if (!rowHasData(row, '.ci')) return;
-        const inputs = row.querySelectorAll('input.ci');
+        const inputs = rowDataInputs(row);
         const name = cellText(row.querySelector('.ci-name'));
         crew.push({
           ...splitName(name),
           rank: cellText(inputs[0]),
           nationality: cellText(inputs[1]),
           dateOfBirth: cellText(inputs[2]),
-          placeOfBirth: '',
+          placeOfBirth: birthPlaceText(row),
           passport: cellText(inputs[3]),
           seamansBook: cellText(inputs[4]),
           joiningDate: cellText(inputs[5]),
@@ -258,16 +267,14 @@
     if (tbody) {
       Array.from(tbody.children).forEach((tr) => {
         if (!rowHasData(tr, '.ci')) return;
-        const inputs = tr.querySelectorAll('input.ci');
+        const inputs = rowDataInputs(tr);
         const name = cellText(tr.querySelector('.ci-name'));
-        const birth = cellText(inputs[2]);
-        const birthParts = birth.split(/\s{2,}|\s+/);
         crew.push({
           ...splitName(name),
           rank: cellText(inputs[0]),
           nationality: cellText(inputs[1]),
-          dateOfBirth: birthParts[0] || birth,
-          placeOfBirth: birthParts.slice(1).join(' '),
+          dateOfBirth: cellText(inputs[2]),
+          placeOfBirth: birthPlaceText(tr),
           seamansBook: cellText(inputs[3]),
           seamansBookPlaceOfIssue: cellText(inputs[4]),
           sbookExpiryDate: cellText(inputs[5]),
@@ -294,16 +301,14 @@
     if (tbody) {
       Array.from(tbody.children).forEach((tr) => {
         if (!rowHasData(tr, '.ci')) return;
-        const inputs = tr.querySelectorAll('input.ci');
+        const inputs = rowDataInputs(tr);
         const name = cellText(tr.querySelector('.ci-name'));
-        const birth = cellText(inputs[2]);
-        const birthParts = birth.split(/\s{2,}|\s+/);
         crew.push({
           ...splitName(name),
           rank: cellText(inputs[0]),
           nationality: cellText(inputs[1]),
-          dateOfBirth: birthParts[0] || birth,
-          placeOfBirth: birthParts.slice(1).join(' '),
+          dateOfBirth: cellText(inputs[2]),
+          placeOfBirth: birthPlaceText(tr),
           seamansBook: cellText(inputs[3]),
           seamansBookPlaceOfIssue: cellText(inputs[4]),
           sbookExpiryDate: cellText(inputs[5]),

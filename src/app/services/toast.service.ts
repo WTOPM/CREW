@@ -49,8 +49,9 @@ export class ToastService {
     this.show(`SELECTED: ${label}`, 'success');
   }
 
-  showSaved(): void {
-    this.show('Saved', 'success');
+  showSaved(detail?: string): void {
+    const text = detail?.trim();
+    this.show(text || 'Saved', 'success');
   }
 
   showArchived(): void {
@@ -61,39 +62,45 @@ export class ToastService {
     this.show('Restored', 'info');
   }
 
-  showDeleted(): void {
-    this.show('DELETED', 'deleted');
+  showDeleted(detail?: string): void {
+    const text = detail?.trim();
+    this.show(text || 'Deleted', 'deleted');
+  }
+
+  showCancelled(detail?: string): void {
+    const text = detail?.trim();
+    this.show(text || 'Cancelled', 'info');
   }
 
   showPortAdded(): void {
-    this.show('ADDED A NEW PORT', 'success');
+    this.show('New port added', 'success');
   }
 
   showPortDeleted(): void {
-    this.show('DELETED PORT', 'deleted');
+    this.show('Port deleted', 'deleted');
   }
 
   showRankAdded(): void {
-    this.show('ADDED RANK', 'success');
+    this.show('Rank added', 'success');
   }
 
   showRankDeleted(): void {
-    this.show('DELETED RANK', 'deleted');
+    this.show('Rank deleted', 'deleted');
   }
 
   showNationalityAdded(): void {
-    this.show('ADDED NATIONALITY', 'success');
+    this.show('Nationality added', 'success');
   }
 
   showNationalityDeleted(): void {
-    this.show('DELETED NATIONALITY', 'deleted');
+    this.show('Nationality deleted', 'deleted');
   }
 
   /** Debounced — one toast after rapid auto-save edits. */
-  debouncedSaved(delayMs = 1100): void {
+  debouncedSaved(delayMs = 1100, detail?: string): void {
     if (this.savedTimer) clearTimeout(this.savedTimer);
     this.savedTimer = setTimeout(() => {
-      this.showSaved();
+      this.showSaved(detail);
       this.savedTimer = null;
     }, delayMs);
   }

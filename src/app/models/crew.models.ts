@@ -124,10 +124,8 @@ export interface ShipInfo {
   presentMarsecLevel: string;
 }
 
-/** Select / date fields — show Saved on change; text fields use debounced save on main forms. */
+/** Select / date fields — toast on commit (blur / pick), not while typing. */
 export const SHIP_FIELDS_SAVED_ON_CHANGE: readonly (keyof ShipInfo)[] = [
-  'nationality',
-  'homeport',
   'lastPortOfCall',
   'portOfCall',
   'nextPortOfCall',
@@ -140,6 +138,39 @@ export const SHIP_FIELDS_SAVED_ON_CHANGE: readonly (keyof ShipInfo)[] = [
   'isscIssueDate',
   'isscExpiryDate',
 ] as const;
+
+/** Human-readable toast when a ship field is saved. */
+export const SHIP_FIELD_UPDATED_MESSAGES: Partial<Record<keyof ShipInfo, string>> = {
+  name: 'Ship name updated',
+  callSign: 'Call sign updated',
+  nationality: 'Ship nationality updated',
+  homeport: 'Home port updated',
+  imoNo: 'IMO number updated',
+  type: 'Ship type updated',
+  charterer: 'Charterer updated',
+  voyageNumber: 'Voyage number updated',
+  lastPortOfCall: 'Last port of call updated',
+  portOfCall: 'Port of call updated',
+  nextPortOfCall: 'Next port of call updated',
+  dateOfArrival: 'Date of arrival updated',
+  dateOfDeparture: 'Date of departure updated',
+  shipSecurityOfficer: 'Ship security officer updated',
+  isscIssueDate: 'ISSC issue date updated',
+  isscExpiryDate: 'ISSC expiry date updated',
+  isscIssuedByRso: 'ISSC issued by (RSO) updated',
+  presentMarsecLevel: 'MARSEC level updated',
+  sanitationCertificateNo: 'Sanitation certificate No. updated',
+  sanitationCertificateIssuedAt: 'Sanitation certificate port updated',
+  sanitationCertificateIssueDate: 'Sanitation certificate date updated',
+  waterTestPort: 'Water test port updated',
+  waterTestDate: 'Water test date updated',
+  grossTonnage: 'Gross tonnage updated',
+  netTonnage: 'Net tonnage updated',
+};
+
+export function shipFieldUpdatedMessage(field: keyof ShipInfo): string {
+  return SHIP_FIELD_UPDATED_MESSAGES[field] ?? 'Ship data updated';
+}
 
 export function shipFieldPersistNotify(field: keyof ShipInfo): 'saved' | 'debounced' {
   return (SHIP_FIELDS_SAVED_ON_CHANGE as readonly string[]).includes(field) ? 'saved' : 'debounced';

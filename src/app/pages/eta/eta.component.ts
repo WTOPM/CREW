@@ -7,7 +7,14 @@ import { EtaSpeedKnInputDirective } from '../../directives/eta-speed-kn-input.di
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { TimeInputComponent } from '../../components/time-input/time-input.component';
-import { EtaScenario, normalizeUtcOffsetHours, stepUtcOffsetHours } from '../../models/eta.models';
+import {
+  EtaScenario,
+  legEtaUtcOffsetRange,
+  normalizeUtcOffsetHours,
+  resolveLegEtaUtcOffsetHours,
+  stepLegEtaUtcOffsetHours,
+  stepUtcOffsetHours,
+} from '../../models/eta.models';
 import { EtaStore } from '../../services/eta.store';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
@@ -293,11 +300,42 @@ export class EtaComponent {
 
   protected legEtaParts(legIndex: number) {
     const leg = this.calculation().legs[legIndex];
-    const offset =
-      legIndex === this.draft().legs.length - 1
-        ? this.draft().arrivalUtcOffsetHours
-        : this.draft().departureUtcOffsetHours;
+    const offset = this.legEtaUtcOffsetHours(legIndex);
     return etaLegEndParts(leg?.arrivalAtLegEndUtcMs ?? null, offset);
+  }
+
+  protected legEtaUtcOffsetHours(legIndex: number): number {
+    const draft = this.draft();
+    return resolveLegEtaUtcOffsetHours(
+      draft.legs[legIndex] ?? { etaUtcOffsetHours: null },
+      legIndex,
+      draft.legs.length,
+      draft.departureUtcOffsetHours,
+      draft.arrivalUtcOffsetHours,
+    );
+  }
+
+  protected stepLegEtaTz(legId: string, legIndex: number, delta: number): void {
+    const draft = this.draft();
+    const next = stepLegEtaUtcOffsetHours(
+      this.legEtaUtcOffsetHours(legIndex),
+      draft.departureUtcOffsetHours,
+      draft.arrivalUtcOffsetHours,
+      delta,
+    );
+    this.etaStore.updateLeg(legId, { etaUtcOffsetHours: next });
+  }
+
+  protected canStepLegEtaTz(legIndex: number, delta: number): boolean {
+    const draft = this.draft();
+    const range = legEtaUtcOffsetRange(draft.departureUtcOffsetHours, draft.arrivalUtcOffsetHours);
+    if (range.length <= 1) return false;
+    const current = this.legEtaUtcOffsetHours(legIndex);
+    const idx = range.indexOf(current);
+    if (idx < 0) return true;
+    if (delta < 0) return idx > 0;
+    if (delta > 0) return idx < range.length - 1;
+    return false;
   }
 
   protected legEtaLabel(legIndex: number): string {

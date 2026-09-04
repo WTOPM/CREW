@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultEtaPlan, createEtaLeg } from '../models/eta.models';
+import {
+  createDefaultEtaPlan,
+  createEtaLeg,
+  legEtaUtcOffsetRange,
+  stepLegEtaUtcOffsetHours,
+} from '../models/eta.models';
 import {
   calculateEta,
   distanceNmFromSpeed,
@@ -11,6 +16,14 @@ import {
 } from './eta-calculator.util';
 
 describe('eta-calculator.util', () => {
+  it('builds inclusive hour range between port offsets', () => {
+    expect(legEtaUtcOffsetRange(-1, 2)).toEqual([-1, 0, 1, 2]);
+    expect(legEtaUtcOffsetRange(2, -1)).toEqual([-1, 0, 1, 2]);
+    expect(stepLegEtaUtcOffsetHours(-1, -1, 2, 1)).toBe(0);
+    expect(stepLegEtaUtcOffsetHours(0, -1, 2, 1)).toBe(1);
+    expect(stepLegEtaUtcOffsetHours(2, -1, 2, 1)).toBe(2);
+    expect(stepLegEtaUtcOffsetHours(1, -1, 2, -1)).toBe(0);
+  });
   it('distance = speed × time (10 kn × 3 h = 30 NM)', () => {
     expect(distanceNmFromSpeed(10, 3)).toBe(30);
   });
@@ -109,5 +122,22 @@ describe('eta-calculator.util', () => {
     expect(result.arrivalLabel).toBe(formatEtaWallClock(result.arrivalUtcMs, 1));
     expect(result.arrivalLabel).toContain('UTC+1');
     expect(result.departureLabel).toContain('UTC+2');
+  });
+
+  it('uses per-leg etaUtcOffsetHours for intermediate ETA display', () => {
+    const plan = createDefaultEtaPlan('TZ legs');
+    plan.scenario = 'planEta';
+    plan.departureDate = '2026-06-01';
+    plan.departureTime = '12:00';
+    plan.departureUtcOffsetHours = -1;
+    plan.arrivalUtcOffsetHours = 2;
+    plan.legs = [
+      createEtaLeg({ distanceNm: 150, speedKnots: 15, toLabel: 'WP', etaUtcOffsetHours: 0 }),
+      createEtaLeg({ distanceNm: 150, speedKnots: 15, etaUtcOffsetHours: 1 }),
+    ];
+
+    const result = calculateEta(plan);
+    expect(result.legs[0]?.arrivalAtLegEndShortLabel).toContain('UTC');
+    expect(result.legs[1]?.arrivalAtLegEndShortLabel).toContain('+1');
   });
 });

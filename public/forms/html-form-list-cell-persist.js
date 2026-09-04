@@ -1,6 +1,8 @@
 /**
  * Persist / restore table cell text for crew & passenger HTML list editors.
- * Keys match cellStyles: `${row}-${col}` for input.ci, `${row}-name` for .ci-name.
+ * Keys match cellStyles: `${row}-${col}` for data input.ci (birth-place excluded from
+ * the sequential index), `${row}-name` for .ci-name, `${row}-pob` for .ci-birth-place,
+ * `${row}-rno` for manual row numbers.
  * Call restore AFTER live crew/passenger data is written into the table.
  */
 (function (global) {
@@ -17,20 +19,65 @@
     else el.textContent = value;
   }
 
+  function isBirthPlaceInput(el) {
+    return !!el?.classList?.contains('ci-birth-place');
+  }
+
+  function isBirthDateInput(el) {
+    return !!el?.classList?.contains('ci-birth-date');
+  }
+
+  /**
+   * Legacy forms saved "DD.MM.YYYY  Place" in the single birth column.
+   * After the date|place split, only the date belongs in .ci-birth-date.
+   * @returns {{ date: string, place: string }}
+   */
+  function splitLegacyBirthCombined(text) {
+    const raw = String(text == null ? '' : text).trim();
+    if (!raw) return { date: '', place: '' };
+    const m = raw.match(
+      /^(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{2}-\d{2})\s+(.+)$/,
+    );
+    if (m) return { date: m[1], place: m[2].trim() };
+    return { date: raw, place: '' };
+  }
+
+  /** Data inputs in column order — excludes the secondary birth-place field. */
+  function dataInputs(row) {
+    if (!row) return [];
+    return Array.from(row.querySelectorAll('input.ci')).filter((el) => !isBirthPlaceInput(el));
+  }
+
+  function rowElements(root) {
+    if (!root) return [];
+    return Array.from(root.children).filter(
+      (el) => el && (el.tagName === 'TR' || el.classList.contains('table-row')),
+    );
+  }
+
   /**
    * @param {HTMLElement|null} tbody
    * @returns {Record<string, string>}
    */
   function collectValues(tbody) {
     const cellValues = {};
-    if (!tbody) return cellValues;
-    Array.from(tbody.children).forEach((tr, rowIndex) => {
-      if (!tr || tr.tagName !== 'TR') return;
-      tr.querySelectorAll('input.ci').forEach((input, colIndex) => {
-        cellValues[`${rowIndex}-${colIndex}`] = cellText(input);
+    rowElements(tbody).forEach((tr, rowIndex) => {
+      dataInputs(tr).forEach((input, colIndex) => {
+        let value = cellText(input);
+        if (isBirthDateInput(input)) {
+          value = splitLegacyBirthCombined(value).date;
+        }
+        cellValues[`${rowIndex}-${colIndex}`] = value;
       });
+      const pob = tr.querySelector('.ci-birth-place');
+      if (pob) cellValues[`${rowIndex}-pob`] = cellText(pob);
       const nameCell = tr.querySelector('.ci-name');
       if (nameCell) cellValues[`${rowIndex}-name`] = cellText(nameCell);
+      const rnoCell = tr.querySelector('.ci-rno');
+      if (rnoCell && rnoCell.dataset.manual === '1') {
+        cellValues[`${rowIndex}-rno`] = cellText(rnoCell);
+        cellValues[`${rowIndex}-rnoManual`] = '1';
+      }
     });
     return cellValues;
   }
@@ -41,21 +88,56 @@
    */
   function restoreValues(tbody, cellValues) {
     if (!tbody || !cellValues || typeof cellValues !== 'object') return;
-    Array.from(tbody.children).forEach((tr, rowIndex) => {
-      if (!tr || tr.tagName !== 'TR') return;
-      tr.querySelectorAll('input.ci').forEach((input, colIndex) => {
+    rowElements(tbody).forEach((tr, rowIndex) => {
+      dataInputs(tr).forEach((input, colIndex) => {
         const key = `${rowIndex}-${colIndex}`;
-        if (Object.prototype.hasOwnProperty.call(cellValues, key)) {
-          setCellText(input, cellValues[key]);
+        if (!Object.prototype.hasOwnProperty.call(cellValues, key)) return;
+        if (isBirthDateInput(input)) {
+          const { date, place } = splitLegacyBirthCombined(cellValues[key]);
+          setCellText(input, date);
+          const pob = tr.querySelector('.ci-birth-place');
+          const pobKey = `${rowIndex}-pob`;
+          // Legacy "date  place" with no separate -pob key yet: apply both halves.
+          if (
+            pob &&
+            place &&
+            !Object.prototype.hasOwnProperty.call(cellValues, pobKey)
+          ) {
+            setCellText(pob, place);
+          }
+          return;
         }
+        setCellText(input, cellValues[key]);
       });
+      const pob = tr.querySelector('.ci-birth-place');
+      const pobKey = `${rowIndex}-pob`;
+      if (pob && Object.prototype.hasOwnProperty.call(cellValues, pobKey)) {
+        setCellText(pob, cellValues[pobKey]);
+      }
       const nameCell = tr.querySelector('.ci-name');
       const nameKey = `${rowIndex}-name`;
       if (nameCell && Object.prototype.hasOwnProperty.call(cellValues, nameKey)) {
         setCellText(nameCell, cellValues[nameKey]);
       }
+      const rnoCell = tr.querySelector('.ci-rno');
+      const rnoKey = `${rowIndex}-rno`;
+      if (
+        rnoCell &&
+        cellValues[`${rowIndex}-rnoManual`] === '1' &&
+        Object.prototype.hasOwnProperty.call(cellValues, rnoKey)
+      ) {
+        setCellText(rnoCell, cellValues[rnoKey]);
+        rnoCell.dataset.manual = '1';
+      }
     });
   }
 
-  global.HtmlFormListCellPersist = { collectValues, restoreValues };
+  global.HtmlFormListCellPersist = {
+    collectValues,
+    restoreValues,
+    dataInputs,
+    isBirthPlaceInput,
+    cellText,
+    splitLegacyBirthCombined,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

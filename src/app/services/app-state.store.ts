@@ -328,7 +328,7 @@ export class AppStateStore {
       else this.toast.showSaved();
       this.formSessionDirty = false;
     } else if (notify === 'debounced') {
-      this.toast.debouncedSaved();
+      this.toast.debouncedSaved(1100, savedMessage);
     }
   }
 
@@ -336,7 +336,7 @@ export class AppStateStore {
   finishFormSession(): void {
     this.toast.cancelDebouncedSaved();
     if (this.formSessionDirty) {
-      this.toast.showSaved();
+      this.toast.showSaved('Form changes saved');
       this.formSessionDirty = false;
     }
   }

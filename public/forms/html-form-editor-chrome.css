@@ -310,6 +310,31 @@ body.ss-editor {
   color: var(--sp-muted);
 }
 
+/* Date | Place of birth inside a single column (forms 03/04/06/07). Date ~38%, place ~62%. */
+.ci-birth-split {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ci-birth-split .ci-birth-date {
+  flex: 0 0 38%;
+  width: 38%;
+  min-width: 0;
+  box-sizing: border-box;
+  border-right: 1px solid #bbb;
+}
+
+.ci-birth-split .ci-birth-place {
+  flex: 1 1 62%;
+  width: 62%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 body.is-pdf-export .side-panel,
 body.pdf-export .side-panel {
   display: none !important;

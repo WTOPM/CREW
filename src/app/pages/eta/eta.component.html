@@ -319,16 +319,38 @@
                     </span>
                   </td>
                   <td class="eta-col-eta">
-                    <span class="eta-leg-result eta-leg-result--eta" [title]="legEtaTitle(i)">
-                      @if (eta.empty) {
-                        <span class="eta-leg-result__val">—</span>
-                      } @else {
-                        <span class="eta-leg-result__val">
-                          <span class="eta-leg-datetime">{{ eta.dateTime }}</span>
-                          <span class="eta-leg-tz">{{ eta.tz }}</span>
-                        </span>
-                      }
-                    </span>
+                    <div class="eta-leg-eta-cell">
+                      <span class="eta-leg-result eta-leg-result--eta" [title]="legEtaTitle(i)">
+                        @if (eta.empty) {
+                          <span class="eta-leg-result__val">—</span>
+                        } @else {
+                          <span class="eta-leg-result__val">
+                            <span class="eta-leg-datetime">{{ eta.dateTime }}</span>
+                            <span class="eta-leg-tz">{{ eta.tz }}</span>
+                          </span>
+                        }
+                      </span>
+                      <span class="eta-leg-tz-step" [title]="etaTips.legEtaTz">
+                        <button
+                          type="button"
+                          class="eta-leg-tz-step__btn"
+                          [disabled]="!canStepLegEtaTz(i, -1)"
+                          title="Previous timezone in range"
+                          (click)="stepLegEtaTz(leg.id, i, -1)"
+                        >
+                          −
+                        </button>
+                        <button
+                          type="button"
+                          class="eta-leg-tz-step__btn"
+                          [disabled]="!canStepLegEtaTz(i, 1)"
+                          title="Next timezone in range"
+                          (click)="stepLegEtaTz(leg.id, i, 1)"
+                        >
+                          +
+                        </button>
+                      </span>
+                    </div>
                   </td>
                   <td class="eta-col-actions">
                     <button

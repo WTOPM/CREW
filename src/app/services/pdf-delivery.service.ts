@@ -58,12 +58,12 @@ export class PdfDeliveryService {
       try {
         const exists = await electron.pdfExists(dirPath, fileName);
         if (exists && !(await this.confirmOverwrite(fileName, dirPath))) {
-          this.toast.show('Save cancelled', 'info');
+          this.toast.showCancelled('PDF save cancelled');
           return;
         }
         const base64 = uint8ToBase64(bytes);
         const { fullPath } = await electron.savePdfToPath(dirPath, fileName, base64);
-        this.toast.show(`${exists ? 'Overwritten' : 'Saved'}: ${fullPath}`, 'success');
+        this.toast.show(`${exists ? 'PDF overwritten' : 'PDF saved'}: ${fullPath}`, 'success');
       } catch (err) {
         this.toast.showError(
           err instanceof Error ? `Save failed: ${err.message}` : 'Failed to save PDF',
@@ -81,11 +81,11 @@ export class PdfDeliveryService {
       try {
         const exists = await this.folderAccess.fileExists(fileName);
         if (exists && !(await this.confirmOverwrite(fileName, this.folderAccess.activeName()))) {
-          this.toast.show('Save cancelled', 'info');
+          this.toast.showCancelled('PDF save cancelled');
           return;
         }
         const saved = await this.folderAccess.write(fileName, bytes);
-        this.toast.show(`${exists ? 'Overwritten' : 'Saved'}: ${saved}`, 'success');
+        this.toast.show(`${exists ? 'PDF overwritten' : 'PDF saved'}: ${saved}`, 'success');
       } catch (err) {
         this.toast.showError(
           err instanceof Error ? `Save failed: ${err.message}` : 'Failed to save PDF',

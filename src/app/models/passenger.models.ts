@@ -105,6 +105,14 @@ export function passengerListDiffCounts(passengers: readonly PassengerMember[]):
   return { arrivalOnly, departureOnly };
 }
 
+export interface PassengerVoyageStay {
+  id: string;
+  embarkationDate: string;
+  embarkationPort: string;
+  disembarkationDate: string;
+  disembarkationPort: string;
+}
+
 export interface PassengerMember {
   id: string;
   familyName: string;
@@ -116,6 +124,11 @@ export interface PassengerMember {
   passport: string;
   passportIssueDate: string;
   passportExpiryDate: string;
+  /**
+   * Embarkation / disembarkation visits (can repeat if the passenger returns later).
+   * Each row: emb. date + port, disemb. port + date.
+   */
+  voyageStays: PassengerVoyageStay[];
   archived: boolean;
   onArrivalList: boolean;
   onDepartureList: boolean;
@@ -183,6 +196,33 @@ export function createDefaultPaxArrSettings(): PaxArrFormSettings {
   return { isArrival: true, listType: 'pax' };
 }
 
+export function createEmptyPassengerVoyageStay(
+  partial: Partial<PassengerVoyageStay> = {},
+): PassengerVoyageStay {
+  return {
+    id: partial.id?.trim() || crypto.randomUUID(),
+    embarkationDate: (partial.embarkationDate ?? '').trim(),
+    embarkationPort: (partial.embarkationPort ?? '').trim(),
+    disembarkationDate: (partial.disembarkationDate ?? '').trim(),
+    disembarkationPort: (partial.disembarkationPort ?? '').trim(),
+  };
+}
+
+export function normalizePassengerVoyageStays(
+  raw: unknown,
+  legacy?: { embarkationDate?: string; embarkationPort?: string },
+): PassengerVoyageStay[] {
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw.map((row) => createEmptyPassengerVoyageStay(row as Partial<PassengerVoyageStay>));
+  }
+  const embDate = (legacy?.embarkationDate ?? '').trim();
+  const embPort = (legacy?.embarkationPort ?? '').trim();
+  if (embDate || embPort) {
+    return [createEmptyPassengerVoyageStay({ embarkationDate: embDate, embarkationPort: embPort })];
+  }
+  return [];
+}
+
 export function createEmptyPassenger(): PassengerMember {
   return {
     id: crypto.randomUUID(),
@@ -195,6 +235,7 @@ export function createEmptyPassenger(): PassengerMember {
     passport: '',
     passportIssueDate: '',
     passportExpiryDate: '',
+    voyageStays: [],
     archived: false,
     onArrivalList: false,
     onDepartureList: false,
@@ -243,13 +284,15 @@ export function migratePassengerMember(
     visaIssueDate: _vi,
     visaExpiryDate: _ve,
     visaValidity: _vv,
-    embarkationDate: _ed,
-    embarkationPort: _ep,
+    embarkationDate,
+    embarkationPort,
     familyNameGivenNames,
     passportValidity,
+    voyageStays: rawStays,
     ...rest
   } = raw;
   const base = migratePassengerListFlags({ ...createEmptyPassenger(), ...rest });
+  base.voyageStays = normalizePassengerVoyageStays(rawStays, { embarkationDate, embarkationPort });
   if (!base.familyName && !base.givenNames && familyNameGivenNames) {
     const parsed = parsePersonName(familyNameGivenNames);
     base.familyName = parsed.familyName;

@@ -1,7 +1,7 @@
 const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-list-form-07.paths.ts
     const DEMO = [
-      { name: 'PETROV Ivan Sergeyevich', rank: 'Master', nat: 'RUS', birth: '15.03.1975 Moscow', bno: 'RUS12345678', bplace: 'MOSCOW', bexp: '10.08.2027', passport: '751234567', pplace: 'MOSCOW', pexp: '15.06.2030' },
-      { name: 'KIM Jong-su', rank: 'Chief Officer', nat: 'KOR', birth: '22.07.1980 Busan', bno: 'KOR98765432', bplace: 'BUSAN', bexp: '15.03.2026', passport: 'M12345678', pplace: 'SEOUL', pexp: '01.09.2028' },
+      { name: 'PETROV Ivan Sergeyevich', rank: 'Master', nat: 'RUS', dob: '15.03.1975', pob: 'Moscow', bno: 'RUS12345678', bplace: 'MOSCOW', bexp: '10.08.2027', passport: '751234567', pplace: 'MOSCOW', pexp: '15.06.2030' },
+      { name: 'KIM Jong-su', rank: 'Chief Officer', nat: 'KOR', dob: '22.07.1980', pob: 'Busan', bno: 'KOR98765432', bplace: 'BUSAN', bexp: '15.03.2026', passport: 'M12345678', pplace: 'SEOUL', pexp: '01.09.2028' },
     ];
     const tbody = document.getElementById('tbody');
     const EDITOR_DIRTY_OPTS = {
@@ -27,6 +27,10 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       Array.from(tbody.children).forEach((tr) => {
         const rno = tr.querySelector('.ci-rno');
         if (!rno) return;
+        if (rno.dataset.manual === '1') {
+          if (rowHasData(tr)) n += 1;
+          return;
+        }
         if (rowHasData(tr)) {
           n += 1;
           rno.textContent = String(n);
@@ -50,7 +54,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     <td class="c1"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></td>
     <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly tabindex="-1"></td>
     <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly tabindex="-1"></td>
-    <td class="c4"><input class="ci" type="text" value="${d.birth || ''}" readonly tabindex="-1"></td>
+    <td class="c4"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${d.dob || ''}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1"><input class="ci ci-birth-place" type="text" value="${d.pob || ''}" readonly tabindex="-1"></div></td>
     <td class="c5"><input class="ci" type="text" value="${d.bno || ''}" readonly tabindex="-1"></td>
     <td class="c6"><input class="ci" type="text" value="${d.bplace || ''}" readonly tabindex="-1"></td>
     <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}"${dateIsoAttr(d.bexpIso)} readonly tabindex="-1"></td>
@@ -187,7 +191,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     }
 
     function syncToolbarFromCell(cell) {
-      if (!cell || cell.classList.contains('ci-rno')) return;
+      if (!cell) return;
       const fontSel = document.getElementById('tb-font');
       const sizeSel = document.getElementById('tb-size');
       const font = window.CrewCellFormat
@@ -256,6 +260,34 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && selectedCells.length) {
         e.preventDefault();
         document.execCommand('copy');
+        return;
+      }
+      // Manual row-№ edit: type / Backspace when a single № cell is selected.
+      if (
+        selectedCells.length === 1 &&
+        selectedCells[0].classList.contains('ci-rno') &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        const cell = selectedCells[0];
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          cell.textContent = (cell.textContent || '').slice(0, -1);
+          cell.dataset.manual = '1';
+          return;
+        }
+        if (e.key === 'Delete') {
+          e.preventDefault();
+          cell.textContent = '';
+          cell.dataset.manual = '1';
+          return;
+        }
+        if (e.key.length === 1) {
+          e.preventDefault();
+          cell.textContent = (cell.textContent || '') + e.key;
+          cell.dataset.manual = '1';
+        }
       }
     });
 
@@ -269,7 +301,11 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     function syncCellFlexAlignment(cell) {
       const ta = cell.style.textAlign || '';
       const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
-      if (cell.style.display === 'flex' || cell.classList.contains('ci-name')) {
+      if (
+        cell.style.display === 'flex' ||
+        cell.classList.contains('ci-name') ||
+        cell.classList.contains('ci-rno')
+      ) {
         cell.style.justifyContent = jc;
       }
     }
@@ -285,7 +321,6 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
 
     function applyVerticalAlign(val) {
       selectedCells.forEach((cell) => {
-        if (cell.classList.contains('ci-rno')) return;
         applyVerticalAlignToCell(cell, val);
       });
       HtmlFormHeaderCells.applyVerticalAlign(val);
@@ -293,12 +328,19 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
 
     function applyFormat(prop, val) {
       selectedCells.forEach((cell) => {
-        if (cell.classList.contains('ci-rno')) return;
         cell.style[prop] = val;
-        if (prop === 'textAlign') syncCellFlexAlignment(cell);
+        if (prop === 'textAlign') {
+          if (cell.classList.contains('ci-rno')) {
+            cell.style.display = 'flex';
+            cell.style.alignItems = cell.style.alignItems || 'center';
+          }
+          syncCellFlexAlignment(cell);
+        }
       });
       HtmlFormHeaderCells.applyFormat(prop, val);
     }
+    window.applyFormat = applyFormat;
+    window.applyVerticalAlign = applyVerticalAlign;
 
     let stampImgUrl = null;
     let sigImgUrl = null;
@@ -510,7 +552,8 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       const cellStyles = saved.cellStyles || {};
       const rows = tbody.querySelectorAll('tr');
       rows.forEach((tr, rowIndex) => {
-        const inputs = tr.querySelectorAll('input.ci');
+        const inputs = window.HtmlFormListCellPersist?.dataInputs?.(tr)
+          || Array.from(tr.querySelectorAll('input.ci'));
         inputs.forEach((input, colIndex) => {
           const style = cellStyles[`${rowIndex}-${colIndex}`];
           if (style) {
@@ -521,6 +564,15 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
             else if (style.textAlign) syncCellFlexAlignment(input);
           }
         });
+        const pob = tr.querySelector('.ci-birth-place');
+        const pobStyle = cellStyles[`${rowIndex}-pob`];
+        if (pob && pobStyle) {
+          if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
+          if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
+          if (pobStyle.textAlign) pob.style.textAlign = pobStyle.textAlign;
+          if (pobStyle.verticalAlign) applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
+          else if (pobStyle.textAlign) syncCellFlexAlignment(pob);
+        }
         const nameCell = tr.querySelector('.ci-name');
         const nameStyle = cellStyles[`${rowIndex}-name`];
         if (nameCell && nameStyle) {
@@ -529,6 +581,19 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
           if (nameStyle.textAlign) nameCell.style.textAlign = nameStyle.textAlign;
           if (nameStyle.verticalAlign) applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
           else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
+        }
+        const rnoCell = tr.querySelector('.ci-rno');
+        const rnoStyle = cellStyles[`${rowIndex}-rno`];
+        if (rnoCell && rnoStyle) {
+          if (rnoStyle.fontFamily) rnoCell.style.fontFamily = rnoStyle.fontFamily;
+          if (rnoStyle.fontSize) rnoCell.style.fontSize = rnoStyle.fontSize;
+          if (rnoStyle.textAlign) rnoCell.style.textAlign = rnoStyle.textAlign;
+          if (rnoStyle.verticalAlign) applyVerticalAlignToCell(rnoCell, rnoStyle.verticalAlign);
+          else if (rnoStyle.textAlign) {
+            rnoCell.style.display = 'flex';
+            rnoCell.style.alignItems = rnoCell.style.alignItems || 'center';
+            syncCellFlexAlignment(rnoCell);
+          }
         }
       });
       HtmlFormHeaderCells.restoreStyles(cellStyles);
@@ -552,7 +617,8 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       const cellStyles = {};
       const rows = tbody.querySelectorAll('tr');
       rows.forEach((tr, rowIndex) => {
-        const inputs = tr.querySelectorAll('input.ci');
+        const inputs = window.HtmlFormListCellPersist?.dataInputs?.(tr)
+          || Array.from(tr.querySelectorAll('input.ci'));
         inputs.forEach((input, colIndex) => {
           const style = {};
           if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
@@ -563,6 +629,17 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
+        const pob = tr.querySelector('.ci-birth-place');
+        if (pob) {
+          const pobStyle = {};
+          if (pob.style.fontFamily) pobStyle.fontFamily = pob.style.fontFamily;
+          if (pob.style.fontSize) pobStyle.fontSize = pob.style.fontSize;
+          if (pob.style.textAlign) pobStyle.textAlign = pob.style.textAlign;
+          if (pob.dataset.verticalAlign) pobStyle.verticalAlign = pob.dataset.verticalAlign;
+          if (Object.keys(pobStyle).length > 0) {
+            cellStyles[`${rowIndex}-pob`] = pobStyle;
+          }
+        }
         const nameCell = tr.querySelector('.ci-name');
         if (nameCell) {
           const nameStyle = {};
@@ -572,6 +649,17 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
           if (nameCell.dataset.verticalAlign) nameStyle.verticalAlign = nameCell.dataset.verticalAlign;
           if (Object.keys(nameStyle).length > 0) {
             cellStyles[`${rowIndex}-name`] = nameStyle;
+          }
+        }
+        const rnoCell = tr.querySelector('.ci-rno');
+        if (rnoCell) {
+          const rnoStyle = {};
+          if (rnoCell.style.fontFamily) rnoStyle.fontFamily = rnoCell.style.fontFamily;
+          if (rnoCell.style.fontSize) rnoStyle.fontSize = rnoCell.style.fontSize;
+          if (rnoCell.style.textAlign) rnoStyle.textAlign = rnoCell.style.textAlign;
+          if (rnoCell.dataset.verticalAlign) rnoStyle.verticalAlign = rnoCell.dataset.verticalAlign;
+          if (Object.keys(rnoStyle).length > 0) {
+            cellStyles[`${rowIndex}-rno`] = rnoStyle;
           }
         }
       });
@@ -696,7 +784,20 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
           cell.style.removeProperty('justify-content');
           delete cell.dataset.verticalAlign;
         });
+        tbody.querySelectorAll('.ci.ci-rno').forEach((cell) => {
+          cell.style.removeProperty('font-family');
+          cell.style.removeProperty('font-size');
+          cell.style.removeProperty('text-align');
+          cell.style.removeProperty('justify-content');
+          cell.style.removeProperty('align-items');
+          delete cell.dataset.verticalAlign;
+          delete cell.dataset.manual;
+        });
       }
+      tbody.querySelectorAll('.ci.ci-rno').forEach((cell) => {
+        delete cell.dataset.manual;
+      });
+      refreshRowNumbers();
       HtmlFormHeaderCells.resetAll();
       clearSelection();
       const fontSel = document.getElementById('tb-font');
@@ -963,12 +1064,13 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
 
         crewList.forEach(c => {
           const name = CrewNameFormat.formatCrewListName(c);
-          const birth = [fmtDate(c.dateOfBirth), c.placeOfBirth].filter(Boolean).join('  ');
           addRow({
             name,
             rank: c.rank || '',
             nat: c.nationality || '',
-            birth,
+            dob: fmtDate(c.dateOfBirth),
+            dobIso: c.dateOfBirth || '',
+            pob: c.placeOfBirth || '',
             bno: c.seamansBook || '',
             bplace: (c.seamansBookPlaceOfIssue || '').toUpperCase(),
             bexp: fmtDate(c.sbookExpiryDate),

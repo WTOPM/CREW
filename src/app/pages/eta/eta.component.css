@@ -385,7 +385,7 @@
 
 .eta-col-eta {
   width: 1%;
-  min-width: 10.25rem;
+  min-width: 12.5rem;
   white-space: nowrap;
   padding-left: 0.55rem;
 }
@@ -519,6 +519,53 @@
   margin-left: 0.4rem;
   color: #7c3aed;
   font-weight: 700;
+}
+
+.eta-leg-eta-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.eta-leg-tz-step {
+  display: inline-flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 1px;
+  border: 1px solid #c4b5fd;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f5f3ff;
+}
+
+.eta-leg-tz-step__btn {
+  margin: 0;
+  padding: 0;
+  width: 1.05rem;
+  height: 0.72rem;
+  line-height: 0.72rem;
+  border: 0;
+  background: transparent;
+  color: #6d28d9;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.eta-leg-tz-step__btn:hover:not(:disabled) {
+  background: #ede9fe;
+}
+
+.eta-leg-tz-step__btn--active {
+  background: #ddd6fe;
+  color: #5b21b6;
+}
+
+.eta-leg-tz-step__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .eta-leg-result--eta .eta-leg-result__val {

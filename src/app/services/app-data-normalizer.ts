@@ -591,7 +591,15 @@ function normalizePassenger(
   raw: Partial<PassengerMember> & { familyNameGivenNames?: string },
   portsRaw?: unknown,
 ): PassengerMember {
-  return migratePassengerMember(raw);
+  const ports = migratePortsRaw(portsRaw);
+  const member = migratePassengerMember(raw);
+  member.voyageStays = member.voyageStays.map((stay) => ({
+    ...stay,
+    embarkationPort: resolvePortRef(stay.embarkationPort, ports)?.name ?? stay.embarkationPort,
+    disembarkationPort:
+      resolvePortRef(stay.disembarkationPort, ports)?.name ?? stay.disembarkationPort,
+  }));
+  return member;
 }
 
 function normalizeShipStoresForms(raw: Partial<AppData>): {

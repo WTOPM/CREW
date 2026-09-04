@@ -66,7 +66,10 @@ export class EtaStore {
     });
   }
 
-  updateLeg(legId: string, partial: Partial<Pick<EtaLeg, 'distanceNm' | 'speedKnots' | 'toLabel'>>): void {
+  updateLeg(
+    legId: string,
+    partial: Partial<Pick<EtaLeg, 'distanceNm' | 'speedKnots' | 'toLabel' | 'etaUtcOffsetHours'>>,
+  ): void {
     this.updateLibrary((lib) => ({
       ...lib,
       draft: this.touchDraft({

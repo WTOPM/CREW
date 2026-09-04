@@ -457,6 +457,7 @@ export class DatePickerComponent implements OnDestroy {
 
   protected clear(): void {
     this.valueChange.emit('');
+    this.committed.emit('');
     this.text.set('');
     this.close();
   }
