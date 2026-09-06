@@ -1,4 +1,18 @@
 const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-list-form-07.paths.ts
+
+function resolveTargetRowCount(savedCount, currentCount, maxRows) {
+  if (window.HtmlFormCrewListKit?.resolveTargetRowCount) {
+    return HtmlFormCrewListKit.resolveTargetRowCount(savedCount, currentCount, maxRows);
+  }
+  const max = Math.max(1, maxRows);
+  const cur = Math.max(0, currentCount);
+  if (typeof savedCount === 'number' && Number.isFinite(savedCount)) {
+    const saved = Math.round(savedCount);
+    if (saved > max) return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+    return Math.min(max, Math.max(cur, saved));
+  }
+  return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+}
     const DEMO = [
       { name: 'PETROV Ivan Sergeyevich', rank: 'Master', nat: 'RUS', dob: '15.03.1975', pob: 'Moscow', bno: 'RUS12345678', bplace: 'MOSCOW', bexp: '10.08.2027', passport: '751234567', pplace: 'MOSCOW', pexp: '15.06.2030' },
       { name: 'KIM Jong-su', rank: 'Chief Officer', nat: 'KOR', dob: '22.07.1980', pob: 'Busan', bno: 'KOR98765432', bplace: 'BUSAN', bexp: '15.03.2026', passport: 'M12345678', pplace: 'SEOUL', pexp: '01.09.2028' },
@@ -51,6 +65,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       }
     }
     function setAD(v) {
+      window._adMode = v;
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
       document.querySelectorAll('.ad-lbl').forEach((el) => {
@@ -967,12 +982,15 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       }
       window._currentPositions.cellStyles = cellStyles;
 
-      const cellValues = {
+      const cellValuesRaw = {
         ...(window.HtmlFormListCellPersist
           ? window.HtmlFormListCellPersist.collectValues(tbody)
           : {}),
         ...(window.HtmlFormHeaderCells?.collectValues?.() || {}),
       };
+      const cellValues = window.HtmlFormLiveVoyageDate?.stripLiveVoyageKeys
+        ? window.HtmlFormLiveVoyageDate.stripLiveVoyageKeys(cellValuesRaw)
+        : cellValuesRaw;
       window._currentPositions.cellValues = cellValues;
 
       const appData = await readPersistedAppData();
@@ -990,21 +1008,20 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       }
 
       const prev = appData.documentOverlay.crewList.byType[CREW_FORM_07_TYPE] || {};
+      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
-      const footerSignatureDate = document.getElementById('f-footer-date')?.value?.trim() || undefined;
-
       appData.documentOverlay.crewList.listType = CREW_FORM_07_TYPE;
       appData.documentOverlay.crewList.byType[CREW_FORM_07_TYPE] = {
-        ...prev,
+        ...prevWithoutFooterDate,
         useStamp: !!window._currentPositions.stamp.visible,
         useSignature: !!window._currentPositions.sig.visible,
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         cellValues,
-        footerSignatureDate,
+        tableRowCount: tbody.children.length,
         ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
@@ -1343,12 +1360,6 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
           setAD('departure');
         }
 
-        const savedForm07 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_07_TYPE];
-        const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl && savedForm07?.footerSignatureDate) {
-          footerDateEl.value = savedForm07.footerSignatureDate;
-        }
-
         const imoEl = document.getElementById('h-imo');
         if (imoEl) imoEl.value = ship.imoNo || '';
         const callEl = document.getElementById('h-call');
@@ -1402,7 +1413,17 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
         );
       }
 
-      for (let i = tbody.children.length; i < MAX_ROWS; i++) addRow();
+      const targetRows = resolveTargetRowCount(
+        savedVar?.tableRowCount,
+        tbody.children.length,
+        MAX_ROWS,
+      );
+      if (window.HtmlFormCrewListKit?.applyTargetRowCount) {
+        HtmlFormCrewListKit.applyTargetRowCount(tbody, targetRows, () => addRow());
+      } else {
+        while (tbody.children.length > targetRows) tbody.removeChild(tbody.lastChild);
+        for (let i = tbody.children.length; i < targetRows; i++) addRow();
+      }
       refreshRowNumbers();
       applyEditorZoom();
     }
@@ -1474,6 +1495,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
         const callEl = document.getElementById('h-call');
         if (callEl) callEl.value = ship.callSign || '';
       }
+      window.HtmlFormLiveVoyageDate?.sync?.(window._adMode || 'arrival');
       // Row № is auto-only — wipe any legacy manual values restored from cellValues.
       refreshRowNumbers();
       syncRowHeights();
@@ -1482,7 +1504,12 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to
         // exactly the page content — capture target == document.body, no cropping needed.
         document.querySelectorAll('.side-panel').forEach((el) => el.remove());
-        flattenInputsForExport();
+        if (window.CrewHtmlFormPdfSnapshot?.withPinnedOverlays) {
+          CrewHtmlFormPdfSnapshot.withPinnedOverlays(() => flattenInputsForExport());
+        } else {
+          flattenInputsForExport();
+        }
+        CrewHtmlFormPdfSnapshot?.pullOverlaysToFooter?.();
         window.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
       } else {
         initEditorZoom();

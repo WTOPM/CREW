@@ -3,6 +3,7 @@ import { AppData } from '../models/crew.models';
 import { shipStoresForm02EditorUrl } from '../models/ship-stores-form-02.paths';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { shipStores02PdfFileName } from '../utils/pdf-filename.util';
+import { voyageDateByArrivalFlag } from '../utils/voyage-date.util';
 import { captureHtmlFormPdfBytes } from '../utils/html-form-pdf-capture.util';
 import { buildShipStoresHtmlPdfSnapshot } from '../utils/ship-stores-html-pdf.util';
 
@@ -28,7 +29,9 @@ export class PdfShipStores02Service {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const cv = data.documentOverlay?.shipStores02?.cellValues ?? {};
+    const isArrival = cv['_ssMode'] !== 'departure';
+    const voyageDate = voyageDateByArrivalFlag(ship, isArrival);
     return shipStores02PdfFileName(ship.name, voyageDate);
   }
 

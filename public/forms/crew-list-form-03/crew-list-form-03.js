@@ -1,4 +1,4 @@
-const MAX_ROWS = 15;
+const MAX_ROWS = 22; // keep in sync with CREW_LIST_FORM_03_MAX_ROWS in crew-list-form-03.paths.ts
     const tableBody = document.getElementById('table-body');
     const EDITOR_DIRTY_OPTS = {
       getTableRoot: () => tableBody,
@@ -6,6 +6,31 @@ const MAX_ROWS = 15;
       loadPositions,
       footerDateId: 'f-footer-date',
     };
+
+    function resolveTargetRowCount(savedCount, currentCount, maxRows) {
+      if (window.HtmlFormCrewListKit?.resolveTargetRowCount) {
+        return HtmlFormCrewListKit.resolveTargetRowCount(savedCount, currentCount, maxRows);
+      }
+      const max = Math.max(1, maxRows);
+      const cur = Math.max(0, currentCount);
+      if (typeof savedCount === 'number' && Number.isFinite(savedCount)) {
+        const saved = Math.round(savedCount);
+        if (saved > max) return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+        return Math.min(max, Math.max(cur, saved));
+      }
+      return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+    }
+
+    function applyTargetRowCount(target) {
+      if (window.HtmlFormCrewListKit?.applyTargetRowCount) {
+        HtmlFormCrewListKit.applyTargetRowCount(tableBody, target, () => addRow());
+        return;
+      }
+      while (tableBody.children.length > target) {
+        tableBody.removeChild(tableBody.lastChild);
+      }
+      for (let i = tableBody.children.length; i < target; i++) addRow();
+    }
 
     function escAttr(val) {
       return String(val || '')
@@ -105,6 +130,7 @@ const MAX_ROWS = 15;
       wrapEdit.syncRowHeights(row);
     }
     function removeRow() {
+      if (tableBody.children.length <= 1) return;
       if (tableBody.lastChild) {
         tableBody.removeChild(tableBody.lastChild);
         fillAllTemperatures(true);
@@ -112,11 +138,16 @@ const MAX_ROWS = 15;
       }
     }
     function addRowFromPanel() {
+      if (tableBody.children.length >= MAX_ROWS) {
+        alert(`Maximum ${MAX_ROWS} rows on this page.`);
+        return;
+      }
       addRow();
       fillAllTemperatures(true);
     }
 
     function setAD(v) {
+      window._adMode = v;
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
       document.querySelectorAll('.ad-lbl').forEach((el) => {
@@ -488,7 +519,11 @@ const MAX_ROWS = 15;
         pad.style.height = `${page.offsetHeight * scale}px`;
       }
       if (label) {
-        label.textContent = `${editorZoomPct}%`;
+        label.textContent = editorZoomPct === 100 ? '100% = PDF' : `${editorZoomPct}%`;
+        label.title =
+          editorZoomPct === 100
+            ? 'Shown at real PDF size — what you see is what prints'
+            : 'Zoom is only for editing — PDF is always generated at 100%';
       }
     }
 
@@ -516,11 +551,15 @@ const MAX_ROWS = 15;
         pad.style.height = '';
       }
       const label = document.getElementById('zoom-label');
-      if (label) label.textContent = '100%';
+      if (label) {
+        label.textContent = '100% = PDF';
+        label.title = 'Shown at real PDF size — what you see is what prints';
+      }
     }
 
     function initEditorZoom() {
-      loadEditorZoom();
+      // Open at PDF size so stamp/font/row settings match the printed page.
+      editorZoomPct = 100;
       applyEditorZoom();
       const viewport = document.getElementById('doc-zoom-viewport');
       if (!viewport || !window.CrewHtmlFormEditorWheel) return;
@@ -530,7 +569,7 @@ const MAX_ROWS = 15;
     }
 
     const CREW_FORM_03_TYPE = 'type2Alger';
-    const APP_DATA_SCHEMA_VERSION = 16;
+    const APP_DATA_SCHEMA_VERSION = 19;
     window._currentPositions = null;
 
     function electronApi() {
@@ -807,12 +846,15 @@ const MAX_ROWS = 15;
       }
       window._currentPositions.cellStyles = cellStyles;
 
-      const cellValues = {
+      const cellValuesRaw = {
         ...(window.HtmlFormListCellPersist
           ? window.HtmlFormListCellPersist.collectValues(tableBody)
           : {}),
         ...(window.HtmlFormHeaderCells?.collectValues?.() || {}),
       };
+      const cellValues = window.HtmlFormLiveVoyageDate?.stripLiveVoyageKeys
+        ? window.HtmlFormLiveVoyageDate.stripLiveVoyageKeys(cellValuesRaw)
+        : cellValuesRaw;
       window._currentPositions.cellValues = cellValues;
 
       const appData = await readPersistedAppData();
@@ -830,21 +872,20 @@ const MAX_ROWS = 15;
       }
 
       const prev = appData.documentOverlay.crewList.byType[CREW_FORM_03_TYPE] || {};
+      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
-      const footerSignatureDate = document.getElementById('f-footer-date')?.value?.trim() || undefined;
-
       appData.documentOverlay.crewList.listType = CREW_FORM_03_TYPE;
       appData.documentOverlay.crewList.byType[CREW_FORM_03_TYPE] = {
-        ...prev,
+        ...prevWithoutFooterDate,
         useStamp: !!window._currentPositions.stamp.visible,
         useSignature: !!window._currentPositions.sig.visible,
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         cellValues,
-        footerSignatureDate,
+        tableRowCount: Math.min(MAX_ROWS, tableBody.children.length),
         ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
@@ -1148,19 +1189,10 @@ const MAX_ROWS = 15;
             ? true
             : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
 
-        const savedForm03 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_03_TYPE];
         if (isArrival) {
           setAD('arrival');
         } else {
           setAD('departure');
-        }
-
-        const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl && savedForm03?.footerSignatureDate) {
-          footerDateEl.value = savedForm03.footerSignatureDate;
-          if (window.HtmlFormDateFormat) {
-            window.HtmlFormDateFormat.syncIsoFromDisplay(footerDateEl);
-          }
         }
 
         let crewList = [];
@@ -1205,7 +1237,12 @@ const MAX_ROWS = 15;
         );
       }
 
-      for (let i = tableBody.children.length; i < MAX_ROWS; i++) addRow();
+      const targetRows = resolveTargetRowCount(
+        savedVar?.tableRowCount,
+        tableBody.children.length,
+        MAX_ROWS,
+      );
+      applyTargetRowCount(targetRows);
       refreshRowNumbers();
       fillAllTemperatures(true);
       applyEditorZoom();
@@ -1247,6 +1284,15 @@ const MAX_ROWS = 15;
       }
     }
     window.exportToExcel = exportToExcel;
+    window.persistAllChanges = persistAllChanges;
+    window.showConfirmModal = showConfirmModal;
+    window.closeConfirmModal = closeConfirmModal;
+    window.confirmCancel = confirmCancel;
+    window.addRowFromPanel = addRowFromPanel;
+    window.removeRow = removeRow;
+    window.setAD = setAD;
+    window.zoomStep = zoomStep;
+    window.resetPositions = resetPositions;
 
     (async () => {
       const isPdfExport = new URLSearchParams(location.search).get('pdfExport') === '1';
@@ -1268,6 +1314,7 @@ const MAX_ROWS = 15;
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       restoreCellValues();
+      window.HtmlFormLiveVoyageDate?.sync?.(window._adMode || 'arrival');
       refreshRowNumbers();
       wrapEdit.syncRowHeights();
       if (isPdfExport) {
@@ -1275,7 +1322,12 @@ const MAX_ROWS = 15;
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to
         // exactly the page content — capture target == document.body, no cropping needed.
         document.querySelectorAll('.side-panel').forEach((el) => el.remove());
-        flattenInputsForExport();
+        if (window.CrewHtmlFormPdfSnapshot?.withPinnedOverlays) {
+          CrewHtmlFormPdfSnapshot.withPinnedOverlays(() => flattenInputsForExport());
+        } else {
+          flattenInputsForExport();
+        }
+        CrewHtmlFormPdfSnapshot?.pullOverlaysToFooter?.();
         window.CrewHtmlFormPdfSnapshot?.prepForPrint?.();
       } else {
         initEditorZoom();

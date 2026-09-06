@@ -3,6 +3,7 @@ import { AppData } from '../models/crew.models';
 import { nilListFormEditorUrl } from '../models/nil-list-form.paths';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { nilListPdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import { captureHtmlFormPdfBytes } from '../utils/html-form-pdf-capture.util';
 import { buildNilListHtmlPdfSnapshot } from '../utils/nil-list-html-pdf.util';
 
@@ -34,7 +35,7 @@ export class PdfNilListService {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return nilListPdfFileName(ship.name, voyageDate);
   }
 

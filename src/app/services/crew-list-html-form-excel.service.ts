@@ -30,6 +30,7 @@ import {
   crewListIdentityPdfFileName,
   crewListType2PdfFileName,
 } from '../utils/pdf-filename.util';
+import { voyageDateByArrivalFlag } from '../utils/voyage-date.util';
 import { CREW_IDENTITY_PASSPORT, CREW_IDENTITY_SEAMANS_BOOK } from '../models/crew.models';
 import { StorageService } from './storage.service';
 
@@ -202,7 +203,7 @@ export class CrewListHtmlFormExcelService {
 
   private fileName(listType: HtmlCrewFormType, data: AppData, isArrival: boolean): string {
     const { ship } = data;
-    const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const voyageDate = voyageDateByArrivalFlag(ship, isArrival);
     const pdfName = (() => {
       switch (listType) {
         case CREW_FORM_01:

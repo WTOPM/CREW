@@ -216,11 +216,37 @@ body.poc-editor {
   z-index: 20;
   cursor: move;
   border: 1px dashed transparent;
+  mix-blend-mode: multiply;
+  user-select: none;
+  touch-action: none;
 }
 
 .poc-editor .overlay-marker.visible {
   display: block;
   pointer-events: auto;
+}
+
+body.is-pdf-export .overlay-marker.visible,
+body.pdf-export .overlay-marker.visible {
+  display: block;
+  outline: none;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+body.is-pdf-export .overlay-marker img,
+body.pdf-export .overlay-marker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+body.is-pdf-export .overlay-resize,
+body.is-pdf-export .overlay-h,
+body.pdf-export .overlay-resize,
+body.pdf-export .overlay-h {
+  display: none;
 }
 
 .poc-editor .ss-stamp.visible,
@@ -276,11 +302,6 @@ body.poc-editor {
 .poc-editor .overlay-h--w { top: 12%; bottom: 12%; left: -3px; width: 8px; cursor: ew-resize; }
 .poc-editor .overlay-h--n { left: 12%; right: 12%; top: -3px; height: 8px; cursor: ns-resize; }
 .poc-editor .overlay-h--s { left: 12%; right: 12%; bottom: -3px; height: 8px; cursor: ns-resize; }
-
-body.pdf-export .overlay-resize,
-body.pdf-export .overlay-h {
-  display: none;
-}
 
 .poc-editor .overlay-marker img {
   width: 100%;

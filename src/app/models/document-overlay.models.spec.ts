@@ -43,6 +43,34 @@ describe('normalizeCrewListDocumentPrefs', () => {
     });
     expect(variant.cellStyles).toEqual({ '0-1': { fontSize: '8pt' } });
   });
+
+  it('preserves tableRowCount as a finite positive int', () => {
+    const normalized = normalizeCrewListDocumentPrefs({
+      listType: 'type3V2',
+      byType: {
+        type3V2: {
+          useStamp: false,
+          useSignature: false,
+          tableRowCount: 13.6,
+        },
+      },
+    });
+    expect(normalized.byType.type3V2!.tableRowCount).toBe(14);
+  });
+
+  it('drops invalid tableRowCount', () => {
+    const normalized = normalizeCrewListDocumentPrefs({
+      listType: 'type3V2',
+      byType: {
+        type3V2: {
+          useStamp: false,
+          useSignature: false,
+          tableRowCount: 0 as never,
+        },
+      },
+    });
+    expect(normalized.byType.type3V2!.tableRowCount).toBeUndefined();
+  });
 });
 
 describe('normalizeAppData Form 05 overlay', () => {

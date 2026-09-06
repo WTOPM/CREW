@@ -59,6 +59,7 @@ const tbody = document.getElementById('tbody');
       }
     }
     function setAD(v) {
+      window._adMode = v;
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
       document.querySelectorAll('.ad-lbl').forEach((el) => {
@@ -368,6 +369,20 @@ const tbody = document.getElementById('tbody');
     const APP_DATA_SCHEMA_VERSION = 16;
     window._currentPositions = null;
 
+    function resolveTargetRowCount(savedCount, currentCount, maxRows) {
+      if (window.HtmlFormCrewListKit?.resolveTargetRowCount) {
+        return HtmlFormCrewListKit.resolveTargetRowCount(savedCount, currentCount, maxRows);
+      }
+      const max = Math.max(1, maxRows);
+      const cur = Math.max(0, currentCount);
+      if (typeof savedCount === 'number' && Number.isFinite(savedCount)) {
+        const saved = Math.round(savedCount);
+        if (saved > max) return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+        return Math.min(max, Math.max(cur, saved));
+      }
+      return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+    }
+
     function electronApi() {
       return window.electronAPI || (window.parent && window.parent.electronAPI) || null;
     }
@@ -582,12 +597,15 @@ const tbody = document.getElementById('tbody');
       }
       window._currentPositions.cellStyles = cellStyles;
 
-      const cellValues = {
+      const cellValuesRaw = {
         ...(window.HtmlFormListCellPersist
           ? window.HtmlFormListCellPersist.collectValues(tbody)
           : {}),
         ...(window.HtmlFormHeaderCells?.collectValues?.() || {}),
       };
+      const cellValues = window.HtmlFormLiveVoyageDate?.stripLiveVoyageKeys
+        ? window.HtmlFormLiveVoyageDate.stripLiveVoyageKeys(cellValuesRaw)
+        : cellValuesRaw;
       window._currentPositions.cellValues = cellValues;
 
       const appData = await readPersistedAppData();
@@ -598,22 +616,21 @@ const tbody = document.getElementById('tbody');
 
       if (!appData.documentOverlay) appData.documentOverlay = {};
       if (!appData.documentOverlay[OVERLAY_KEY]) { appData.documentOverlay[OVERLAY_KEY] = {}; }
-      
+
       const prev = appData.documentOverlay[OVERLAY_KEY] || {};
+      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
-      const footerSignatureDate = document.getElementById('f-footer-date')?.value?.trim() || undefined;
-
       appData.documentOverlay[OVERLAY_KEY] = {
-        ...prev,
+        ...prevWithoutFooterDate,
         useStamp: !!window._currentPositions.stamp.visible,
         useSignature: !!window._currentPositions.sig.visible,
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         cellValues,
-        footerSignatureDate,
+        tableRowCount: tbody.children.length,
         ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
@@ -922,12 +939,6 @@ const tbody = document.getElementById('tbody');
           setAD('departure');
         }
 
-        const savedOverlay = appData.documentOverlay?.[OVERLAY_KEY];
-        const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl && savedOverlay?.footerSignatureDate) {
-          footerDateEl.value = savedOverlay.footerSignatureDate;
-        }
-
         let passengerList = [];
         if (snapshot && Array.isArray(appData.crew)) {
           passengerList = appData.crew;
@@ -971,7 +982,17 @@ const tbody = document.getElementById('tbody');
         );
       }
 
-      for (let i = tbody.children.length; i < PASSENGER_LIST_MAX_ROWS; i++) addRow();
+      const targetRows = resolveTargetRowCount(
+        savedOverlay?.tableRowCount,
+        tbody.children.length,
+        PASSENGER_LIST_MAX_ROWS,
+      );
+      if (window.HtmlFormCrewListKit?.applyTargetRowCount) {
+        HtmlFormCrewListKit.applyTargetRowCount(tbody, targetRows, () => addRow());
+      } else {
+        while (tbody.children.length > targetRows) tbody.removeChild(tbody.lastChild);
+        for (let i = tbody.children.length; i < targetRows; i++) addRow();
+      }
       refreshRowNumbers();
     }
 
@@ -1034,12 +1055,18 @@ const tbody = document.getElementById('tbody');
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       restoreCellValues();
+      window.HtmlFormLiveVoyageDate?.sync?.(window._adMode || 'arrival');
       if (isPdfExport) {
         resetEditorZoomForExport();
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to
         // exactly the page content — capture target == document.body, no cropping needed.
         document.querySelectorAll('.side-panel').forEach((el) => el.remove());
-        flattenInputsForExport();
+        if (window.CrewHtmlFormPdfSnapshot?.withPinnedOverlays) {
+          CrewHtmlFormPdfSnapshot.withPinnedOverlays(() => flattenInputsForExport());
+        } else {
+          flattenInputsForExport();
+        }
+        CrewHtmlFormPdfSnapshot?.pullOverlaysToFooter?.();
       } else {
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {

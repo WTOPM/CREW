@@ -9,6 +9,7 @@ import { crewEffectListRows } from '../utils/passenger-pdf.util';
 import { CREW_EFFECT_NIL_LABEL, normalizeCrewEffectForm03 } from '../models/crew-effect.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewEffect03PdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import {
   CREW_EFFECT_03_COL,
   CREW_EFFECT_03_FIELDS,
@@ -45,7 +46,7 @@ export class PdfCrewEffect03Service {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return crewEffect03PdfFileName(ship.name, voyageDate);
   }
 

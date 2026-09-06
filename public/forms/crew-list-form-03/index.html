@@ -6,13 +6,13 @@
   <title>03 - IMO CREW LIST - P SBK J T</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/favicon.svg" />
-  <link rel="stylesheet" href="crew-list-form-03.css" />
+  <link rel="stylesheet" href="crew-list-form-03.css?v=20260906birth" />
   <link rel="stylesheet" href="../cell-align-toolbar.css" />
   <link rel="stylesheet" href="../html-form-header-cells.css" />
   <link rel="stylesheet" href="../overlay-toolbar.css" />
   <link rel="stylesheet" href="../html-form-excel-export.css" />
   <link rel="stylesheet" href="../html-form-editor-chrome.css" />
-  <link rel="stylesheet" href="../html-form-crew-list-cells.css" />
+  <link rel="stylesheet" href="../html-form-crew-list-cells.css?v=20260906wysiwyg" />
 </head>
 <body>
   <div class="side-panel side-panel--left">
@@ -59,7 +59,7 @@
           <button type="button" class="zoom-controls__btn" onclick="zoomStep(-1)" title="Zoom out" aria-label="Zoom out">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
           </button>
-          <span id="zoom-label" class="zoom-controls__pct">100%</span>
+          <span id="zoom-label" class="zoom-controls__pct" title="Shown at real PDF size — what you see is what prints">100% = PDF</span>
           <button type="button" class="zoom-controls__btn" onclick="zoomStep(1)" title="Zoom in" aria-label="Zoom in">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
           </button>
@@ -233,8 +233,9 @@
   <script src="../html-form-list-cell-persist.js"></script>
   <script src="../html-form-editor-dirty.js"></script>
   <script src="../html-form-excel-export.js"></script>
-  <script src="../html-form-pdf-snapshot.js"></script>
-  <script src="../html-form-crew-list-kit.js"></script>
-  <script src="crew-list-form-03.js"></script>
+  <script src="../html-form-pdf-snapshot.js?v=20260906reset"></script>
+  <script src="../html-form-crew-list-kit.js?v=20260906wysiwyg"></script>
+  <script src="../html-form-live-voyage-date.js?v=20260906e"></script>
+  <script src="crew-list-form-03.js?v=20260906wysiwyg"></script>
 </body>
 </html>

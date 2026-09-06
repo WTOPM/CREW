@@ -5,6 +5,9 @@
       <h1>ETA Calculator</h1>
     </div>
     <div class="eta-page-actions dg-page-actions">
+      <a routerLink="/eta/timezones" class="btn btn-secondary btn-sm eta-tz-link" title="Browse world timezones">
+        World timezones
+      </a>
       <button type="button" class="btn btn-secondary" [title]="etaTips.newPlan" (click)="newPlan()">New</button>
       <button
         type="button"

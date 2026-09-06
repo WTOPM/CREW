@@ -212,6 +212,8 @@ export interface DgUnifeederContainerDisplayGroup {
   containerNo: string;
   loadPort: string;
   dischargePort: string;
+  loadTerminal: string;
+  dischargeTerminal: string;
   status: DgUnifeederRow['status'];
   lines: DgUnifeederRowDisplay[];
 }
@@ -253,6 +255,8 @@ export function buildUnifeederContainerDisplayGroups(
       containerNo: first?.containerNo ?? '',
       loadPort: first?.loadPort ?? '',
       dischargePort: first?.dischargePort ?? '',
+      loadTerminal: first?.loadTerminal ?? '',
+      dischargeTerminal: first?.dischargeTerminal ?? '',
       status: first?.status ?? 'onboard',
       lines: buildUnifeederInventoryDisplayRows(group.rows, options, weightPlan),
     };

@@ -24,6 +24,10 @@ export type UnifeederPdfFormat = 'dp-world-dg' | 'unifeeder-dg' | 'unknown';
 export interface UnifeederImportHeader {
   portOfDeparture: string;
   portOfArrival: string;
+  /** Terminal text after POL/TERMINAL slash (raw, for matching). */
+  terminalOfDeparture: string;
+  /** Terminal text after POD/TERMINAL slash (raw, for matching). */
+  terminalOfArrival: string;
   departureDate: string;
   voyageNumber: string;
   vesselName: string;
@@ -168,6 +172,16 @@ export function extractUnifeederPortName(raw: string): string {
   return part.replace(/\s+/g, ' ');
 }
 
+/** Terminal name/hint after `PORT/…` in POL/TERMINAL or POD/TERMINAL. */
+export function extractUnifeederTerminalHint(raw: string): string {
+  const slash = raw.indexOf('/');
+  if (slash < 0) return '';
+  return raw
+    .slice(slash + 1)
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
 function nearY(item: DgPdfTextItem, y: number, tol = 3): boolean {
   return Math.abs(item.y - y) <= tol;
 }
@@ -306,6 +320,8 @@ function parseHeaderFromPage(items: readonly DgPdfTextItem[]): Partial<Unifeeder
   return {
     portOfDeparture: extractUnifeederPortName(polRaw),
     portOfArrival: extractUnifeederPortName(podRaw),
+    terminalOfDeparture: extractUnifeederTerminalHint(polRaw),
+    terminalOfArrival: extractUnifeederTerminalHint(podRaw),
     departureDate: sailingRaw ? parseUnifeederManifestDate(sailingRaw) : '',
     voyageNumber: voyage,
     vesselName: vessel,

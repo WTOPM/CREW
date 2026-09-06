@@ -36,6 +36,7 @@ import {
   scenarioShortLabel,
   scenarioTooltip,
 } from '../../utils/eta-calculator.util';
+import { etaUtcOffsetHoursForPort } from '../../utils/timezone-browser.util';
 
 @Component({
   selector: 'app-eta',
@@ -73,10 +74,25 @@ export class EtaComponent {
 
   protected setFromPort(value: string): void {
     this.etaStore.setDraftField('fromPort', value);
+    this.applyPortUtcOffset('departureUtcOffsetHours', value, this.draft().departureDate);
   }
 
   protected setToPort(value: string): void {
     this.etaStore.setDraftField('toPort', value);
+    this.applyPortUtcOffset('arrivalUtcOffsetHours', value, this.draft().arrivalDate);
+  }
+
+  /** Autofill UTC hours from port country / IANA zone; leave manual edits free afterwards. */
+  private applyPortUtcOffset(
+    field: 'departureUtcOffsetHours' | 'arrivalUtcOffsetHours',
+    portName: string,
+    isoDate: string,
+  ): void {
+    const port = this.ports().find((p) => p.name === portName);
+    const hours = etaUtcOffsetHoursForPort(port, isoDate);
+    if (hours == null) return;
+    this.etaStore.setDraftField(field, hours);
+    this.utcOffsetEdit.set(null);
   }
 
   protected setScenario(scenario: EtaScenario): void {

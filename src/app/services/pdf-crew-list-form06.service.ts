@@ -3,6 +3,7 @@ import { AppData, CrewMember } from '../models/crew.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewListForm06EditorUrl } from '../models/crew-list-form-06.paths';
 import { crewListForm06PdfFileName } from '../utils/pdf-filename.util';
+import { voyageDateByArrivalFlag } from '../utils/voyage-date.util';
 import { captureHtmlFormPdfBytes } from '../utils/html-form-pdf-capture.util';
 
 /**
@@ -41,7 +42,7 @@ export class PdfCrewListForm06Service {
 
   fileName(data: AppData, isArrival: boolean): string {
     const { ship } = data;
-    const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const voyageDate = voyageDateByArrivalFlag(ship, isArrival);
     return crewListForm06PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
   }
 

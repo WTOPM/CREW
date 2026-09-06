@@ -627,6 +627,7 @@
       margin-top: 2mm;
       padding: 0 0 0 0;
       flex-shrink: 0;
+      position: relative; /* PDF re-parents stamp/sig here so printToPDF keeps alignment */
     }
 
     .foot-note {
@@ -751,7 +752,7 @@
 
       @page {
         size: A4 portrait;
-        margin: 8mm 6mm;
+        margin: 0;
       }
     }
 

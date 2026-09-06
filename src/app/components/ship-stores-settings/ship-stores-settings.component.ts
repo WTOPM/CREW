@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import {
   SHIP_STORES_02_ROW_COUNT,
   SHIP_STORES_03_ROW_COUNT,
+  SHIP_STORES_DOC_IDS,
   SHIP_STORES_DOC_LABELS,
   SHIP_STORES_ROW_COUNT,
   SHIP_STORES_SETTINGS_DOC_PARAM,
@@ -17,6 +18,8 @@ import {
 import { shipStoresForm02EditorUrl } from '../../models/ship-stores-form-02.paths';
 import { StorageService } from '../../services/storage.service';
 import { FormsStore } from '../../services/forms.store';
+import { ToastService } from '../../services/toast.service';
+import { formatShipStoresCopyToast } from '../../utils/ship-stores-sync.util';
 import { DocumentStampOptionsComponent } from '../document-stamp-options/document-stamp-options.component';
 
 type ShipStoresCellField = 'name' | 'quantity' | 'unit';
@@ -30,6 +33,7 @@ type ShipStoresCellField = 'name' | 'quantity' | 'unit';
 export class ShipStoresSettingsComponent {
   private readonly storage = inject(StorageService);
   private readonly forms = inject(FormsStore);
+  private readonly toast = inject(ToastService);
 
   readonly docId = input<ShipStoresDocId>('shipStores');
 
@@ -61,8 +65,22 @@ export class ShipStoresSettingsComponent {
     return SHIP_STORES_ROW_COUNT;
   });
 
+  protected readonly otherDocIds = computed(() =>
+    SHIP_STORES_DOC_IDS.filter((id) => id !== this.docId()),
+  );
+
   protected docLabel(): string {
     return SHIP_STORES_DOC_LABELS[this.docId()];
+  }
+
+  protected otherDocLabel(id: ShipStoresDocId): string {
+    return SHIP_STORES_DOC_LABELS[id];
+  }
+
+  protected syncShortLabel(id: ShipStoresDocId): string {
+    if (id === 'shipStores03') return '03 Germany';
+    if (id === 'shipStores02') return '02 Long';
+    return '01 Short';
   }
 
   protected unitDisplay(unit: string): string {
@@ -84,6 +102,20 @@ export class ShipStoresSettingsComponent {
 
   protected onPlaceOfStorageChange(value: string): void {
     this.forms.updateShipStoresPlaceOfStorage(this.docId(), value);
+  }
+
+  /** Copy articles from another Ship Stores form into the one currently open. */
+  protected syncFrom(from: ShipStoresDocId): void {
+    const stats = this.forms.copyShipStoresForm(from, this.docId());
+    if (!stats) return;
+    this.toast.show(formatShipStoresCopyToast(stats), 'success');
+  }
+
+  /** Copy articles from the open form into another Ship Stores form. */
+  protected syncInto(to: ShipStoresDocId): void {
+    const stats = this.forms.copyShipStoresForm(this.docId(), to);
+    if (!stats) return;
+    this.toast.show(formatShipStoresCopyToast(stats), 'success');
   }
 
   protected onRowDrop(event: CdkDragDrop<unknown>): void {

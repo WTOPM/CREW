@@ -5,6 +5,7 @@ import { SettingsComponent } from './pages/settings/settings.component';
 import { DgComponent } from './pages/dg/dg.component';
 import { ReeferComponent } from './pages/reefer/reefer.component';
 import { EtaComponent } from './pages/eta/eta.component';
+import { EtaTimezonesComponent } from './pages/eta-timezones/eta-timezones.component';
 import { DgReferenceComponent } from './pages/dg-reference/dg-reference.component';
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -12,6 +13,7 @@ export const routes: Routes = [
   { path: 'dg/reference', component: DgReferenceComponent },
   { path: 'reefer', component: ReeferComponent },
   { path: 'eta', component: EtaComponent },
+  { path: 'eta/timezones', component: EtaTimezonesComponent },
   { path: 'crew-arr', component: CrewArrComponent },
   { path: 'settings', component: SettingsComponent },
   { path: '**', redirectTo: '' },

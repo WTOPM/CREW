@@ -12,6 +12,7 @@ import {
 } from '../models/crew.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { mdhPdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import { formatMdhPortDate, formatMdhShortDate } from '../utils/mdh-date.util';
 import {
   MDH_DEFAULT_LIFT,
@@ -49,7 +50,7 @@ export class PdfMdhService {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return mdhPdfFileName(ship.name, ship.portOfCall, voyageDate);
   }
 

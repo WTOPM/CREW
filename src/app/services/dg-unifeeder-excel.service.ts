@@ -21,6 +21,7 @@ export class DgUnifeederExcelService {
       mergeLines: uf.mergeLines,
       grossTotalKg: uf.roundWeights,
       useGrossWeight: uf.useGrossWeight,
+      showByTerminals: uf.showByTerminals,
     };
     const bytes = await buildUnifeederDgListExcelBytes(
       exportShip,
@@ -31,6 +32,7 @@ export class DgUnifeederExcelService {
         useGrossWeight: ctx.useGrossWeight,
         roundWeights: ctx.grossTotalKg,
         mergeLines: ctx.mergeLines,
+        showByTerminals: ctx.showByTerminals,
       },
     );
     const fileName = this.fileName(ship.name, exportShip.dateOfDeparture);

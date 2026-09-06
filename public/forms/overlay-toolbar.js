@@ -52,14 +52,19 @@
   window.CrewOverlayToolbar = {
     init,
     isStampOn() {
+      // Prefer DOM — toolbar aria can lag after restore/init order bugs.
+      const el = document.getElementById('stamp-container');
+      if (el?.classList.contains('visible')) return true;
       const btn = stampBtn();
       if (btn) return btn.getAttribute('aria-pressed') === 'true';
-      return document.getElementById('stamp-container')?.classList.contains('visible') ?? false;
+      return false;
     },
     isSigOn() {
+      const el = document.getElementById('sig-container');
+      if (el?.classList.contains('visible')) return true;
       const btn = sigBtn();
       if (btn) return btn.getAttribute('aria-pressed') === 'true';
-      return document.getElementById('sig-container')?.classList.contains('visible') ?? false;
+      return false;
     },
     setStampOn(on) {
       stampBtn()?.setAttribute('aria-pressed', on ? 'true' : 'false');

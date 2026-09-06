@@ -9,6 +9,7 @@ import { POC_TEMPLATE_ROW_COUNT } from './port-of-call-coordinates';
 import { workbookToBytes } from '../utils/crew-list-excel-layout.util';
 import { openExcelBytes } from '../utils/excel-open.util';
 import { pdfFileDate, pdfFileToken, portOfCallPdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import {
   POC_EXCEL_SHEET,
   buildPocFormLayout,
@@ -28,7 +29,7 @@ export class PortOfCallExcelService {
   async openForDoc(doc: PortSettingsDocId): Promise<boolean> {
     const base = this.appData();
     const bytes = doc === 'portsOfCall' ? await this.buildSecurity(base) : await this.build(base);
-    const voyageDate = base.ship.dateOfArrival || base.ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(base.ship);
     const fileName =
       doc === 'portsOfCall'
         ? `Port_of_Call_Security_${pdfFileToken(base.ship.name)}_${pdfFileDate(voyageDate)}.xlsx`

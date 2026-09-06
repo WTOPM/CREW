@@ -17,6 +17,7 @@ import {
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { cashAdvancePdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import {
   CASH_ADVANCE_COL,
   CASH_ADVANCE_FIELDS,
@@ -53,7 +54,7 @@ export class PdfCashAdvanceService {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return cashAdvancePdfFileName(ship.name, voyageDate);
   }
 

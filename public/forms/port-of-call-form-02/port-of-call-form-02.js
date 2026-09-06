@@ -36,19 +36,23 @@
     return `<td class="poc02-hdr"${span}><div class="poc02-hdr-inner"><span class="poc02-hdr-lbl">${label}</span><div class="poc02-hdr-val">${inner}</div></div></td>`;
   }
 
-  function thHeadCell(text, key) {
-    return `<td><div class="ci ci-th" data-cell-key="${key}" tabindex="-1">${text}</div></td>`;
+  function thHeadCell(text, key, colspan) {
+    const span = colspan ? ` colspan="${colspan}"` : '';
+    return `<td${span}><div class="ci ci-th" data-cell-key="${key}" tabindex="-1">${text}</div></td>`;
   }
 
   const SIGNATURE_LABEL = '15. Date and signature by master, authorised agent or officer';
 
-  function portCountryCell(entry, ports) {
+  function portNameValue(entry) {
     if (!entry) return '';
-    const port = POC.formatPortName(entry.portName);
-    const country =
-      String(entry.country || '').trim().toUpperCase() || POC.portCountry(entry.portName, ports);
-    if (port && country) return `${port} / ${country}`;
-    return port || country;
+    return POC.formatPortName(entry.portName);
+  }
+
+  function countryValue(entry, ports) {
+    if (!entry) return '';
+    return (
+      String(entry.country || '').trim().toUpperCase() || POC.portCountry(entry.portName, ports)
+    );
   }
 
   function resolveRowsPerPage(snapshot) {
@@ -65,7 +69,8 @@
   function dataRowCellsHtml(entry, rowIndex, ports) {
     const p = `d-${rowIndex}-`;
     let html = '';
-    html += `<td><div class="poc-data-val">${ci(entry ? portCountryCell(entry, ports) : '', `${p}0`)}</div></td>`;
+    html += `<td class="poc02-col-port"><div class="poc-data-val">${ci(portNameValue(entry), `${p}0`)}</div></td>`;
+    html += `<td class="poc02-col-country"><div class="poc-data-val">${ci(countryValue(entry, ports), `${p}0c`)}</div></td>`;
     html += `<td><div class="poc-data-val">${ci(entry ? POC.portCode(entry.portName, ports) : '', `${p}1`)}</div></td>`;
     html += `<td><div class="poc-data-val">${entry ? ciDate(entry.arrivalDate, `${p}2`) : ci('', `${p}2`)}</div></td>`;
     html += `<td><div class="poc-data-val">${entry ? ciDate(entry.departureDate, `${p}3`) : ci('', `${p}3`)}</div></td>`;
@@ -79,6 +84,22 @@
       html += `<tr class="poc02-data-row">${dataRowCellsHtml(rows[i], i, ports)}</tr>`;
     }
     return html;
+  }
+
+  /** Old overlay saves put "PORT / COUNTRY" in d-*-0 — always split after restore. */
+  function migrateLegacyPortCountryCells(scope) {
+    const root = scope || document;
+    root.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
+      const key = el.getAttribute('data-cell-key') || '';
+      if (!/^d-\d+-0$/.test(key)) return;
+      const raw = String(el.value || '').trim();
+      const sep = raw.indexOf(' / ');
+      if (sep < 0) return;
+      const countryKey = `${key}c`;
+      const countryEl = root.querySelector(`input.ci[data-cell-key="${countryKey}"]`);
+      el.value = raw.slice(0, sep).trim();
+      if (countryEl) countryEl.value = raw.slice(sep + 3).trim();
+    });
   }
 
   function masterDisplayName(snapshot) {
@@ -99,19 +120,12 @@
   }
 
   function footerDateDisplay(snapshot, overlayVariant) {
-    const saved = overlayVariant?.footerSignatureDate;
-    if (saved) return saved;
     const F = window.HtmlFormDateFormat;
     const iso = snapshot.ship?.dateOfArrival;
     return F ? F.format(iso, F.getActive()) : POC.formatDisplayDate(iso);
   }
 
   function footerDateIso(snapshot, overlayVariant) {
-    const saved = overlayVariant?.footerSignatureDate;
-    if (saved && window.HtmlFormDateFormat) {
-      const parsed = window.HtmlFormDateFormat.parseToIso(saved);
-      if (parsed) return parsed;
-    }
     return snapshot.ship?.dateOfArrival || '';
   }
 
@@ -140,12 +154,12 @@
         </div>`;
   }
 
-  function renderPage(pageRows, pageIndex, snapshot, includeOverlays, rowCount, overlayVariant) {
+  function renderPage(pageRows, pageIndex, snapshot, rowCount, overlayVariant) {
     const ship = snapshot.ship || {};
     const ports = snapshot.ports || [];
-    const overlayHtml = includeOverlays
-      ? '<div id="stamp-container" class="overlay-marker"></div><div id="sig-container" class="overlay-marker"></div>'
-      : '';
+    // Always emit markers — editor drag + PDF renderOverlays need them in the DOM.
+    const overlayHtml =
+      '<div id="stamp-container" class="overlay-marker"></div><div id="sig-container" class="overlay-marker"></div>';
     const gridId = pageIndex === 0 ? ' id="poc-grid"' : '';
 
     return `
@@ -154,22 +168,23 @@
         <h1 class="poc02-title">PORTS OF CALL</h1>
         <table class="poc02-grid"${gridId}>
           <colgroup>
-            <col class="poc02-col-a" /><col class="poc02-col-b" />
+            <col class="poc02-col-a" /><col class="poc02-col-a2" />
+            <col class="poc02-col-b" />
             <col class="poc02-col-c" /><col class="poc02-col-d" /><col class="poc02-col-e" />
           </colgroup>
           <tr class="poc-editable-row">
             ${hdrCell('Name of ship:', ship.name, 'h-0-0')}
             ${hdrCell('IMO Number', ship.imoNo, 'h-0-1')}
-            ${hdrCell('Port of arrival:', POC.formatPortWithCountry(ship.portOfCall, ports), 'h-0-2')}
+            ${hdrCell('Port of arrival:', POC.formatPortWithCountry(ship.portOfCall, ports), 'h-0-2', 2)}
             ${hdrCellDate('Date of Arrival:', ship.dateOfArrival, 'h-0-3', 2)}
           </tr>
           <tr class="poc-editable-row">
             ${hdrCell('Nationality of ship:', POC.formatPortName(ship.nationality), 'h-1-0')}
             ${hdrCell('Port arrived from:', POC.formatPortWithCountry(ship.lastPortOfCall, ports), 'h-1-1', 2)}
-            ${hdrCell('Next port:', POC.formatPortWithCountry(ship.nextPortOfCall, ports), 'h-1-2', 2)}
+            ${hdrCell('Next port:', POC.formatPortWithCountry(ship.nextPortOfCall, ports), 'h-1-2', 3)}
           </tr>
           <tr class="poc02-head-row poc-th-row">
-            ${thHeadCell('NAME OF PORT &amp; COUNTRY', 't-0')}
+            ${thHeadCell('NAME OF PORT &amp; COUNTRY', 't-0', 2)}
             ${thHeadCell('LOCODE', 't-1')}
             ${thHeadCell('Date of Arrival', 't-2')}
             ${thHeadCell('Date of Departure', 't-3')}
@@ -196,7 +211,7 @@
       mount.className = 'poc-pages';
       mount.innerHTML = pages
         .map((pageRows, i) =>
-          renderPage(pageRows, i, snapshot, false, rowsPerPage, overlayVariant),
+          renderPage(pageRows, i, snapshot, rowsPerPage, overlayVariant),
         )
         .join('');
       window.PortOfCallFormPages?.setTotal?.(pages.length);
@@ -211,7 +226,6 @@
       pages[pageIndex] || [],
       pageIndex,
       snapshot,
-      pageIndex === 0,
       rowsPerPage,
       overlayVariant,
     );
@@ -308,6 +322,8 @@
       window.HtmlFormFooterFields.init(table.closest('.a4-page'));
     }
     window.PortOfCallFormCells.restoreCellValues(cellValues, table, voyOffset);
+    migrateLegacyPortCountryCells(table.closest('.a4-page') || table);
+    window.HtmlFormLiveVoyageDate?.sync?.('arrival');
     window.PortOfCallFormCells.restoreCellStyles(overlayVariant?.cellStyles || saved.cellStyles || {});
     window.PortOfCallFormCells.captureDirtyBaseline();
     editor.connectCellEditor({
@@ -323,7 +339,7 @@
 
     let snapshot = window.CrewHtmlFormPdfSnapshot?.read() || null;
     if (!snapshot && !isPdfExport) {
-      const appData = await editor.readPersistedAppData();
+      const appData = await editor.readBootstrapAppData();
       if (appData) {
         window._appData = appData;
         snapshot = POC.snapshotFromAppData(appData, true, OVERLAY_KEY);
@@ -357,6 +373,8 @@
       document.body.classList.add('is-pdf-export');
       const rowsPerPage = resolveRowsPerPage(snapshot);
       window.PortOfCallFormCells.restoreAllCellValues(overlayVariant?.cellValues || {}, rowsPerPage);
+      migrateLegacyPortCountryCells(document);
+      window.HtmlFormLiveVoyageDate?.sync?.('arrival');
       window.PortOfCallFormCells.restoreAllCellStyles(overlayVariant?.cellStyles || {});
       const pageEls = document.querySelectorAll('.a4-page');
       for (let i = 0; i < pageEls.length; i++) {
@@ -372,8 +390,8 @@
 
     initRowEditor(overlayVariant, snapshot);
     initCellEditor(overlayVariant);
-    await editor.restoreOverlaySettings();
     editor.initOverlayToolbar();
+    await editor.restoreOverlaySettings();
     editor.initEditorZoom();
     editor.captureEditorDirtyBaseline?.();
     window.__pdfReady = true;

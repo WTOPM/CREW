@@ -10,6 +10,7 @@ import {
 import { PassengerMember } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { passengerListV2PdfFileName } from '../utils/pdf-filename.util';
+import { voyageDateByArrivalFlag } from '../utils/voyage-date.util';
 import { formatBirthDate, formatDisplayDate } from '../utils/date.util';
 import { IMO_PASSENGER_LIST_TITLE } from './pdf-crew-arr.service';
 import { PdfOverlayService } from './pdf-overlay.service';
@@ -79,7 +80,7 @@ export class PdfPassengerListV2Service {
 
   fileName(data: AppData): string {
     const { ship, paxArr } = data;
-    const voyageDate = paxArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const voyageDate = voyageDateByArrivalFlag(ship, paxArr.isArrival);
     return passengerListV2PdfFileName(ship.name, ship.portOfCall, voyageDate, paxArr.isArrival);
   }
 

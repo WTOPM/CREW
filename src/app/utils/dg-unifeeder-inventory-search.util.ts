@@ -9,6 +9,8 @@ export function unifeederRowSearchText(row: DgUnifeederRow): string {
     row.containerNo,
     row.loadPort,
     row.dischargePort,
+    row.loadTerminal,
+    row.dischargeTerminal,
     row.unNo,
     row.packingGroup,
     row.lq,

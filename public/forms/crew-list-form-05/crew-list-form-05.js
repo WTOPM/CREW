@@ -5,6 +5,7 @@ const DEMO = [
       { name: 'SILVA Carlos Eduardo', rank: '2nd Officer', nat: 'BRA', dob: '30.09.1985', pob: 'Santos', bno: 'BRA55667788', bexp: '2026-11-30' },
       { name: 'IVANOVA Marina Ivanovna', rank: 'Cook', nat: 'UKR', dob: '14.02.1990', pob: 'Odessa', bno: 'UKR33445566', bexp: '2025-09-05' },
     ];
+    const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_05_MAX_ROWS in crew-list-form-05.paths.ts
     const tbody = document.getElementById('tbody');
     const EDITOR_DIRTY_OPTS = {
       getTableRoot: () => tbody,
@@ -12,6 +13,20 @@ const DEMO = [
       loadPositions,
       footerDateId: 'f-footer-date',
     };
+
+    function resolveTargetRowCount(savedCount, currentCount, maxRows) {
+      if (window.HtmlFormCrewListKit?.resolveTargetRowCount) {
+        return HtmlFormCrewListKit.resolveTargetRowCount(savedCount, currentCount, maxRows);
+      }
+      const max = Math.max(1, maxRows);
+      const cur = Math.max(0, currentCount);
+      if (typeof savedCount === 'number' && Number.isFinite(savedCount)) {
+        const saved = Math.round(savedCount);
+        if (saved > max) return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+        return Math.min(max, Math.max(cur, saved));
+      }
+      return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+    }
 
     function rowCells(tr) {
       return tr.querySelectorAll('.ci');
@@ -69,6 +84,7 @@ const DEMO = [
       }
     }
     function setAD(v) {
+      window._adMode = v;
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
       document.querySelectorAll('.ad-lbl').forEach((el) => {
@@ -647,12 +663,15 @@ const DEMO = [
       }
       window._currentPositions.cellStyles = cellStyles;
 
-      const cellValues = {
+      const cellValuesRaw = {
         ...(window.HtmlFormListCellPersist
           ? window.HtmlFormListCellPersist.collectValues(tbody)
           : {}),
         ...(window.HtmlFormHeaderCells?.collectValues?.() || {}),
       };
+      const cellValues = window.HtmlFormLiveVoyageDate?.stripLiveVoyageKeys
+        ? window.HtmlFormLiveVoyageDate.stripLiveVoyageKeys(cellValuesRaw)
+        : cellValuesRaw;
       window._currentPositions.cellValues = cellValues;
 
       const appData = await readPersistedAppData();
@@ -670,21 +689,20 @@ const DEMO = [
       }
 
       const prev = appData.documentOverlay.crewList.byType[CREW_FORM_05_TYPE] || {};
+      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
-      const footerSignatureDate = document.getElementById('f-footer-date')?.value?.trim() || undefined;
-
       appData.documentOverlay.crewList.listType = CREW_FORM_05_TYPE;
       appData.documentOverlay.crewList.byType[CREW_FORM_05_TYPE] = {
-        ...prev,
+        ...prevWithoutFooterDate,
         useStamp: !!window._currentPositions.stamp.visible,
         useSignature: !!window._currentPositions.sig.visible,
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
         cellStyles,
         cellValues,
-        footerSignatureDate,
+        tableRowCount: tbody.children.length,
         ...(window.HtmlFormEditorOverlay?.collectForSave?.() || {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
@@ -1001,12 +1019,6 @@ const DEMO = [
           setAD('departure');
         }
 
-        const savedForm05 = appData.documentOverlay?.crewList?.byType?.[CREW_FORM_05_TYPE];
-        const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl && savedForm05?.footerSignatureDate) {
-          footerDateEl.value = savedForm05.footerSignatureDate;
-        }
-
         let crewList = [];
         if (Array.isArray(appData.crew)) {
           // Snapshot mode already carries the exact filtered/ordered list — use as-is.
@@ -1048,7 +1060,17 @@ const DEMO = [
         );
       }
 
-      for (let i = tbody.children.length; i < 18; i++) addRow();
+      const targetRows = resolveTargetRowCount(
+        savedVar?.tableRowCount,
+        tbody.children.length,
+        MAX_ROWS,
+      );
+      if (window.HtmlFormCrewListKit?.applyTargetRowCount) {
+        HtmlFormCrewListKit.applyTargetRowCount(tbody, targetRows, () => addRow());
+      } else {
+        while (tbody.children.length > targetRows) tbody.removeChild(tbody.lastChild);
+        for (let i = tbody.children.length; i < targetRows; i++) addRow();
+      }
       refreshRowNumbers();
     }
 
@@ -1115,6 +1137,7 @@ const DEMO = [
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       restoreCellValues();
+      window.HtmlFormLiveVoyageDate?.sync?.(window._adMode || 'arrival');
       refreshRowNumbers();
       wrapEdit.syncRowHeights();
       if (isPdfExport) {
@@ -1122,7 +1145,12 @@ const DEMO = [
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to
         // exactly the page content — capture target == document.body, no cropping needed.
         document.querySelectorAll('.side-panel').forEach((el) => el.remove());
-        flattenInputsForExport();
+        if (window.CrewHtmlFormPdfSnapshot?.withPinnedOverlays) {
+          CrewHtmlFormPdfSnapshot.withPinnedOverlays(() => flattenInputsForExport());
+        } else {
+          flattenInputsForExport();
+        }
+        CrewHtmlFormPdfSnapshot?.pullOverlaysToFooter?.();
       } else {
         initEditorZoom();
         if (window.CrewCellAlignToolbar) {

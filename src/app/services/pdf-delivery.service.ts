@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
-import { appendTodayDate } from '../utils/pdf-filename.util';
 import { uint8ToBase64 } from '../utils/base64.util';
 import { StorageService } from './storage.service';
 import { ToastService } from './toast.service';
@@ -11,7 +10,8 @@ import { FolderAccessService } from './folder-access.service';
  * Single delivery point for generated PDFs.
  * - "Save to folder" off  → open a blob preview (legacy behaviour).
  * - "Save to folder" on    → write the file (Electron) or download it (browser)
- *   under a name that ends with today's date, and ALSO open the preview.
+ *   under the document name (voyage date already in the name — no "today" suffix),
+ *   and ALSO open the preview.
  */
 @Injectable({ providedIn: 'root' })
 export class PdfDeliveryService {
@@ -25,7 +25,7 @@ export class PdfDeliveryService {
     // Always open the document; additionally save it when "Save to folder" is on.
     const opened = openPdfBlobPreview(bytes);
     if (settings.saveToFolder) {
-      await this.saveToFolder(bytes, appendTodayDate(fileName), settings.activePath);
+      await this.saveToFolder(bytes, fileName, settings.activePath);
     }
     return opened;
   }
@@ -36,13 +36,13 @@ export class PdfDeliveryService {
   }
 
   /**
-   * Save to the active folder when "Save to folder" is on (today's date appended).
+   * Save to the active folder when "Save to folder" is on.
    * Returns true if a save was attempted (used by batch open/print).
    */
   async saveBytesIfEnabled(bytes: Uint8Array, fileName: string): Promise<boolean> {
     const settings = this.storage.outputSettings();
     if (!settings.saveToFolder) return false;
-    await this.saveToFolder(bytes, appendTodayDate(fileName), settings.activePath);
+    await this.saveToFolder(bytes, fileName, settings.activePath);
     return true;
   }
 

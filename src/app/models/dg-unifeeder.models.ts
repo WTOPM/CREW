@@ -15,6 +15,10 @@ export interface DgUnifeederRow {
   containerNo: string;
   loadPort: string;
   dischargePort: string;
+  /** Matched port-terminal abbrev for POL (e.g. DENTB). */
+  loadTerminal: string;
+  /** Matched port-terminal abbrev for POD. */
+  dischargeTerminal: string;
   unNo: string;
   packingGroup: string;
   weightKg: string;
@@ -61,6 +65,8 @@ export interface DgUnifeederLibrarySettings {
   useGrossWeight: boolean;
   /** Round displayed weights and totals to whole kg. */
   roundWeights: boolean;
+  /** When true, POL/POD columns show matched terminal abbrevs instead of port names. */
+  showByTerminals: boolean;
   /** @deprecated Use useGrossWeight + roundWeights */
   grossTotalKg?: boolean;
 }
@@ -73,6 +79,7 @@ export function createDefaultUnifeederLibrary(): DgUnifeederLibrarySettings {
     mergeLines: false,
     useGrossWeight: true,
     roundWeights: false,
+    showByTerminals: false,
   };
 }
 
@@ -105,6 +112,8 @@ export function createDgUnifeederRow(
     containerNo: (partial?.containerNo ?? '').trim().toUpperCase(),
     loadPort: (partial?.loadPort ?? '').trim(),
     dischargePort: (partial?.dischargePort ?? '').trim(),
+    loadTerminal: (partial?.loadTerminal ?? '').trim().toUpperCase(),
+    dischargeTerminal: (partial?.dischargeTerminal ?? '').trim().toUpperCase(),
     unNo: (partial?.unNo ?? '').trim(),
     packingGroup: (partial?.packingGroup ?? '').trim(),
     weightKg: weights.weightKg,
@@ -203,6 +212,7 @@ export function normalizeUnifeederLibrary(
     mergeLines: raw.mergeLines === true,
     useGrossWeight,
     roundWeights,
+    showByTerminals: raw.showByTerminals === true,
   };
 }
 

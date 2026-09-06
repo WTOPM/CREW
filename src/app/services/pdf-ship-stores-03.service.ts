@@ -10,6 +10,7 @@ import { filterActivePassengerListFromData } from '../models/passenger.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { shipStores03PdfFileName } from '../utils/pdf-filename.util';
+import { voyageDateByArrivalFlag } from '../utils/voyage-date.util';
 import {
   formatShipStoresQuantityText,
   formatShipStoresUnitText,
@@ -54,8 +55,8 @@ export class PdfShipStores03Service {
   }
 
   fileName(data: AppData): string {
-    const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const { ship, crewArr } = data;
+    const voyageDate = voyageDateByArrivalFlag(ship, crewArr.isArrival);
     return shipStores03PdfFileName(ship.name, voyageDate);
   }
 

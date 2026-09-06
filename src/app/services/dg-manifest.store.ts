@@ -1,6 +1,6 @@
 // Feature store for the dangerous-goods (DG) domain: the CMA CGM onboard inventory +
-// import manifests, the UNIFEEDER onboard inventory + manifests, inventory transfer
-// between the two carriers, and CMA prestow position application.
+// import manifests, the UNIFEEDER (DP WORLD) onboard inventory + manifests, inventory
+// transfer between the two carriers, CMA prestow, and DP WORLD Dagos position apply.
 //
 // State is shared via AppStateStore. The `dgLibrary` read selector stays on
 // StorageService for backward compatibility; this store owns DG mutations.
@@ -36,6 +36,7 @@ import {
   unifeederRowsToCmaContainers,
 } from '../utils/dg-inventory-transfer.util';
 import type { UnifeederPdfParseResult } from '../utils/dg-unifeeder-pdf.util';
+import { resolveUnifeederTerminalAbbrev } from '../utils/dg-port-terminal-match.util';
 import { normalizeReeferLibrary } from '../models/reefer.models';
 import { resolveDgPageContextFromSnapshot } from '../utils/page-ship-context.util';
 import { AppStateStore } from './app-state.store';
@@ -249,7 +250,7 @@ export class DgManifestStore {
     partial: Partial<
       Pick<
         DgUnifeederLibrarySettings,
-        'showDischarged' | 'mergeLines' | 'useGrossWeight' | 'roundWeights'
+        'showDischarged' | 'mergeLines' | 'useGrossWeight' | 'roundWeights' | 'showByTerminals'
       >
     >,
   ): void {
@@ -285,6 +286,7 @@ export class DgManifestStore {
             mergeLines: lib.manifestMergeLines,
             useGrossWeight: lib.manifestUseGrossWeight,
             roundWeights: lib.manifestRoundWeights,
+            showByTerminals: lib.unifeeder.showByTerminals,
           },
         },
       };
@@ -469,6 +471,14 @@ export class DgManifestStore {
       const libInner = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
       const loadPort = resolveUnifeederRowPort(result.header.portOfDeparture ?? '', d.ports);
       const dischargePort = resolveUnifeederRowPort(result.header.portOfArrival ?? '', d.ports);
+      const loadTerminalHint = (result.header.terminalOfDeparture ?? '').trim();
+      const dischargeTerminalHint = (result.header.terminalOfArrival ?? '').trim();
+      const loadTerminal = resolveUnifeederTerminalAbbrev(loadPort, loadTerminalHint, d.ports);
+      const dischargeTerminal = resolveUnifeederTerminalAbbrev(
+        dischargePort,
+        dischargeTerminalHint,
+        d.ports,
+      );
       const documentDate = (result.header.departureDate ?? '').trim();
       const doc = createDgUnifeederManifestDocument({
         sourceName: formatDgManifestSourceName(loadPort, documentDate, sourceName),
@@ -489,6 +499,8 @@ export class DgManifestStore {
               row.dischargePort || result.header.portOfArrival || '',
               d.ports,
             ),
+            loadTerminal,
+            dischargeTerminal,
             status: 'onboard',
             sourceManifestId: doc.id,
           }),
@@ -622,6 +634,55 @@ export class DgManifestStore {
     return {
       dgUpdated,
       reeferUpdated,
+      unmatched: [...byContainer.keys()].filter((key) => !matched.has(key)).sort(),
+    };
+  }
+
+  /**
+   * Apply MACS3 “Dagos on Board” positions onto DP WORLD onboard rows.
+   * Final list wins: overwrites `stow` when different. Updates every line
+   * for a matched container number.
+   */
+  applyUnifeederDagosPositions(positions: readonly { containerNo: string; position: string }[]): {
+    checked: number;
+    replaced: number;
+    updatedLines: number;
+    unmatched: string[];
+  } {
+    const byContainer = new Map(
+      positions.map((row) => [row.containerNo.trim().toUpperCase(), row.position.trim()]),
+    );
+    const matched = new Set<string>();
+    const replaced = new Set<string>();
+    let updatedLines = 0;
+
+    this.data.update((d) => {
+      const dgLib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      const onboard = dgLib.unifeeder.onboard.map((row) => {
+        const key = row.containerNo.trim().toUpperCase();
+        const position = byContainer.get(key);
+        if (!position || row.status !== 'onboard') return row;
+        matched.add(key);
+        if (row.stow.trim() === position) return row;
+        replaced.add(key);
+        updatedLines += 1;
+        return { ...row, stow: position };
+      });
+
+      return {
+        ...d,
+        dgLibrary: {
+          ...dgLib,
+          unifeeder: { ...dgLib.unifeeder, onboard },
+        },
+      };
+    });
+
+    void this.state.persist('silent');
+    return {
+      checked: matched.size,
+      replaced: replaced.size,
+      updatedLines,
       unmatched: [...byContainer.keys()].filter((key) => !matched.has(key)).sort(),
     };
   }

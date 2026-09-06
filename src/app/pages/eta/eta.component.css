@@ -15,6 +15,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.eta-tz-link {
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .eta-layout {

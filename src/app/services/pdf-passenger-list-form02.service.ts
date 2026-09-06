@@ -4,6 +4,7 @@ import { PassengerMember } from '../models/passenger.models';
 import { passengerListForm02EditorUrl } from '../models/passenger-list-form-02.paths';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { passengerListV2PdfFileName } from '../utils/pdf-filename.util';
+import { voyageDateByArrivalFlag } from '../utils/voyage-date.util';
 import { captureHtmlFormPdfBytes } from '../utils/html-form-pdf-capture.util';
 import { PdfDeliveryService } from './pdf-delivery.service';
 
@@ -47,7 +48,7 @@ export class PdfPassengerListForm02Service {
 
   fileName(data: AppData, isArrival: boolean): string {
     const { ship } = data;
-    const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const voyageDate = voyageDateByArrivalFlag(ship, isArrival);
     return passengerListV2PdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
   }
 

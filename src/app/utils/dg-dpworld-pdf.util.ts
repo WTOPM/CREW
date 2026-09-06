@@ -62,6 +62,15 @@ function extractPortName(raw: string): string {
   return part.replace(/\s+/g, ' ');
 }
 
+function extractTerminalHint(raw: string): string {
+  const slash = raw.indexOf('/');
+  if (slash < 0) return '';
+  return raw
+    .slice(slash + 1)
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
 const EU_WEIGHT_RE = /^\d{1,3}(?:\.\d{3})*,\d{2}$/;
 const CONTAINER_RAW_RE = /^[A-Z]{4}\s*[\d\s-]{6,12}$/i;
 const ISO_SIZE_RE = /^[0-9]{2}[A-Z0-9]{2,3}$/i;
@@ -225,6 +234,8 @@ export function parseDpWorldHeaderFromPage(
   return {
     portOfDeparture: extractPortName(polRaw),
     portOfArrival: extractPortName(podRaw),
+    terminalOfDeparture: extractTerminalHint(polRaw),
+    terminalOfArrival: extractTerminalHint(podRaw),
     departureDate: sailingRaw ? parseManifestDate(sailingRaw) : '',
     voyageNumber: voyage,
     vesselName: vessel.trim(),

@@ -63,7 +63,13 @@ function registerAppProtocol() {
       return net.fetch(pathToFileURL(path.join(root, 'index.html')).toString());
     }
 
-    return net.fetch(pathToFileURL(filePath).toString());
+    return net.fetch(pathToFileURL(filePath).toString()).then(async (res) => {
+      // HTML forms + their CSS/JS must not stick in Chromium cache across portable updates.
+      if (!rel.startsWith('forms/')) return res;
+      const headers = new Headers(res.headers);
+      headers.set('Cache-Control', 'no-store, max-age=0');
+      return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+    });
   });
 }
 
@@ -749,6 +755,13 @@ ipcMain.handle('capture-html-form-pdf', async (_event, relativeUrl, snapshot, ca
       }
     `);
     await new Promise((resolve) => setTimeout(resolve, 150));
+    // Second pass after layout settles — clamp stamp/sig to the signature footer.
+    await wc.executeJavaScript(`
+      if (window.CrewHtmlFormPdfSnapshot?.pullOverlaysToFooter) {
+        window.CrewHtmlFormPdfSnapshot.pullOverlaysToFooter();
+      }
+    `);
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     const pageCount = await wc.executeJavaScript(`
       window.CrewHtmlFormPdfSnapshot?.countPdfPages

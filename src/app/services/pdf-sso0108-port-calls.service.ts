@@ -13,6 +13,7 @@ import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 
 import { sso0108PortCallsPdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 
 import {
   SSO0108_FONT,
@@ -76,7 +77,7 @@ export class PdfSso0108PortCallsService {
   fileName(data: AppData): string {
     const { ship } = data;
 
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
 
     return sso0108PortCallsPdfFileName(ship.name, voyageDate);
   }

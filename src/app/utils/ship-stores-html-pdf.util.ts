@@ -15,6 +15,7 @@ import {
   SHIP_STORES_ROW_COUNT,
 } from '../models/ship-stores.models';
 import { formatDisplayDate } from './date.util';
+import { voyageDateByArrivalFlag } from './voyage-date.util';
 import { formatShipStores02PortsRoute } from '../services/ship-stores-02-field-positions';
 import {
   formatShipStoresPeriodOfStay,
@@ -155,8 +156,7 @@ function buildForm01Data(data: AppData, formatForPdf: boolean): ShipStoresForm01
     nameOfShip: cv['h-nameOfShip'] ?? formatPortCallPortName(ship.name),
     portOfArrivalDeparture:
       cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, data.ports),
-    dateOfArrivalDeparture:
-      cv['h-date'] ?? formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
+    dateOfArrivalDeparture: formatDisplayDate(voyageDateByArrivalFlag(ship, isArrival)),
     nationalityOfShip: cv['h-nationality'] ?? formatPortCallPortName(ship.nationality),
     portArrivedFromOrDestination:
       cv['h-portsRoute'] ??
@@ -172,9 +172,7 @@ function buildForm01Data(data: AppData, formatForPdf: boolean): ShipStoresForm01
     periodOfStay: cv['h-period'] ?? formatShipStoresPeriodOfStay(periodDays),
     placeOfStorage: cv['h-storage'] ?? form.placeOfStorage,
     articles,
-    footerDate:
-      cv['footer-date'] ??
-      formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
+    footerDate: formatDisplayDate(voyageDateByArrivalFlag(ship, isArrival)),
     footerMaster: cv['footer-master'] ?? (master ? formatCaptainName(master) : ''),
   };
 }
@@ -276,8 +274,7 @@ function buildForm02Data(data: AppData, formatForPdf: boolean): ShipStoresForm02
     callSign: cv['h-callSign'] ?? ship.callSign,
     portOfArrivalDeparture:
       cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, data.ports),
-    dateOfArrivalDeparture:
-      cv['h-date'] ?? formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
+    dateOfArrivalDeparture: formatDisplayDate(voyageDateByArrivalFlag(ship, isArrival)),
     nationalityOfShip: cv['h-nationality'] ?? formatPortCallPortName(ship.nationality),
     lastNextPortOfCall:
       cv['h-portsRoute'] ??
@@ -293,9 +290,7 @@ function buildForm02Data(data: AppData, formatForPdf: boolean): ShipStoresForm02
     periodOfStay: cv['h-period'] ?? formatShipStoresPeriodOfStay(periodDays),
     placeOfStorage: cv['h-storage'] ?? form.placeOfStorage,
     articles,
-    footerDate:
-      cv['footer-date'] ??
-      formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
+    footerDate: formatDisplayDate(voyageDateByArrivalFlag(ship, isArrival)),
     footerMaster:
       cv['footer-master'] ??
       (() => {

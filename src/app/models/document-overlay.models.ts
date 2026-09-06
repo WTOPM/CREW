@@ -109,6 +109,8 @@ export interface PaxHtmlFormStampOptions extends DocumentStampOptions {
   cellValues?: Record<string, string>;
   footerSignatureDate?: string;
   footerMasterName?: string;
+  /** Saved table body row count after user removes empty pad rows. */
+  tableRowCount?: number;
 }
 
 /** Whether stamp is enabled for the given page (page 1 vs attachment). */
@@ -240,6 +242,8 @@ export interface CrewListVariantSettings {
   footerSignatureDate?: string;
   /** Footer master name override. */
   footerMasterName?: string;
+  /** Saved table body row count after user removes empty pad rows. */
+  tableRowCount?: number;
 }
 
 export function isCrewListForm05CssBox(box: unknown): box is CrewListForm05CssBox {
@@ -370,7 +374,15 @@ const CREW_LIST_VARIANT_FIELD_NAMES = [
   'cellValues',
   'footerSignatureDate',
   'footerMasterName',
+  'tableRowCount',
 ] as const satisfies readonly (keyof CrewListVariantSettings)[];
+
+/** Finite positive int for persisted HTML table padding; omit if invalid. */
+export function normalizeTableRowCount(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  const n = Math.round(value);
+  return n >= 1 ? n : undefined;
+}
 
 function mergeCrewListVariantPlacement(
   ...sources: (Partial<CrewListVariantPlacement> | undefined)[]
@@ -473,12 +485,20 @@ export function normalizeCrewListDocumentPrefs(
   const byType: Partial<Record<CrewListTypeId, CrewListVariantSettings>> = {};
   for (const id of CREW_LIST_TYPE_IDS) {
     const placement = byPlacement[crewListPlacementKey(id)];
-    byType[id] = {
+    const rawVariant = raw?.byType?.[id];
+    const variant: CrewListVariantSettings = {
       ...defaultCrewListVariantSettings(),
       ...legacyToggles,
       ...placement,
-      ...raw?.byType?.[id],
+      ...rawVariant,
     };
+    const tableRowCount = normalizeTableRowCount(rawVariant?.tableRowCount);
+    if (tableRowCount != null) {
+      variant.tableRowCount = tableRowCount;
+    } else {
+      delete variant.tableRowCount;
+    }
+    byType[id] = variant;
   }
 
   return { listType, byType };

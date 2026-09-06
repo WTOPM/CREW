@@ -10,6 +10,47 @@
     />
   </label>
 
+  <div class="ss-sync">
+    <div class="ss-sync__head">
+      <h4 class="ss-section-title">Sync between forms</h4>
+      <p class="ss-sync__hint">
+        Articles + place of storage. Only rows that fit are copied; toast shows overflow.
+      </p>
+    </div>
+    <div class="ss-sync__grid">
+      <div class="ss-sync__row">
+        <span class="ss-sync__label">From</span>
+        <div class="ss-sync__btns">
+          @for (id of otherDocIds(); track id) {
+            <button
+              type="button"
+              class="ss-sync__btn ss-sync__btn--from"
+              [title]="'Copy from ' + otherDocLabel(id)"
+              (click)="syncFrom(id)"
+            >
+              ← {{ syncShortLabel(id) }}
+            </button>
+          }
+        </div>
+      </div>
+      <div class="ss-sync__row">
+        <span class="ss-sync__label">Into</span>
+        <div class="ss-sync__btns">
+          @for (id of otherDocIds(); track id) {
+            <button
+              type="button"
+              class="ss-sync__btn ss-sync__btn--into"
+              [title]="'Copy into ' + otherDocLabel(id)"
+              (click)="syncInto(id)"
+            >
+              → {{ syncShortLabel(id) }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="ss-table-panel">
     <div class="ss-table-head">
       <h4 class="ss-section-title">Articles</h4>

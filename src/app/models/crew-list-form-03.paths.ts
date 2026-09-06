@@ -1,4 +1,6 @@
 /** Form 03 - IMO CREW LIST [P][SBK][J][T] — static HTML editor (`public/forms/crew-list-form-03/`). */
+export const CREW_LIST_FORM_03_MAX_ROWS = 22;
+
 export const CREW_LIST_FORM_03_BASE_PATH = '/forms/crew-list-form-03/';
 
 /** Query param on return URL after Save/Cancel in the HTML editor. */

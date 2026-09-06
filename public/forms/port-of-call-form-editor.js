@@ -5,17 +5,15 @@
   const ZOOM_MIN = 50;
   const ZOOM_MAX = 200;
   const ZOOM_STEP = 10;
-  const APP_DATA_SCHEMA_VERSION = 16;
+  const APP_DATA_SCHEMA_VERSION = 19;
   let editorZoomPct = 100;
 
   function electronApi() {
     return global.electronAPI || (global.parent && global.parent.electronAPI) || null;
   }
 
+  /** Full AppData from disk — used for Save (never a PDF capture snapshot). */
   async function readPersistedAppData() {
-    const snapshot = global.CrewHtmlFormPdfSnapshot ? global.CrewHtmlFormPdfSnapshot.read() : null;
-    if (snapshot) return snapshot;
-
     const api = electronApi();
     if (api) {
       try {
@@ -34,6 +32,13 @@
     return global._appData || null;
   }
 
+  /** Bootstrap editor/PDF: prefer capture snapshot, else live AppData. */
+  async function readBootstrapAppData() {
+    const snapshot = global.CrewHtmlFormPdfSnapshot ? global.CrewHtmlFormPdfSnapshot.read() : null;
+    if (snapshot) return snapshot;
+    return readPersistedAppData();
+  }
+
   function cssBoxFromVariant(box) {
     if (!box || typeof box !== 'object') return null;
     if (
@@ -47,13 +52,21 @@
     return null;
   }
 
-  function overlayCssBox(saved, prevBox) {
-    const box = { ...(prevBox || {}) };
+  function overlayCssBox(saved, prevBox, defaults) {
+    const box = { ...(defaults || {}), ...(prevBox || {}) };
     if (saved?.left) box.left = saved.left;
     if (saved?.top) box.top = saved.top;
     if (saved?.width) box.width = saved.width;
     if (saved?.height) box.height = saved.height;
-    return Object.keys(box).length ? box : undefined;
+    if (
+      typeof box.left === 'string' &&
+      typeof box.top === 'string' &&
+      typeof box.width === 'string' &&
+      typeof box.height === 'string'
+    ) {
+      return { left: box.left, top: box.top, width: box.width, height: box.height };
+    }
+    return undefined;
   }
 
   function createEditor(overlayKey, feedbackParam) {
@@ -61,6 +74,8 @@
     let cellBridge = null;
     let rowsBridge = null;
     let savedRowsPerPage = null;
+    /** After first paint, keep in-session toggle state across page changes. */
+    let overlayFlagsHydrated = false;
 
     function loadPositions() {
       if (global._currentPositions) return global._currentPositions;
@@ -141,7 +156,9 @@
 
     function captureEditorDirtyBaseline() {
       loadPositions();
-      savePositions();
+      // Do NOT call savePositions() here. Early row-baseline capture runs before
+      // overlays are restored; reading empty DOM would clobber useStamp/useSignature
+      // loaded from app data into visible:false, and restore would then skip them.
       captureRowsPerPage();
       savedRowsPerPage = global._currentPositions?.rowsPerPage ?? null;
       const extra = {
@@ -154,6 +171,25 @@
       if (global.CrewHtmlFormEditorDirty?.captureOverlayBaseline) {
         global.CrewHtmlFormEditorDirty.captureOverlayBaseline(() => loadPositions(), extra);
       }
+    }
+
+    function hydrateOverlayFlagsFromAppData() {
+      const variant = global._appData?.documentOverlay?.[overlayKey];
+      if (!variant) return;
+      if (!global._currentPositions) {
+        loadPositions();
+        return;
+      }
+      global._currentPositions.stamp = {
+        ...(global._currentPositions.stamp || {}),
+        visible: !!variant.useStamp,
+        ...(cssBoxFromVariant(variant.stampBox) || {}),
+      };
+      global._currentPositions.sig = {
+        ...(global._currentPositions.sig || {}),
+        visible: !!variant.useSignature,
+        ...(cssBoxFromVariant(variant.signatureBox) || {}),
+      };
     }
 
     function captureCellStyles() {
@@ -177,22 +213,32 @@
     }
 
     function overlayBoxFromElement(el) {
-      if (!el) return {};
+      if (!el || !el.classList.contains('visible')) return {};
+      const left = el.style.left;
+      const top = el.style.top;
+      const width = el.style.width;
+      const height = el.style.height;
+      // Prefer explicit style (mm / calc / px). offset* only when style was cleared
+      // after a drag pin — never invent 0px for an unpositioned hidden sibling.
       return {
-        left: el.style.left || `${el.offsetLeft}px`,
-        top: el.style.top || `${el.offsetTop}px`,
-        width: el.style.width || `${el.offsetWidth}px`,
-        height: el.style.height || `${el.offsetHeight}px`,
+        left: left || (el.offsetLeft ? `${el.offsetLeft}px` : undefined),
+        top: top || (el.offsetTop ? `${el.offsetTop}px` : undefined),
+        width: width || (el.offsetWidth ? `${el.offsetWidth}px` : undefined),
+        height: height || (el.offsetHeight ? `${el.offsetHeight}px` : undefined),
       };
     }
 
     function savePositions() {
       const stamp = document.getElementById('stamp-container');
       const sig = document.getElementById('sig-container');
-      const stampOn = global.CrewOverlayToolbar?.isStampOn() ?? false;
-      const sigOn = global.CrewOverlayToolbar?.isSigOn() ?? false;
-      const stampBox = stampOn ? overlayBoxFromElement(stamp) : {};
-      const sigBox = sigOn ? overlayBoxFromElement(sig) : {};
+      const stampVisible = !!stamp?.classList.contains('visible');
+      const sigVisible = !!sig?.classList.contains('visible');
+      // Toolbar may already be "on" while the sibling overlay is not painted yet
+      // (restore enables stamp then signature). Only read geometry from visible nodes.
+      const stampOn = stampVisible || (global.CrewOverlayToolbar?.isStampOn() ?? false);
+      const sigOn = sigVisible || (global.CrewOverlayToolbar?.isSigOn() ?? false);
+      const stampBox = stampVisible ? overlayBoxFromElement(stamp) : {};
+      const sigBox = sigVisible ? overlayBoxFromElement(sig) : {};
       if (!global._currentPositions) global._currentPositions = { stamp: {}, sig: {} };
       global._currentPositions.stamp = {
         visible: stampOn,
@@ -208,6 +254,10 @@
         width: sigBox.width || global._currentPositions.sig?.width,
         height: sigBox.height || global._currentPositions.sig?.height,
       };
+      if (global.CrewOverlayToolbar) {
+        CrewOverlayToolbar.setStampOn(stampOn);
+        CrewOverlayToolbar.setSigOn(sigOn);
+      }
     }
 
     function navigateBack(feedback) {
@@ -231,28 +281,31 @@
       }
       if (!appData.documentOverlay) appData.documentOverlay = {};
       const prev = appData.documentOverlay[overlayKey] || {};
-      const stampBox = overlayCssBox(global._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
-      const signatureBox = overlayCssBox(global._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
+      const defaultStamp = global.CrewPortOfCallPdf?.defaultStampCss?.() || null;
+      const defaultSig = global.CrewPortOfCallPdf?.defaultSignatureCss?.() || null;
+      const stampBox = overlayCssBox(
+        global._currentPositions.stamp,
+        cssBoxFromVariant(prev.stampBox),
+        defaultStamp,
+      );
+      const signatureBox = overlayCssBox(
+        global._currentPositions.sig,
+        cssBoxFromVariant(prev.signatureBox),
+        defaultSig,
+      );
+      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
       appData.documentOverlay[overlayKey] = {
-        ...prev,
+        ...prevWithoutFooterDate,
         useStamp: !!global._currentPositions.stamp.visible,
         useSignature: !!global._currentPositions.sig.visible,
-        ...(stampBox ? { stampBox } : {}),
-        ...(signatureBox ? { signatureBox } : {}),
+        ...(stampBox && global._currentPositions.stamp.visible ? { stampBox } : {}),
+        ...(signatureBox && global._currentPositions.sig.visible ? { signatureBox } : {}),
         cellStyles: global._currentPositions.cellStyles || {},
-        cellValues: global._currentPositions.cellValues || {},
+        cellValues: global.HtmlFormLiveVoyageDate?.stripLiveVoyageKeys
+          ? global.HtmlFormLiveVoyageDate.stripLiveVoyageKeys(global._currentPositions.cellValues || {})
+          : global._currentPositions.cellValues || {},
         dateDisplayFormat: global.HtmlFormDateFormat?.getActive?.() || global._currentPositions.dateDisplayFormat || 'dot',
         rowsPerPage: global._currentPositions.rowsPerPage ?? global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
-        ...(document.getElementById('poc-footer-date')?.textContent?.trim() ||
-        document.getElementById('poc-footer-date')?.value?.trim()
-          ? {
-              footerSignatureDate: (
-                document.getElementById('poc-footer-date')?.value ||
-                document.getElementById('poc-footer-date')?.textContent ||
-                ''
-              ).trim(),
-            }
-          : {}),
         ...(global.HtmlFormFooterFields?.getMasterName?.()?.trim()
           ? { footerMasterName: global.HtmlFormFooterFields.getMasterName().trim() }
           : {}),
@@ -318,6 +371,7 @@
         dateDisplayFormat: 'dot',
         rowsPerPage: global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
       };
+      overlayFlagsHydrated = true;
       resetOverlays();
       if (cellBridge?.resetPage) cellBridge.resetPage();
     }
@@ -350,11 +404,13 @@
     }
 
     function overlayCssPos(saved, defaults) {
+      const pick = (v, fallback) =>
+        typeof v === 'string' && v.trim() && v.trim() !== '0px' ? v : fallback;
       return {
-        left: saved?.left || defaults.left,
-        top: saved?.top || defaults.top,
-        width: saved?.width || defaults.width,
-        height: saved?.height || defaults.height,
+        left: pick(saved?.left, defaults.left),
+        top: pick(saved?.top, defaults.top),
+        width: pick(saved?.width, defaults.width),
+        height: pick(saved?.height, defaults.height),
       };
     }
 
@@ -412,6 +468,12 @@
     }
 
     async function restoreOverlaySettings() {
+      // First restore only: re-apply useStamp/useSignature from AppData (global Settings
+      // toggles + last Save). Later page changes keep in-session toggle state.
+      if (!overlayFlagsHydrated) {
+        hydrateOverlayFlagsFromAppData();
+        overlayFlagsHydrated = true;
+      }
       const saved = loadPositions();
       if (global.CrewOverlayToolbar) {
         CrewOverlayToolbar.setStampOn(!!saved.stamp?.visible);
@@ -423,6 +485,8 @@
         } catch (e) {
           console.error(e);
         }
+      } else {
+        document.getElementById('stamp-container')?.classList.remove('visible');
       }
       if (saved.sig?.visible) {
         try {
@@ -430,6 +494,8 @@
         } catch (e) {
           console.error(e);
         }
+      } else {
+        document.getElementById('sig-container')?.classList.remove('visible');
       }
     }
 
@@ -531,6 +597,7 @@
 
     return {
       readPersistedAppData,
+      readBootstrapAppData,
       loadPositions,
       savePositions,
       captureCellStyles,

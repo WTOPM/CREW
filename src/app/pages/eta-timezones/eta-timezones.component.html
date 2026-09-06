@@ -1,0 +1,179 @@
+<div class="page tz-ref-page">
+  <header class="page-header tz-ref-header">
+    <div class="tz-ref-header__title">
+      <a routerLink="/eta" class="back-link">ETA</a>
+      <h1>World timezones</h1>
+      <p class="tz-ref-header__meta">
+        Search by port (e.g. Hamburg) or zone. Summer / winter time and the next clock change use
+        the date below.
+      </p>
+    </div>
+  </header>
+
+  <section class="card tz-ref-toolbar" aria-label="Timezone filters">
+    <div class="tz-ref-toolbar__row">
+      <label class="tz-ref-date">
+        <span class="tz-ref-date__label">Date</span>
+        <input
+          type="date"
+          class="tz-ref-date__input"
+          [ngModel]="atDate()"
+          (ngModelChange)="atDate.set($event)"
+        />
+        <button type="button" class="btn btn-link tz-ref-date__today" (click)="useToday()">
+          Today
+        </button>
+      </label>
+
+      <div class="tz-ref-search-wrap">
+        <label class="tz-ref-search" [class.tz-ref-search--filled]="search().trim().length > 0">
+          <span class="tz-ref-search__label">Search port or zone</span>
+          <input
+            type="search"
+            class="tz-ref-search__input"
+            aria-label="Search ports or timezones"
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+            placeholder=" "
+          />
+        </label>
+        @if (search() || offsetFilter() || regionFilter() || seasonFilter()) {
+          <button type="button" class="tz-ref-clear" (click)="clearFilters()">Clear</button>
+        }
+      </div>
+    </div>
+
+    <div class="tz-ref-filters" aria-label="Filter by season">
+      <button
+        type="button"
+        class="tz-ref-chip"
+        [class.tz-ref-chip--active]="seasonFilter() === null"
+        (click)="setSeasonFilter(null)"
+      >
+        All seasons
+      </button>
+      <button
+        type="button"
+        class="tz-ref-chip tz-ref-chip--summer"
+        [class.tz-ref-chip--active]="seasonFilter() === 'summer'"
+        (click)="setSeasonFilter('summer')"
+      >
+        Summer time
+      </button>
+      <button
+        type="button"
+        class="tz-ref-chip tz-ref-chip--winter"
+        [class.tz-ref-chip--active]="seasonFilter() === 'winter'"
+        (click)="setSeasonFilter('winter')"
+      >
+        Winter time
+      </button>
+      <button
+        type="button"
+        class="tz-ref-chip"
+        [class.tz-ref-chip--active]="seasonFilter() === 'none'"
+        (click)="setSeasonFilter('none')"
+      >
+        No DST
+      </button>
+    </div>
+
+    <div class="tz-ref-filters" aria-label="Filter by region">
+      <button
+        type="button"
+        class="tz-ref-chip"
+        [class.tz-ref-chip--active]="regionFilter() === null"
+        (click)="setRegionFilter(null)"
+      >
+        All regions
+        <span class="tz-ref-chip__count">{{ allRows().length }}</span>
+      </button>
+      @for (region of regions(); track region) {
+        <button
+          type="button"
+          class="tz-ref-chip"
+          [class.tz-ref-chip--active]="regionFilter() === region"
+          (click)="setRegionFilter(region)"
+        >
+          {{ region }}
+        </button>
+      }
+    </div>
+
+    <div class="tz-ref-filters tz-ref-filters--offsets" aria-label="Filter by UTC offset">
+      <button
+        type="button"
+        class="tz-ref-chip tz-ref-chip--offset"
+        [class.tz-ref-chip--active]="offsetFilter() === null"
+        (click)="setOffsetFilter(null)"
+      >
+        All offsets
+      </button>
+      @for (label of offsetLabels(); track label) {
+        <button
+          type="button"
+          class="tz-ref-chip tz-ref-chip--offset"
+          [class.tz-ref-chip--active]="offsetFilter() === label"
+          (click)="setOffsetFilter(label)"
+        >
+          {{ label }}
+        </button>
+      }
+    </div>
+
+    <p class="tz-ref-result-meta">
+      Showing <strong>{{ resultCount() }}</strong> of {{ allRows().length | number }} zones
+      @if (nextChangeBusy()) {
+        <span class="tz-ref-result-meta__busy">· loading clock changes…</span>
+      }
+    </p>
+  </section>
+
+  <section class="card tz-ref-table-card">
+    <div class="tz-ref-table-wrap">
+      <table class="tz-ref-table">
+        <thead>
+          <tr>
+            <th scope="col">Timezone</th>
+            <th scope="col">Ports</th>
+            <th scope="col">Region</th>
+            <th scope="col">UTC offset</th>
+            <th scope="col">Season</th>
+            <th scope="col">Next clock change</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of filteredRows(); track trackRow($index, row)) {
+            <tr
+              [class.tz-ref-row--summer]="row.dstSeason === 'summer'"
+              [class.tz-ref-row--winter]="row.dstSeason === 'winter'"
+            >
+              <td>
+                <span class="tz-ref-id">{{ row.id }}</span>
+                <span class="tz-ref-city">{{ row.cityLabel }}</span>
+              </td>
+              <td class="tz-ref-ports">{{ row.portsLabel }}</td>
+              <td>{{ row.region }}</td>
+              <td class="tz-ref-code">{{ row.offsetLabel }}</td>
+              <td>
+                <span
+                  class="tz-ref-season"
+                  [class.tz-ref-season--summer]="row.dstSeason === 'summer'"
+                  [class.tz-ref-season--winter]="row.dstSeason === 'winter'"
+                  [class.tz-ref-season--none]="row.dstSeason === 'none'"
+                >
+                  {{ row.dstSeasonLabel }}
+                </span>
+              </td>
+              <td class="tz-ref-next">{{ nextChangeLabel(row) }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="tz-ref-empty">No timezones match your search.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

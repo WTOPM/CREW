@@ -18,4 +18,6 @@ export interface DgUnifeederExportContext {
   /** Round export weights to whole kg. */
   grossTotalKg: boolean;
   useGrossWeight: boolean;
+  /** POL/POD cells use matched terminal abbrevs (column titles stay POL/POD). */
+  showByTerminals: boolean;
 }

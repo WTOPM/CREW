@@ -9,12 +9,15 @@ import {
   unifeederExportTotalKg,
   unifeederExportWeightKg,
 } from './dg-unifeeder-weight.util';
+import { mergeUnifeederRowsInContainersWithMeta } from './dg-unifeeder-merge.util';
 import { type DgWeightViewOptions } from './dg-weight-view.util';
 
 export interface UnifeederDgPdfExportOptions {
   useGrossWeight?: boolean;
   roundWeights?: boolean;
   mergeLines?: boolean;
+  /** POL/POD values = terminal abbrevs when true (headers unchanged). */
+  showByTerminals?: boolean;
   /** @deprecated Use roundWeights */
   grossTotalKg?: boolean;
 }
@@ -250,6 +253,20 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
   return trimmed;
 }
 
+/** POL/POD cell — port UN/LOCODE, or terminal abbrev when “By terminals” is on. */
+function resolvePolPodExportValue(
+  row: DgUnifeederRow,
+  which: 'load' | 'discharge',
+  ports: readonly Port[],
+  showByTerminals: boolean,
+): string {
+  if (showByTerminals) {
+    const term = (which === 'load' ? row.loadTerminal : row.dischargeTerminal).trim();
+    if (term) return term.toUpperCase();
+  }
+  return resolvePortLabel(which === 'load' ? row.loadPort : row.dischargePort, ports);
+}
+
 function formatTotalKg(totalKg: number): string {
   return formatUnifeederExportAmountKg(totalKg) || '0.0 kg';
 }
@@ -361,8 +378,13 @@ function formatMfagPages(fireSchedule: string, spillageSchedule: string): string
   return [fireSchedule.trim(), spillageSchedule.trim()].filter(Boolean).join(' ');
 }
 
-function prepareExportRows(rows: readonly DgUnifeederRow[]): DgUnifeederRow[] {
-  return rows.filter((row) => row.containerNo.trim());
+function prepareExportRows(
+  rows: readonly DgUnifeederRow[],
+  mergeLines: boolean,
+  useGrossWeight: boolean,
+): DgUnifeederRow[] {
+  const withContainers = rows.filter((row) => row.containerNo.trim());
+  return mergeUnifeederRowsInContainersWithMeta(withContainers, mergeLines, useGrossWeight).rows;
 }
 
 function exportPageCount(rowCount: number): number {
@@ -583,6 +605,7 @@ function drawDataRow(
   data: DgUnifeederRow | undefined,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
+  showByTerminals: boolean,
 ): void {
   const bodySize = fontSize(metrics, 10);
   const emsSize = fontSize(metrics, 9);
@@ -603,8 +626,14 @@ function drawDataRow(
     },
     { col: 5, text: data?.stow ?? '' },
     { col: 6, text: data?.containerNo ?? '', align: 'left' },
-    { col: 7, text: data ? resolvePortLabel(data.loadPort, ports) : '' },
-    { col: 8, text: data ? resolvePortLabel(data.dischargePort, ports) : '' },
+    {
+      col: 7,
+      text: data ? resolvePolPodExportValue(data, 'load', ports, showByTerminals) : '',
+    },
+    {
+      col: 8,
+      text: data ? resolvePolPodExportValue(data, 'discharge', ports, showByTerminals) : '',
+    },
     { col: 9, text: data ? formatEms(data.fire, data.spillage) : '', size: emsSize },
     {
       col: 10,
@@ -684,13 +713,21 @@ function drawPageBlock(
   ctx: DgPageContext,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  options: { showTotal: boolean; totalKg: number },
+  options: { showTotal: boolean; totalKg: number; showByTerminals: boolean },
   logoDataUrl: string | null,
 ): void {
   drawHeaderBlock(doc, metrics, pageNumber, ship, ctx, ports, logoDataUrl);
   drawTableHeader(doc, metrics);
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
-    drawDataRow(doc, metrics, DATA_FIRST_ROW + i, pageRows[i], ports, exportWeights);
+    drawDataRow(
+      doc,
+      metrics,
+      DATA_FIRST_ROW + i,
+      pageRows[i],
+      ports,
+      exportWeights,
+      options.showByTerminals,
+    );
   }
   if (options.showTotal) {
     drawTotalRow(doc, metrics, options.totalKg);
@@ -720,10 +757,22 @@ export async function buildUnifeederDgListPdfBytes(
   options: UnifeederDgPdfExportOptions = {},
 ): Promise<Uint8Array> {
   const weightOptions = resolveUnifeederExportOptions(options);
-  const exportRows = prepareExportRows(rows);
-  const exportWeights = unifeederExportWeightKg(exportRows, weightOptions);
+  const showByTerminals = options.showByTerminals === true;
+  const exportRows = prepareExportRows(
+    rows,
+    weightOptions.mergeLines !== false,
+    weightOptions.useGrossWeight !== false,
+  );
+  // Rows are already merged for layout; weights must key off the same ids.
+  const exportWeights = unifeederExportWeightKg(exportRows, {
+    ...weightOptions,
+    mergeLines: false,
+  });
   const pageCount = exportPageCount(exportRows.length);
-  const totalKg = unifeederExportTotalKg(exportRows, weightOptions);
+  const totalKg = unifeederExportTotalKg(exportRows, {
+    ...weightOptions,
+    mergeLines: false,
+  });
   const logoDataUrl = await loadRambowFlagDataUrl();
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -745,6 +794,7 @@ export async function buildUnifeederDgListPdfBytes(
       {
         showTotal: pageIndex === pageCount - 1,
         totalKg,
+        showByTerminals,
       },
       logoDataUrl,
     );

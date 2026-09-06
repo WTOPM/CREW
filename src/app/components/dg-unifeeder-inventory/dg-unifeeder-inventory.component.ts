@@ -38,6 +38,7 @@ import {
   type DgUnifeederRowField,
 } from '../../models/dg-unifeeder.models';
 import { DgUnifeederImportService } from '../../services/dg-unifeeder-import.service';
+import { DgUnifeederDagosImportService } from '../../services/dg-unifeeder-dagos-import.service';
 import {
   formatUnifeederImportValidationError,
   formatUnifeederImportValidationOk,
@@ -89,6 +90,7 @@ export class DgUnifeederInventoryComponent {
   private readonly storage = inject(StorageService);
   private readonly dg = inject(DgManifestStore);
   private readonly unifeederImporter = inject(DgUnifeederImportService);
+  private readonly dagosImporter = inject(DgUnifeederDagosImportService);
   private readonly unifeederExcel = inject(DgUnifeederExcelService);
   private readonly unifeederPdf = inject(DgUnifeederPdfService);
   private readonly toast = inject(ToastService);
@@ -144,12 +146,21 @@ export class DgUnifeederInventoryComponent {
       : lib.onboard.filter((r) => r.status === 'onboard');
   });
 
+  private resolveUnifeederSortColumn(): import('../../utils/dg-unifeeder-inventory-sort.util').DgUnifeederSortColumn | null {
+    const column = this.unifeederSortColumn();
+    if (!column) return null;
+    if (!this.unifeederLibrary().showByTerminals) return column;
+    if (column === 'loadPort') return 'loadTerminal';
+    if (column === 'dischargePort') return 'dischargeTerminal';
+    return column;
+  }
+
   protected readonly visibleUnifeederRows = computed(() => {
     let list = filterUnifeederOnboardRows(
       this.filteredUnifeederRows(),
       this.unifeederInventorySearch(),
     );
-    const column = this.unifeederSortColumn();
+    const column = this.resolveUnifeederSortColumn();
     if (column) {
       list = sortUnifeederRows(list, column, this.unifeederSortDirection());
     }
@@ -164,7 +175,7 @@ export class DgUnifeederInventoryComponent {
       );
       const options = this.unifeederWeightOptions();
       let rawGroups = groupUnifeederRawRowsByContainer(filtered);
-      const column = this.unifeederSortColumn();
+      const column = this.resolveUnifeederSortColumn();
       if (column) {
         rawGroups = sortUnifeederContainerGroups(rawGroups, column, this.unifeederSortDirection());
       }
@@ -179,6 +190,8 @@ export class DgUnifeederInventoryComponent {
           containerNo: first?.containerNo ?? '',
           loadPort: first?.loadPort ?? '',
           dischargePort: first?.dischargePort ?? '',
+          loadTerminal: first?.loadTerminal ?? '',
+          dischargeTerminal: first?.dischargeTerminal ?? '',
           status: first?.status ?? 'onboard',
           lines: buildUnifeederInventoryDisplayRows(group.rows, options, weightPlan),
         };
@@ -240,6 +253,10 @@ export class DgUnifeederInventoryComponent {
 
   protected toggleUnifeederShowDischarged(checked: boolean): void {
     this.dg.updateUnifeederViewSettings({ showDischarged: checked });
+  }
+
+  protected toggleUnifeederShowByTerminals(checked: boolean): void {
+    this.dg.updateUnifeederViewSettings({ showByTerminals: checked });
   }
 
   protected setUnifeederWeightTonnage(gross: boolean): void {
@@ -345,6 +362,8 @@ export class DgUnifeederInventoryComponent {
       containerNo: group.containerNo,
       loadPort: group.loadPort,
       dischargePort: group.dischargePort,
+      loadTerminal: group.loadTerminal,
+      dischargeTerminal: group.dischargeTerminal,
       status: group.status,
     });
   }
@@ -544,6 +563,27 @@ export class DgUnifeederInventoryComponent {
     this.unifeederImporting.set(true);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
+
+      const dagosResult = await this.dagosImporter.importFromPdfBytes(bytes);
+      if (dagosResult.format === 'unifeeder-dagos') {
+        const applied = this.dg.applyUnifeederDagosPositions(dagosResult.positions);
+        if (applied.checked === 0) {
+          this.toast.showError('No matching onboard containers found for Dagos positions');
+        } else {
+          this.toast.show(
+            `Checked ${applied.checked} container(s) · replaced ${applied.replaced}`,
+            applied.replaced > 0 ? 'success' : 'info',
+          );
+        }
+        if (applied.unmatched.length) {
+          this.toast.show(
+            `${applied.unmatched.length} container(s) in PDF not found onboard`,
+            'info',
+          );
+        }
+        return;
+      }
+
       const result = await this.unifeederImporter.importFromPdfBytes(bytes, this.storage.ports(), {
         useGrossWeight: this.unifeederLibrary().useGrossWeight,
       });
@@ -677,11 +717,26 @@ export class DgUnifeederInventoryComponent {
 
   private buildUnifeederExportContext(): DgUnifeederExportContext {
     const lib = this.unifeederLibrary();
+    const byId = new Map(this.filteredUnifeederRows().map((row) => [row.id, row]));
+    const ordered: DgUnifeederRow[] = [];
+    const seen = new Set<string>();
+    for (const group of this.visibleUnifeederContainerGroups()) {
+      for (const line of group.lines) {
+        for (const id of line.sourceRowIds) {
+          if (seen.has(id)) continue;
+          const row = byId.get(id);
+          if (!row) continue;
+          seen.add(id);
+          ordered.push(row);
+        }
+      }
+    }
     return {
-      rows: this.visibleUnifeederRows(),
+      rows: ordered.length ? ordered : this.visibleUnifeederRows(),
       mergeLines: lib.mergeLines,
       grossTotalKg: lib.roundWeights,
       useGrossWeight: lib.useGrossWeight,
+      showByTerminals: lib.showByTerminals === true,
     };
   }
 }

@@ -14,6 +14,7 @@ import {
 } from '../models/crew-money-list.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewMoneyListPdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import {
   CREW_MONEY_LIST_COL,
   CREW_MONEY_LIST_FIELDS,
@@ -51,7 +52,7 @@ export class PdfCrewMoneyListService {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return crewMoneyListPdfFileName(ship.name, voyageDate);
   }
 

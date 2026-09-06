@@ -3,6 +3,7 @@ import { AppData } from '../models/crew.models';
 import { portOfCallForm02EditorUrl } from '../models/port-of-call-form-02.paths';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { portOfCallPdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import { captureHtmlFormPdfBytes } from '../utils/html-form-pdf-capture.util';
 import { buildPortOfCallHtmlPdfSnapshot } from '../utils/port-of-call-html-pdf.util';
 
@@ -30,7 +31,7 @@ export class PdfPortOfCallTemplateService {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return portOfCallPdfFileName(ship.name, voyageDate);
   }
 

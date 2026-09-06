@@ -128,19 +128,12 @@
   }
 
   function footerDateDisplay(snapshot, overlayVariant) {
-    const saved = overlayVariant?.footerSignatureDate;
-    if (saved) return saved;
     const F = window.HtmlFormDateFormat;
     const iso = snapshot.ship?.dateOfArrival;
     return F ? F.format(iso, F.getActive()) : POC.formatDisplayDate(iso);
   }
 
   function footerDateIso(snapshot, overlayVariant) {
-    const saved = overlayVariant?.footerSignatureDate;
-    if (saved && window.HtmlFormDateFormat) {
-      const parsed = window.HtmlFormDateFormat.parseToIso(saved);
-      if (parsed) return parsed;
-    }
     return snapshot.ship?.dateOfArrival || '';
   }
 
@@ -169,11 +162,11 @@
         </div>`;
   }
 
-  function renderPage(pageRows, voyOffset, pageIndex, snapshot, includeOverlays, rowCount, overlayVariant) {
+  function renderPage(pageRows, voyOffset, pageIndex, snapshot, rowCount, overlayVariant) {
     const ship = snapshot.ship || {};
-    const overlayHtml = includeOverlays
-      ? '<div id="stamp-container" class="overlay-marker"></div><div id="sig-container" class="overlay-marker"></div>'
-      : '';
+    // Always emit markers — editor drag + PDF renderOverlays need them in the DOM.
+    const overlayHtml =
+      '<div id="stamp-container" class="overlay-marker"></div><div id="sig-container" class="overlay-marker"></div>';
     const gridId = pageIndex === 0 ? ' id="poc-grid"' : '';
     return `
       <div class="a4-page poc-form-01" data-page="${pageIndex}">
@@ -231,7 +224,7 @@
       mount.className = 'poc-pages';
       mount.innerHTML = pages
         .map((pageRows, i) =>
-          renderPage(pageRows, i * rowsPerPage, i, snapshot, false, rowsPerPage, overlayVariant),
+          renderPage(pageRows, i * rowsPerPage, i, snapshot, rowsPerPage, overlayVariant),
         )
         .join('');
       window.PortOfCallFormPages?.setTotal?.(pages.length);
@@ -247,7 +240,6 @@
       pageIndex * rowsPerPage,
       pageIndex,
       snapshot,
-      pageIndex === 0,
       rowsPerPage,
       overlayVariant,
     );
@@ -321,6 +313,7 @@
       window.HtmlFormFooterFields.init(table.closest('.a4-page'));
     }
     window.PortOfCallFormCells.restoreCellValues(cellValues, table, voyOffset);
+    window.HtmlFormLiveVoyageDate?.sync?.('arrival');
     window.PortOfCallFormCells.restoreCellStyles(overlayVariant?.cellStyles || saved.cellStyles || {});
     window.PortOfCallFormCells.captureDirtyBaseline();
     editor.connectCellEditor({
@@ -359,7 +352,7 @@
 
     let snapshot = window.CrewHtmlFormPdfSnapshot?.read() || null;
     if (!snapshot && !isPdfExport) {
-      const appData = await editor.readPersistedAppData();
+      const appData = await editor.readBootstrapAppData();
       if (appData) {
         window._appData = appData;
         snapshot = POC.snapshotFromAppData(appData, true, OVERLAY_KEY);
@@ -393,6 +386,7 @@
       document.body.classList.add('is-pdf-export');
       const rowsPerPage = resolveRowsPerPage(snapshot);
       window.PortOfCallFormCells.restoreAllCellValues(overlayVariant?.cellValues || {}, rowsPerPage);
+      window.HtmlFormLiveVoyageDate?.sync?.('arrival');
       window.PortOfCallFormCells.restoreAllCellStyles(overlayVariant?.cellStyles || {});
       const pageEls = document.querySelectorAll('.a4-page');
       for (let i = 0; i < pageEls.length; i++) {
@@ -408,8 +402,8 @@
 
     initRowEditor(overlayVariant, snapshot);
     initCellEditor(overlayVariant);
-    await editor.restoreOverlaySettings();
     editor.initOverlayToolbar();
+    await editor.restoreOverlaySettings();
     editor.initEditorZoom();
     editor.captureEditorDirtyBaseline?.();
     window.__pdfReady = true;

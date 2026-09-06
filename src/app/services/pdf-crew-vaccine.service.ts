@@ -3,6 +3,7 @@ import { AppData, portCountry } from '../models/crew.models';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { PdfOverlayService } from './pdf-overlay.service';
 import { crewVaccinePdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import { formatDisplayDate } from '../utils/date.util';
 
 const CREW_VACCINE_TEMPLATE_URL = '/crew-vaccine-empty.pdf';
@@ -30,7 +31,7 @@ export class PdfCrewVaccineService {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return crewVaccinePdfFileName(ship.name, ship.portOfCall, voyageDate);
   }
 

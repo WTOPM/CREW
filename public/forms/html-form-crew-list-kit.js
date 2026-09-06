@@ -74,12 +74,13 @@
   function minRowHeightPx(tableRoot) {
     const probe = tableRoot?.querySelector?.('td, .td-cell, .table-row');
     if (!probe) return 18;
-    const tbl =
+    const varHost =
+      tableRoot?.closest?.('.imo-table') ||
       tableRoot?.closest?.('.crew-tbl') ||
       tableRoot?.closest?.('.crew-table') ||
       tableRoot?.querySelector?.('.crew-tbl');
-    if (tbl) {
-      const raw = getComputedStyle(tbl).getPropertyValue('--crew-row-h').trim();
+    if (varHost) {
+      const raw = getComputedStyle(varHost).getPropertyValue('--crew-row-h').trim();
       if (raw) {
         const tmp = document.createElement('div');
         tmp.style.height = raw;
@@ -96,6 +97,17 @@
 
   function syncCellHeight(cell, tableRoot) {
     if (!cell || cell.tagName !== 'TEXTAREA') return;
+    // Fixed-height Flex forms (.table-row with max-height) must not grow — HTML ≡ PDF.
+    const row = cell.closest('.table-row, tr');
+    if (row?.classList?.contains('table-row')) {
+      const maxH = parseFloat(getComputedStyle(row).maxHeight);
+      if (Number.isFinite(maxH) && maxH > 0) {
+        cell.style.height = '';
+        cell.style.minHeight = '0';
+        cell.style.maxHeight = '100%';
+        return;
+      }
+    }
     cell.style.height = '0px';
     const next = Math.max(cell.scrollHeight, minRowHeightPx(tableRoot));
     cell.style.height = `${next}px`;
@@ -430,12 +442,18 @@
 
   /**
    * Swap inputs/textareas for plain divs before PDF capture.
-   * Keep row height/padding like the HTML editor (textarea min-height + vertical center).
-   * Do NOT copy wrap-edit inline heights that stretch rows.
+   * Preserve each data-row's rendered height so the table does not shrink vs the HTML
+   * editor (absolute stamp/signature would otherwise sit too low in the PDF).
    */
   function flattenInputsForExport(root) {
     const scope = root || document;
     const rowMin = 'var(--crew-row-h, 5mm)';
+
+    const rowHeights = new Map();
+    scope.querySelectorAll('tbody tr, .table-body .table-row').forEach((tr) => {
+      const h = tr.getBoundingClientRect().height;
+      if (h > 0) rowHeights.set(tr, h);
+    });
 
     scope.querySelectorAll('input.ci, textarea.ci, input.fi').forEach((input) => {
       const replacement = document.createElement('div');
@@ -528,7 +546,7 @@
       input.replaceWith(replacement);
     });
 
-    // Names are already divs — drop wrap-edit pixel heights, keep soft-wrap like editor.
+    // Names are already divs — keep soft-wrap like editor; row height comes from <tr>.
     scope.querySelectorAll('div.ci.ci-name').forEach((el) => {
       el.style.removeProperty('height');
       if (!el.style.minHeight) el.style.minHeight = rowMin;
@@ -539,12 +557,61 @@
       el.style.lineHeight = el.style.lineHeight || '1.2';
       el.style.overflow = 'hidden';
     });
+
+    rowHeights.forEach((h, tr) => {
+      const px = `${Math.round(h)}px`;
+      tr.style.height = px;
+      tr.style.minHeight = px;
+      tr.style.boxSizing = 'border-box';
+    });
   }
 
   /** Build a textarea.ci markup snippet for addRow templates. */
   function textareaHtml(cls, val) {
     const c = cls ? ` ${cls}` : '';
     return `<textarea class="ci${c}" rows="1" readonly tabindex="-1">${escapeHtml(val || '')}</textarea>`;
+  }
+
+  /** Coerce persisted tableRowCount (number or numeric string). */
+  function parseSavedRowCount(savedCount) {
+    if (typeof savedCount === 'number' && Number.isFinite(savedCount)) {
+      return Math.round(savedCount);
+    }
+    if (typeof savedCount === 'string' && savedCount.trim() !== '') {
+      const n = Number(savedCount);
+      if (Number.isFinite(n)) return Math.round(n);
+    }
+    return undefined;
+  }
+
+  /**
+   * How many HTML table rows to show after loading crew.
+   * Honors saved tableRowCount; never invents empty pad-to-MAX when unset.
+   * Stale saved counts above max (from older stretch layouts) fall back to crew size.
+   */
+  function resolveTargetRowCount(savedCount, currentCount, maxRows) {
+    const max = Math.max(1, Number(maxRows) || 1);
+    const cur = Math.max(0, Number(currentCount) || 0);
+    const saved = parseSavedRowCount(savedCount);
+    if (saved != null && saved >= 1) {
+      if (saved > max) {
+        return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+      }
+      return Math.min(max, Math.max(cur, saved));
+    }
+    return Math.min(max, Math.max(cur, cur > 0 ? cur : 1));
+  }
+
+  /** Pad or trim `tableRoot` children to exactly `target` rows. */
+  function applyTargetRowCount(tableRoot, target, addRowFn) {
+    if (!tableRoot || typeof addRowFn !== 'function') return;
+    const want = Math.max(0, Number(target) || 0);
+    while (tableRoot.children.length > want) {
+      tableRoot.removeChild(tableRoot.lastChild);
+    }
+    while (tableRoot.children.length < want) {
+      addRowFn();
+    }
   }
 
   global.HtmlFormCrewListKit = {
@@ -561,5 +628,8 @@
     textareaHtml,
     repairBirthSplitLayout,
     flattenInputsForExport,
+    parseSavedRowCount,
+    resolveTargetRowCount,
+    applyTargetRowCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

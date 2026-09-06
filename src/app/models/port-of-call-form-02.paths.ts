@@ -18,6 +18,8 @@ export function portOfCallForm02EditorUrl(params: PortOfCallForm02UrlParams = {}
   if (params.return) q.set('return', params.return);
   if (params.pdfExport) q.set('pdfExport', params.pdfExport);
   if (params.data) q.set('data', params.data);
+  // Bust Chromium cache for form assets after layout changes (portable exe).
+  q.set('v', '20260906-port-country-split');
   const qs = q.toString();
-  return qs ? `${PORT_OF_CALL_FORM_02_BASE_PATH}?${qs}` : PORT_OF_CALL_FORM_02_BASE_PATH;
+  return `${PORT_OF_CALL_FORM_02_BASE_PATH}?${qs}`;
 }

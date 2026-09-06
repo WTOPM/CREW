@@ -12,6 +12,7 @@ import {
   portCountry,
 } from '../models/crew.models';
 import { crewListPdfFileName, passengerListPdfFileName } from '../utils/pdf-filename.util';
+import { voyageDateByArrivalFlag } from '../utils/voyage-date.util';
 import { PassengerMember, PASSENGER_IDENTITY_DOCUMENT } from '../models/passenger.models';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
 import { openPdfPreview } from '../utils/pdf-download.util';
@@ -124,7 +125,7 @@ export class PdfCrewArrService {
 
   async openPassengerPreview(data: AppData, passengers: PassengerMember[]): Promise<boolean> {
     const { ship, paxArr } = data;
-    const voyageDate = paxArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const voyageDate = voyageDateByArrivalFlag(ship, paxArr.isArrival);
     const pdfData: AppData = {
       ...data,
       crewArr: {
@@ -143,7 +144,7 @@ export class PdfCrewArrService {
   fileName(data: AppData, options?: CrewListPdfOptions): string {
     if (options?.fileName) return options.fileName;
     const { ship, crewArr } = data;
-    const voyageDate = crewArr.isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const voyageDate = voyageDateByArrivalFlag(ship, crewArr.isArrival);
     return crewListPdfFileName(ship.name, ship.portOfCall, voyageDate, crewArr.isArrival);
   }
 

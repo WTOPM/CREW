@@ -29,6 +29,7 @@ import {
   pdfFileDate,
   pdfFileToken,
 } from '../utils/pdf-filename.util';
+import { voyageDateByArrivalFlag } from '../utils/voyage-date.util';
 import { StorageService } from './storage.service';
 import { CREW_LIST_ROW_COUNT } from './crew-list-coordinates';
 import { CrewListHtmlFormExcelService } from './crew-list-html-form-excel.service';
@@ -103,7 +104,7 @@ export class CrewListExcelService {
   private fileName(base: AppData, listType: CrewListTypeId): string {
     const { ship, crewArr } = base;
     const isArrival = crewArr.isArrival;
-    const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const voyageDate = voyageDateByArrivalFlag(ship, isArrival);
     const pdfName = (() => {
       switch (listType) {
         case 'type1Passport':
@@ -127,7 +128,7 @@ export class CrewListExcelService {
   private type1PdfFileName(base: AppData, listType: CrewListTypeId): string {
     const { ship, crewArr } = base;
     const isArrival = crewArr.isArrival;
-    const voyageDate = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const voyageDate = voyageDateByArrivalFlag(ship, isArrival);
     const typeToken = pdfFileToken(listType === 'type1SeamansBook' ? 'SeamansBook' : 'Passport');
     const dirToken = isArrival ? 'Arrival' : 'Departure';
     return `Crew_List_${typeToken}_${dirToken}_${pdfFileToken(ship.name)}_${pdfFileToken(ship.portOfCall)}_${pdfFileDate(voyageDate)}.pdf`;

@@ -21,6 +21,8 @@ const CONTAINER_COLUMNS = new Set<DgUnifeederSortColumn>([
   'containerNo',
   'loadPort',
   'dischargePort',
+  'loadTerminal',
+  'dischargeTerminal',
 ]);
 
 function compareText(a: string, b: string): number {

@@ -3,6 +3,7 @@ import { AppData } from '../models/crew.models';
 import { crewEffectForm02EditorUrl } from '../models/crew-effect-form-02.paths';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { crewEffect02PdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import { captureHtmlFormPdfBytes } from '../utils/html-form-pdf-capture.util';
 import { buildCrewEffect02HtmlPdfSnapshot } from '../utils/crew-effect-02-html-pdf.util';
 
@@ -28,7 +29,7 @@ export class PdfCrewEffect02Service {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return crewEffect02PdfFileName(ship.name, voyageDate);
   }
 

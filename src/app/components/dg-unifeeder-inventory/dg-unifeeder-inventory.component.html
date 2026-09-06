@@ -14,7 +14,7 @@
           (dragover)="onUnifeederDragOver($event)"
           (dragleave)="onUnifeederDragLeave()"
           (drop)="onUnifeederDrop($event)"
-          title="Drop PDF or Excel manifest"
+          title="Drop PDF manifest or Dagos positions"
         >
           <input
             #unifeederExcelFile
@@ -70,7 +70,7 @@
             }
           </ul>
         } @else {
-          <p class="uf-import-hint">Drop PDF manifest — up to 6 per row</p>
+          <p class="uf-import-hint">Drop PDF manifest or Dagos positions</p>
         }
       </div>
     </section>
@@ -138,6 +138,17 @@
               (ngModelChange)="toggleUnifeederShowDischarged($event)"
             />
             <span>Discharged</span>
+          </label>
+          <label
+            class="uf-toggle"
+            title="Show matched terminal abbrevs in POL/POD instead of port names"
+          >
+            <input
+              type="checkbox"
+              [ngModel]="unifeederLibrary().showByTerminals"
+              (ngModelChange)="toggleUnifeederShowByTerminals($event)"
+            />
+            <span>By terminals</span>
           </label>
           <label
             class="uf-toggle"
@@ -341,10 +352,10 @@
               [class.dg-sort-th--desc]="
                 unifeederSortColumn() === 'loadPort' && unifeederSortDirection() === 'desc'
               "
-              title="Sort by POL"
+              [title]="unifeederLibrary().showByTerminals ? 'Sort by load terminal' : 'Sort by POL'"
               (click)="toggleUnifeederInventorySort('loadPort')"
             >
-              POL
+              {{ unifeederLibrary().showByTerminals ? 'POL term' : 'POL' }}
             </th>
             <th
               class="uf-pod dg-sort-th"
@@ -352,10 +363,12 @@
               [class.dg-sort-th--desc]="
                 unifeederSortColumn() === 'dischargePort' && unifeederSortDirection() === 'desc'
               "
-              title="Sort by POD"
+              [title]="
+                unifeederLibrary().showByTerminals ? 'Sort by discharge terminal' : 'Sort by POD'
+              "
               (click)="toggleUnifeederInventorySort('dischargePort')"
             >
-              POD
+              {{ unifeederLibrary().showByTerminals ? 'POD term' : 'POD' }}
             </th>
             <th
               class="uf-un dg-sort-th dg-th--group-start"
@@ -588,14 +601,24 @@
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
-                    <div class="dg-cell-port-select">
-                      <app-port-select
-                        [ports]="ports()"
-                        [value]="container.loadPort"
-                        [compact]="true"
-                        (valueChange)="onUnifeederContainerChange(container, 'loadPort', $event)"
+                    @if (unifeederLibrary().showByTerminals) {
+                      <input
+                        class="dg-cell-input dg-cell-input--mono"
+                        [ngModel]="container.loadTerminal"
+                        (ngModelChange)="
+                          onUnifeederContainerChange(container, 'loadTerminal', $event)
+                        "
                       />
-                    </div>
+                    } @else {
+                      <div class="dg-cell-port-select">
+                        <app-port-select
+                          [ports]="ports()"
+                          [value]="container.loadPort"
+                          [compact]="true"
+                          (valueChange)="onUnifeederContainerChange(container, 'loadPort', $event)"
+                        />
+                      </div>
+                    }
                   </td>
                   <td
                     class="uf-group"
@@ -603,16 +626,26 @@
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
-                    <div class="dg-cell-port-select">
-                      <app-port-select
-                        [ports]="ports()"
-                        [value]="container.dischargePort"
-                        [compact]="true"
-                        (valueChange)="
-                          onUnifeederContainerChange(container, 'dischargePort', $event)
+                    @if (unifeederLibrary().showByTerminals) {
+                      <input
+                        class="dg-cell-input dg-cell-input--mono"
+                        [ngModel]="container.dischargeTerminal"
+                        (ngModelChange)="
+                          onUnifeederContainerChange(container, 'dischargeTerminal', $event)
                         "
                       />
-                    </div>
+                    } @else {
+                      <div class="dg-cell-port-select">
+                        <app-port-select
+                          [ports]="ports()"
+                          [value]="container.dischargePort"
+                          [compact]="true"
+                          (valueChange)="
+                            onUnifeederContainerChange(container, 'dischargePort', $event)
+                          "
+                        />
+                      </div>
+                    }
                   </td>
                 }
                 <td class="uf-cargo">

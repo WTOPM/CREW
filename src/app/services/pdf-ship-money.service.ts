@@ -14,6 +14,7 @@ import {
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { shipMoneyPdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import {
   SHIP_MONEY_AMOUNT_MAX_WIDTH,
   SHIP_MONEY_AMOUNT_X,
@@ -48,7 +49,7 @@ export class PdfShipMoneyService {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return shipMoneyPdfFileName(ship.name, voyageDate);
   }
 

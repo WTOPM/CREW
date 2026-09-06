@@ -160,12 +160,15 @@ export function buildPocSecurityFormLayout(ws: ExcelJS.Worksheet): PocSecurityEx
   merge(ws, headerValue2, 2, headerValue2, 3);
   merge(ws, headerValue2, 4, headerValue2, POC_SECURITY_COLS);
 
-  const heads = ['Port', 'Country', 'Code', 'Arrival date', 'Departure date', 'SEC. LVL'];
+  const heads = ['NAME OF PORT & COUNTRY', '', 'LOCODE', 'Date of Arrival', 'Date of Departure', 'SEC. LVL.'];
+  merge(ws, tableHead, 1, tableHead, 2);
   heads.forEach((label, i) => {
+    if (i === 1) return;
     const cell = ws.getCell(tableHead, i + 1);
     cell.value = label;
-    styleTableHead(cell, i >= 3 ? 'center' : 'left');
+    styleTableHead(cell, i >= 3 ? 'center' : 'center');
   });
+  styleTableHead(ws.getCell(tableHead, 2), 'center');
 
   ws.getRow(formTop).height = 18;
   ws.getRow(headerValue1).height = 20;

@@ -231,9 +231,67 @@ body {
   border: 2px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 0 0 auto; /* hug rows — do not stretch empty space to page bottom */
   min-height: 0;
   overflow: hidden;
+  --crew-row-h: 5.8mm;
+}
+
+/* Fixed-row form: shared textarea.ci min-height:var(--crew-row-h) is for growing
+   tables (Form 04). Here it must not force every cell to full row height. */
+.imo-table .table-body textarea.ci {
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  field-sizing: fixed;
+  overflow: hidden;
+  line-height: 1.15;
+}
+
+.imo-table .td-cell.ch-birth {
+  align-items: stretch;
+  padding: 0;
+}
+
+/* Birth = date | place side-by-side (shared .ci-birth-split in editor-chrome).
+   Do NOT stack vertically — that crushes both lines in a fixed row. */
+.imo-table .ci-birth-split {
+  display: grid !important;
+  grid-template-columns: minmax(0, 38%) minmax(0, 62%);
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  align-self: stretch;
+}
+
+.imo-table .ci-birth-split::before {
+  left: 38%;
+}
+
+.imo-table .ci-birth-split > .ci {
+  flex: none;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 0 0.5mm !important;
+  font-size: 5.5pt;
+  line-height: 1.15;
+  overflow: hidden;
+}
+
+.imo-table .ci-birth-split > .ci-birth-date {
+  grid-column: 1;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.imo-table .ci-birth-split > .ci-birth-place {
+  grid-column: 2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding-left: 1mm !important;
 }
 
 /* ── Header zone: fieldhead + col headers + vertical labels (grid) ── */
@@ -310,23 +368,47 @@ body {
 .fh-name.field-box,
 .fh-nat.field-box {
   position: relative;
-  justify-content: center;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
   height: 100%;
+  box-sizing: border-box;
 }
 
+/* Label in normal flow — never overlap the ship name / nationality value. */
 .fh-name .lbl-row,
 .fh-nat .lbl-row {
-  position: absolute;
-  top: 3px;
-  left: 5px;
-  right: 5px;
+  position: static;
+  flex: 0 0 auto;
+  padding: 2px 5px 0;
+  z-index: 1;
 }
 
 .fh-name .cell-input,
-.fh-nat .cell-input {
+.fh-nat .cell-input,
+.fh-name .fi,
+.fh-nat .fi {
+  flex: 1 1 auto;
   margin-top: 0;
+  width: 100%;
+  min-height: 0;
   text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  align-self: stretch;
+}
+
+/* PDF flatten turns inputs into divs — center value in the remaining cell. */
+body.is-pdf-export .fh-name .cell-input,
+body.is-pdf-export .fh-nat .cell-input,
+body.is-pdf-export .fh-name .fi,
+body.is-pdf-export .fh-nat .fi {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  flex: 1 1 auto;
 }
 
 .field-box {
@@ -466,19 +548,23 @@ body {
 .table-body {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
 }
 
 .table-row {
   display: flex;
-  flex: 1;
+  flex: 0 0 var(--crew-row-h, 5.5mm);
+  height: var(--crew-row-h, 5.5mm);
+  min-height: var(--crew-row-h, 5.5mm);
+  max-height: var(--crew-row-h, 5.5mm);
   border-bottom: 1px dotted #ccc;
-  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .table-row:last-child {
-  border-bottom: none;
+  border-bottom: none; /* outer .imo-table border closes the grid */
 }
 
 .td-cell {

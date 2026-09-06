@@ -15,6 +15,7 @@ import {
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { formatDisplayDate } from '../utils/date.util';
 import { narcoticListPdfFileName } from '../utils/pdf-filename.util';
+import { arrivalVoyageDate } from '../utils/voyage-date.util';
 import {
   NARCOTIC_LIST_COL,
   NARCOTIC_LIST_FIELDS,
@@ -47,7 +48,7 @@ export class PdfNarcoticListService {
 
   fileName(data: AppData): string {
     const { ship } = data;
-    const voyageDate = ship.dateOfArrival || ship.dateOfDeparture;
+    const voyageDate = arrivalVoyageDate(ship);
     return narcoticListPdfFileName(ship.name, voyageDate);
   }
 

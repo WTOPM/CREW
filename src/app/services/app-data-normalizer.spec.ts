@@ -217,6 +217,37 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
     expect(overlay.cellValues).toEqual({ 'h-pageNo': '1' });
   });
 
+  it('preserves Port of Call HTML overlay CSS boxes (01 + 02)', () => {
+    const stampBox = { left: '112mm', top: '228mm', width: '70mm', height: '27mm' };
+    const signatureBox = { left: '112mm', top: '256mm', width: '55mm', height: '12mm' };
+    const data = normalizeAppData({
+      documentOverlay: {
+        portOfCall: {
+          useStamp: true,
+          useSignature: true,
+          stampBox,
+          signatureBox,
+          rowsPerPage: 12,
+          cellValues: { 'h-0-0': 'TEST' },
+        },
+        portsOfCall: {
+          useStamp: true,
+          useSignature: false,
+          stampBox,
+          rowsPerPage: 10,
+        },
+      },
+    } as never);
+
+    expect(data.documentOverlay.portOfCall.useStamp).toBe(true);
+    expect(data.documentOverlay.portOfCall.stampBox).toEqual(stampBox);
+    expect(data.documentOverlay.portOfCall.signatureBox).toEqual(signatureBox);
+    expect(data.documentOverlay.portOfCall.cellValues).toEqual({ 'h-0-0': 'TEST' });
+    expect(data.documentOverlay.portsOfCall.useStamp).toBe(true);
+    expect(data.documentOverlay.portsOfCall.stampBox).toEqual(stampBox);
+    expect(data.documentOverlay.portsOfCall.rowsPerPage).toBe(10);
+  });
+
   it('preserves HTML list overlay cellValues (AA/Aa text overrides)', () => {
     const data = normalizeAppData({
       documentOverlay: {

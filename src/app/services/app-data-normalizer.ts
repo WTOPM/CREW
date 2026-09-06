@@ -73,6 +73,7 @@ import { normalizeEtaLibrary } from '../models/eta.models';
 import {
   isCrewListForm05CssBox,
   normalizeCrewListDocumentPrefs,
+  normalizeTableRowCount,
   type CrewEffectHtmlFormStampOptions,
   type PaxHtmlFormStampOptions,
   type PortOfCallHtmlFormStampOptions,
@@ -282,10 +283,15 @@ function dedupePorts(raw: unknown[]): Port[] {
     } else if (p && typeof p === 'object' && 'name' in p) {
       const port = p as Port;
       if (port.name) {
+        const timeZone =
+          typeof port.timeZone === 'string' && port.timeZone.trim()
+            ? port.timeZone.trim()
+            : undefined;
         map.set(port.name.toLowerCase(), {
           name: port.name,
           code: port.code || '',
           country: port.country || '',
+          ...(timeZone ? { timeZone } : {}),
           terminals: normalizePortTerminals(port.terminals),
         });
       }
@@ -545,6 +551,10 @@ function normalizePaxHtmlFormPrefs(
   }
   if (isCrewListForm05CssBox(raw?.signatureBox)) {
     out.signatureBox = raw.signatureBox;
+  }
+  const tableRowCount = normalizeTableRowCount(raw?.tableRowCount);
+  if (tableRowCount != null) {
+    out.tableRowCount = tableRowCount;
   }
   return out;
 }

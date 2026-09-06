@@ -111,14 +111,24 @@ textarea.ci {
  * textarea wraps and the row grows, dates/expiry sit lower than neighbouring
  * text — HTML no longer matches the flattened PDF. Keep inputs content-sized
  * and let td vertical-align:middle match PDF flex-centering.
+ *
+ * Exception: .ci-birth-split stacks date + place in one cell — do NOT force
+ * the date input to a full --crew-row-h (that overlaps place on fixed-row forms).
  */
 .crew-tbl tbody td > input.ci,
-.crew-table tbody td > input.ci,
-.ci-birth-split > input.ci {
+.crew-table tbody td > input.ci {
   height: auto !important;
   min-height: var(--crew-row-h, 5mm);
   max-height: none;
   align-self: center;
+  box-sizing: border-box;
+}
+
+.ci-birth-split > input.ci {
+  height: auto !important;
+  min-height: 0;
+  max-height: none;
+  align-self: stretch;
   box-sizing: border-box;
 }
 

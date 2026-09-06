@@ -83,9 +83,12 @@
 
   function defaultSignatureCss() {
     const stamp = defaultStampCss();
+    // Absolute mm (not calc) so restore/save never depend on computed layout.
+    const stampTop = parseFloat(String(stamp.top)) || 228;
+    const stampH = parseFloat(String(stamp.height)) || 27;
     return {
       left: stamp.left,
-      top: `calc(${stamp.top} + ${stamp.height} + 1mm)`,
+      top: `${(stampTop + stampH + 1).toFixed(2)}mm`,
       width: '55mm',
       height: '12mm',
     };
@@ -151,9 +154,8 @@
 
     const stampEl = pageEl.querySelector('#stamp-container') || pageEl.querySelector('.poc-stamp');
     const sigEl = pageEl.querySelector('#sig-container') || pageEl.querySelector('.poc-signature');
-    if (!stampEl || !sigEl) return;
 
-    if (opts.useStamp) {
+    if (opts.useStamp && stampEl) {
       const url = await loadAsset('stamp');
       if (url) {
         stampEl.classList.add('visible');
@@ -162,7 +164,7 @@
       }
     }
 
-    if (opts.useSignature) {
+    if (opts.useSignature && sigEl) {
       const url = await loadAsset('signature');
       if (url) {
         sigEl.classList.add('visible');

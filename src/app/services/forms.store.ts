@@ -49,6 +49,11 @@ import {
   type NarcoticMedicineEntry,
 } from '../models/narcotic-list.models';
 import { normalizePortOfCallSettings } from './app-data-normalizer';
+import {
+  buildShipStoresCopy,
+  readEffectiveShipStoresForm,
+  type ShipStoresCopyStats,
+} from '../utils/ship-stores-sync.util';
 import { AppStateStore } from './app-state.store';
 
 @Injectable({ providedIn: 'root' })
@@ -151,6 +156,42 @@ export class FormsStore {
 
   updateShipStoresPlaceOfStorage(docId: ShipStoresDocId, placeOfStorage: string): void {
     this.patchShipStoresForm(docId, { placeOfStorage });
+  }
+
+  /**
+   * Copy articles + place of storage from one Ship Stores variant to another.
+   * Overlapping row range only; overflow articles are skipped (see stats).
+   * Clears target HTML overlay article cells so PDF/editor follow synced rows.
+   */
+  copyShipStoresForm(from: ShipStoresDocId, to: ShipStoresDocId): ShipStoresCopyStats | null {
+    if (from === to) return null;
+    let stats: ShipStoresCopyStats | null = null;
+    this.data.update((d) => {
+      const source = readEffectiveShipStoresForm(d, from);
+      const targetHasHtmlCells = to === 'shipStores' || to === 'shipStores02';
+      const existingCv = targetHasHtmlCells
+        ? (d.documentOverlay[to] as { cellValues?: Record<string, string> }).cellValues
+        : undefined;
+      const built = buildShipStoresCopy(source, from, to, existingCv);
+      stats = built.stats;
+      const field = shipStoresFormField(to);
+      if (!targetHasHtmlCells) {
+        return { ...d, [field]: built.form };
+      }
+      return {
+        ...d,
+        [field]: built.form,
+        documentOverlay: {
+          ...d.documentOverlay,
+          [to]: {
+            ...d.documentOverlay[to],
+            cellValues: built.cellValues,
+          },
+        },
+      };
+    });
+    void this.state.persist('silent');
+    return stats;
   }
 
   updateCrewEffectForm(

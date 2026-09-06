@@ -61,6 +61,8 @@ export interface Port {
   code: string;
   /** Country name for Port of Call form (e.g. ITALY). */
   country?: string;
+  /** Optional IANA timezone (e.g. Europe/Rome) for ETA UTC autofill. */
+  timeZone?: string;
   /** Optional terminals at this port (user-managed; not used elsewhere yet). */
   terminals?: PortTerminal[];
 }
@@ -1068,6 +1070,9 @@ export function mergePorts(existing: Port[], ...refs: (string | Port | undefined
         name: resolved.name,
         code: resolved.code || prev?.code || '',
         country: resolved.country || prev?.country || '',
+        ...(resolved.timeZone || prev?.timeZone
+          ? { timeZone: resolved.timeZone || prev?.timeZone }
+          : {}),
         terminals: normalizePortTerminals(prev?.terminals ?? []),
       });
     } else if (ref.name) {
@@ -1077,6 +1082,7 @@ export function mergePorts(existing: Port[], ...refs: (string | Port | undefined
         name: ref.name,
         code: ref.code || prev?.code || '',
         country: ref.country || prev?.country || '',
+        ...(ref.timeZone || prev?.timeZone ? { timeZone: ref.timeZone || prev?.timeZone } : {}),
         terminals: normalizePortTerminals(ref.terminals ?? prev?.terminals ?? []),
       });
     }

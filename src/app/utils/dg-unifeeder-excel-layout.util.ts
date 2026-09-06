@@ -9,6 +9,7 @@ import {
   unifeederExportTotalKg,
   unifeederExportWeightKg,
 } from './dg-unifeeder-weight.util';
+import { mergeUnifeederRowsInContainersWithMeta } from './dg-unifeeder-merge.util';
 import { type DgWeightViewOptions } from './dg-weight-view.util';
 import { workbookToBytes } from './crew-list-excel-layout.util';
 
@@ -16,6 +17,8 @@ export interface UnifeederDgExcelExportOptions {
   useGrossWeight?: boolean;
   roundWeights?: boolean;
   mergeLines?: boolean;
+  /** POL/POD values = terminal abbrevs when true (headers unchanged). */
+  showByTerminals?: boolean;
   /** @deprecated Use roundWeights */
   grossTotalKg?: boolean;
 }
@@ -177,6 +180,20 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
     if (fromName) return fromName;
   }
   return trimmed;
+}
+
+/** POL/POD cell — port UN/LOCODE, or terminal abbrev when “By terminals” is on. */
+function resolvePolPodExportValue(
+  row: DgUnifeederRow,
+  which: 'load' | 'discharge',
+  ports: readonly Port[],
+  showByTerminals: boolean,
+): string {
+  if (showByTerminals) {
+    const term = (which === 'load' ? row.loadTerminal : row.dischargeTerminal).trim();
+    if (term) return term.toUpperCase();
+  }
+  return resolvePortLabel(which === 'load' ? row.loadPort : row.dischargePort, ports);
 }
 
 function formatAmountKgValue(
@@ -347,8 +364,13 @@ function formatMfagPages(fireSchedule: string, spillageSchedule: string): string
   return [fireSchedule.trim(), spillageSchedule.trim()].filter(Boolean).join(' ');
 }
 
-function prepareExportRows(rows: readonly DgUnifeederRow[]): DgUnifeederRow[] {
-  return rows.filter((row) => row.containerNo.trim());
+function prepareExportRows(
+  rows: readonly DgUnifeederRow[],
+  mergeLines: boolean,
+  useGrossWeight: boolean,
+): DgUnifeederRow[] {
+  const withContainers = rows.filter((row) => row.containerNo.trim());
+  return mergeUnifeederRowsInContainersWithMeta(withContainers, mergeLines, useGrossWeight).rows;
 }
 
 const LOGO_COL_END = 2;
@@ -509,6 +531,7 @@ function writeDataRow(
   data: DgUnifeederRow | undefined,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
+  showByTerminals: boolean,
 ): void {
   const thinAll = { top: thinEdge, left: thinEdge, bottom: thinEdge, right: thinEdge };
   const bodyFont = { name: ARIAL, size: 10, bold: true };
@@ -530,11 +553,11 @@ function writeDataRow(
     { col: 6, value: data?.containerNo ?? '', align: { horizontal: 'left', vertical: 'middle' } },
     {
       col: 7,
-      value: data ? resolvePortLabel(data.loadPort, ports) : '',
+      value: data ? resolvePolPodExportValue(data, 'load', ports, showByTerminals) : '',
     },
     {
       col: 8,
-      value: data ? resolvePortLabel(data.dischargePort, ports) : '',
+      value: data ? resolvePolPodExportValue(data, 'discharge', ports, showByTerminals) : '',
     },
     {
       col: 9,
@@ -566,6 +589,7 @@ function buildPageDataRows(
   pageRows: readonly (DgUnifeederRow | undefined)[],
   ports: readonly Port[],
   exportWeights: Map<string, number>,
+  showByTerminals: boolean,
 ): void {
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
     writeDataRow(
@@ -574,6 +598,7 @@ function buildPageDataRows(
       pageRows[i],
       ports,
       exportWeights,
+      showByTerminals,
     );
   }
 }
@@ -621,11 +646,11 @@ function buildPageBlock(
   ctx: DgPageContext,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  options: { showTotal: boolean; totalKg: number },
+  options: { showTotal: boolean; totalKg: number; showByTerminals: boolean },
 ): void {
   buildHeaderBlock(ws, pageStart, pageNumber, ship, ctx, ports);
   buildTableHeader(ws, pageStart);
-  buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights);
+  buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights, options.showByTerminals);
   if (pageRows.every((row) => !row)) {
     writeNoImdgCargoExcel(ws, pageStart);
   }
@@ -671,15 +696,26 @@ export async function buildUnifeederDgListExcelBytes(
   options: UnifeederDgExcelExportOptions = {},
 ): Promise<Uint8Array> {
   const weightOptions = resolveUnifeederExportOptions(options);
+  const showByTerminals = options.showByTerminals === true;
   const wb = new ExcelJS.Workbook();
   wb.creator = 'CREW Documents';
   const ws = wb.addWorksheet(UNIFEEDER_DG_EXCEL_SHEET);
   applyColumnWidths(ws);
 
-  const exportRows = prepareExportRows(rows);
-  const exportWeights = unifeederExportWeightKg(exportRows, weightOptions);
+  const exportRows = prepareExportRows(
+    rows,
+    weightOptions.mergeLines !== false,
+    weightOptions.useGrossWeight !== false,
+  );
+  const exportWeights = unifeederExportWeightKg(exportRows, {
+    ...weightOptions,
+    mergeLines: false,
+  });
   const pageCount = exportPageCount(exportRows.length);
-  const totalKg = unifeederExportTotalKg(exportRows, weightOptions);
+  const totalKg = unifeederExportTotalKg(exportRows, {
+    ...weightOptions,
+    mergeLines: false,
+  });
 
   for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
     const pageStart = pageIndex * PAGE_HEIGHT + 1;
@@ -695,6 +731,7 @@ export async function buildUnifeederDgListExcelBytes(
       {
         showTotal: pageIndex === pageCount - 1,
         totalKg,
+        showByTerminals,
       },
     );
     if (pageIndex < pageCount - 1) {
