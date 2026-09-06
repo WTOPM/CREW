@@ -144,30 +144,30 @@ let pdfJsModule: Promise<PdfJsModule> | null = null;
 
 const PDFJS_WORKER_FILE = 'pdf.worker.min.mjs';
 
-/** Resolve worker URL (base href may be relative, e.g. ./ in Electron). */
+/**
+ * Resolve the pdf.js worker URL at the app root.
+ *
+ * Electron portable builds use `baseHref: "./"` with PathLocationStrategy, so on
+ * a deep route like `/dg/reference` a relative base resolves to `…/dg/` and the
+ * worker fetch becomes `app://local/dg/pdf.worker.min.mjs` (404). The worker is
+ * always copied next to `index.html`, so pin it to the origin root.
+ */
 function pdfWorkerSrc(): string {
-  const baseEl = document.querySelector('base');
-  if (baseEl?.href) {
-    try {
-      return new URL(PDFJS_WORKER_FILE, baseEl.href).href;
-    } catch {
-      /* fall through */
-    }
+  try {
+    return new URL(`/${PDFJS_WORKER_FILE}`, `${window.location.origin}/`).href;
+  } catch {
+    return `${window.location.origin}/${PDFJS_WORKER_FILE}`;
   }
-
-  const path = window.location.pathname.replace(/\/[^/]*$/, '/');
-  const root = `${window.location.origin}${path}`;
-  return new URL(PDFJS_WORKER_FILE, root).href;
 }
 
 async function loadPdfJs(): Promise<PdfJsModule> {
   if (!pdfJsModule) {
-    pdfJsModule = import('pdfjs-dist').then((pdfjs) => {
-      pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc();
-      return pdfjs;
-    });
+    pdfJsModule = import('pdfjs-dist');
   }
-  return pdfJsModule;
+  const pdfjs = await pdfJsModule;
+  // Re-apply on every call — the first import may have happened on a deep route.
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerSrc();
+  return pdfjs;
 }
 
 /** Shared pdf.js loader with worker configured (browser / Electron). */
