@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { sanitizePathSegment } from '../utils/package-save-path.util';
 
 export interface SavedFolder {
   id: string;
@@ -110,28 +111,49 @@ export class FolderAccessService {
     }
   }
 
-  /** Does a file with this name already exist in the active folder? */
-  async fileExists(fileName: string): Promise<boolean> {
-    const handle = this.handles.get(this.activeId());
-    if (!handle) return false;
+  /** Does a file with this name already exist in the active folder (optional subdir). */
+  async fileExists(fileName: string, subdir?: string): Promise<boolean> {
+    const root = this.handles.get(this.activeId());
+    if (!root) return false;
     try {
-      await handle.getFileHandle(fileName);
+      const dir = await this.resolveDir(root, subdir, false);
+      if (!dir) return false;
+      await dir.getFileHandle(fileName);
       return true;
     } catch {
       return false;
     }
   }
 
-  /** Write bytes into the active folder; returns "<folder>/<file>". */
-  async write(fileName: string, bytes: Uint8Array): Promise<string> {
-    const handle = this.handles.get(this.activeId());
-    if (!handle) throw new Error('No folder selected');
-    if (!(await this.ensurePermission(handle))) throw new Error('Folder permission denied');
-    const fileHandle = await handle.getFileHandle(fileName, { create: true });
+  /** Write bytes into the active folder (optional authority subdir); returns path label. */
+  async write(fileName: string, bytes: Uint8Array, subdir?: string): Promise<string> {
+    const root = this.handles.get(this.activeId());
+    if (!root) throw new Error('No folder selected');
+    if (!(await this.ensurePermission(root))) throw new Error('Folder permission denied');
+    const dir = await this.resolveDir(root, subdir, true);
+    if (!dir) throw new Error('Could not open output folder');
+    const fileHandle = await dir.getFileHandle(fileName, { create: true });
     const writable = await fileHandle.createWritable();
     await writable.write(new Blob([bytes.slice()], { type: 'application/pdf' }));
     await writable.close();
-    return `${handle.name}/${fileName}`;
+    const folderLabel = subdir?.trim()
+      ? `${root.name}/${sanitizePathSegment(subdir)}`
+      : root.name;
+    return `${folderLabel}/${fileName}`;
+  }
+
+  private async resolveDir(
+    root: FileSystemDirectoryHandle,
+    subdir: string | undefined,
+    create: boolean,
+  ): Promise<FileSystemDirectoryHandle | null> {
+    if (!subdir?.trim()) return root;
+    const name = sanitizePathSegment(subdir);
+    try {
+      return await root.getDirectoryHandle(name, create ? { create: true } : undefined);
+    } catch {
+      return null;
+    }
   }
 
   private async ensurePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {

@@ -109,6 +109,10 @@ export interface ShipInfo {
   waterTestDate: string;
   grossTonnage: string;
   netTonnage: string;
+  /** Height keel → mast top, metres (Airdraft / canal clearance). */
+  heightKeelToMastTop: string;
+  /** Maximum present draught, metres. */
+  maximumPresentDraft: string;
   dateOfArrival: string;
   dateOfDeparture: string;
   portOfCall: string;
@@ -168,6 +172,8 @@ export const SHIP_FIELD_UPDATED_MESSAGES: Partial<Record<keyof ShipInfo, string>
   waterTestDate: 'Water test date updated',
   grossTonnage: 'Gross tonnage updated',
   netTonnage: 'Net tonnage updated',
+  heightKeelToMastTop: 'Height (keel–mast) updated',
+  maximumPresentDraft: 'Maximum present draft updated',
 };
 
 export function shipFieldUpdatedMessage(field: keyof ShipInfo): string {
@@ -616,7 +622,7 @@ export interface PortPackageItem {
 export interface PortAuthority {
   name: string;
   items: PortPackageItem[];
-  /** When false, excluded from Print all in the top bar (per-authority Print still works). */
+  /** When false, excluded from Print all in the top bar. Open all still includes this authority. */
   includeInPrint?: boolean;
 }
 
@@ -695,6 +701,8 @@ export function createEmptyShip(): ShipInfo {
     waterTestDate: '',
     grossTonnage: '',
     netTonnage: '',
+    heightKeelToMastTop: '',
+    maximumPresentDraft: '',
     dateOfArrival: '',
     dateOfDeparture: '',
     portOfCall: '',

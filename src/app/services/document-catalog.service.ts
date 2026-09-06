@@ -28,6 +28,7 @@ import { PdfCrewMoneyListService } from './pdf-crew-money-list.service';
 import { PdfNarcoticListService } from './pdf-narcotic-list.service';
 import { PdfMdhService } from './pdf-mdh.service';
 import { PdfCrewVaccineService } from './pdf-crew-vaccine.service';
+import { PdfAirdraftService } from './pdf-airdraft.service';
 import {
   buildPackageCatalog,
   packageCatalogLabelForId,
@@ -74,6 +75,7 @@ export class DocumentCatalogService {
   private readonly narcotic = inject(PdfNarcoticListService);
   private readonly mdh = inject(PdfMdhService);
   private readonly crewVaccine = inject(PdfCrewVaccineService);
+  private readonly airdraft = inject(PdfAirdraftService);
 
   /** Selectable documents: built-ins plus user-uploaded PDFs. */
   available(): CatalogDocument[] {
@@ -198,6 +200,11 @@ export class DocumentCatalogService {
         return {
           bytes: await this.crewVaccine.buildFinalBytes(base),
           fileName: this.crewVaccine.fileName(base),
+        };
+      case 'airdraft':
+        return {
+          bytes: await this.airdraft.buildFinalBytes(base),
+          fileName: this.airdraft.fileName(base),
         };
       default:
         throw new Error(`Unknown document: ${id}`);

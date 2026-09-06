@@ -1,10 +1,16 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { PortPackageItem } from '../models/crew.models';
+import { fileNameWithCopyCount } from '../utils/package-save-path.util';
 import { StorageService } from './storage.service';
 import { DocumentCatalogService } from './document-catalog.service';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { ToastService } from './toast.service';
 import { uint8ToBase64 } from '../utils/base64.util';
+
+interface AuthorityOpenGroup {
+  name: string;
+  items: PortPackageItem[];
+}
 
 /**
  * Runs the document package for the current Port of Call:
@@ -42,18 +48,27 @@ export class PackageRunnerService {
     () => this.currentPrintItems().filter((it) => it.documentId.trim()).length,
   );
 
-  /** Hover summary for the current port: per-authority lines + summed totals. */
+  /**
+   * Click panel summary for the current port: every authority (unchecked = open-only / gray),
+   * plus print totals for authorities included in Print all.
+   */
   readonly currentBreakdown = computed(() => {
     const pkg = this.currentPackage();
     if (!pkg || pkg.authorities.length === 0) return null;
-    const authorities = pkg.authorities
-      .filter((a) => a.includeInPrint !== false)
-      .map((a) => ({
+    const authorities = pkg.authorities.map((a) => {
+      const includeInPrint = a.includeInPrint !== false;
+      const runnable = a.items.filter((it) => it.documentId.trim());
+      return {
         name: a.name?.trim() || '(unnamed)',
-        items: a.items
-          .filter((it) => it.documentId.trim())
-          .map((it) => ({ label: this.catalog.label(it.documentId), copies: it.copies })),
-      }));
+        includeInPrint,
+        items: runnable.map((it) => ({
+          label: this.catalog.label(it.documentId),
+          copies: it.copies,
+          includeInPrint,
+        })),
+        packageItems: runnable,
+      };
+    });
     const totals = new Map<string, number>();
     for (const a of pkg.authorities) {
       if (a.includeInPrint === false) continue;
@@ -69,39 +84,94 @@ export class PackageRunnerService {
     return { authorities, summary };
   });
 
-  /** Open all documents of the current port (authorities included in Print all). */
+  /** Open every document of the current port (ignores Print-all checkbox). */
   openAll(): Promise<void> {
-    return this.openItems(this.currentPrintItems());
+    const pkg = this.currentPackage();
+    if (!pkg) return Promise.resolve();
+    const groups: AuthorityOpenGroup[] = pkg.authorities.map((a) => ({
+      name: a.name?.trim() || 'Authority',
+      items: a.items.filter((it) => it.documentId.trim()),
+    }));
+    return this.openAuthorityGroups(groups);
   }
 
-  /** Print all documents of the current port (every enabled authority). */
+  /** Print documents from authorities included in Print all. */
   printAll(): Promise<void> {
     return this.printItems(this.currentPrintItems());
   }
 
-  async openItems(items: PortPackageItem[]): Promise<void> {
-    const ids = this.uniqueEnabledIds(items);
-    if (ids.length === 0 || this.busy()) return;
+  /**
+   * Open documents for one authority (panel / settings).
+   * When Save-to-folder is on, files go into that authority's subfolder with `_xN` copy suffix.
+   */
+  openItems(items: PortPackageItem[], authorityName = 'Authority'): Promise<void> {
+    return this.openAuthorityGroups([{ name: authorityName, items }]);
+  }
+
+  private async openAuthorityGroups(groups: AuthorityOpenGroup[]): Promise<void> {
+    if (this.busy()) return;
+    const enabled = this.enabledIds();
+    const openOrder: string[] = [];
+    const seen = new Set<string>();
+    for (const group of groups) {
+      for (const item of group.items) {
+        const id = item.documentId.trim();
+        if (!id) continue;
+        if (!enabled.has(id)) {
+          this.skip(id);
+          continue;
+        }
+        if (!seen.has(id)) {
+          seen.add(id);
+          openOrder.push(id);
+        }
+      }
+    }
+    if (openOrder.length === 0) return;
+
     this.busy.set(true);
-    let ok = 0;
+    const cache = new Map<string, { bytes: Uint8Array; fileName: string }>();
+    let opened = 0;
     let saved = 0;
-    for (const id of ids) {
+
+    for (const id of openOrder) {
       try {
-        const { bytes, fileName } = await this.catalog.buildBytes(id);
-        this.delivery.openBytes(bytes);
-        if (await this.delivery.saveBytesIfEnabled(bytes, fileName)) saved++;
-        ok++;
+        const built = await this.catalog.buildBytes(id);
+        cache.set(id, built);
+        this.delivery.openBytes(built.bytes);
+        opened++;
       } catch (err) {
         this.fail(id, err);
       }
     }
+
+    for (const group of groups) {
+      for (const item of group.items) {
+        const id = item.documentId.trim();
+        const built = cache.get(id);
+        if (!built) continue;
+        const named = fileNameWithCopyCount(built.fileName, item.copies);
+        if (
+          await this.delivery.saveBytesIfEnabled(built.bytes, named, {
+            subdir: group.name,
+            quiet: true,
+          })
+        ) {
+          saved++;
+        }
+      }
+    }
+
     this.busy.set(false);
-    this.toast.show(`Opened ${ok} document(s)${saved ? `, saved ${saved}` : ''}`, 'success');
+    this.toast.show(
+      `Opened ${opened} document(s)${saved ? `, saved ${saved} under authority folders` : ''}`,
+      'success',
+    );
   }
 
   /**
    * Print each unique document once with its TOTAL copy count (summed across
-   * authorities), and save just one copy per document if saving is enabled.
+   * authorities), and save with `_xN` in the name when Save-to-folder is on.
    */
   async printItems(items: PortPackageItem[]): Promise<void> {
     if (this.busy()) return;
@@ -132,7 +202,8 @@ export class PackageRunnerService {
         } else {
           this.printInBrowser(bytes);
         }
-        if (await this.delivery.saveBytesIfEnabled(bytes, fileName)) saved++;
+        const named = fileNameWithCopyCount(fileName, copies);
+        if (await this.delivery.saveBytesIfEnabled(bytes, named, { quiet: true })) saved++;
         printed++;
       } catch (err) {
         this.fail(id, err);
@@ -140,25 +211,6 @@ export class PackageRunnerService {
     }
     this.busy.set(false);
     this.toast.show(`Printed ${printed} document(s)${saved ? `, saved ${saved}` : ''}`, 'success');
-  }
-
-  /** Unique, enabled document ids in first-seen order (skips disabled with a toast). */
-  private uniqueEnabledIds(items: PortPackageItem[]): string[] {
-    const enabled = this.enabledIds();
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const item of items) {
-      if (!item.documentId.trim()) continue;
-      if (!enabled.has(item.documentId)) {
-        this.skip(item.documentId);
-        continue;
-      }
-      if (!seen.has(item.documentId)) {
-        seen.add(item.documentId);
-        out.push(item.documentId);
-      }
-    }
-    return out;
   }
 
   private enabledIds(): Set<string> {
@@ -183,7 +235,6 @@ export class PackageRunnerService {
     );
   }
 
-  /** Browser fallback: load the PDF in a hidden iframe and invoke the print dialog. */
   private printInBrowser(bytes: Uint8Array): void {
     const blob = new Blob([bytes.slice()], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);

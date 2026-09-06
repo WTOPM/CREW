@@ -88,6 +88,7 @@ import { PdfCrewMoneyListService } from '../../services/pdf-crew-money-list.serv
 import { PdfNarcoticListService } from '../../services/pdf-narcotic-list.service';
 import { PdfSso0108PortCallsService } from '../../services/pdf-sso0108-port-calls.service';
 import { PdfCrewVaccineService } from '../../services/pdf-crew-vaccine.service';
+import { PdfAirdraftService } from '../../services/pdf-airdraft.service';
 import { PdfShipStoresService } from '../../services/pdf-ship-stores.service';
 import { PdfShipStores02Service } from '../../services/pdf-ship-stores-02.service';
 import { PdfShipStores03Service } from '../../services/pdf-ship-stores-03.service';
@@ -164,6 +165,7 @@ export class DocumentsNavComponent implements OnInit {
   private readonly crewListForm07Pdf = inject(PdfCrewListForm07Service);
   private readonly mdhPdf = inject(PdfMdhService);
   private readonly crewVaccinePdf = inject(PdfCrewVaccineService);
+  private readonly airdraftPdf = inject(PdfAirdraftService);
   private readonly portOfCallPdf = inject(PdfPortOfCallService);
   private readonly portOfCallTemplatePdf = inject(PdfPortOfCallTemplateService);
   private readonly shipStoresPdf = inject(PdfShipStoresService);
@@ -199,7 +201,7 @@ export class DocumentsNavComponent implements OnInit {
   protected readonly paxListDocIds = PAX_LIST_TYPE_IDS;
   protected showMdhSettings = signal(false);
   /** Which MDH document the unified MDH Settings modal is editing. */
-  protected mdhSettingsDoc = signal<'mdh' | 'crewVaccine'>('mdh');
+  protected mdhSettingsDoc = signal<'mdh' | 'crewVaccine' | 'airdraft'>('mdh');
   protected showShipStoresSettings = signal(false);
   protected readonly shipStoresDocIds = SHIP_STORES_DOC_IDS;
   protected showCrewEffectSettings = signal(false);
@@ -707,10 +709,16 @@ export class DocumentsNavComponent implements OnInit {
     this.storage.finishFormSession();
   }
 
-  protected onMdhSettingsDocChange(value: 'mdh' | 'crewVaccine'): void {
+  protected onMdhSettingsDocChange(value: 'mdh' | 'crewVaccine' | 'airdraft'): void {
     if (value === this.mdhSettingsDoc()) return;
     this.mdhSettingsDoc.set(value);
-    this.toast.showSelected(value === 'mdh' ? 'Maritime Declaration of Health' : 'Crew Vaccine');
+    const label =
+      value === 'mdh'
+        ? 'Maritime Declaration of Health'
+        : value === 'crewVaccine'
+          ? 'Crew Vaccine'
+          : 'Airdraft';
+    this.toast.showSelected(label);
   }
 
   protected openPortOfCallPdf(): void {
@@ -1083,6 +1091,19 @@ export class DocumentsNavComponent implements OnInit {
       })
       .catch((err) => {
         this.toast.showError(err instanceof Error ? err.message : 'Failed to open Crew Vaccine');
+      });
+  }
+
+  protected openAirdraft(): void {
+    void this.airdraftPdf
+      .openPreview(this.appData())
+      .then((ok) => {
+        if (!ok) {
+          this.toast.showError('Allow pop-ups to open Airdraft preview');
+        }
+      })
+      .catch((err) => {
+        this.toast.showError(err instanceof Error ? err.message : 'Failed to open Airdraft');
       });
   }
 

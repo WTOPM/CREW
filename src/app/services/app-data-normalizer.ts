@@ -410,6 +410,7 @@ function normalizeDocumentOverlay(
     portsOfCall: normalizePortOfCallHtmlFormPrefs(raw?.portsOfCall, defaults.portsOfCall),
     mdh: normalizeStampDocumentPrefs(raw?.mdh, defaults.mdh),
     crewVaccine: normalizeStampDocumentPrefs(raw?.crewVaccine, defaults.crewVaccine),
+    airdraft: normalizeStampDocumentPrefs(raw?.airdraft, defaults.airdraft),
     shipStores: normalizeShipStoresHtmlFormPrefs(raw?.shipStores, defaults.shipStores),
     shipStores02: normalizeShipStoresHtmlFormPrefs(shipStores02Raw, defaults.shipStores02),
     shipStores03: normalizeStampDocumentPrefs(

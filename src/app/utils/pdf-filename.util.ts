@@ -156,6 +156,14 @@ export function crewVaccinePdfFileName(
   return `Crew_Vaccine_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
 }
 
+export function airdraftPdfFileName(
+  shipName: string,
+  portOfCall: string,
+  voyageDate: string,
+): string {
+  return `Airdraft_${pdfFileToken(shipName, 'ship')}_${pdfFileToken(portOfCall, 'port')}_${pdfFileDate(voyageDate)}.pdf`;
+}
+
 export function passengerListPdfFileName(
   shipName: string,
   portOfCall: string,

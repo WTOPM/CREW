@@ -513,6 +513,7 @@ export type DocumentOverlayId =
   | 'portsOfCall'
   | 'mdh'
   | 'crewVaccine'
+  | 'airdraft'
   | 'shipStores'
   | 'shipStores02'
   | 'shipStores03'
@@ -536,6 +537,7 @@ export interface DocumentOverlayPrefs {
   portsOfCall: PortOfCallHtmlFormStampOptions;
   mdh: DocumentStampOptions;
   crewVaccine: DocumentStampOptions;
+  airdraft: DocumentStampOptions;
   shipStores: ShipStoresHtmlFormStampOptions;
   shipStores02: ShipStoresHtmlFormStampOptions;
   shipStores03: DocumentStampOptions;
@@ -612,6 +614,7 @@ export function createDefaultDocumentOverlayPrefs(): DocumentOverlayPrefs {
     portsOfCall: { ...DEFAULT_POC_HTML_OPTS },
     mdh: { ...DEFAULT_STAMP_OPTS },
     crewVaccine: { ...DEFAULT_STAMP_OPTS },
+    airdraft: { ...DEFAULT_STAMP_OPTS },
     shipStores: { ...DEFAULT_STAMP_OPTS },
     shipStores02: { ...DEFAULT_STAMP_OPTS },
     shipStores03: { ...DEFAULT_STAMP_OPTS },
@@ -644,6 +647,7 @@ export const DOCUMENT_OVERLAY_LABELS: Record<DocumentOverlayId, string> = {
   portsOfCall: '02 - Port of Call - Security',
   mdh: 'MDH',
   crewVaccine: 'Crew Vaccine',
+  airdraft: 'Airdraft',
   shipStores: '01 - Ship Stores - Short',
   shipStores02: '02 - Ship Stores - Long',
   shipStores03: '03 - Ship Stores - Germany',

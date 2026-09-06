@@ -112,11 +112,16 @@ export class AppSnapshotArchiveService {
 
   defaultSaveLabel(): string {
     const ship = this.storage.ship();
-    const voy = ship.voyageNumber?.trim() || '—';
-    const port = ship.portOfCall?.trim() || '—';
-    const dep = ship.dateOfDeparture?.trim();
-    const depLabel = dep ? formatIsoDateLabel(dep) : 'no date';
-    return `Voy ${voy} · ${port} · ${depLabel}`;
+    const parts: string[] = [];
+    const name = ship.name?.trim();
+    const port = ship.portOfCall?.trim();
+    const voy = ship.voyageNumber?.trim();
+    const dateIso = ship.dateOfArrival?.trim() || ship.dateOfDeparture?.trim();
+    if (name) parts.push(name);
+    if (port) parts.push(port);
+    if (voy) parts.push(`Voy ${voy}`);
+    if (dateIso) parts.push(formatIsoDateLabel(dateIso));
+    return parts.length > 0 ? parts.join(' · ') : 'App snapshot';
   }
 
   private persistSession(): void {

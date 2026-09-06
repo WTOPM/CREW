@@ -109,6 +109,7 @@ export class DocumentSettingsStore {
           portsOfCall: { ...d.documentOverlay.portsOfCall, ...patch },
           mdh: { ...d.documentOverlay.mdh, ...patch },
           crewVaccine: { ...d.documentOverlay.crewVaccine, ...patch },
+          airdraft: { ...d.documentOverlay.airdraft, ...patch },
           shipStores: { ...d.documentOverlay.shipStores, ...patch },
           shipStores02: { ...d.documentOverlay.shipStores02, ...patch },
           shipStores03: { ...d.documentOverlay.shipStores03, ...patch },

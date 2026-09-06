@@ -15,6 +15,13 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { NetworkForceQuitService } from '../../services/network-force-quit.service';
 import { ToastService } from '../../services/toast.service';
+import {
+  formatAirdraftMetres,
+  normalizeShipMetresInput,
+  parseAirdraftMetres,
+} from '../../services/airdraft-field-positions';
+
+type ShipMetresField = 'heightKeelToMastTop' | 'maximumPresentDraft';
 
 @Component({
   selector: 'app-settings',
@@ -51,6 +58,11 @@ export class SettingsComponent {
   protected readonly ranks = this.storage.ranks;
   protected readonly nationalities = this.storage.nationalities;
   protected readonly printPackages = this.storage.printPackages;
+
+  /** Local draft while editing height / draft (commit on Enter/blur). */
+  protected readonly metresDraft = signal<{ field: ShipMetresField; value: string } | null>(null);
+  private metresSnapshot = '';
+  private metresSkipBlurCommit = false;
 
   protected readonly totalPortTerminals = computed(() =>
     this.ports().reduce((sum, p) => sum + (p.terminals?.length ?? 0), 0),
@@ -113,6 +125,82 @@ export class SettingsComponent {
 
   protected onShipDateCommit(field: keyof ShipInfo, value: string): void {
     this.onShipChange(field, value);
+  }
+
+  protected metresFieldValue(field: ShipMetresField): string {
+    const draft = this.metresDraft();
+    if (draft?.field === field) return draft.value;
+    return this.ship()[field] ?? '';
+  }
+
+  protected onMetresFocus(field: ShipMetresField, event: FocusEvent): void {
+    const input = event.target as HTMLInputElement;
+    this.metresSnapshot = this.ship()[field] ?? '';
+    this.metresDraft.set({ field, value: input.value });
+    this.metresSkipBlurCommit = false;
+    queueMicrotask(() => input.select());
+  }
+
+  protected onMetresInput(field: ShipMetresField, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.metresDraft.set({ field, value: input.value });
+  }
+
+  protected onMetresBlur(field: ShipMetresField, event: Event): void {
+    if (this.metresSkipBlurCommit) {
+      this.metresSkipBlurCommit = false;
+      this.clearMetresDraft(field);
+      return;
+    }
+    const input = event.target as HTMLInputElement;
+    this.commitMetresField(field, input);
+  }
+
+  protected onMetresKeydown(field: ShipMetresField, event: KeyboardEvent): void {
+    const input = event.target as HTMLInputElement;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.commitMetresField(field, input);
+      this.metresSkipBlurCommit = true;
+      input.blur();
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      input.value = this.metresSnapshot;
+      this.clearMetresDraft(field);
+      this.metresSkipBlurCommit = true;
+      input.blur();
+      return;
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      const current =
+        parseAirdraftMetres(input.value) ?? parseAirdraftMetres(this.metresSnapshot) ?? 0;
+      const delta = event.key === 'ArrowUp' ? 0.1 : -0.1;
+      const next = Math.max(0, Math.round((current + delta) * 10) / 10);
+      const display = formatAirdraftMetres(next);
+      input.value = display;
+      this.metresDraft.set({ field, value: display });
+    }
+  }
+
+  private commitMetresField(field: ShipMetresField, input: HTMLInputElement): void {
+    const normalized = normalizeShipMetresInput(input.value);
+    if (normalized == null) {
+      input.value = this.metresSnapshot;
+      this.clearMetresDraft(field);
+      this.toast.showError('Enter a number in metres (e.g. 1.1)');
+      return;
+    }
+    input.value = normalized;
+    this.clearMetresDraft(field);
+    this.onShipChange(field, normalized);
+  }
+
+  private clearMetresDraft(field: ShipMetresField): void {
+    const draft = this.metresDraft();
+    if (draft?.field === field) this.metresDraft.set(null);
   }
 
   protected openPackages(): void {

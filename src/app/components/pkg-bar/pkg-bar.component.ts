@@ -1,6 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, HostListener, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { AppSnapshotEntry } from '../../models/app-snapshot.models';
+import type { PortPackageItem } from '../../models/crew.models';
 import { formatDisplayDate } from '../../utils/date.util';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import { AppSnapshotArchiveService } from '../../services/app-snapshot-archive.service';
@@ -22,11 +23,51 @@ export class PkgBarComponent {
 
   protected readonly showSavePanel = signal(false);
   protected readonly showLoadModal = signal(false);
+  protected readonly showPackagePanel = signal(false);
   protected saveLabel = '';
+
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.showSavePanel()) {
+      this.cancelSave();
+      return;
+    }
+    if (this.showLoadModal()) {
+      this.closeLoad();
+      return;
+    }
+    if (this.showPackagePanel()) this.closePackagePanel();
+  }
+
+  protected togglePackagePanel(event?: MouseEvent): void {
+    event?.stopPropagation();
+    if (!this.packageRunner.currentBreakdown()) return;
+    this.showSavePanel.set(false);
+    this.showPackagePanel.update((v) => !v);
+  }
+
+  protected closePackagePanel(): void {
+    this.showPackagePanel.set(false);
+  }
+
+  protected openAuthority(items: PortPackageItem[], event: MouseEvent, authorityName: string): void {
+    event.stopPropagation();
+    void this.packageRunner.openItems(items, authorityName);
+  }
+
+  protected printAuthority(items: PortPackageItem[], event: MouseEvent): void {
+    event.stopPropagation();
+    void this.packageRunner.printItems(items);
+  }
+
+  protected authorityRunnable(items: PortPackageItem[]): boolean {
+    return items.some((it) => it.documentId.trim());
+  }
 
   protected startSave(): void {
     if (!this.canSave()) return;
     this.showLoadModal.set(false);
+    this.showPackagePanel.set(false);
     this.saveLabel = this.archive.defaultSaveLabel();
     this.showSavePanel.set(true);
   }
@@ -54,6 +95,7 @@ export class PkgBarComponent {
 
   protected openLoad(): void {
     this.showSavePanel.set(false);
+    this.showPackagePanel.set(false);
     this.showLoadModal.set(true);
   }
 

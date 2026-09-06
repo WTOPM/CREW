@@ -39,7 +39,8 @@ export type PackageDocumentId =
   | 'crewMoney'
   | 'narcotic'
   | 'mdh'
-  | 'crewVaccine';
+  | 'crewVaccine'
+  | 'airdraft';
 
 export interface PackageCatalogEntry {
   id: PackageDocumentId | `custom:${string}`;
@@ -144,6 +145,7 @@ export const PACKAGE_CATALOG_ENTRIES: readonly PackageCatalogEntry[] = [
   { id: 'narcotic', label: DOCUMENT_OVERLAY_LABELS.narcoticList },
   { id: 'mdh', label: DOCUMENT_OVERLAY_LABELS.mdh },
   { id: 'crewVaccine', label: DOCUMENT_OVERLAY_LABELS.crewVaccine },
+  { id: 'airdraft', label: DOCUMENT_OVERLAY_LABELS.airdraft },
 ];
 
 const PACKAGE_LABELS = new Map<string, string>(

@@ -114,7 +114,7 @@ export class PrintPackagesComponent implements OnInit {
     if (include) {
       this.toast.show(`${label}: included in Print all`, 'success');
     } else {
-      this.toast.showError(`${label}: excluded from Print all`);
+      this.toast.show(`${label}: excluded from Print all (Open all still includes it)`, 'info');
     }
   }
 
@@ -142,8 +142,8 @@ export class PrintPackagesComponent implements OnInit {
   }
 
   // --- per-authority actions (only meaningful for the current Port of Call) ---
-  protected openAuthority(items: PortPackageItem[]): void {
-    void this.runner.openItems(items);
+  protected openAuthority(items: PortPackageItem[], authorityName: string): void {
+    void this.runner.openItems(items, authorityName);
   }
 
   protected printAuthority(items: PortPackageItem[]): void {

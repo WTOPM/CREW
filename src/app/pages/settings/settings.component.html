@@ -56,6 +56,30 @@
               (ngModelChange)="onShipChange('voyageNumber', $event)"
             />
           </label>
+          <label class="ship-field">
+            <span>Height (Keel – Mast top), m</span>
+            <input
+              [value]="metresFieldValue('heightKeelToMastTop')"
+              (focus)="onMetresFocus('heightKeelToMastTop', $event)"
+              (input)="onMetresInput('heightKeelToMastTop', $event)"
+              (blur)="onMetresBlur('heightKeelToMastTop', $event)"
+              (keydown)="onMetresKeydown('heightKeelToMastTop', $event)"
+              inputmode="decimal"
+              placeholder="e.g. 37.5"
+            />
+          </label>
+          <label class="ship-field">
+            <span>Maximum Present Draft, m</span>
+            <input
+              [value]="metresFieldValue('maximumPresentDraft')"
+              (focus)="onMetresFocus('maximumPresentDraft', $event)"
+              (input)="onMetresInput('maximumPresentDraft', $event)"
+              (blur)="onMetresBlur('maximumPresentDraft', $event)"
+              (keydown)="onMetresKeydown('maximumPresentDraft', $event)"
+              inputmode="decimal"
+              placeholder="e.g. 9.2"
+            />
+          </label>
         </div>
       </div>
 

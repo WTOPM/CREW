@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
 import { uint8ToBase64 } from '../utils/base64.util';
+import { joinOutputDir } from '../utils/package-save-path.util';
 import { StorageService } from './storage.service';
 import { ToastService } from './toast.service';
 import { ConfirmDialogService } from './confirm-dialog.service';
@@ -37,33 +38,50 @@ export class PdfDeliveryService {
 
   /**
    * Save to the active folder when "Save to folder" is on.
+   * Optional `subdir` writes into an authority folder under the active path.
    * Returns true if a save was attempted (used by batch open/print).
    */
-  async saveBytesIfEnabled(bytes: Uint8Array, fileName: string): Promise<boolean> {
+  async saveBytesIfEnabled(
+    bytes: Uint8Array,
+    fileName: string,
+    options?: { subdir?: string; quiet?: boolean },
+  ): Promise<boolean> {
     const settings = this.storage.outputSettings();
     if (!settings.saveToFolder) return false;
-    await this.saveToFolder(bytes, fileName, settings.activePath);
+    await this.saveToFolder(bytes, fileName, settings.activePath, options);
     return true;
   }
 
-  private async saveToFolder(bytes: Uint8Array, fileName: string, dirPath: string): Promise<void> {
+  private async saveToFolder(
+    bytes: Uint8Array,
+    fileName: string,
+    dirPath: string,
+    options?: { subdir?: string; quiet?: boolean },
+  ): Promise<void> {
+    const quiet = options?.quiet === true;
     const electron = window.electronAPI;
+    const targetDir = options?.subdir?.trim()
+      ? joinOutputDir(dirPath, options.subdir)
+      : dirPath;
+    const safeFile = String(fileName || 'document.pdf').replace(/^.*[\\/]/, '');
 
-    // Desktop (Electron): write to the typed absolute path.
+    // Desktop (Electron): write to the typed absolute path (subdir may be nested).
     if (electron) {
       if (!dirPath) {
         this.toast.showError('Choose an output folder first');
         return;
       }
       try {
-        const exists = await electron.pdfExists(dirPath, fileName);
-        if (exists && !(await this.confirmOverwrite(fileName, dirPath))) {
-          this.toast.showCancelled('PDF save cancelled');
+        const exists = await electron.pdfExists(targetDir, safeFile);
+        if (exists && !(await this.confirmOverwrite(safeFile, targetDir))) {
+          if (!quiet) this.toast.showCancelled('PDF save cancelled');
           return;
         }
         const base64 = uint8ToBase64(bytes);
-        const { fullPath } = await electron.savePdfToPath(dirPath, fileName, base64);
-        this.toast.show(`${exists ? 'PDF overwritten' : 'PDF saved'}: ${fullPath}`, 'success');
+        const { fullPath } = await electron.savePdfToPath(targetDir, safeFile, base64);
+        if (!quiet) {
+          this.toast.show(`${exists ? 'PDF overwritten' : 'PDF saved'}: ${fullPath}`, 'success');
+        }
       } catch (err) {
         this.toast.showError(
           err instanceof Error ? `Save failed: ${err.message}` : 'Failed to save PDF',
@@ -79,13 +97,23 @@ export class PdfDeliveryService {
         return;
       }
       try {
-        const exists = await this.folderAccess.fileExists(fileName);
-        if (exists && !(await this.confirmOverwrite(fileName, this.folderAccess.activeName()))) {
-          this.toast.showCancelled('PDF save cancelled');
+        const exists = await this.folderAccess.fileExists(safeFile, options?.subdir);
+        if (
+          exists &&
+          !(await this.confirmOverwrite(
+            safeFile,
+            options?.subdir
+              ? `${this.folderAccess.activeName()}/${options.subdir}`
+              : this.folderAccess.activeName(),
+          ))
+        ) {
+          if (!quiet) this.toast.showCancelled('PDF save cancelled');
           return;
         }
-        const saved = await this.folderAccess.write(fileName, bytes);
-        this.toast.show(`${exists ? 'PDF overwritten' : 'PDF saved'}: ${saved}`, 'success');
+        const saved = await this.folderAccess.write(safeFile, bytes, options?.subdir);
+        if (!quiet) {
+          this.toast.show(`${exists ? 'PDF overwritten' : 'PDF saved'}: ${saved}`, 'success');
+        }
       } catch (err) {
         this.toast.showError(
           err instanceof Error ? `Save failed: ${err.message}` : 'Failed to save PDF',
@@ -95,7 +123,7 @@ export class PdfDeliveryService {
     }
 
     // Older browsers: no folder access — download with the proper name.
-    this.downloadNamed(bytes, fileName);
+    this.downloadNamed(bytes, safeFile);
   }
 
   private async confirmOverwrite(fileName: string, location: string): Promise<boolean> {

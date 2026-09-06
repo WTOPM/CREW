@@ -282,6 +282,9 @@
       <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openCrewVaccine()">
         Crew Vaccine
       </button>
+      <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openAirdraft()">
+        Airdraft
+      </button>
       <button
         type="button"
         class="doc-menu-item doc-menu-item--icon"
@@ -547,11 +550,23 @@
             />
             <span class="choice-segmented__text">Crew Vaccine</span>
           </label>
+          <label class="choice-segmented__item">
+            <input
+              type="radio"
+              name="mdhSettingsDoc"
+              value="airdraft"
+              [ngModel]="mdhSettingsDoc()"
+              (ngModelChange)="onMdhSettingsDocChange($event)"
+            />
+            <span class="choice-segmented__text">Airdraft</span>
+          </label>
         </div>
       </fieldset>
 
       @if (mdhSettingsDoc() === 'crewVaccine') {
         <app-document-stamp-options documentId="crewVaccine" />
+      } @else if (mdhSettingsDoc() === 'airdraft') {
+        <app-document-stamp-options documentId="airdraft" />
       } @else {
         <app-document-stamp-options documentId="mdh" />
       }

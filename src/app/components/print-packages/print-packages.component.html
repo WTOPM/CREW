@@ -8,8 +8,9 @@
     <header class="pkg-head">
       <h3>Document packages</h3>
       <p class="pkg-sub">
-        Plan documents per port, grouped by authority (Immigration, Customs…). Use Open / Print per
-        authority here, or Open all / Print all for the current Port of Call in the top bar.
+        Plan documents per port, grouped by authority (Immigration, Customs…). Uncheck an authority
+        to skip it in Print all; Open all still opens every document. Top-bar hover shows skipped
+        docs in gray.
       </p>
     </header>
 
@@ -75,7 +76,7 @@
                     class="pkg-auth-print"
                     [title]="
                       auth.includeInPrint === false
-                        ? 'Excluded from Print all (top bar)'
+                        ? 'Excluded from Print all (Open all still includes this authority)'
                         : 'Include in Print all (top bar)'
                     "
                   >
@@ -98,7 +99,7 @@
                       type="button"
                       class="pkg-mini"
                       [disabled]="runner.busy() || !hasRunnableItems(auth.items)"
-                      (click)="openAuthority(auth.items)"
+                      (click)="openAuthority(auth.items, auth.name)"
                     >
                       Open
                     </button>
