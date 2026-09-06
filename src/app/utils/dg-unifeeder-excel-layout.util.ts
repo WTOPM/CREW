@@ -1,14 +1,14 @@
 import ExcelJS from 'exceljs';
-import {
-  formatDgWeightKgDisplay,
-  formatDgWeightKgGrossDisplay,
-  parseDgWeightKg,
-} from '../models/dg-manifest.models';
+import { parseDgWeightKg } from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { portCode, resolveManifestPortName, type Port, type ShipInfo } from '../models/crew.models';
 import type { DgPageContext } from './page-ship-context.util';
 import { normalizeMfagEmsCode } from './dg-mfag-schedule.util';
-import { unifeederExportTotalKg, unifeederExportWeightKg } from './dg-unifeeder-weight.util';
+import {
+  formatUnifeederExportAmountKg,
+  unifeederExportTotalKg,
+  unifeederExportWeightKg,
+} from './dg-unifeeder-weight.util';
 import { type DgWeightViewOptions } from './dg-weight-view.util';
 import { workbookToBytes } from './crew-list-excel-layout.util';
 
@@ -182,20 +182,16 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
 function formatAmountKgValue(
   data: DgUnifeederRow | undefined,
   exportKg: number | undefined,
-  roundWeights: boolean,
 ): { value: ExcelJS.CellValue; numFmt?: string } {
   if (!data) return { value: '' };
   const amount = exportKg !== undefined ? exportKg : parseDgWeightKg(data.weightKg);
   if (amount > 0) {
-    const display = roundWeights
-      ? formatDgWeightKgGrossDisplay(amount)
-      : formatDgWeightKgDisplay(amount);
-    return {
-      value: display,
-    };
+    return { value: formatUnifeederExportAmountKg(amount) };
   }
   const raw = data.weightKg.trim();
   if (!raw) return { value: '' };
+  const parsed = parseDgWeightKg(raw);
+  if (parsed > 0) return { value: formatUnifeederExportAmountKg(parsed) };
   if (/\bkg\b/i.test(raw)) return { value: raw };
   return { value: `${raw} kg` };
 }
@@ -401,11 +397,8 @@ function buildHeaderBlock(
     font: { name: TIMES, size: 10 },
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
-  setCell(ws, r(7), 11, 'Page »', {
-    font: { name: TIMES, size: 8 },
-    alignment: { horizontal: 'right', vertical: 'middle' },
-  });
-  setCell(ws, r(7), 12, pageNumber, {
+  mergeCells(ws, r(7), 11, r(7), 12);
+  setCell(ws, r(7), 11, `Page »       ${pageNumber}`, {
     font: { name: TIMES, size: 8 },
     alignment: { horizontal: 'center', vertical: 'middle' },
   });
@@ -413,8 +406,8 @@ function buildHeaderBlock(
   applyHorizontalEdges(ws, r(7), 1, 10, { top: thinEdge, bottom: thickEdge });
   applyVerticalEdges(ws, 1, r(7), r(7), { left: thickEdge });
   applyVerticalEdges(ws, 10, r(7), r(7), { right: thinEdge });
-  applyHorizontalEdges(ws, r(7), 11, 11, { top: thinEdge, bottom: thickEdge });
-  applyHorizontalEdges(ws, r(7), 12, 12, { top: thinEdge, bottom: thickEdge });
+  applyHorizontalEdges(ws, r(7), 11, 12, { top: thinEdge, bottom: thickEdge });
+  patchBorder(ws.getCell(r(7), 11), { right: thickEdge });
   patchBorder(ws.getCell(r(7), 12), { right: thickEdge });
 
   ws.getRow(r(8)).height = 12.75;
@@ -443,26 +436,31 @@ function buildHeaderBlock(
   mergeCells(ws, r(9), 8, r(9), 9);
   setCell(ws, r(9), 8, ship.voyageNumber.trim(), {
     font: { name: ARIAL, size: 10, bold: true },
-    alignment: { horizontal: 'center', vertical: 'middle', shrinkToFit: true },
+    alignment: { horizontal: 'left', vertical: 'middle', shrinkToFit: true },
   });
-  setCell(ws, r(9), 10, 'from:', {
-    font: { name: ARIAL, size: 10 },
-    alignment: { horizontal: 'left', vertical: 'middle' },
-  });
-  setCell(ws, r(9), 11, resolvePortLabel(ctx.portOfCall || ship.portOfCall, ports), {
-    font: { name: ARIAL, size: 11, bold: true },
-    alignment: { horizontal: 'center', vertical: 'middle' },
-  });
-  setCell(
-    ws,
-    r(9),
-    12,
-    `to: ${resolvePortLabel(ctx.nextPortOfCall || ship.nextPortOfCall, ports)}`,
-    {
-      font: { name: ARIAL, size: 10, bold: true },
-      alignment: { horizontal: 'center', vertical: 'middle', shrinkToFit: true },
-    },
-  );
+  const fromPort = resolvePortLabel(ctx.portOfCall || ship.portOfCall, ports);
+  const toPort = resolvePortLabel(ctx.nextPortOfCall || ship.nextPortOfCall, ports);
+  mergeCells(ws, r(9), 10, r(9), 12);
+  const fromToCell = ws.getCell(r(9), 10);
+  fromToCell.value = {
+    richText: [
+      { text: 'from: ', font: { name: ARIAL, size: 10, bold: false, color: FONT_BLACK.color } },
+      {
+        text: fromPort,
+        font: { name: ARIAL, size: 11, bold: true, color: FONT_BLACK.color },
+      },
+      { text: '   to: ', font: { name: ARIAL, size: 10, bold: false, color: FONT_BLACK.color } },
+      {
+        text: toPort,
+        font: { name: ARIAL, size: 11, bold: true, color: FONT_BLACK.color },
+      },
+    ],
+  };
+  fromToCell.alignment = {
+    horizontal: 'center',
+    vertical: 'middle',
+    shrinkToFit: true,
+  };
 
   ws.getRow(r(10)).height = 12.75;
 
@@ -511,16 +509,11 @@ function writeDataRow(
   data: DgUnifeederRow | undefined,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  roundWeights: boolean,
 ): void {
   const thinAll = { top: thinEdge, left: thinEdge, bottom: thinEdge, right: thinEdge };
   const bodyFont = { name: ARIAL, size: 10, bold: true };
   const center = { horizontal: 'center' as const, vertical: 'middle' as const };
-  const amountCell = formatAmountKgValue(
-    data,
-    data ? exportWeights.get(data.id) : undefined,
-    roundWeights,
-  );
+  const amountCell = formatAmountKgValue(data, data ? exportWeights.get(data.id) : undefined);
 
   const values: {
     col: number;
@@ -573,7 +566,6 @@ function buildPageDataRows(
   pageRows: readonly (DgUnifeederRow | undefined)[],
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  roundWeights: boolean,
 ): void {
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
     writeDataRow(
@@ -582,17 +574,11 @@ function buildPageDataRows(
       pageRows[i],
       ports,
       exportWeights,
-      roundWeights,
     );
   }
 }
 
-function buildTotalRow(
-  ws: ExcelJS.Worksheet,
-  pageStart: number,
-  totalKg: number,
-  roundWeights: boolean,
-): void {
+function buildTotalRow(ws: ExcelJS.Worksheet, pageStart: number, totalKg: number): void {
   const totalRow = pageAbsRow(pageStart, TOTAL_ROW);
   mergeCells(ws, totalRow, 2, totalRow, 3);
   setCell(ws, totalRow, 2, 'TOTAL WEIGHT:', {
@@ -601,16 +587,10 @@ function buildTotalRow(
     border: { top: thinEdge },
   });
   patchBorder(ws.getCell(totalRow, 3), { top: thinEdge });
-  setCell(
-    ws,
-    totalRow,
-    4,
-    `${(roundWeights ? formatDgWeightKgGrossDisplay(totalKg) : formatDgWeightKgDisplay(totalKg)) || '0'} kg`,
-    {
-      font: { name: ARIAL, size: 10, bold: true },
-      alignment: { horizontal: 'center', vertical: 'middle' },
-    },
-  );
+  setCell(ws, totalRow, 4, formatUnifeederExportAmountKg(totalKg) || '0.0 kg', {
+    font: { name: ARIAL, size: 10, bold: true },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+  });
 }
 
 function buildFooterRow(ws: ExcelJS.Worksheet, pageStart: number): void {
@@ -641,16 +621,16 @@ function buildPageBlock(
   ctx: DgPageContext,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  options: { showTotal: boolean; totalKg: number; roundWeights: boolean },
+  options: { showTotal: boolean; totalKg: number },
 ): void {
   buildHeaderBlock(ws, pageStart, pageNumber, ship, ctx, ports);
   buildTableHeader(ws, pageStart);
-  buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights, options.roundWeights);
+  buildPageDataRows(ws, pageStart, pageRows, ports, exportWeights);
   if (pageRows.every((row) => !row)) {
     writeNoImdgCargoExcel(ws, pageStart);
   }
   if (options.showTotal) {
-    buildTotalRow(ws, pageStart, options.totalKg, options.roundWeights);
+    buildTotalRow(ws, pageStart, options.totalKg);
   }
   buildFooterRow(ws, pageStart);
 }
@@ -715,7 +695,6 @@ export async function buildUnifeederDgListExcelBytes(
       {
         showTotal: pageIndex === pageCount - 1,
         totalKg,
-        roundWeights: weightOptions.roundWeights,
       },
     );
     if (pageIndex < pageCount - 1) {

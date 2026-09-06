@@ -1,0 +1,154 @@
+<div class="modal-backdrop" (click)="cancel.emit()">
+  <div
+    class="modal dg-archive-modal imdg-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="imdg-import-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="dg-archive-modal__head">
+      <div class="dg-archive-modal__icon imdg-modal__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path
+            fill="currentColor"
+            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2.5L18.5 10H13V4.5zM8 12h8v1.5H8V12zm0 3h8v1.5H8V15zm0 3h5v1.5H8V18z"
+          />
+        </svg>
+      </div>
+      <div class="dg-archive-modal__intro">
+        <h3 id="imdg-import-title">IMDG chapter 3.2 read — nothing saved yet</h3>
+        <p class="imdg-modal__lead">
+          <strong>{{ report().fileName }}</strong>
+          @if (report().amendment) {
+            <span class="imdg-modal__amendment">{{ report().amendment }}</span>
+          }
+        </p>
+        <p class="imdg-modal__lead imdg-modal__lead--muted">
+          Scanned {{ report().tablePages }} Dangerous Goods List pages of
+          {{ report().totalPages }} (skipped {{ report().skippedLeadingPages }} before the list
+          starts), read {{ report().rowCount }} printed rows.
+        </p>
+      </div>
+    </header>
+
+    <div class="imdg-modal__body">
+      <ul class="imdg-modal__stats">
+        <li class="imdg-modal__stat">
+          <strong>{{ diff().parsedTotal }}</strong>
+          <span>UN numbers in the PDF</span>
+        </li>
+        <li class="imdg-modal__stat">
+          <strong>{{ diff().referenceTotal }}</strong>
+          <span>UN numbers in the app now</span>
+        </li>
+        <li class="imdg-modal__stat imdg-modal__stat--good">
+          <strong>{{ identical() }}</strong>
+          <span>identical — untouched</span>
+        </li>
+        <li class="imdg-modal__stat imdg-modal__stat--add">
+          <strong>{{ diff().added.length }}</strong>
+          <span>new in the PDF</span>
+        </li>
+        <li class="imdg-modal__stat imdg-modal__stat--warn">
+          <strong>{{ corrections() }}</strong>
+          <span>differ from the app</span>
+        </li>
+        <li class="imdg-modal__stat imdg-modal__stat--drop">
+          <strong>{{ diff().removed.length }}</strong>
+          <span>no longer in the Code</span>
+        </li>
+      </ul>
+
+      <section class="imdg-modal__section">
+        <h4>What differs</h4>
+        <ul class="imdg-modal__breakdown">
+          <li>
+            <strong>{{ diff().fireChanges.length }}</strong> fire schedule
+          </li>
+          <li>
+            <strong>{{ diff().spillageChanges.length }}</strong> spillage schedule
+          </li>
+          <li>
+            <strong>{{ diff().classChanges.length }}</strong> class
+          </li>
+          <li>
+            <strong>{{ diff().packingGroupChanges.length }}</strong> packing group
+          </li>
+        </ul>
+
+        @if (changeGroups().length > 0) {
+          <div class="imdg-modal__groups">
+            @for (group of changeGroups(); track group.key) {
+              <div class="imdg-modal__group">
+                <button
+                  type="button"
+                  class="imdg-modal__group-trigger"
+                  [attr.aria-expanded]="openGroup() === group.key"
+                  (click)="toggleGroup(group.key)"
+                >
+                  <span class="imdg-modal__group-chevron" aria-hidden="true"></span>
+                  <span class="imdg-modal__group-title">{{ group.title }}</span>
+                  <span class="imdg-modal__group-count">{{ group.total }}</span>
+                </button>
+                @if (openGroup() === group.key) {
+                  <ul class="imdg-modal__changes">
+                    @for (row of group.rows; track row.unNo) {
+                      <li>
+                        <span class="imdg-modal__un">{{ row.unNo }}</span>
+                        <span class="imdg-modal__desc">{{ row.description }}</span>
+                        <span class="imdg-modal__delta">{{ row.was }} → {{ row.now }}</span>
+                      </li>
+                    }
+                  </ul>
+                  @if (group.total > group.rows.length) {
+                    <p class="imdg-modal__more">
+                      Showing the first {{ group.rows.length }} of {{ group.total }}.
+                    </p>
+                  }
+                }
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="imdg-modal__section">
+        <h4>What should the app do?</h4>
+        <div class="imdg-modal__options">
+          @for (option of options(); track option.mode) {
+            <button
+              type="button"
+              class="imdg-modal__option"
+              [class.imdg-modal__option--picked]="mode() === option.mode"
+              [attr.aria-pressed]="mode() === option.mode"
+              (click)="pickMode(option.mode)"
+            >
+              <span class="imdg-modal__option-mark" aria-hidden="true"></span>
+              <span class="imdg-modal__option-body">
+                <span class="imdg-modal__option-title">
+                  {{ option.title }}
+                  @if (option.recommended) {
+                    <span class="imdg-modal__badge">recommended</span>
+                  }
+                </span>
+                <span class="imdg-modal__option-hint">{{ option.hint }}</span>
+              </span>
+            </button>
+          }
+        </div>
+      </section>
+    </div>
+
+    <footer class="dg-archive-modal__foot imdg-modal__foot">
+      <p class="imdg-modal__result">
+        Result: <strong>{{ outcome().resultTotal }}</strong> UN numbers
+      </p>
+      <div class="imdg-modal__foot-actions">
+        <button type="button" class="btn btn-secondary" (click)="cancel.emit()">
+          Leave everything as it is
+        </button>
+        <button type="button" class="btn btn-save" (click)="confirm()">Save to reference</button>
+      </div>
+    </footer>
+  </div>
+</div>

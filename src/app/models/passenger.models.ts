@@ -129,11 +129,32 @@ export interface PassengerMember {
    * Each row: emb. date + port, disemb. port + date.
    */
   voyageStays: PassengerVoyageStay[];
+  /** Scanned passport PDF flag (file stored via CrewDocumentService by member id). */
+  documents?: PassengerDocumentFlags;
   archived: boolean;
   onArrivalList: boolean;
   onDepartureList: boolean;
   /** Removed from departure list (departure-side archive); may still be active on arrival. */
   archivedFromDeparture: boolean;
+}
+
+/** Passenger scans — passport only (no seaman's / Cyprus books). */
+export type PassengerDocumentFlags = { passport?: boolean };
+
+export function hasPassengerPassportScan(
+  member: Pick<PassengerMember, 'documents'>,
+): boolean {
+  return !!member.documents?.passport;
+}
+
+export function normalizePassengerDocuments(member: PassengerMember): PassengerMember {
+  const raw = member.documents ?? {};
+  return {
+    ...member,
+    documents: {
+      passport: !!raw.passport,
+    },
+  };
 }
 
 export type PaxListTypeId = 'pax' | 'paxV2';
@@ -236,6 +257,7 @@ export function createEmptyPassenger(): PassengerMember {
     passportIssueDate: '',
     passportExpiryDate: '',
     voyageStays: [],
+    documents: {},
     archived: false,
     onArrivalList: false,
     onDepartureList: false,
@@ -304,7 +326,7 @@ export function migratePassengerMember(
     base.passportExpiryDate = expiry;
   }
   base.gender = normalizePersonGender(base.gender);
-  return base;
+  return normalizePassengerDocuments(base);
 }
 
 export function sortPassengersByName<T extends Pick<PassengerMember, 'familyName' | 'givenNames'>>(

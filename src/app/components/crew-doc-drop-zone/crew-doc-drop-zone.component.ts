@@ -6,7 +6,11 @@ import {
   CrewDocumentType,
   CrewMember,
 } from '../../models/crew.models';
-import { CrewDocumentService } from '../../services/crew-document.service';
+import { PassengerMember } from '../../models/passenger.models';
+import {
+  CrewDocumentService,
+  DocumentOwner,
+} from '../../services/crew-document.service';
 import { ToastService } from '../../services/toast.service';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 
@@ -23,9 +27,7 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
       (drop)="onDrop($event)"
     >
       <span class="crew-doc-zone-icon" aria-hidden="true">📄</span>
-      <span class="crew-doc-zone-text">
-        Drop PDF here or click to choose file — then pick crew member and document type
-      </span>
+      <span class="crew-doc-zone-text">{{ zoneHint() }}</span>
     </div>
 
     @if (showModal()) {
@@ -36,28 +38,35 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
           (appClickOutside)="closeModal()"
           (click)="$event.stopPropagation()"
         >
-          <h3>Attach PDF scan</h3>
+          <h3>{{ owner() === 'passenger' ? 'Attach passport scan' : 'Attach PDF scan' }}</h3>
           <p class="crew-doc-modal-file">{{ pendingFile()?.name }}</p>
           <label>
-            <span>Crew member</span>
-            <select [(ngModel)]="selectedCrewId">
+            <span>{{ owner() === 'passenger' ? 'Passenger' : 'Crew member' }}</span>
+            <select [(ngModel)]="selectedMemberId">
               <option value="">— select —</option>
-              @for (m of crew(); track m.id) {
+              @for (m of members(); track m.id) {
                 <option [value]="m.id">{{ label(m) }}</option>
               }
             </select>
           </label>
-          <fieldset class="choice-group">
-            <legend class="choice-group__legend">Document type</legend>
-            <div class="choice-segmented choice-segmented--row" role="radiogroup">
-              @for (t of docTypes; track t.id) {
-                <label class="choice-segmented__item">
-                  <input type="radio" name="docType" [value]="t.id" [(ngModel)]="selectedDocType" />
-                  <span class="choice-segmented__text">{{ t.label }}</span>
-                </label>
-              }
-            </div>
-          </fieldset>
+          @if (owner() === 'crew') {
+            <fieldset class="choice-group">
+              <legend class="choice-group__legend">Document type</legend>
+              <div class="choice-segmented choice-segmented--row" role="radiogroup">
+                @for (t of docTypes; track t.id) {
+                  <label class="choice-segmented__item">
+                    <input
+                      type="radio"
+                      name="docType"
+                      [value]="t.id"
+                      [(ngModel)]="selectedDocType"
+                    />
+                    <span class="choice-segmented__text">{{ t.label }}</span>
+                  </label>
+                }
+              </div>
+            </fieldset>
+          }
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
             <button
@@ -143,6 +152,9 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 })
 export class CrewDocDropZoneComponent {
   readonly crew = input<CrewMember[]>([]);
+  readonly passengers = input<PassengerMember[]>([]);
+  /** Passengers: passport only (no type picker). */
+  readonly owner = input<DocumentOwner>('crew');
   readonly attached = output<void>();
 
   private readonly docs = inject(CrewDocumentService);
@@ -152,10 +164,26 @@ export class CrewDocDropZoneComponent {
   protected readonly dragOver = signal(false);
   protected readonly showModal = signal(false);
   protected readonly pendingFile = signal<File | null>(null);
-  protected selectedCrewId = '';
+  protected selectedMemberId = '';
   protected selectedDocType: CrewDocumentType = 'passport';
 
-  protected label = crewMemberLabel;
+  protected members(): Array<CrewMember | PassengerMember> {
+    return this.owner() === 'passenger' ? this.passengers() : this.crew();
+  }
+
+  protected zoneHint(): string {
+    return this.owner() === 'passenger'
+      ? 'Drop passport PDF here or click to choose file — then pick passenger'
+      : 'Drop PDF here or click to choose file — then pick crew member and document type';
+  }
+
+  protected label(m: CrewMember | PassengerMember): string {
+    if (this.owner() === 'passenger') {
+      const name = [m.familyName, m.givenNames].filter(Boolean).join(' ');
+      return name || 'Unnamed';
+    }
+    return crewMemberLabel(m as CrewMember);
+  }
 
   protected onZoneClick(): void {
     void this.docs.pickPdfInBrowser().then((file) => {
@@ -185,14 +213,16 @@ export class CrewDocDropZoneComponent {
   }
 
   protected canAttach(): boolean {
-    return !!this.selectedCrewId && !!this.pendingFile();
+    return !!this.selectedMemberId && !!this.pendingFile();
   }
 
   protected async confirmAttach(): Promise<void> {
     const file = this.pendingFile();
-    if (!file || !this.selectedCrewId) return;
+    if (!file || !this.selectedMemberId) return;
+    const owner = this.owner();
+    const docType: CrewDocumentType = owner === 'passenger' ? 'passport' : this.selectedDocType;
     try {
-      await this.docs.attachFromFile(this.selectedCrewId, this.selectedDocType, file);
+      await this.docs.attachFromFile(this.selectedMemberId, docType, file, owner);
       this.attached.emit();
       this.toast.show('PDF attached');
       this.closeModal();
@@ -203,7 +233,7 @@ export class CrewDocDropZoneComponent {
 
   private openModal(file: File): void {
     this.pendingFile.set(file);
-    this.selectedCrewId = this.crew()[0]?.id ?? '';
+    this.selectedMemberId = this.members()[0]?.id ?? '';
     this.selectedDocType = 'passport';
     this.showModal.set(true);
   }

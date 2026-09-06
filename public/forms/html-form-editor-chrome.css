@@ -310,32 +310,103 @@ body.ss-editor {
   color: var(--sp-muted);
 }
 
-/* Date | Place of birth inside a single column (forms 03/04/06/07). Date ~38%, place ~62%. */
+/* Date | Place of birth (forms 03/04/06/07).
+   Divider = absolute 1px solid border (same stroke as table grid).
+   Avoid background-image fills — Chromium PDF paints those heavier. */
 .ci-birth-split {
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 34%) minmax(0, 66%);
+  align-items: center;
   width: 100%;
   height: 100%;
   min-width: 0;
-  min-height: 0;
+  min-height: var(--crew-row-h, 5mm);
+  position: relative;
+}
+
+.ci-birth-split::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 34%;
+  width: 0;
+  border-left: 1px solid #000;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .ci-birth-split .ci-birth-date {
-  flex: 0 0 38%;
-  width: 38%;
+  grid-column: 1;
+  width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  border-right: 1px solid #bbb;
+  align-self: center;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .ci-birth-split .ci-birth-place {
-  flex: 1 1 62%;
-  width: 62%;
+  grid-column: 2;
+  width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  align-self: center;
+  padding-left: 1.15mm;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.2;
+}
+
+/* % height needs a definite cell height so the divider spans empty rows. */
+.crew-tbl tbody td:has(> .ci-birth-split),
+.crew-table tbody td:has(> .ci-birth-split) {
+  height: 1px;
+  vertical-align: middle;
+}
+
+.crew-tbl tbody td:has(> .ci-birth-split) > .ci-birth-split,
+.crew-table tbody td:has(> .ci-birth-split) > .ci-birth-split {
+  height: 100%;
+  min-height: 100%;
 }
 
 body.is-pdf-export .side-panel,
 body.pdf-export .side-panel {
   display: none !important;
+}
+
+body.is-pdf-export .ci-birth-split,
+body.pdf-export .ci-birth-split {
+  display: grid !important;
+  grid-template-columns: minmax(0, 34%) minmax(0, 66%);
+  align-items: center;
+  height: 100%;
+  min-height: 100%;
+}
+
+body.is-pdf-export .ci-birth-split::before,
+body.pdf-export .ci-birth-split::before {
+  display: block;
+  left: 34%;
+  width: 0;
+  border-left: 1px solid #000;
+  background: none;
+}
+
+body.is-pdf-export .ci-birth-split .ci-birth-date,
+body.pdf-export .ci-birth-split .ci-birth-date {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+body.is-pdf-export .ci-birth-split .ci-birth-place,
+body.pdf-export .ci-birth-split .ci-birth-place {
+  display: block !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.2;
+  padding-left: 1.15mm;
 }

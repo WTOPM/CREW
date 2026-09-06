@@ -466,6 +466,11 @@
   text-overflow: clip;
 }
 
+/* Passengers: passport only */
+.col-scans--passport-only {
+  width: 2.2rem;
+}
+
 .crew-table td.col-scans,
 .crew-table th.col-scans {
   overflow: visible;

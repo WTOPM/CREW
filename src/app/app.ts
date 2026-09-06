@@ -17,7 +17,9 @@ import { AppSnapshotArchiveService } from './services/app-snapshot-archive.servi
 import { CrewListHtmlFormExcelService } from './services/crew-list-html-form-excel.service';
 import { DataSetupComponent } from './components/data-setup/data-setup.component';
 import { AppStateStore, type AppInitResult } from './services/app-state.store';
+import { DgUnReferenceStore } from './services/dg-un-reference.store';
 import { ElectronLocalPrefsService } from './services/electron-local-prefs.service';
+import { NetworkForceQuitService } from './services/network-force-quit.service';
 import { SectionLockService } from './services/section-lock.service';
 import { SectionReadonlyDomService } from './services/section-readonly-dom.service';
 import { sectionFromRoutePath, AppSection } from './utils/app-data-section.util';
@@ -57,7 +59,13 @@ export class App implements OnInit {
   private readonly appSnapshotArchive = inject(AppSnapshotArchiveService);
   private readonly htmlFormExcel = inject(CrewListHtmlFormExcelService);
   private readonly appState = inject(AppStateStore);
+  /**
+   * Injected for its side effect: keeps the UN-number lookup helpers on the imported
+   * IMDG list. Tooltips and DG autofill would silently use the bundled list otherwise.
+   */
+  private readonly unReference = inject(DgUnReferenceStore);
   private readonly localPrefs = inject(ElectronLocalPrefsService);
+  private readonly networkForceQuit = inject(NetworkForceQuitService);
   protected readonly sectionLock = inject(SectionLockService);
   private readonly sectionReadonlyDom = inject(SectionReadonlyDomService);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
@@ -158,6 +166,7 @@ export class App implements OnInit {
     this.dgPageArchive.restoreSession();
     this.reeferPageArchive.restoreSession();
     this.appSnapshotArchive.restoreSession();
+    this.networkForceQuit.startWatching();
     await this.onMainSectionNav(this.router.url);
   }
 
@@ -290,7 +299,9 @@ export class App implements OnInit {
     return path === '/dg' || path === '/reefer' || path === '/eta';
   }
 
-  private shouldSkipSectionReload(section: NonNullable<ReturnType<typeof sectionFromRoutePath>>): boolean {
+  private shouldSkipSectionReload(
+    section: NonNullable<ReturnType<typeof sectionFromRoutePath>>,
+  ): boolean {
     if (section === 'home' && this.appSnapshotArchive.loaded()) return true;
     if (section === 'dg' && this.dgPageArchive.loaded()) return true;
     if (section === 'reefer' && this.reeferPageArchive.loaded()) return true;

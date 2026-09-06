@@ -215,6 +215,7 @@ export class DocumentOverlayPreviewService {
       crewMoneyListForm: this.storage.crewMoneyListForm(),
       narcoticListForm: this.storage.narcoticListForm(),
       dgLibrary: this.storage.dgLibrary(),
+      dgUnReference: this.storage.dgUnReference(),
       reeferLibrary: this.storage.reeferLibrary(),
       etaLibrary: this.storage.etaLibrary(),
       documentOverlay: this.storage.documentOverlay(),

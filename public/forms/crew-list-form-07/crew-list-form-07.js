@@ -27,10 +27,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       Array.from(tbody.children).forEach((tr) => {
         const rno = tr.querySelector('.ci-rno');
         if (!rno) return;
-        if (rno.dataset.manual === '1') {
-          if (rowHasData(tr)) n += 1;
-          return;
-        }
+        delete rno.dataset.manual;
         if (rowHasData(tr)) {
           n += 1;
           rno.textContent = String(n);
@@ -47,23 +44,6 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
         .replace(/</g, '&lt;');
     }
 
-    function addRow(d = {}) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-    <td class="c0"><div class="ci ci-rno" tabindex="-1"></div></td>
-    <td class="c1"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></td>
-    <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly tabindex="-1"></td>
-    <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly tabindex="-1"></td>
-    <td class="c4"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${d.dob || ''}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1"><input class="ci ci-birth-place" type="text" value="${d.pob || ''}" readonly tabindex="-1"></div></td>
-    <td class="c5"><input class="ci" type="text" value="${d.bno || ''}" readonly tabindex="-1"></td>
-    <td class="c6"><input class="ci" type="text" value="${d.bplace || ''}" readonly tabindex="-1"></td>
-    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}"${dateIsoAttr(d.bexpIso)} readonly tabindex="-1"></td>
-    <td class="c8"><input class="ci" type="text" value="${d.passport || ''}" readonly tabindex="-1"></td>
-    <td class="c9"><input class="ci" type="text" value="${d.pplace || ''}" readonly tabindex="-1"></td>
-    <td class="c10"><input class="ci" type="text" value="${d.pexp || ''}"${dateIsoAttr(d.pexpIso)} readonly tabindex="-1"></td>`;
-      tbody.appendChild(tr);
-      refreshRowNumbers();
-    }
     function removeRow() {
       if (tbody.lastChild) {
         tbody.removeChild(tbody.lastChild);
@@ -106,8 +86,215 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
 
     function cellText(cell) {
       if (!cell) return '';
-      if (cell.tagName === 'INPUT') return cell.value || '';
-      return (cell.textContent || '').trim();
+      if (cell.tagName === 'INPUT' || cell.tagName === 'TEXTAREA') return cell.value || '';
+      // Preserve intentional line breaks (Alt+Enter); only trim outer whitespace.
+      return (cell.innerText || cell.textContent || '').replace(/^\s+|\s+$/g, '');
+    }
+
+    function isWrapEditableCell(cell) {
+      return !!cell && cell.classList.contains('ci') && !cell.classList.contains('ci-rno');
+    }
+
+    let editingCell = null;
+
+    function minRowHeightPx() {
+      const probe = tbody.querySelector('td');
+      if (!probe) return 18;
+      const cs = getComputedStyle(document.documentElement);
+      // --crew-row-h is on .crew-tbl; fall back to measured min.
+      const tbl = tbody.closest('.crew-tbl');
+      if (tbl) {
+        const raw = getComputedStyle(tbl).getPropertyValue('--crew-row-h').trim();
+        if (raw) {
+          const tmp = document.createElement('div');
+          tmp.style.height = raw;
+          tmp.style.position = 'absolute';
+          tmp.style.visibility = 'hidden';
+          document.body.appendChild(tmp);
+          const px = tmp.offsetHeight;
+          tmp.remove();
+          if (px > 0) return px;
+        }
+      }
+      return probe.getBoundingClientRect().height || 18;
+    }
+
+    function syncCellHeight(cell) {
+      if (!cell) return;
+      if (cell.tagName === 'TEXTAREA') {
+        cell.style.height = '0px';
+        const next = Math.max(cell.scrollHeight, minRowHeightPx());
+        cell.style.height = `${next}px`;
+      }
+    }
+
+    function syncRowHeights(tr) {
+      const rows = tr ? [tr] : Array.from(tbody.children);
+      rows.forEach((row) => {
+        row.querySelectorAll('textarea.ci').forEach((ta) => syncCellHeight(ta));
+      });
+    }
+
+    function canDeleteNewline(cell, dir) {
+      if (!cell || cell.tagName !== 'TEXTAREA') return false;
+      const start = cell.selectionStart ?? 0;
+      const end = cell.selectionEnd ?? start;
+      const v = cell.value;
+      if (start !== end) return v.slice(start, end).includes('\n');
+      if (dir === 'backward') return start > 0 && v[start - 1] === '\n';
+      return start < v.length && v[start] === '\n';
+    }
+
+    function onEditBeforeInput(e) {
+      const cell = editingCell;
+      if (cell?.tagName === 'TEXTAREA') {
+        if (e.inputType === 'deleteContentBackward' && canDeleteNewline(cell, 'backward')) return;
+        if (e.inputType === 'deleteContentForward' && canDeleteNewline(cell, 'forward')) return;
+      }
+      e.preventDefault();
+    }
+
+    function onEditPaste(e) {
+      e.preventDefault();
+    }
+
+    function isCaretNavigationKey(e) {
+      const nav = new Set([
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+        'PageUp',
+        'PageDown',
+      ]);
+      if (nav.has(e.key)) return true;
+      if ((e.ctrlKey || e.metaKey) && ['c', 'a', 'C', 'A'].includes(e.key)) return true;
+      return false;
+    }
+
+    function exitCellEdit() {
+      if (!editingCell) return;
+      const cell = editingCell;
+      editingCell = null;
+      cell.classList.remove('ci-editing');
+      cell.removeEventListener('beforeinput', onEditBeforeInput);
+      cell.removeEventListener('paste', onEditPaste);
+      if (cell.tagName === 'TEXTAREA' || cell.tagName === 'INPUT') {
+        cell.readOnly = true;
+        cell.blur();
+      } else if (cell.isContentEditable) {
+        cell.contentEditable = 'false';
+        cell.blur();
+      }
+      syncCellHeight(cell);
+    }
+
+    function enterCellEdit(cell) {
+      if (!isWrapEditableCell(cell)) return;
+      if (editingCell === cell) return;
+      exitCellEdit();
+      editingCell = cell;
+      cell.classList.add('ci-editing');
+      if (cell.tagName === 'TEXTAREA' || cell.tagName === 'INPUT') {
+        cell.readOnly = false;
+        cell.focus();
+        try {
+          const len = cell.value.length;
+          cell.setSelectionRange(len, len);
+        } catch (_) {
+          /* ignore */
+        }
+      } else {
+        cell.contentEditable = 'true';
+        cell.focus();
+        try {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      cell.addEventListener('beforeinput', onEditBeforeInput);
+      cell.addEventListener('paste', onEditPaste);
+      syncCellHeight(cell);
+    }
+
+    function removeLineBreak(cell) {
+      if (!cell) return;
+      if (cell.tagName === 'TEXTAREA') {
+        const start = cell.selectionStart ?? 0;
+        const end = cell.selectionEnd ?? start;
+        const v = cell.value;
+        if (start !== end) {
+          const selected = v.slice(start, end);
+          const cleaned = selected.replace(/\n/g, '');
+          cell.value = v.slice(0, start) + cleaned + v.slice(end);
+          cell.setSelectionRange(start, start + cleaned.length);
+        } else if (start > 0 && v[start - 1] === '\n') {
+          cell.value = v.slice(0, start - 1) + v.slice(start);
+          cell.setSelectionRange(start - 1, start - 1);
+        } else if (start < v.length && v[start] === '\n') {
+          cell.value = v.slice(0, start) + v.slice(start + 1);
+          cell.setSelectionRange(start, start);
+        }
+      }
+      syncCellHeight(cell);
+    }
+
+    function clearAllLineBreaks() {
+      tbody.querySelectorAll('textarea.ci').forEach((ta) => {
+        if (!ta.value.includes('\n')) return;
+        ta.value = ta.value.replace(/\n+/g, ' ').replace(/[ \t]{2,}/g, ' ');
+      });
+      tbody.querySelectorAll('.ci-name').forEach((el) => {
+        const t = el.textContent || '';
+        if (!t.includes('\n')) return;
+        el.textContent = t.replace(/\n+/g, ' ').replace(/[ \t]{2,}/g, ' ');
+      });
+      syncRowHeights();
+    }
+
+    function insertLineBreak(cell) {
+      if (!cell) return;
+      if (cell.tagName === 'TEXTAREA' || cell.tagName === 'INPUT') {
+        if (cell.tagName === 'INPUT') return; // single-line only
+        const start = cell.selectionStart ?? cell.value.length;
+        const end = cell.selectionEnd ?? start;
+        const v = cell.value;
+        cell.value = `${v.slice(0, start)}\n${v.slice(end)}`;
+        const pos = start + 1;
+        cell.setSelectionRange(pos, pos);
+      } else {
+        document.execCommand('insertLineBreak');
+      }
+      syncCellHeight(cell);
+    }
+
+    function addRow(d = {}) {
+      const tr = document.createElement('tr');
+      const ta = (cls, val) =>
+        `<textarea class="ci${cls ? ` ${cls}` : ''}" rows="1" readonly tabindex="-1">${escapeHtml(val || '')}</textarea>`;
+      tr.innerHTML = `
+    <td class="c0"><div class="ci ci-rno" tabindex="-1"></div></td>
+    <td class="c1"><div class="ci ci-name" tabindex="-1">${escapeHtml(d.name || '')}</div></td>
+    <td class="c2">${ta('', d.rank)}</td>
+    <td class="c3">${ta('', d.nat)}</td>
+    <td class="c4"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${escAttr(d.dob || '')}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1">${ta('ci-birth-place', d.pob)}</div></td>
+    <td class="c5">${ta('', d.bno)}</td>
+    <td class="c6">${ta('', d.bplace)}</td>
+    <td class="c7"><input class="ci" type="text" value="${escAttr(d.bexp || '')}"${dateIsoAttr(d.bexpIso)} readonly tabindex="-1"></td>
+    <td class="c8">${ta('', d.passport)}</td>
+    <td class="c9">${ta('', d.pplace)}</td>
+    <td class="c10"><input class="ci" type="text" value="${escAttr(d.pexp || '')}"${dateIsoAttr(d.pexpIso)} readonly tabindex="-1"></td>`;
+      tbody.appendChild(tr);
+      refreshRowNumbers();
+      syncRowHeights(tr);
     }
 
     function selectionBounds() {
@@ -164,6 +351,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     }
 
     function dismissSelection() {
+      exitCellEdit();
       clearSelection();
       HtmlFormHeaderCells.clearSelection();
       isDragging = false;
@@ -191,16 +379,11 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     }
 
     function syncToolbarFromCell(cell) {
-      if (!cell) return;
-      const fontSel = document.getElementById('tb-font');
-      const sizeSel = document.getElementById('tb-size');
-      const font = window.CrewCellFormat
-        ? CrewCellFormat.resolveFontSelectValue(cell.style.fontFamily, fontSel)
-        : (cell.style.fontFamily || 'Arial');
-      const size = cell.style.fontSize ? parseInt(cell.style.fontSize, 10) : 6;
-      if (fontSel) fontSel.value = font;
-      if (sizeSel) sizeSel.value = String(size);
+      HtmlFormCrewListKit.syncToolbarFromCell(cell);
     }
+
+    window.applyFontSizeFromToolbar = () =>
+      HtmlFormCrewListKit.applyFontSizeFromToolbar(applyFormat);
 
     function returnUrl() {
       const raw = new URLSearchParams(window.location.search).get('return');
@@ -226,6 +409,26 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       HtmlFormHeaderCells.clearSelection();
       const cell = e.target.closest('.ci');
       if (!cell || !tbody.contains(cell)) return;
+
+      // Already editing this cell — let the caret move normally.
+      if (editingCell && editingCell === cell) {
+        return;
+      }
+
+      // Second click on the same selected cell → enter wrap/edit mode.
+      if (
+        !e.shiftKey &&
+        selectedCells.length === 1 &&
+        selectedCells[0] === cell &&
+        isWrapEditableCell(cell)
+      ) {
+        e.preventDefault();
+        isDragging = false;
+        enterCellEdit(cell);
+        return;
+      }
+
+      exitCellEdit();
       e.preventDefault();
       isDragging = true;
       selectionAnchor = cellCoords(cell);
@@ -234,7 +437,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     });
 
     tbody.addEventListener('mouseover', (e) => {
-      if (!isDragging || !selectionAnchor) return;
+      if (!isDragging || !selectionAnchor || editingCell) return;
       const cell = e.target.closest('.ci');
       if (!cell || !tbody.contains(cell)) return;
       const current = cellCoords(cell);
@@ -246,6 +449,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     });
 
     document.addEventListener('copy', (e) => {
+      if (editingCell) return;
       if (!selectedCells.length) return;
       e.preventDefault();
       e.clipboardData.setData('text/plain', buildCopyText());
@@ -253,6 +457,48 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     });
 
     document.addEventListener('keydown', (e) => {
+      if (editingCell) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          exitCellEdit();
+          return;
+        }
+        // Alt+Enter → line break only (no typing / spaces).
+        if (e.key === 'Enter' && e.altKey) {
+          e.preventDefault();
+          insertLineBreak(editingCell);
+          return;
+        }
+        // Alt+Backspace → undo one line break at caret.
+        if (e.key === 'Backspace' && e.altKey) {
+          e.preventDefault();
+          removeLineBreak(editingCell);
+          return;
+        }
+        // Plain Backspace/Delete: only unwrap (remove \\n). Letters stay locked.
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          const dir = e.key === 'Backspace' ? 'backward' : 'forward';
+          if (canDeleteNewline(editingCell, dir)) {
+            const start = editingCell.selectionStart ?? 0;
+            const end = editingCell.selectionEnd ?? start;
+            if (start !== end) {
+              e.preventDefault();
+              removeLineBreak(editingCell);
+            }
+            return;
+          }
+          e.preventDefault();
+          return;
+        }
+        if (e.key === 'Enter' && !e.altKey && !e.shiftKey) {
+          e.preventDefault();
+          exitCellEdit();
+          return;
+        }
+        if (isCaretNavigationKey(e)) return;
+        e.preventDefault();
+        return;
+      }
       if (e.key === 'Escape') {
         dismissSelection();
         return;
@@ -262,32 +508,16 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
         document.execCommand('copy');
         return;
       }
-      // Manual row-№ edit: type / Backspace when a single № cell is selected.
+      // Row № is auto-generated — never edit from the keyboard.
       if (
         selectedCells.length === 1 &&
         selectedCells[0].classList.contains('ci-rno') &&
         !e.ctrlKey &&
         !e.metaKey &&
-        !e.altKey
+        !e.altKey &&
+        (e.key === 'Backspace' || e.key === 'Delete' || e.key.length === 1)
       ) {
-        const cell = selectedCells[0];
-        if (e.key === 'Backspace') {
-          e.preventDefault();
-          cell.textContent = (cell.textContent || '').slice(0, -1);
-          cell.dataset.manual = '1';
-          return;
-        }
-        if (e.key === 'Delete') {
-          e.preventDefault();
-          cell.textContent = '';
-          cell.dataset.manual = '1';
-          return;
-        }
-        if (e.key.length === 1) {
-          e.preventDefault();
-          cell.textContent = (cell.textContent || '') + e.key;
-          cell.dataset.manual = '1';
-        }
+        e.preventDefault();
       }
     });
 
@@ -295,7 +525,21 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       if (e.target.closest('.a4-landscape-page')) return;
       if (e.target.closest('.side-panel')) return;
       if (e.target.closest('.confirm-backdrop')) return;
+      exitCellEdit();
       dismissSelection();
+    });
+
+    // Keep textarea height in sync while typing / after Alt+Enter.
+    tbody.addEventListener('input', (e) => {
+      const cell = e.target.closest?.('.ci');
+      if (cell && editingCell === cell) syncCellHeight(cell);
+    });
+
+    document.querySelector('.a4-landscape-page')?.addEventListener('mousedown', (e) => {
+      if (!editingCell) return;
+      if (editingCell.contains(e.target)) return;
+      if (e.target.closest('.ci')) return; // other cell — handled above
+      exitCellEdit();
     });
 
     function syncCellFlexAlignment(cell) {
@@ -311,6 +555,11 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
     }
 
     function applyVerticalAlignToCell(cell, val) {
+      // Birth split uses CSS grid; display:flex on date/place skews the divider.
+      if (cell.classList.contains('ci-birth-date') || cell.classList.contains('ci-birth-place')) {
+        cell.dataset.verticalAlign = val;
+        return;
+      }
       const alignItems = val === 'top' ? 'flex-start' : val === 'bottom' ? 'flex-end' : 'center';
       cell.style.display = 'flex';
       cell.style.height = '100%';
@@ -326,16 +575,21 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       HtmlFormHeaderCells.applyVerticalAlign(val);
     }
 
+    function applyHorizontalAlignToCell(cell, val) {
+      HtmlFormCrewListKit.applyHorizontalAlignToCell(cell, val, syncCellFlexAlignment);
+    }
+
     function applyFormat(prop, val) {
       selectedCells.forEach((cell) => {
-        cell.style[prop] = val;
         if (prop === 'textAlign') {
-          if (cell.classList.contains('ci-rno')) {
-            cell.style.display = 'flex';
-            cell.style.alignItems = cell.style.alignItems || 'center';
-          }
-          syncCellFlexAlignment(cell);
+          applyHorizontalAlignToCell(cell, val);
+          return;
         }
+        if (prop === 'fontSize') {
+          HtmlFormCrewListKit.applyFontSizeToCell(cell, val);
+          return;
+        }
+        cell.style[prop] = val;
       });
       HtmlFormHeaderCells.applyFormat(prop, val);
     }
@@ -553,46 +807,102 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       const rows = tbody.querySelectorAll('tr');
       rows.forEach((tr, rowIndex) => {
         const inputs = window.HtmlFormListCellPersist?.dataInputs?.(tr)
-          || Array.from(tr.querySelectorAll('input.ci'));
+          || Array.from(tr.querySelectorAll('input.ci, textarea.ci')).filter(
+            (el) => !el.classList.contains('ci-birth-place'),
+          );
         inputs.forEach((input, colIndex) => {
           const style = cellStyles[`${rowIndex}-${colIndex}`];
           if (style) {
-            if (style.fontFamily) input.style.fontFamily = style.fontFamily;
-            if (style.fontSize) input.style.fontSize = style.fontSize;
-            if (style.textAlign) input.style.textAlign = style.textAlign;
-            if (style.verticalAlign) applyVerticalAlignToCell(input, style.verticalAlign);
-            else if (style.textAlign) syncCellFlexAlignment(input);
+            if (window.CrewCellFormat?.applyStyle) {
+              CrewCellFormat.applyStyle(input, style, {
+                applyTextAlign: applyHorizontalAlignToCell,
+                applyVerticalAlign: applyVerticalAlignToCell,
+                syncFlex: syncCellFlexAlignment,
+              });
+            } else {
+              if (style.fontFamily) input.style.fontFamily = style.fontFamily;
+              if (style.fontSize) input.style.fontSize = style.fontSize;
+              if (style.fontWeight) input.style.fontWeight = style.fontWeight;
+              if (style.fontStyle) input.style.fontStyle = style.fontStyle;
+              if (style.textDecoration) input.style.textDecoration = style.textDecoration;
+              if (style.textAlign) applyHorizontalAlignToCell(input, style.textAlign);
+              if (style.verticalAlign) applyVerticalAlignToCell(input, style.verticalAlign);
+              else if (style.textAlign) syncCellFlexAlignment(input);
+            }
           }
         });
         const pob = tr.querySelector('.ci-birth-place');
         const pobStyle = cellStyles[`${rowIndex}-pob`];
         if (pob && pobStyle) {
-          if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
-          if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
-          if (pobStyle.textAlign) pob.style.textAlign = pobStyle.textAlign;
-          if (pobStyle.verticalAlign) applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
-          else if (pobStyle.textAlign) syncCellFlexAlignment(pob);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(pob, pobStyle, {
+              applyTextAlign: typeof applyHorizontalAlignToCell === 'function' ? applyHorizontalAlignToCell : (c, a) => { c.style.textAlign = a; },
+              applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+              syncFlex: typeof syncCellFlexAlignment === 'function' ? syncCellFlexAlignment : undefined,
+            });
+          } else {
+            if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
+            if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
+            if (pobStyle.fontWeight) pob.style.fontWeight = pobStyle.fontWeight;
+            if (pobStyle.fontStyle) pob.style.fontStyle = pobStyle.fontStyle;
+            if (pobStyle.textDecoration) pob.style.textDecoration = pobStyle.textDecoration;
+            if (pobStyle.textAlign) {
+              if (typeof applyHorizontalAlignToCell === 'function') applyHorizontalAlignToCell(pob, pobStyle.textAlign);
+              else pob.style.textAlign = pobStyle.textAlign;
+            }
+            if (pobStyle.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
+            else if (pobStyle.textAlign && typeof syncCellFlexAlignment === 'function') syncCellFlexAlignment(pob);
+          }
         }
         const nameCell = tr.querySelector('.ci-name');
         const nameStyle = cellStyles[`${rowIndex}-name`];
         if (nameCell && nameStyle) {
-          if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
-          if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
-          if (nameStyle.textAlign) nameCell.style.textAlign = nameStyle.textAlign;
-          if (nameStyle.verticalAlign) applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
-          else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(nameCell, nameStyle, {
+              applyTextAlign: typeof applyHorizontalAlignToCell === 'function' ? applyHorizontalAlignToCell : (c, a) => { c.style.textAlign = a; },
+              applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+              syncFlex: typeof syncCellFlexAlignment === 'function' ? syncCellFlexAlignment : undefined,
+            });
+          } else {
+            if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
+            if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
+            if (nameStyle.fontWeight) nameCell.style.fontWeight = nameStyle.fontWeight;
+            if (nameStyle.fontStyle) nameCell.style.fontStyle = nameStyle.fontStyle;
+            if (nameStyle.textDecoration) nameCell.style.textDecoration = nameStyle.textDecoration;
+            if (nameStyle.textAlign) {
+              if (typeof applyHorizontalAlignToCell === 'function') applyHorizontalAlignToCell(nameCell, nameStyle.textAlign);
+              else nameCell.style.textAlign = nameStyle.textAlign;
+            }
+            if (nameStyle.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
+            else if (nameStyle.textAlign && typeof syncCellFlexAlignment === 'function') syncCellFlexAlignment(nameCell);
+          }
         }
         const rnoCell = tr.querySelector('.ci-rno');
         const rnoStyle = cellStyles[`${rowIndex}-rno`];
         if (rnoCell && rnoStyle) {
-          if (rnoStyle.fontFamily) rnoCell.style.fontFamily = rnoStyle.fontFamily;
-          if (rnoStyle.fontSize) rnoCell.style.fontSize = rnoStyle.fontSize;
-          if (rnoStyle.textAlign) rnoCell.style.textAlign = rnoStyle.textAlign;
-          if (rnoStyle.verticalAlign) applyVerticalAlignToCell(rnoCell, rnoStyle.verticalAlign);
-          else if (rnoStyle.textAlign) {
-            rnoCell.style.display = 'flex';
-            rnoCell.style.alignItems = rnoCell.style.alignItems || 'center';
-            syncCellFlexAlignment(rnoCell);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(rnoCell, rnoStyle, {
+              applyTextAlign: applyHorizontalAlignToCell,
+              applyVerticalAlign: applyVerticalAlignToCell,
+              syncFlex: (cell) => {
+                cell.style.display = 'flex';
+                cell.style.alignItems = cell.style.alignItems || 'center';
+                syncCellFlexAlignment(cell);
+              },
+            });
+          } else {
+            if (rnoStyle.fontFamily) rnoCell.style.fontFamily = rnoStyle.fontFamily;
+            if (rnoStyle.fontSize) rnoCell.style.fontSize = rnoStyle.fontSize;
+            if (rnoStyle.fontWeight) rnoCell.style.fontWeight = rnoStyle.fontWeight;
+            if (rnoStyle.fontStyle) rnoCell.style.fontStyle = rnoStyle.fontStyle;
+            if (rnoStyle.textDecoration) rnoCell.style.textDecoration = rnoStyle.textDecoration;
+            if (rnoStyle.textAlign) applyHorizontalAlignToCell(rnoCell, rnoStyle.textAlign);
+            if (rnoStyle.verticalAlign) applyVerticalAlignToCell(rnoCell, rnoStyle.verticalAlign);
+            else if (rnoStyle.textAlign) {
+              rnoCell.style.display = 'flex';
+              rnoCell.style.alignItems = rnoCell.style.alignItems || 'center';
+              syncCellFlexAlignment(rnoCell);
+            }
           }
         }
       });
@@ -618,47 +928,33 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       const rows = tbody.querySelectorAll('tr');
       rows.forEach((tr, rowIndex) => {
         const inputs = window.HtmlFormListCellPersist?.dataInputs?.(tr)
-          || Array.from(tr.querySelectorAll('input.ci'));
+          || Array.from(tr.querySelectorAll('input.ci, textarea.ci')).filter(
+            (el) => !el.classList.contains('ci-birth-place'),
+          );
         inputs.forEach((input, colIndex) => {
-          const style = {};
-          if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
-          if (input.style.fontSize) style.fontSize = input.style.fontSize;
-          if (input.style.textAlign) style.textAlign = input.style.textAlign;
-          if (input.dataset.verticalAlign) style.verticalAlign = input.dataset.verticalAlign;
-          if (Object.keys(style).length > 0) {
+          const style = window.CrewCellFormat?.readStyle?.(input) || null;
+          if (style) {
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
         const pob = tr.querySelector('.ci-birth-place');
         if (pob) {
-          const pobStyle = {};
-          if (pob.style.fontFamily) pobStyle.fontFamily = pob.style.fontFamily;
-          if (pob.style.fontSize) pobStyle.fontSize = pob.style.fontSize;
-          if (pob.style.textAlign) pobStyle.textAlign = pob.style.textAlign;
-          if (pob.dataset.verticalAlign) pobStyle.verticalAlign = pob.dataset.verticalAlign;
-          if (Object.keys(pobStyle).length > 0) {
+          const pobStyle = window.CrewCellFormat?.readStyle?.(pob) || null;
+          if (pobStyle) {
             cellStyles[`${rowIndex}-pob`] = pobStyle;
           }
         }
         const nameCell = tr.querySelector('.ci-name');
         if (nameCell) {
-          const nameStyle = {};
-          if (nameCell.style.fontFamily) nameStyle.fontFamily = nameCell.style.fontFamily;
-          if (nameCell.style.fontSize) nameStyle.fontSize = nameCell.style.fontSize;
-          if (nameCell.style.textAlign) nameStyle.textAlign = nameCell.style.textAlign;
-          if (nameCell.dataset.verticalAlign) nameStyle.verticalAlign = nameCell.dataset.verticalAlign;
-          if (Object.keys(nameStyle).length > 0) {
+          const nameStyle = window.CrewCellFormat?.readStyle?.(nameCell) || null;
+          if (nameStyle) {
             cellStyles[`${rowIndex}-name`] = nameStyle;
           }
         }
         const rnoCell = tr.querySelector('.ci-rno');
         if (rnoCell) {
-          const rnoStyle = {};
-          if (rnoCell.style.fontFamily) rnoStyle.fontFamily = rnoCell.style.fontFamily;
-          if (rnoCell.style.fontSize) rnoStyle.fontSize = rnoCell.style.fontSize;
-          if (rnoCell.style.textAlign) rnoStyle.textAlign = rnoCell.style.textAlign;
-          if (rnoCell.dataset.verticalAlign) rnoStyle.verticalAlign = rnoCell.dataset.verticalAlign;
-          if (Object.keys(rnoStyle).length > 0) {
+          const rnoStyle = window.CrewCellFormat?.readStyle?.(rnoCell) || null;
+          if (rnoStyle) {
             cellStyles[`${rowIndex}-rno`] = rnoStyle;
           }
         }
@@ -797,6 +1093,19 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       tbody.querySelectorAll('.ci.ci-rno').forEach((cell) => {
         delete cell.dataset.manual;
       });
+      if (window.HtmlFormCrewListKit?.repairBirthSplitLayout) {
+        HtmlFormCrewListKit.repairBirthSplitLayout(tbody);
+      } else {
+        tbody.querySelectorAll('.ci-birth-date, .ci-birth-place').forEach((el) => {
+          el.style.removeProperty('width');
+          el.style.removeProperty('max-width');
+          el.style.removeProperty('flex');
+          el.style.removeProperty('display');
+          el.style.removeProperty('height');
+          el.style.removeProperty('min-height');
+        });
+      }
+      clearAllLineBreaks();
       refreshRowNumbers();
       HtmlFormHeaderCells.resetAll();
       clearSelection();
@@ -806,8 +1115,8 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       if (sizeSel) sizeSel.value = '6';
       if (window._currentPositions) {
         window._currentPositions.cellStyles = {};
-        window._currentPositions.cellValues = {};
       }
+      syncRowHeights();
     }
 
     function resetPositions() {
@@ -815,7 +1124,6 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
         window._currentPositions.stamp = {};
         window._currentPositions.sig = {};
         window._currentPositions.cellStyles = {};
-        window._currentPositions.cellValues = {};
       }
       
       const stamp = document.getElementById('stamp-container');
@@ -1099,36 +1407,21 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       applyEditorZoom();
     }
 
-    /** html2canvas mis-renders <input> text (vertical baseline drifts below the box).
-     *  For a clean capture, swap every input for a plain text element with the same
-     *  class (so the existing CSS — font, padding, alignment — applies unchanged). */
+    /** html2canvas mis-renders <input> text; kit flatten keeps PDF layout = HTML. */
     function flattenInputsForExport() {
-      document.querySelectorAll('input.ci, input.fi').forEach((input) => {
+      if (window.HtmlFormCrewListKit?.flattenInputsForExport) {
+        HtmlFormCrewListKit.flattenInputsForExport(document);
+        return;
+      }
+      document.querySelectorAll('input.ci, textarea.ci, input.fi').forEach((input) => {
         const replacement = document.createElement('div');
         replacement.className = input.className;
         replacement.textContent = input.value || '';
-        // Carry over ALL inline styles (width, border-bottom-color, toolbar font/align
-        // overrides, ...) — copying only a few properties dropped things like the
-        // master-name field's fixed width, stretching its underline across the page.
-        replacement.style.cssText = input.style.cssText;
-        if (input.closest('.header-block')) {
-          replacement.style.border = 'none';
-          replacement.style.borderBottom = 'none';
-        }
-        if (input.classList.contains('ci')) {
-          // Native <input> vertically centers its value via the UA stylesheet — replicate
-          // that for the plain div so table-cell text lines up with the grid, not below it.
-          replacement.style.display = 'flex';
-          replacement.style.alignItems = input.style.alignItems || 'center';
-          replacement.style.justifyContent =
-            replacement.style.textAlign === 'center'
-              ? 'center'
-              : replacement.style.textAlign === 'right'
-                ? 'flex-end'
-                : 'flex-start';
-          replacement.style.whiteSpace = 'nowrap';
-          replacement.style.overflow = 'hidden';
-        }
+        replacement.style.display = 'block';
+        replacement.style.width = '100%';
+        replacement.style.height = '100%';
+        replacement.style.boxSizing = 'border-box';
+        replacement.style.overflow = 'hidden';
         input.replaceWith(replacement);
       });
     }
@@ -1171,6 +1464,19 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-lis
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       restoreCellValues();
+      // Readonly ship fields always win over stale/empty saved cellValues.
+      if (window._shipData) {
+        const ship = window._shipData;
+        const voyageEl = document.getElementById('h-voyage');
+        if (voyageEl) voyageEl.value = ship.voyageNumber || '';
+        const imoEl = document.getElementById('h-imo');
+        if (imoEl) imoEl.value = ship.imoNo || '';
+        const callEl = document.getElementById('h-call');
+        if (callEl) callEl.value = ship.callSign || '';
+      }
+      // Row № is auto-only — wipe any legacy manual values restored from cellValues.
+      refreshRowNumbers();
+      syncRowHeights();
       if (isPdfExport) {
         resetEditorZoomForExport();
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to

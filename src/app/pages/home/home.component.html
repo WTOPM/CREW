@@ -356,6 +356,14 @@
         </div>
       </div>
 
+      @if (paxListKind() === 'arrival') {
+        <app-crew-doc-drop-zone
+          owner="passenger"
+          [passengers]="listPassengers()"
+          (attached)="onCrewDocAttached()"
+        />
+      }
+
       <div class="table-wrap">
         <table class="crew-table crew-table--pax">
           <thead>
@@ -367,6 +375,13 @@
               <th class="col-nowrap" data-col="rank">Rank</th>
               <th class="col-nowrap" data-col="nationality">Nationality</th>
               <th class="col-nowrap" data-col="passport">Passport</th>
+              <th
+                class="col-scans col-scans--passport-only"
+                data-col="scans"
+                title="P passport · hold filled icon to delete"
+              >
+                Scans
+              </th>
               <th class="col-actions"></th>
             </tr>
           </thead>
@@ -380,6 +395,16 @@
                 <td class="col-nowrap" data-col="rank">{{ passengerRank }}</td>
                 <td class="col-nowrap" data-col="nationality">{{ member.nationality }}</td>
                 <td class="col-nowrap" data-col="passport">{{ member.passport }}</td>
+                <td class="col-scans col-scans--passport-only" data-col="scans">
+                  <div class="crew-doc-icons">
+                    <app-crew-doc-icon
+                      [member]="member"
+                      docType="passport"
+                      owner="passenger"
+                      (attached)="onCrewDocAttached()"
+                    />
+                  </div>
+                </td>
                 <td class="actions col-actions">
                   <div class="actions-icons">
                     @if (paxListKind() === 'arrival') {
@@ -644,6 +669,13 @@
                 <th data-col="family">Family Name</th>
                 <th data-col="given">Given Names</th>
                 <th data-col="nationality">Nationality</th>
+                <th
+                  class="col-scans col-scans--passport-only"
+                  data-col="scans"
+                  title="P passport · hold filled icon to delete"
+                >
+                  Scans
+                </th>
                 <th></th>
               </tr>
             </thead>
@@ -653,6 +685,16 @@
                   <td data-col="family">{{ member.familyName }}</td>
                   <td data-col="given">{{ member.givenNames }}</td>
                   <td data-col="nationality">{{ member.nationality }}</td>
+                  <td class="col-scans col-scans--passport-only" data-col="scans">
+                    <div class="crew-doc-icons">
+                      <app-crew-doc-icon
+                        [member]="member"
+                        docType="passport"
+                        owner="passenger"
+                        (attached)="onCrewDocAttached()"
+                      />
+                    </div>
+                  </td>
                   <td class="actions">
                     <div class="actions-icons">
                       <button

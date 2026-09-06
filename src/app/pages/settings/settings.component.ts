@@ -12,6 +12,9 @@ import { PrintPackagesComponent } from '../../components/print-packages/print-pa
 import { CustomDocumentsComponent } from '../../components/custom-documents/custom-documents.component';
 import { DataBackupsModalComponent } from '../../components/data-backups-modal/data-backups-modal.component';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { NetworkForceQuitService } from '../../services/network-force-quit.service';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-settings',
@@ -33,9 +36,14 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 export class SettingsComponent {
   protected readonly storage = inject(StorageService);
   protected readonly refLists = inject(ReferenceListsStore);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly networkForceQuit = inject(NetworkForceQuitService);
+  private readonly toast = inject(ToastService);
 
   protected readonly dataPath = signal<string | null>(null);
   protected readonly showDataBackupsModal = signal(false);
+  protected readonly forceQuitBusy = signal(false);
+  protected readonly hasElectron = !!window.electronAPI;
 
   protected readonly ship = this.storage.ship;
   protected readonly marsecLevelOptions = PORT_SEC_LVL_OPTIONS;
@@ -71,6 +79,31 @@ export class SettingsComponent {
 
   protected closeDataBackups(): void {
     this.showDataBackupsModal.set(false);
+  }
+
+  protected async requestForceQuitAll(): Promise<void> {
+    if (!this.hasElectron || this.forceQuitBusy()) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Close CREW on all PCs?',
+      message:
+        'Every open CREW window that uses this shared data folder will close within a few seconds. ' +
+        'Already saved data stays on disk. Unsaved edits in open forms may be lost. ' +
+        'Then you can replace the .exe and start again.',
+      confirmLabel: 'Close all',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    this.forceQuitBusy.set(true);
+    try {
+      const done = await this.networkForceQuit.requestCloseAll();
+      if (!done) {
+        this.toast.showError('Force close works only in the desktop app');
+        this.forceQuitBusy.set(false);
+      }
+    } catch (e) {
+      this.forceQuitBusy.set(false);
+      this.toast.showError(e instanceof Error ? e.message : 'Could not request close');
+    }
   }
 
   protected onShipChange(field: keyof ShipInfo, value: string): void {

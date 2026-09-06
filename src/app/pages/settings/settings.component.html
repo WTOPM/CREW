@@ -258,6 +258,24 @@
       <span class="settings-data-path__action">Backups on this PC →</span>
     </button>
   }
+
+  @if (hasElectron && dataPath()) {
+    <section class="card settings-force-quit-card">
+      <h2>Update / network</h2>
+      <p class="section-desc">
+        Close CREW on every PC that uses this shared data folder so you can replace the
+        <code>CREW-Documents.exe</code>. Saved data is kept. Unsaved form edits may be lost.
+      </p>
+      <button
+        type="button"
+        class="btn btn-danger"
+        [disabled]="forceQuitBusy()"
+        (click)="requestForceQuitAll()"
+      >
+        Close app on all PCs
+      </button>
+    </section>
+  }
 </div>
 
 @if (showDataBackupsModal()) {

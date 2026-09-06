@@ -2781,13 +2781,15 @@ th {
   width: 1.8%;
 }
 .dg-unifeeder-table .uf-col-fp {
-  width: 2.6%;
+  /* +3ch vs prior 2.6% so °C fits on 1920×1080 */
+  width: 4.6%;
+  min-width: 7.5ch;
 }
 .dg-unifeeder-table .uf-col-mp {
   width: 2%;
 }
 .dg-unifeeder-table .uf-col-desc {
-  width: 12%;
+  width: 10%;
 }
 .dg-unifeeder-table .uf-col-class {
   width: 2.6%;
@@ -2811,7 +2813,7 @@ th {
   width: 1.6%;
 }
 .dg-unifeeder-table .uf-col-act {
-  width: 4.2%;
+  width: 5.4%;
 }
 
 .dg-unifeeder-table th,
@@ -3591,7 +3593,7 @@ th {
   width: 2.5%;
 }
 .dg-master-table col.col-actions {
-  width: 5.5%;
+  width: 6.5%;
 }
 
 .dg-master-table th.col-class,
@@ -3807,7 +3809,7 @@ th {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 0.1rem;
+  gap: 0.22rem;
   width: max-content;
   max-width: 100%;
   margin-inline: auto;
@@ -3817,8 +3819,8 @@ th {
   flex: 0 0 auto;
   width: auto;
   padding: 0;
-  margin-right: 0.04rem;
-  font-size: 0.82rem;
+  margin: 0;
+  font-size: 0.88rem;
   line-height: 1;
 }
 
@@ -4038,23 +4040,126 @@ th {
 }
 
 .dg-row-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.14rem;
-  width: 100%;
-  max-width: 3.55rem;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  width: max-content;
+  max-width: 100%;
   margin-inline: auto;
 }
 
+/* Multi-select by list # / No — both CMA and DP WORLD tables */
+.dg-select-th {
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.dg-select-th:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.dg-select-th--active {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.dg-select-th__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 4px;
+  border: 1.5px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.dg-select-cell {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease,
+    box-shadow 0.1s ease;
+}
+
+.dg-select-cell:hover {
+  color: #1d4ed8;
+  background: #eff6ff !important;
+  box-shadow: inset 0 0 0 1px #93c5fd;
+  cursor: grab;
+}
+
+.dg-select-cell:active {
+  cursor: grabbing;
+}
+
+.dg-master-row--selected > td,
+.dg-unifeeder-row--selected > td {
+  background: #eff6ff !important;
+}
+
+.dg-master-row--selected > td.dg-select-cell,
+.dg-unifeeder-row--selected > td.dg-select-cell {
+  background: #dbeafe !important;
+  color: #1e40af;
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.dg-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  min-height: 1.9rem;
+  padding-block: 0.1rem;
+}
+
+.dg-header-actions .dg-act {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 7px;
+}
+
+.dg-header-actions .dg-act:disabled,
+.dg-header-actions .dg-act[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  pointer-events: none;
+}
+
 .dg-row-actions .dg-container-kg {
-  grid-column: 1 / -1;
-  font-size: 0.76rem;
+  flex: 0 0 auto;
+  font-size: 0.88rem;
   font-weight: 700;
   color: #0284c7;
   text-align: center;
   white-space: nowrap;
-  line-height: 1.2;
-  padding-bottom: 0.05rem;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+}
+
+.dg-row-actions .dg-act--add,
+.dg-row-actions .dg-act--restore {
+  width: 1.48rem;
+  height: 1.48rem;
 }
 
 .dg-act {

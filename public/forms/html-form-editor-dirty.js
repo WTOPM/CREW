@@ -8,11 +8,15 @@
   let extraBaseline = null;
 
   function styleRecord(el) {
+    if (global.CrewCellFormat?.readStyle) return global.CrewCellFormat.readStyle(el);
     if (!el) return null;
     const style = {};
     if (el.style.fontFamily) style.fontFamily = el.style.fontFamily;
     if (el.style.fontSize) style.fontSize = el.style.fontSize;
     if (el.style.textAlign) style.textAlign = el.style.textAlign;
+    if (el.style.fontWeight) style.fontWeight = el.style.fontWeight;
+    if (el.style.fontStyle) style.fontStyle = el.style.fontStyle;
+    if (el.style.textDecoration) style.textDecoration = el.style.textDecoration;
     if (el.dataset.verticalAlign) style.verticalAlign = el.dataset.verticalAlign;
     return Object.keys(style).length ? style : null;
   }

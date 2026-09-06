@@ -201,10 +201,14 @@
   }
 
   function styleRecord(el) {
+    if (global.CrewCellFormat?.readStyle) return global.CrewCellFormat.readStyle(el);
     if (!el) return null;
     const style = {};
     if (el.style.fontFamily) style.fontFamily = el.style.fontFamily;
     if (el.style.fontSize) style.fontSize = el.style.fontSize;
+    if (el.style.fontWeight) style.fontWeight = el.style.fontWeight;
+    if (el.style.fontStyle) style.fontStyle = el.style.fontStyle;
+    if (el.style.textDecoration) style.textDecoration = el.style.textDecoration;
     if (el.style.textAlign) style.textAlign = el.style.textAlign;
     return Object.keys(style).length ? style : null;
   }
@@ -255,9 +259,16 @@
     scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
       const style = cellStyles[el.dataset.cellKey];
       if (!style) return;
-      if (style.fontFamily) el.style.fontFamily = style.fontFamily;
-      if (style.fontSize) el.style.fontSize = style.fontSize;
-      if (style.textAlign) el.style.textAlign = style.textAlign;
+      if (global.CrewCellFormat?.applyStyle) {
+        global.CrewCellFormat.applyStyle(el, style);
+      } else {
+        if (style.fontFamily) el.style.fontFamily = style.fontFamily;
+        if (style.fontSize) el.style.fontSize = style.fontSize;
+        if (style.fontWeight) el.style.fontWeight = style.fontWeight;
+        if (style.fontStyle) el.style.fontStyle = style.fontStyle;
+        if (style.textDecoration) el.style.textDecoration = style.textDecoration;
+        if (style.textAlign) el.style.textAlign = style.textAlign;
+      }
       reflowCell(el);
     });
   }
@@ -310,6 +321,12 @@
         replacement.style.fontWeight = '700';
         if (input.style.fontSize) replacement.style.fontSize = input.style.fontSize;
         if (input.style.fontFamily) replacement.style.fontFamily = input.style.fontFamily;
+        if (global.CrewCellFormat?.copyEmphasis) global.CrewCellFormat.copyEmphasis(input, replacement);
+        else {
+          if (input.style.fontStyle) replacement.style.fontStyle = input.style.fontStyle;
+          if (input.style.textDecoration) replacement.style.textDecoration = input.style.textDecoration;
+        }
+        replacement.style.fontWeight = '700';
         replacement.style.textAlign = qtyAlign(input);
       } else if (wrapper) {
         replacement.style.display = 'block';
@@ -320,6 +337,11 @@
         replacement.style.textOverflow = 'ellipsis';
         replacement.style.whiteSpace = 'nowrap';
         replacement.style.textAlign = input.style.textAlign || 'center';
+        if (global.CrewCellFormat?.copyEmphasis) global.CrewCellFormat.copyEmphasis(input, replacement);
+        else {
+          if (input.style.fontStyle) replacement.style.fontStyle = input.style.fontStyle;
+          if (input.style.textDecoration) replacement.style.textDecoration = input.style.textDecoration;
+        }
         replacement.style.fontWeight = '700';
       } else if (isFooterField(input)) {
         applyFooterExportStyles(replacement, input);

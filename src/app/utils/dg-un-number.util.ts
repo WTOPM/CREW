@@ -1,3 +1,4 @@
+import { computed, signal } from '@angular/core';
 import unNumbersReference from '../data/un-numbers-reference.json';
 
 export interface UnNumberReferenceEntry {
@@ -7,6 +8,8 @@ export interface UnNumberReferenceEntry {
   subRisk: string;
   fire: string;
   spillage: string;
+  /** Column 4 of the IMDG list flags marine pollutants with a `P`. */
+  marinePollutant?: boolean;
 }
 
 export interface UnNumberReferenceRow {
@@ -17,6 +20,7 @@ export interface UnNumberReferenceRow {
   subRisk: string;
   fire: string;
   spillage: string;
+  marinePollutant?: boolean;
 }
 
 export interface UnNumberClassGroup {
@@ -30,12 +34,11 @@ export interface UnNumberTooltipEntry {
   summary: string;
 }
 
-const UN_NUMBER_MAP = new Map<string, UnNumberReferenceEntry>(
-  Object.entries(unNumbersReference as Record<string, UnNumberReferenceEntry>),
-);
-
-const UN_NUMBER_ROWS: UnNumberReferenceRow[] = [...UN_NUMBER_MAP.entries()]
-  .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }))
+/** List compiled into the bundle — the fallback when the user has not imported an IMDG PDF. */
+const BUNDLED_ROWS: UnNumberReferenceRow[] = Object.entries(
+  unNumbersReference as Record<string, UnNumberReferenceEntry>,
+)
+  .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
   .map(([unNo, entry]) => ({
     unNo,
     description: entry.description,
@@ -44,7 +47,36 @@ const UN_NUMBER_ROWS: UnNumberReferenceRow[] = [...UN_NUMBER_MAP.entries()]
     subRisk: entry.subRisk,
     fire: entry.fire,
     spillage: entry.spillage,
+    marinePollutant: entry.marinePollutant ?? false,
   }));
+
+/**
+ * Set from the persisted AppData by `DgUnReferenceStore`. `null` means "use the
+ * bundled list". Kept as a module signal so the pure lookup helpers below stay
+ * callable from plain utils while page-level `computed`s still react to imports.
+ */
+const overrideRows = signal<readonly UnNumberReferenceRow[] | null>(null);
+
+const effectiveRows = computed<readonly UnNumberReferenceRow[]>(
+  () => overrideRows() ?? BUNDLED_ROWS,
+);
+
+const effectiveMap = computed(
+  () => new Map(effectiveRows().map((row) => [row.unNo, row] as const)),
+);
+
+/** Replace the active reference (imported IMDG list), or pass `null` to fall back to the bundle. */
+export function setUnNumberReferenceOverride(rows: readonly UnNumberReferenceRow[] | null): void {
+  overrideRows.set(rows ? [...rows] : null);
+}
+
+export function getBundledUnNumberRows(): readonly UnNumberReferenceRow[] {
+  return BUNDLED_ROWS;
+}
+
+export function isUnNumberReferenceOverridden(): boolean {
+  return overrideRows() !== null;
+}
 
 const UN_NUMBER_CLASS_ORDER = [
   '2.1',
@@ -73,11 +105,19 @@ export function compareDgClass(a: string, b: string): number {
 }
 
 export function getUnNumberReferenceRows(): readonly UnNumberReferenceRow[] {
-  return UN_NUMBER_ROWS;
+  return effectiveRows();
+}
+
+export function getUnNumberReferenceCount(): number {
+  return effectiveRows().length;
 }
 
 export function getUnNumberClassLabels(): string[] {
-  const labels = new Set(UN_NUMBER_ROWS.map((row) => row.dgClass).filter(Boolean));
+  const labels = new Set(
+    effectiveRows()
+      .map((row) => row.dgClass)
+      .filter(Boolean),
+  );
   return [...labels].sort(compareDgClass);
 }
 
@@ -129,7 +169,7 @@ export function searchUnNumberRows(
 }
 
 export function getUnNumberClassCounts(
-  rows: readonly UnNumberReferenceRow[] = UN_NUMBER_ROWS,
+  rows: readonly UnNumberReferenceRow[] = effectiveRows(),
 ): Map<string, number> {
   const counts = new Map<string, number>();
   for (const row of rows) {
@@ -153,7 +193,7 @@ export function lookupUnNumber(raw: string | undefined | null): UnNumberTooltipE
   const unNo = normalizeUnNumber(raw);
   if (!/^\d{4}$/.test(unNo) || unNo === '0000') return null;
 
-  const entry = UN_NUMBER_MAP.get(unNo);
+  const entry = effectiveMap().get(unNo);
   if (!entry) return null;
 
   const parts: string[] = [];
@@ -164,6 +204,7 @@ export function lookupUnNumber(raw: string | undefined | null): UnNumberTooltipE
   if (entry.subRisk && entry.subRisk !== '-') {
     parts.push(`Sub-risk ${entry.subRisk}`);
   }
+  if (entry.marinePollutant) parts.push('Marine pollutant');
   if (entry.fire) parts.push(`Fire ${entry.fire}`);
   if (entry.spillage) parts.push(`Spillage ${entry.spillage}`);
 
@@ -180,7 +221,5 @@ export function lookupUnNumberReference(
 ): UnNumberReferenceEntry | null {
   const unNo = normalizeUnNumber(raw);
   if (!/^\d{4}$/.test(unNo) || unNo === '0000') return null;
-  return UN_NUMBER_MAP.get(unNo) ?? null;
+  return effectiveMap().get(unNo) ?? null;
 }
-
-export const UN_NUMBER_REFERENCE_COUNT = UN_NUMBER_MAP.size;

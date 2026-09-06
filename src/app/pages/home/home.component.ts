@@ -427,9 +427,10 @@ export class HomeComponent {
     });
     if (!ok) return;
 
-    this.passengers.removePassenger(id);
-
-    this.toast.showDeleted();
+    void this.crewDocs.deletePassportForPassenger(id).then(() => {
+      this.passengers.removePassenger(id);
+      this.toast.showDeleted();
+    });
   }
 
   protected dropCrew(event: CdkDragDrop<CrewMember[]>): void {

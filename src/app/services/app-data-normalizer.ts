@@ -63,6 +63,11 @@ import { normalizeCashAdvanceForm } from '../models/cash-advance.models';
 import { normalizeCrewMoneyListForm } from '../models/crew-money-list.models';
 import { normalizeNarcoticListForm } from '../models/narcotic-list.models';
 import { normalizeDgLibrary } from '../models/dg-manifest.models';
+import {
+  createDefaultDgUnReference,
+  type DgUnReferenceLibrary,
+} from '../models/dg-un-reference.models';
+import { normalizeUnNumber, type UnNumberReferenceRow } from '../utils/dg-un-number.util';
 import { normalizeReeferLibrary } from '../models/reefer.models';
 import { normalizeEtaLibrary } from '../models/eta.models';
 import {
@@ -159,6 +164,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     ports,
     ship,
   );
+  const dgUnReference = normalizeDgUnReference(raw.dgUnReference);
   const reeferLibrary = normalizeReeferLibrary(raw.reeferLibrary, ports, ship);
   const etaLibrary = normalizeEtaLibrary(raw.etaLibrary);
   const documentOverlay = normalizeDocumentOverlay(raw.documentOverlay, raw);
@@ -196,6 +202,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     crewMoneyListForm,
     narcoticListForm,
     dgLibrary,
+    dgUnReference,
     reeferLibrary,
     etaLibrary,
     documentOverlay,
@@ -222,6 +229,47 @@ function normalizeCustomDocuments(raw: unknown): CustomDocument[] {
       dataBase64: String((d as CustomDocument)?.dataBase64 ?? ''),
     }))
     .filter((d) => d.name && d.dataBase64);
+}
+
+/**
+ * Normalize the saved IMDG UN reference. Anything unreadable falls back to the
+ * bundled baseline; an imported list is kept exactly as saved (deduped by UN number)
+ * so a user who wiped entries on purpose does not get the baseline injected again.
+ */
+function normalizeDgUnReference(raw: unknown): DgUnReferenceLibrary {
+  const base = createDefaultDgUnReference();
+  if (!raw || typeof raw !== 'object') return base;
+
+  const source = raw as Partial<DgUnReferenceLibrary>;
+  if (source.origin !== 'custom' || !Array.isArray(source.entries)) return base;
+
+  const byUn = new Map<string, UnNumberReferenceRow>();
+  for (const item of source.entries) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Partial<UnNumberReferenceRow>;
+    const unNo = normalizeUnNumber(row.unNo);
+    if (!/^\d{4}$/.test(unNo) || unNo === '0000') continue;
+    byUn.set(unNo, {
+      unNo,
+      description: String(row.description ?? '').trim(),
+      dgClass: String(row.dgClass ?? '').trim(),
+      packingGroup: String(row.packingGroup ?? '').trim(),
+      subRisk: String(row.subRisk ?? '').trim(),
+      fire: String(row.fire ?? '').trim(),
+      spillage: String(row.spillage ?? '').trim(),
+      marinePollutant: row.marinePollutant === true,
+    });
+  }
+
+  return {
+    origin: 'custom',
+    entries: [...byUn.values()].sort((a, b) =>
+      a.unNo.localeCompare(b.unNo, undefined, { numeric: true }),
+    ),
+    fileName: String(source.fileName ?? '').trim(),
+    amendment: String(source.amendment ?? '').trim(),
+    updatedAt: String(source.updatedAt ?? '').trim(),
+  };
 }
 
 /** Dedupe a saved ports array WITHOUT injecting DEFAULT_PORTS (keeps user deletions). */

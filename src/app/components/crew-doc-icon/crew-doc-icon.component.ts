@@ -6,9 +6,19 @@ import {
   hasCrewDocument,
   CrewMember,
 } from '../../models/crew.models';
-import { CrewDocumentService } from '../../services/crew-document.service';
+import {
+  hasPassengerPassportScan,
+  PassengerMember,
+} from '../../models/passenger.models';
+import {
+  CrewDocumentService,
+  DocumentOwner,
+} from '../../services/crew-document.service';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+
+/** Minimal shape shared by crew and passenger for the scan icon. */
+export type DocIconMember = Pick<CrewMember, 'id' | 'familyName' | 'givenNames' | 'documents'> | PassengerMember;
 
 @Component({
   selector: 'app-crew-doc-icon',
@@ -100,8 +110,10 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
   `,
 })
 export class CrewDocIconComponent {
-  readonly member = input.required<CrewMember>();
+  readonly member = input.required<DocIconMember>();
   readonly docType = input.required<CrewDocumentType>();
+  /** Passengers: passport only. Defaults to crew. */
+  readonly owner = input<DocumentOwner>('crew');
   readonly attached = output<void>();
 
   private static readonly HOLD_MS = 550;
@@ -116,7 +128,12 @@ export class CrewDocIconComponent {
   private suppressClick = false;
 
   protected filled(): boolean {
-    return hasCrewDocument(this.member(), this.docType());
+    const member = this.member();
+    const type = this.docType();
+    if (this.owner() === 'passenger') {
+      return type === 'passport' && hasPassengerPassportScan(member as PassengerMember);
+    }
+    return hasCrewDocument(member as CrewMember, type);
   }
 
   protected shortLabel(): string {
@@ -163,6 +180,7 @@ export class CrewDocIconComponent {
     }
     const member = this.member();
     const type = this.docType();
+    const owner = this.owner();
     if (this.filled()) {
       const ok = await this.docs.openPreview(member.id, type);
       if (!ok) {
@@ -171,7 +189,7 @@ export class CrewDocIconComponent {
       return;
     }
     try {
-      const ok = await this.docs.pickAndAttach(member.id, type);
+      const ok = await this.docs.pickAndAttach(member.id, type, owner);
       if (ok) this.attached.emit();
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Failed to attach PDF');
@@ -189,9 +207,12 @@ export class CrewDocIconComponent {
   private async promptDelete(): Promise<void> {
     const member = this.member();
     const type = this.docType();
+    const owner = this.owner();
     const meta = CREW_DOCUMENT_TYPES.find((t) => t.id === type);
     const label = meta?.label ?? 'document';
-    const name = formatCrewListName(member) || 'this crew member';
+    const name =
+      formatCrewListName(member) ||
+      (owner === 'passenger' ? 'this passenger' : 'this crew member');
     const ok = await this.confirmDialog.confirm({
       title: 'Delete document',
       message: `Delete ${label} for ${name}?`,
@@ -200,7 +221,7 @@ export class CrewDocIconComponent {
     });
     if (!ok) return;
     try {
-      await this.docs.remove(member.id, type);
+      await this.docs.remove(member.id, type, owner);
       this.attached.emit();
       this.toast.show('Scan removed');
     } catch (e) {
@@ -226,7 +247,7 @@ export class CrewDocIconComponent {
     const file = event.dataTransfer?.files?.[0];
     if (!file) return;
     try {
-      await this.docs.attachFromFile(this.member().id, this.docType(), file);
+      await this.docs.attachFromFile(this.member().id, this.docType(), file, this.owner());
       this.attached.emit();
       this.toast.show('PDF attached');
     } catch (e) {

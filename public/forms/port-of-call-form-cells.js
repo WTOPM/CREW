@@ -218,10 +218,14 @@
   }
 
   function styleRecord(el) {
+    if (global.CrewCellFormat?.readStyle) return global.CrewCellFormat.readStyle(el);
     if (!el) return null;
     const style = {};
     if (el.style.fontFamily) style.fontFamily = el.style.fontFamily;
     if (el.style.fontSize) style.fontSize = el.style.fontSize;
+    if (el.style.fontWeight) style.fontWeight = el.style.fontWeight;
+    if (el.style.fontStyle) style.fontStyle = el.style.fontStyle;
+    if (el.style.textDecoration) style.textDecoration = el.style.textDecoration;
     if (el.style.textAlign) style.textAlign = el.style.textAlign;
     return Object.keys(style).length ? style : null;
   }
@@ -293,9 +297,16 @@
     scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
       const style = cellStyles[el.dataset.cellKey];
       if (!style) return;
-      if (style.fontFamily) el.style.fontFamily = style.fontFamily;
-      if (style.fontSize) el.style.fontSize = style.fontSize;
-      if (style.textAlign) el.style.textAlign = style.textAlign;
+      if (global.CrewCellFormat?.applyStyle) {
+        global.CrewCellFormat.applyStyle(el, style);
+      } else {
+        if (style.fontFamily) el.style.fontFamily = style.fontFamily;
+        if (style.fontSize) el.style.fontSize = style.fontSize;
+        if (style.fontWeight) el.style.fontWeight = style.fontWeight;
+        if (style.fontStyle) el.style.fontStyle = style.fontStyle;
+        if (style.textDecoration) el.style.textDecoration = style.textDecoration;
+        if (style.textAlign) el.style.textAlign = style.textAlign;
+      }
       reflowCell(el);
     });
   }
@@ -321,6 +332,15 @@
         replacement.style.textOverflow = 'ellipsis';
         replacement.style.whiteSpace = 'nowrap';
         replacement.style.textAlign = input.style.textAlign || 'center';
+        if (input.style.fontFamily) replacement.style.fontFamily = input.style.fontFamily;
+        if (input.style.fontSize) replacement.style.fontSize = input.style.fontSize;
+        if (global.CrewCellFormat?.copyEmphasis) {
+          global.CrewCellFormat.copyEmphasis(input, replacement);
+        } else {
+          if (input.style.fontWeight) replacement.style.fontWeight = input.style.fontWeight;
+          if (input.style.fontStyle) replacement.style.fontStyle = input.style.fontStyle;
+          if (input.style.textDecoration) replacement.style.textDecoration = input.style.textDecoration;
+        }
       } else if (input.classList.contains('ci-th')) {
         replacement.style.cssText = input.style.cssText;
         replacement.style.display = 'flex';

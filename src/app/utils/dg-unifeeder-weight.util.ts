@@ -75,3 +75,9 @@ export function unifeederExportTotalKg(
 ): number {
   return unifeederInventoryDisplayTotalKg(rows, options);
 }
+
+/** DP WORLD PDF/Excel Amount column — always `N.N kg` (e.g. `1.0 kg`). */
+export function formatUnifeederExportAmountKg(kg: number): string {
+  if (!Number.isFinite(kg) || kg <= 0) return '';
+  return `${(Math.round(kg * 10) / 10).toFixed(1)} kg`;
+}

@@ -66,7 +66,9 @@ export class CrewListHtmlFormExcelService {
 
   /** Build .xlsx bytes from a sessionStorage snapshot written by an HTML form editor. */
   async buildFromSessionStorage(): Promise<HtmlFormExcelBuildResult | null> {
-    const snapshot = parseHtmlFormExcelSnapshot(sessionStorage.getItem(HTML_FORM_EXCEL_STORAGE_KEY));
+    const snapshot = parseHtmlFormExcelSnapshot(
+      sessionStorage.getItem(HTML_FORM_EXCEL_STORAGE_KEY),
+    );
     sessionStorage.removeItem(HTML_FORM_EXCEL_STORAGE_KEY);
     if (!snapshot || !this.isHtmlFormType(snapshot.listType)) {
       return null;
@@ -91,7 +93,9 @@ export class CrewListHtmlFormExcelService {
     return openExcelBytes(this.fileName(listType, data, isArrival), bytes);
   }
 
-  async buildFromSnapshot(snapshot: HtmlFormExcelSnapshot): Promise<HtmlFormExcelBuildResult | null> {
+  async buildFromSnapshot(
+    snapshot: HtmlFormExcelSnapshot,
+  ): Promise<HtmlFormExcelBuildResult | null> {
     if (!this.isHtmlFormType(snapshot.listType)) {
       return null;
     }
@@ -100,9 +104,7 @@ export class CrewListHtmlFormExcelService {
     const crew = snapshot.crew.map((row) => this.toCrewMember(row));
     this.mergeOverlaySnapshot(data, snapshot);
     const bytes = await this.buildStructuredExcelBytes(listType, data, crew);
-    const fileName =
-      snapshot.fileName?.trim() ||
-      this.fileName(listType, data, snapshot.isArrival);
+    const fileName = snapshot.fileName?.trim() || this.fileName(listType, data, snapshot.isArrival);
     return { fileName, bytes };
   }
 
@@ -139,8 +141,7 @@ export class CrewListHtmlFormExcelService {
 
   private mergeOverlaySnapshot(data: AppData, snapshot: HtmlFormExcelSnapshot): void {
     const typeKey = snapshot.listType;
-    const prev: CrewListVariantSettings | undefined =
-      data.documentOverlay.crewList.byType[typeKey];
+    const prev: CrewListVariantSettings | undefined = data.documentOverlay.crewList.byType[typeKey];
     const { overlay } = snapshot;
     data.documentOverlay = {
       ...data.documentOverlay,
@@ -259,6 +260,7 @@ export class CrewListHtmlFormExcelService {
       crewMoneyListForm: this.storage.crewMoneyListForm(),
       narcoticListForm: this.storage.narcoticListForm(),
       dgLibrary: this.storage.dgLibrary(),
+      dgUnReference: this.storage.dgUnReference(),
       reeferLibrary: this.storage.reeferLibrary(),
       etaLibrary: this.storage.etaLibrary(),
       documentOverlay: structuredClone(this.storage.documentOverlay()),

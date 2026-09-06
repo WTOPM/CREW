@@ -65,6 +65,11 @@ declare global {
       releaseSectionLock: (section: AppSection, clientId: string) => Promise<{ ok: boolean }>;
       readSectionLock: (section: AppSection) => Promise<SectionLockRecord | null>;
       listSectionLocks: () => Promise<Partial<Record<AppSection, SectionLockRecord>>>;
+      /** Write shared-folder signal so every CREW instance using this data folder quits. */
+      requestForceQuitAll: () => Promise<{ id: string; at: number; by: string }>;
+      readForceQuit: () => Promise<{ id: string; at: number; by: string } | null>;
+      /** Fully quit (not minimize to tray). */
+      quitApp: () => Promise<{ ok: boolean }>;
       getLocalPrefs: () => Promise<ElectronLocalPrefs>;
       setLocalPrefs: (patch: Partial<ElectronLocalPrefs>) => Promise<ElectronLocalPrefs>;
       onAppRestoredFromTray: (callback: () => void) => () => void;

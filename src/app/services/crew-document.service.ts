@@ -2,81 +2,103 @@ import { Injectable, inject } from '@angular/core';
 import { CrewDocumentType } from '../models/crew.models';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
 import { CrewStore } from './crew.store';
+import { PassengerStore } from './passenger.store';
 
 const IDB_NAME = 'crew-documents';
 const IDB_STORE = 'pdfs';
 const IDB_VERSION = 1;
 
-function storageKey(crewId: string, docType: CrewDocumentType): string {
-  return `${crewId}:${docType}`;
+export type DocumentOwner = 'crew' | 'passenger';
+
+function storageKey(memberId: string, docType: CrewDocumentType): string {
+  return `${memberId}:${docType}`;
 }
 
 @Injectable({ providedIn: 'root' })
 export class CrewDocumentService {
   private readonly crew = inject(CrewStore);
+  private readonly passengers = inject(PassengerStore);
   private idb: IDBDatabase | null = null;
 
   isElectron(): boolean {
     return !!window.electronAPI;
   }
 
-  async attachFromFile(crewId: string, docType: CrewDocumentType, file: File): Promise<void> {
+  async attachFromFile(
+    memberId: string,
+    docType: CrewDocumentType,
+    file: File,
+    owner: DocumentOwner = 'crew',
+  ): Promise<void> {
     const name = file.name.toLowerCase();
     if (!name.endsWith('.pdf') && file.type !== 'application/pdf') {
       throw new Error('Only PDF files are supported');
     }
+    this.assertOwnerDocType(owner, docType);
     const buf = await file.arrayBuffer();
-    await this.saveBytes(crewId, docType, buf);
+    await this.saveBytes(memberId, docType, buf, owner);
   }
 
   async attachFromPath(
-    crewId: string,
+    memberId: string,
     docType: CrewDocumentType,
     sourcePath: string,
+    owner: DocumentOwner = 'crew',
   ): Promise<void> {
+    this.assertOwnerDocType(owner, docType);
     const api = window.electronAPI;
     if (!api) throw new Error('File path attach works in desktop app only');
-    await api.saveCrewPdf(crewId, docType, sourcePath);
-    this.crew.setCrewDocumentAttached(crewId, docType, true);
+    await api.saveCrewPdf(memberId, docType, sourcePath);
+    this.setAttachedFlag(memberId, docType, true, owner);
   }
 
-  async pickAndAttach(crewId: string, docType: CrewDocumentType): Promise<boolean> {
+  async pickAndAttach(
+    memberId: string,
+    docType: CrewDocumentType,
+    owner: DocumentOwner = 'crew',
+  ): Promise<boolean> {
+    this.assertOwnerDocType(owner, docType);
     const api = window.electronAPI;
     if (api) {
       const path = await api.pickPdfFile();
       if (!path) return false;
-      await this.attachFromPath(crewId, docType, path);
+      await this.attachFromPath(memberId, docType, path, owner);
       return true;
     }
     const file = await this.pickPdfInBrowser();
     if (!file) return false;
-    await this.attachFromFile(crewId, docType, file);
+    await this.attachFromFile(memberId, docType, file, owner);
     return true;
   }
 
-  async loadPdfBytes(crewId: string, docType: CrewDocumentType): Promise<Uint8Array | null> {
+  async loadPdfBytes(memberId: string, docType: CrewDocumentType): Promise<Uint8Array | null> {
     const api = window.electronAPI;
     if (api) {
-      const b64 = await api.readCrewPdf(crewId, docType);
+      const b64 = await api.readCrewPdf(memberId, docType);
       if (!b64) return null;
       return base64ToBytes(b64);
     }
-    const buf = await this.idbGet(storageKey(crewId, docType));
+    const buf = await this.idbGet(storageKey(memberId, docType));
     return buf ? new Uint8Array(buf) : null;
   }
 
-  async hasPdf(crewId: string, docType: CrewDocumentType): Promise<boolean> {
+  async hasPdf(memberId: string, docType: CrewDocumentType): Promise<boolean> {
     const api = window.electronAPI;
-    if (api) return api.crewPdfExists(crewId, docType);
-    const buf = await this.idbGet(storageKey(crewId, docType));
+    if (api) return api.crewPdfExists(memberId, docType);
+    const buf = await this.idbGet(storageKey(memberId, docType));
     return !!buf;
   }
 
-  async remove(crewId: string, docType: CrewDocumentType): Promise<void> {
+  async remove(
+    memberId: string,
+    docType: CrewDocumentType,
+    owner: DocumentOwner = 'crew',
+  ): Promise<void> {
+    this.assertOwnerDocType(owner, docType);
     const api = window.electronAPI;
-    if (api) await api.deleteCrewPdf(crewId, docType);
-    await this.idbDelete(storageKey(crewId, docType));
-    this.crew.setCrewDocumentAttached(crewId, docType, false);
+    if (api) await api.deleteCrewPdf(memberId, docType);
+    await this.idbDelete(storageKey(memberId, docType));
+    this.setAttachedFlag(memberId, docType, false, owner);
   }
 
   async deleteAllForCrew(crewId: string): Promise<void> {
@@ -87,26 +109,53 @@ export class CrewDocumentService {
     }
   }
 
+  /** Passenger scans are passport-only. */
+  async deletePassportForPassenger(passengerId: string): Promise<void> {
+    const api = window.electronAPI;
+    if (api) await api.deleteCrewPdf(passengerId, 'passport');
+    await this.idbDelete(storageKey(passengerId, 'passport'));
+  }
+
   /** Opens scan in a new browser window (same as Crew List PDF). */
-  async openPreview(crewId: string, docType: CrewDocumentType): Promise<boolean> {
-    const bytes = await this.loadPdfBytes(crewId, docType);
+  async openPreview(memberId: string, docType: CrewDocumentType): Promise<boolean> {
+    const bytes = await this.loadPdfBytes(memberId, docType);
     if (!bytes?.length) return false;
     return openPdfBlobPreview(bytes);
   }
 
+  private assertOwnerDocType(owner: DocumentOwner, docType: CrewDocumentType): void {
+    if (owner === 'passenger' && docType !== 'passport') {
+      throw new Error('Passengers only support passport scans');
+    }
+  }
+
+  private setAttachedFlag(
+    memberId: string,
+    docType: CrewDocumentType,
+    attached: boolean,
+    owner: DocumentOwner,
+  ): void {
+    if (owner === 'passenger') {
+      this.passengers.setPassengerPassportAttached(memberId, attached);
+      return;
+    }
+    this.crew.setCrewDocumentAttached(memberId, docType, attached);
+  }
+
   private async saveBytes(
-    crewId: string,
+    memberId: string,
     docType: CrewDocumentType,
     buffer: ArrayBuffer,
+    owner: DocumentOwner,
   ): Promise<void> {
     const api = window.electronAPI;
     const b64 = bytesToBase64(new Uint8Array(buffer));
     if (api) {
-      await api.saveCrewPdfBytes(crewId, docType, b64);
+      await api.saveCrewPdfBytes(memberId, docType, b64);
     } else {
-      await this.idbPut(storageKey(crewId, docType), buffer);
+      await this.idbPut(storageKey(memberId, docType), buffer);
     }
-    this.crew.setCrewDocumentAttached(crewId, docType, true);
+    this.setAttachedFlag(memberId, docType, true, owner);
   }
 
   pickPdfInBrowser(): Promise<File | null> {

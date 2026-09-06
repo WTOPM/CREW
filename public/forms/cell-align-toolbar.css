@@ -43,6 +43,13 @@
   border-top: 1px solid rgb(148 163 184 / 22%);
 }
 
+.cell-align-toolbar__row--emphasis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0.1rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgb(148 163 184 / 22%);
+}
+
 .cell-align-toolbar__row--date {
   grid-template-columns: 1fr;
   margin-top: 0.1rem;
@@ -180,6 +187,7 @@
 }
 
 .cell-align-toolbar__row--case .cell-align-toolbar__btn[data-tip]::after,
+.cell-align-toolbar__row--emphasis .cell-align-toolbar__btn[data-tip]::after,
 .cell-align-toolbar__row--date .cell-align-toolbar__btn[data-tip]::after {
   left: 50%;
   right: auto;
@@ -187,6 +195,7 @@
 }
 
 .cell-align-toolbar__row--case .cell-align-toolbar__btn[data-tip]::before,
+.cell-align-toolbar__row--emphasis .cell-align-toolbar__btn[data-tip]::before,
 .cell-align-toolbar__row--date .cell-align-toolbar__btn[data-tip]::before {
   left: 50%;
   right: auto;

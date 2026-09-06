@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('release-section-lock', section, clientId),
   readSectionLock: (section) => ipcRenderer.invoke('read-section-lock', section),
   listSectionLocks: () => ipcRenderer.invoke('list-section-locks'),
+  requestForceQuitAll: () => ipcRenderer.invoke('request-force-quit-all'),
+  readForceQuit: () => ipcRenderer.invoke('read-force-quit'),
+  quitApp: () => ipcRenderer.invoke('quit-app'),
   getLocalPrefs: () => ipcRenderer.invoke('get-local-prefs'),
   setLocalPrefs: (patch) => ipcRenderer.invoke('set-local-prefs', patch),
   onAppRestoredFromTray: (callback) => {

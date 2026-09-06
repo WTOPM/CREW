@@ -329,6 +329,21 @@ export class PassengerStore {
     void this.state.persist('silent');
   }
 
+  setPassengerPassportAttached(passengerId: string, attached: boolean): void {
+    this.data.update((d) => ({
+      ...d,
+      passengers: d.passengers.map((m) =>
+        m.id === passengerId
+          ? {
+              ...m,
+              documents: { ...m.documents, passport: attached },
+            }
+          : m,
+      ),
+    }));
+    void this.state.persist('debounced');
+  }
+
   reorderPassengerList(list: PaxListKind, fromIndex: number, toIndex: number): void {
     if (fromIndex === toIndex) return;
     this.data.update((d) => {

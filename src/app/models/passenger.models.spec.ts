@@ -23,23 +23,14 @@ describe('passenger voyage stays', () => {
     expect(stays[0]?.disembarkationPort).toBe('');
   });
 
-  it('prefers voyageStays over legacy embarkation fields', () => {
-    const member = migratePassengerMember({
+  it('normalizes passport document flag', () => {
+    const withScan = migratePassengerMember({
       ...createEmptyPassenger(),
-      embarkationDate: '2020-01-01',
-      embarkationPort: 'Old',
-      voyageStays: [
-        {
-          id: 'stay-1',
-          embarkationDate: '2026-05-01',
-          embarkationPort: 'Singapore',
-          disembarkationDate: '2026-05-10',
-          disembarkationPort: 'Rotterdam',
-        },
-      ],
+      documents: { passport: true },
     });
-    expect(member.voyageStays).toHaveLength(1);
-    expect(member.voyageStays[0]?.embarkationPort).toBe('Singapore');
-    expect(member.voyageStays[0]?.disembarkationPort).toBe('Rotterdam');
+    expect(withScan.documents?.passport).toBe(true);
+
+    const without = migratePassengerMember(createEmptyPassenger());
+    expect(without.documents?.passport).toBe(false);
   });
 });

@@ -92,6 +92,16 @@ export type DgActIconKind = 'discharge' | 'restore' | 'add' | 'remove' | 'line-r
       pointer-events: none;
     }
 
+    :host-context(.dg-header-actions) svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    :host-context(.dg-row-actions) svg {
+      width: 15px;
+      height: 15px;
+    }
+
     :host-context(.dg-act--discharge:hover) svg,
     :host-context(.dg-act--discharge:focus-visible) svg {
       animation: dg-icon-drop 0.45s ease;

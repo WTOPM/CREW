@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   formatDgManifestSourceName,
@@ -63,6 +63,7 @@ import {
 } from '../../utils/dg-un-number-autofill.util';
 import { normalizeUnNumber } from '../../utils/dg-un-number.util';
 import { dgFlashPointTone } from '../../utils/dg-flash-point-display.util';
+import { DgRowSelection } from '../../utils/dg-row-selection.util';
 
 /**
  * The DP WORLD / UNIFEEDER inventory tab of the DG page: import history, onboard rows
@@ -113,6 +114,28 @@ export class DgUnifeederInventoryComponent {
   protected readonly unifeederInventorySearch = signal('');
   protected readonly unifeederSortColumn = signal<DgUnifeederSortColumn | null>(null);
   protected readonly unifeederSortDirection = signal<DgUnifeederSortDirection>('asc');
+
+  /** Multi-select by list No (container groups). */
+  protected readonly rowSelection = new DgRowSelection();
+
+  constructor() {
+    effect(() => {
+      this.rowSelection.setOrderedIds(
+        this.visibleUnifeederContainerGroups().map((g) => g.key),
+      );
+    });
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscapeClearSelection(): void {
+    this.rowSelection.clear();
+  }
+
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
+  protected onDocumentPointerEnd(): void {
+    this.rowSelection.endDragGlobal();
+  }
 
   protected readonly filteredUnifeederRows = computed(() => {
     const lib = this.unifeederLibrary();
@@ -273,8 +296,8 @@ export class DgUnifeederInventoryComponent {
 
     const parts: string[] = [];
     if (doc.voyageNumber?.trim()) parts.push(`Voy ${doc.voyageNumber.trim()}`);
-    parts.push(`${rowCount} rows`);
-    if (containerCount > 0) parts.push(`${containerCount} ctr`);
+    if (containerCount > 0) parts.push(`${containerCount} containers`);
+    parts.push(`${rowCount} lines`);
     return parts.join(' · ');
   }
 
@@ -326,6 +349,14 @@ export class DgUnifeederInventoryComponent {
     });
   }
 
+  protected addLineToSelectedUnifeederContainer(): void {
+    const key = this.rowSelection.soleSelectedId();
+    if (!key) return;
+    const group = this.visibleUnifeederContainerGroups().find((g) => g.key === key);
+    if (!group) return;
+    this.addUnifeederCargoLine(group);
+  }
+
   protected unifeederContainerLineCount(group: DgUnifeederContainerDisplayGroup): number {
     return group.lines.length || 1;
   }
@@ -371,6 +402,25 @@ export class DgUnifeederInventoryComponent {
     for (const rowId of this.unifeederContainerSourceRowIds(group)) {
       this.dg.setUnifeederRowStatus(rowId, 'onboard');
     }
+  }
+
+  protected dischargeSelectedUnifeederContainers(): void {
+    const keys = new Set(this.rowSelection.selectedIds());
+    if (keys.size === 0) return;
+    for (const group of this.visibleUnifeederContainerGroups()) {
+      if (!keys.has(group.key)) continue;
+      this.markUnifeederContainerDischarged(group);
+    }
+  }
+
+  protected removeSelectedUnifeederContainers(): void {
+    const keys = new Set(this.rowSelection.selectedIds());
+    if (keys.size === 0) return;
+    for (const group of this.visibleUnifeederContainerGroups()) {
+      if (!keys.has(group.key)) continue;
+      this.removeUnifeederContainer(group);
+    }
+    this.rowSelection.clear();
   }
 
   protected removeUnifeederRow(rowId: string): void {

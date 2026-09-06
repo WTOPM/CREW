@@ -19,6 +19,33 @@
     else el.textContent = value;
   }
 
+  function currentCellText(el) {
+    return cellText(el);
+  }
+
+  /** Collapse whitespace/newlines so Alt+Enter wraps still match live crew text. */
+  function normalizeComparable(text) {
+    return String(text == null ? '' : text)
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Apply a persisted edit without freezing the form to a prior Save.
+   * Live crew/ship text from the home page always wins when content differs.
+   * Saved text is applied only when it is the same content (preserves Alt+Enter wraps).
+   * Empty live cells stay empty (no resurrecting deleted/padded crew rows).
+   */
+  function applySavedText(el, saved) {
+    if (!el) return;
+    const next = saved == null ? '' : String(saved);
+    const cur = currentCellText(el);
+    if (!next.trim() && cur.trim()) return;
+    if (!cur.trim()) return;
+    if (normalizeComparable(cur) !== normalizeComparable(next)) return;
+    setCellText(el, next);
+  }
+
   function isBirthPlaceInput(el) {
     return !!el?.classList?.contains('ci-birth-place');
   }
@@ -45,7 +72,9 @@
   /** Data inputs in column order — excludes the secondary birth-place field. */
   function dataInputs(row) {
     if (!row) return [];
-    return Array.from(row.querySelectorAll('input.ci')).filter((el) => !isBirthPlaceInput(el));
+    return Array.from(row.querySelectorAll('input.ci, textarea.ci')).filter(
+      (el) => !isBirthPlaceInput(el),
+    );
   }
 
   function rowElements(root) {
@@ -94,7 +123,7 @@
         if (!Object.prototype.hasOwnProperty.call(cellValues, key)) return;
         if (isBirthDateInput(input)) {
           const { date, place } = splitLegacyBirthCombined(cellValues[key]);
-          setCellText(input, date);
+          applySavedText(input, date);
           const pob = tr.querySelector('.ci-birth-place');
           const pobKey = `${rowIndex}-pob`;
           // Legacy "date  place" with no separate -pob key yet: apply both halves.
@@ -103,21 +132,21 @@
             place &&
             !Object.prototype.hasOwnProperty.call(cellValues, pobKey)
           ) {
-            setCellText(pob, place);
+            applySavedText(pob, place);
           }
           return;
         }
-        setCellText(input, cellValues[key]);
+        applySavedText(input, cellValues[key]);
       });
       const pob = tr.querySelector('.ci-birth-place');
       const pobKey = `${rowIndex}-pob`;
       if (pob && Object.prototype.hasOwnProperty.call(cellValues, pobKey)) {
-        setCellText(pob, cellValues[pobKey]);
+        applySavedText(pob, cellValues[pobKey]);
       }
       const nameCell = tr.querySelector('.ci-name');
       const nameKey = `${rowIndex}-name`;
       if (nameCell && Object.prototype.hasOwnProperty.call(cellValues, nameKey)) {
-        setCellText(nameCell, cellValues[nameKey]);
+        applySavedText(nameCell, cellValues[nameKey]);
       }
       const rnoCell = tr.querySelector('.ci-rno');
       const rnoKey = `${rowIndex}-rno`;
@@ -126,7 +155,7 @@
         cellValues[`${rowIndex}-rnoManual`] === '1' &&
         Object.prototype.hasOwnProperty.call(cellValues, rnoKey)
       ) {
-        setCellText(rnoCell, cellValues[rnoKey]);
+        applySavedText(rnoCell, cellValues[rnoKey]);
         rnoCell.dataset.manual = '1';
       }
     });

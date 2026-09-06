@@ -53,7 +53,7 @@ export function pickSectionSlice(data: AppData, section: AppSection): Partial<Ap
         narcoticListForm: data.narcoticListForm,
       };
     case 'dg':
-      return { dgLibrary: data.dgLibrary };
+      return { dgLibrary: data.dgLibrary, dgUnReference: data.dgUnReference };
     case 'reefer':
       return { reeferLibrary: data.reeferLibrary };
     case 'eta':

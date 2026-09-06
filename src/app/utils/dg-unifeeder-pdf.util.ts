@@ -117,12 +117,18 @@ export function normalizeUnifeederContainerNo(raw: string): string {
   return raw.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
 }
 
+/**
+ * Landscape pages are ~842 pt wide. A container header can sit past x=520 on the
+ * trailing column that is split across a page break — do not discard those.
+ */
+const CONTAINER_HEADER_MAX_X = 780;
+
 /** Count distinct container numbers extractable from PDF text (cargo pages). */
 export function countExtractableUnifeederContainers(items: readonly DgPdfTextItem[]): number {
   const seen = new Set<string>();
   for (const it of items) {
     if (!CONTAINER_RAW_RE.test(it.str.trim())) continue;
-    if (it.x > 520) continue;
+    if (it.x > CONTAINER_HEADER_MAX_X) continue;
     const containerNo = normalizeUnifeederContainerNo(it.str);
     if (containerNo.length >= 10) seen.add(containerNo);
   }
@@ -359,6 +365,8 @@ interface UnifeederContainerColumnAnchor {
   containerNo: string;
   size: string;
   imoY: number;
+  /** False when the header sits alone at a page edge (cargo continues on the next page). */
+  hasImoOnPage: boolean;
 }
 
 function findImoRowForContainer(
@@ -391,7 +399,7 @@ function findContainerColumnAnchors(
   for (const it of items) {
     const value = it.str.trim();
     if (!CONTAINER_RAW_RE.test(value)) continue;
-    if (it.x > 520) continue;
+    if (it.x > CONTAINER_HEADER_MAX_X) continue;
     const containerNo = normalizeUnifeederContainerNo(value);
     if (!containerNo) continue;
     const imo = findImoRowForContainer(items, it.x, it.y);
@@ -409,6 +417,7 @@ function findContainerColumnAnchors(
       containerNo,
       size: normalizeUnifeederSizeCode(size),
       imoY,
+      hasImoOnPage: !!imo,
     });
   }
 
@@ -617,11 +626,11 @@ function parseImoBlock(
 ): UnifeederImportRowPartial[] {
   const blockItems = blockItemsForColumn(items, columnX, imoY);
   const size =
-    binding?.size ??
-    (pickUnifeederSizeCode(blockItems, imoY + IMO.size) ||
-      pickUnifeederSizeCode(items, imoY + IMO.size));
+    (binding?.size && binding.size) ||
+    pickUnifeederSizeCode(blockItems, imoY + IMO.size) ||
+    pickUnifeederSizeCode(items, imoY + IMO.size);
   const containerNo =
-    binding?.containerNo ??
+    (binding?.containerNo && binding.containerNo) ||
     normalizeUnifeederContainerNo(
       pickLeftColumnField(blockItems, imoY + IMO.containerNo, (value) =>
         CONTAINER_RAW_RE.test(value),
@@ -629,7 +638,7 @@ function parseImoBlock(
         pickLeftColumnField(items, imoY + IMO.containerNo, (value) => CONTAINER_RAW_RE.test(value)),
     );
   const stow =
-    binding?.stow ??
+    (binding?.stow && binding.stow) ||
     items
       .find(
         (it) =>
@@ -638,9 +647,9 @@ function parseImoBlock(
           it.x <= 160 &&
           /^\d{4,6}$/.test(it.str.trim()),
       )
-      ?.str.trim() ??
-    (pickLeftColumnField(blockItems, imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value)) ||
-      pickLeftColumnField(items, imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value)));
+      ?.str.trim() ||
+    pickLeftColumnField(blockItems, imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value)) ||
+    pickLeftColumnField(items, imoY + IMO.stowage, (value) => /^\d{4,6}$/.test(value));
 
   if (!containerNo) return [];
 
@@ -832,14 +841,26 @@ function parsePageRows(
   inheritedBinding?: UnifeederImoBlockBinding,
   recentColumnHeaders: readonly UnifeederContainerColumnAnchor[] = [],
   useGrossWeight = true,
+  pendingOrphans: readonly UnifeederImoBlockBinding[] = [],
 ): {
   rows: UnifeederImportRowPartial[];
   lastBinding?: UnifeederImoBlockBinding;
   columnHeaders: readonly UnifeederContainerColumnAnchor[];
+  /** Container headers printed on this page whose cargo body continues on the next page. */
+  orphanBindings: UnifeederImoBlockBinding[];
 } {
   const anchors = findPageCargoAnchors(items);
   if (!anchors.length) {
-    return { rows: [], lastBinding: inheritedBinding, columnHeaders: recentColumnHeaders };
+    // A trailing page-break header with no IMO on this page still needs to travel forward.
+    const orphanOnly = findContainerColumnAnchors(items)
+      .filter((h) => !h.hasImoOnPage)
+      .map((h) => ({ containerNo: h.containerNo, size: h.size, stow: '' }));
+    return {
+      rows: [],
+      lastBinding: inheritedBinding,
+      columnHeaders: recentColumnHeaders,
+      orphanBindings: orphanOnly.length ? orphanOnly : [...pendingOrphans],
+    };
   }
 
   const containerHeaders = findContainerColumnAnchors(items);
@@ -852,7 +873,9 @@ function parsePageRows(
 
   const hasImoRows = items.some((it) => it.str === 'IMO Information');
   let activeBinding = inheritedBinding;
+  const orphanQueue = [...pendingOrphans];
   const rows: UnifeederImportRowPartial[] = [];
+  const usedContainerNos = new Set<string>();
 
   const allowWideUnAnchors = anchors.length === 1;
 
@@ -869,9 +892,14 @@ function parsePageRows(
     if (!hasImoRows) {
       binding =
         resolveBindingForContinuation(items, anchor.y, containerHeaders, recentColumnHeaders) ??
+        orphanQueue.shift() ??
         activeBinding;
     } else {
-      binding = resolveBindingForImo(items, pseudoImo, containerHeaders) ?? activeBinding;
+      binding = resolveBindingForImo(items, pseudoImo, containerHeaders);
+      if (!binding) {
+        // Cargo column without a container number — claim the oldest orphan from a page break.
+        binding = orphanQueue.shift() ?? activeBinding;
+      }
     }
     const blockRows = parseImoBlock(
       items,
@@ -888,6 +916,7 @@ function parsePageRows(
     if (blockRows.length) {
       const ref = blockRows[0]!;
       if (ref.containerNo) {
+        usedContainerNos.add(ref.containerNo);
         activeBinding = {
           containerNo: ref.containerNo,
           size: ref.size,
@@ -897,7 +926,23 @@ function parsePageRows(
     }
   }
 
-  return { rows, lastBinding: activeBinding, columnHeaders };
+  // Headers printed on this page that never got a cargo body belong to the next page.
+  const orphanBindings: UnifeederImoBlockBinding[] = [];
+  for (const header of containerHeaders) {
+    if (usedContainerNos.has(header.containerNo)) continue;
+    if (header.hasImoOnPage) continue;
+    orphanBindings.push({
+      containerNo: header.containerNo,
+      size: header.size,
+      stow: '',
+    });
+  }
+  // Unused carried orphans stay pending (should be rare).
+  for (const leftover of orphanQueue) {
+    if (!usedContainerNos.has(leftover.containerNo)) orphanBindings.push(leftover);
+  }
+
+  return { rows, lastBinding: activeBinding, columnHeaders, orphanBindings };
 }
 
 export function parseUnifeederDangerousCargoManifest(
@@ -966,6 +1011,7 @@ function parseLegacyUnifeederManifest(
 
   let lastBinding: UnifeederImoBlockBinding | undefined;
   let columnHeaders: UnifeederContainerColumnAnchor[] = [];
+  let pendingOrphans: UnifeederImoBlockBinding[] = [];
   const rows: UnifeederImportRowPartial[] = [];
   for (const page of pages) {
     const pageItems = items.filter((i) => i.page === page);
@@ -973,6 +1019,7 @@ function parseLegacyUnifeederManifest(
       rows: pageRows,
       lastBinding: nextBinding,
       columnHeaders: nextHeaders,
+      orphanBindings,
     } = parsePageRows(
       pageItems,
       loadPort,
@@ -980,9 +1027,11 @@ function parseLegacyUnifeederManifest(
       lastBinding,
       columnHeaders,
       useGrossWeight,
+      pendingOrphans,
     );
     lastBinding = nextBinding;
     columnHeaders = [...nextHeaders];
+    pendingOrphans = orphanBindings;
     if (!pageRows.length) {
       const mightHaveCargo = pageItems.some(
         (it) => it.str === 'IMO Information' || /^Proper ship\.\s*name:?\s*$/i.test(it.str.trim()),
@@ -993,6 +1042,12 @@ function parseLegacyUnifeederManifest(
       continue;
     }
     rows.push(...pageRows);
+  }
+
+  if (pendingOrphans.length) {
+    warnings.push(
+      `Container header(s) without cargo body: ${pendingOrphans.map((o) => o.containerNo).join(', ')}.`,
+    );
   }
 
   if (!rows.length) {

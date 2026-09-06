@@ -27,11 +27,15 @@
   }
 
   function styleRecord(el) {
+    if (global.CrewCellFormat?.readStyle) return global.CrewCellFormat.readStyle(el);
     if (!el) return null;
     const style = {};
     if (el.style.fontFamily) style.fontFamily = el.style.fontFamily;
     if (el.style.fontSize) style.fontSize = el.style.fontSize;
     if (el.style.textAlign) style.textAlign = el.style.textAlign;
+    if (el.style.fontWeight) style.fontWeight = el.style.fontWeight;
+    if (el.style.fontStyle) style.fontStyle = el.style.fontStyle;
+    if (el.style.textDecoration) style.textDecoration = el.style.textDecoration;
     if (el.dataset.verticalAlign) style.verticalAlign = el.dataset.verticalAlign;
     return Object.keys(style).length ? style : null;
   }
@@ -138,6 +142,11 @@
 
   function applyFormat(prop, val) {
     selectedCells.forEach((cell) => {
+      if (prop === 'textAlign' && global.CrewCellFormat?.applyHorizontalAlign) {
+        global.CrewCellFormat.applyHorizontalAlign(cell, val);
+        syncCellFlexAlignment(cell);
+        return;
+      }
       cell.style[prop] = val;
       if (prop === 'textAlign') syncCellFlexAlignment(cell);
     });
@@ -179,12 +188,42 @@
       const key = el.id || el.dataset.cellKey;
       const style = key ? cellStyles[key] : null;
       if (!style) return;
+      if (global.CrewCellFormat?.applyStyle) {
+        global.CrewCellFormat.applyStyle(el, style, {
+          applyTextAlign: (cell, align) => {
+            if (global.CrewCellFormat.applyHorizontalAlign) {
+              global.CrewCellFormat.applyHorizontalAlign(cell, align);
+            } else {
+              cell.style.textAlign = align;
+            }
+            syncCellFlexAlignment(cell);
+          },
+          applyVerticalAlign: applyVerticalAlignToCell,
+          syncFlex: syncCellFlexAlignment,
+        });
+        return;
+      }
       if (style.fontFamily) el.style.fontFamily = style.fontFamily;
       if (style.fontSize) el.style.fontSize = style.fontSize;
-      if (style.textAlign) el.style.textAlign = style.textAlign;
+      if (style.fontWeight) el.style.fontWeight = style.fontWeight;
+      if (style.fontStyle) el.style.fontStyle = style.fontStyle;
+      if (style.textDecoration) el.style.textDecoration = style.textDecoration;
+      if (style.textAlign) {
+        if (global.CrewCellFormat?.applyHorizontalAlign) {
+          global.CrewCellFormat.applyHorizontalAlign(el, style.textAlign);
+        } else {
+          el.style.textAlign = style.textAlign;
+        }
+      }
       if (style.verticalAlign) applyVerticalAlignToCell(el, style.verticalAlign);
       else if (style.textAlign) syncCellFlexAlignment(el);
     });
+  }
+
+  function normalizeComparable(text) {
+    return String(text == null ? '' : text)
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   function restoreValues(cellValues) {
@@ -193,6 +232,19 @@
       const key = el.id || el.dataset.cellKey;
       if (!key || cellValues[key] === undefined) return;
       const value = cellValues[key] == null ? '' : String(cellValues[key]);
+      // Prefer live ship/voyage from home; keep saved only for same-text wraps.
+      const cur =
+        el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+          ? el.value || ''
+          : (el.textContent || '').trim();
+      if (!value.trim() && String(cur).trim()) return;
+      if (
+        String(cur).trim() &&
+        value.trim() &&
+        normalizeComparable(cur) !== normalizeComparable(value)
+      ) {
+        return;
+      }
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
         el.value = value;
         if (el.dataset.iso != null && global.HtmlFormDateFormat?.syncIsoFromDisplay) {
@@ -210,15 +262,20 @@
 
   function resetAll() {
     headerFields().forEach((cell) => {
-      cell.style.removeProperty('font-family');
-      cell.style.removeProperty('font-size');
-      cell.style.removeProperty('text-align');
-      cell.style.removeProperty('display');
-      cell.style.removeProperty('align-items');
-      cell.style.removeProperty('height');
-      cell.style.removeProperty('justify-content');
-      cell.style.removeProperty('width');
-      delete cell.dataset.verticalAlign;
+      if (global.CrewCellFormat?.clearCell) {
+        global.CrewCellFormat.clearCell(cell);
+        cell.style.removeProperty('width');
+      } else {
+        cell.style.removeProperty('font-family');
+        cell.style.removeProperty('font-size');
+        cell.style.removeProperty('text-align');
+        cell.style.removeProperty('display');
+        cell.style.removeProperty('align-items');
+        cell.style.removeProperty('height');
+        cell.style.removeProperty('justify-content');
+        cell.style.removeProperty('width');
+        delete cell.dataset.verticalAlign;
+      }
       const hdrVal = hdrValWrapper(cell);
       if (hdrVal) {
         hdrVal.style.removeProperty('display');

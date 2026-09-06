@@ -223,10 +223,22 @@
   }
 
   function styleRecord(el) {
+    if (global.CrewCellFormat?.readStyle) {
+      const base = global.CrewCellFormat.readStyle(el);
+      if (!el) return base;
+      const style = base ? { ...base } : {};
+      const ta = normalizeTextAlign(el.style.textAlign) || effectiveCellTextAlign(el, valWrapper(el));
+      if (ta) style.textAlign = ta;
+      else delete style.textAlign;
+      return Object.keys(style).length ? style : null;
+    }
     if (!el) return null;
     const style = {};
     if (el.style.fontFamily) style.fontFamily = el.style.fontFamily;
     if (el.style.fontSize) style.fontSize = el.style.fontSize;
+    if (el.style.fontWeight) style.fontWeight = el.style.fontWeight;
+    if (el.style.fontStyle) style.fontStyle = el.style.fontStyle;
+    if (el.style.textDecoration) style.textDecoration = el.style.textDecoration;
     const ta = normalizeTextAlign(el.style.textAlign) || effectiveCellTextAlign(el, valWrapper(el));
     if (ta) style.textAlign = ta;
     return Object.keys(style).length ? style : null;
@@ -278,9 +290,16 @@
     scope.querySelectorAll('input.ci[data-cell-key], div.ci[data-cell-key]').forEach((el) => {
       const style = cellStyles[el.dataset.cellKey];
       if (!style) return;
-      if (style.fontFamily) el.style.fontFamily = style.fontFamily;
-      if (style.fontSize) el.style.fontSize = style.fontSize;
-      if (style.textAlign) el.style.textAlign = style.textAlign;
+      if (global.CrewCellFormat?.applyStyle) {
+        global.CrewCellFormat.applyStyle(el, style);
+      } else {
+        if (style.fontFamily) el.style.fontFamily = style.fontFamily;
+        if (style.fontSize) el.style.fontSize = style.fontSize;
+        if (style.fontWeight) el.style.fontWeight = style.fontWeight;
+        if (style.fontStyle) el.style.fontStyle = style.fontStyle;
+        if (style.textDecoration) el.style.textDecoration = style.textDecoration;
+        if (style.textAlign) el.style.textAlign = style.textAlign;
+      }
       reflowCell(el);
     });
   }
@@ -333,6 +352,13 @@
     if (input.style.fontSize) replacement.style.fontSize = input.style.fontSize;
     else if (!input.style.fontSize && input.classList.contains('ci')) {
       replacement.style.fontSize = window.getComputedStyle(input).fontSize;
+    }
+    if (global.CrewCellFormat?.copyEmphasis) {
+      global.CrewCellFormat.copyEmphasis(input, replacement);
+      replacement.style.fontWeight = exportFontWeight(input);
+    } else {
+      if (input.style.fontStyle) replacement.style.fontStyle = input.style.fontStyle;
+      if (input.style.textDecoration) replacement.style.textDecoration = input.style.textDecoration;
     }
   }
 

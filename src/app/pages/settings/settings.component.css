@@ -1161,3 +1161,32 @@
   font-weight: 600;
   color: #2563eb;
 }
+
+.settings-force-quit-card {
+  margin-top: 1.25rem;
+}
+
+.settings-force-quit-card .section-desc {
+  margin: 0 0 0.85rem;
+  max-width: 40rem;
+}
+
+.settings-force-quit-card code {
+  font-size: 0.85em;
+}
+
+.settings-force-quit-card .btn-danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.settings-force-quit-card .btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.settings-force-quit-card .btn-danger:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

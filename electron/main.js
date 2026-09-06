@@ -445,6 +445,48 @@ function guardShrinkBeforeWrite(data) {
 
 const SECTION_LOCK_IDS = ['home', 'dg', 'reefer', 'eta', 'settings'];
 const LOCK_STALE_MS = 90_000;
+/** Shared-folder signal: close every running CREW instance (for exe replace). */
+const FORCE_QUIT_FILE = 'force-quit.json';
+const FORCE_QUIT_TTL_MS = 120_000;
+
+function getForceQuitPath() {
+  return path.join(getDataDir(), FORCE_QUIT_FILE);
+}
+
+function readForceQuitSignal() {
+  const filePath = getForceQuitPath();
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    if (!raw || typeof raw.id !== 'string' || typeof raw.at !== 'number') return null;
+    if (Date.now() - raw.at > FORCE_QUIT_TTL_MS) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        /* ignore */
+      }
+      return null;
+    }
+    return {
+      id: raw.id,
+      at: raw.at,
+      by: typeof raw.by === 'string' ? raw.by : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeForceQuitSignal(by) {
+  ensureDataDir();
+  const signal = {
+    id: crypto.randomUUID(),
+    at: Date.now(),
+    by: String(by || '').trim() || 'unknown',
+  };
+  fs.writeFileSync(getForceQuitPath(), JSON.stringify(signal, null, 2), 'utf-8');
+  return signal;
+}
 
 function getLocksDir() {
   return path.join(getDataDir(), 'locks');
@@ -1247,6 +1289,28 @@ ipcMain.handle('read-ship-asset', (_event, kind) => {
 ipcMain.handle('delete-ship-asset', (_event, kind) => {
   removeShipAssetFiles(kind);
   return true;
+});
+
+ipcMain.handle('request-force-quit-all', () => {
+  let by = '';
+  try {
+    by = `${os.userInfo().username || ''}@${os.hostname()}`;
+  } catch {
+    by = os.hostname() || '';
+  }
+  return writeForceQuitSignal(by);
+});
+
+ipcMain.handle('read-force-quit', () => readForceQuitSignal());
+
+ipcMain.handle('quit-app', () => {
+  appIsQuitting = true;
+  destroyTray();
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.destroy();
+  }
+  app.quit();
+  return { ok: true };
 });
 
 ipcMain.handle('get-local-prefs', () => readLocalPrefs());

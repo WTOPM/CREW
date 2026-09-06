@@ -418,7 +418,7 @@
 
                     <div class="uf-inventory-strip">
                       <span
-                        ><strong>{{ stats().containerCount }}</strong> ctr</span
+                        ><strong>{{ stats().containerCount }}</strong> containers</span
                       >
                       <span class="uf-inventory-strip__sep">·</span>
                       <span
@@ -464,7 +464,22 @@
                   </colgroup>
                   <thead>
                     <tr class="dg-table-head">
-                      <th class="col-index dg-th--group-start">#</th>
+                      <th
+                        class="col-index dg-th--group-start dg-select-th"
+                        [class.dg-select-th--active]="rowSelection.hasSelection()"
+                        [title]="
+                          rowSelection.hasSelection()
+                            ? 'Clear selection'
+                            : 'Select all containers'
+                        "
+                        (click)="rowSelection.toggleSelectAll()"
+                      >
+                        @if (rowSelection.hasSelection()) {
+                          <span class="dg-select-th__mark" aria-hidden="true">✓</span>
+                        } @else {
+                          #
+                        }
+                      </th>
                       <th
                         class="col-container dg-sort-th"
                         [class.dg-sort-th--active]="inventorySortColumn() === 'containerNo'"
@@ -576,7 +591,37 @@
                         >
                       </th>
                       <th class="col-line-act dg-th--group-start" aria-label="Remove line"></th>
-                      <th class="col-actions" aria-label="Container actions"></th>
+                      <th class="col-actions" aria-label="Container actions">
+                        <div class="dg-header-actions">
+                          <button
+                            type="button"
+                            class="dg-act dg-act--discharge"
+                            title="Mark selected discharged"
+                            [disabled]="!rowSelection.hasSelection()"
+                            (click)="dischargeSelectedContainers()"
+                          >
+                            <dg-act-icon kind="discharge" />
+                          </button>
+                          <button
+                            type="button"
+                            class="dg-act dg-act--add"
+                            title="Add DG line to the selected container"
+                            [disabled]="!rowSelection.exactlyOneSelected()"
+                            (click)="addLineToSelectedContainer()"
+                          >
+                            <dg-act-icon kind="add" />
+                          </button>
+                          <button
+                            type="button"
+                            class="dg-act dg-act--remove"
+                            title="Remove selected containers"
+                            [disabled]="!rowSelection.hasSelection()"
+                            (click)="removeSelectedContainers()"
+                          >
+                            <dg-act-icon kind="remove" />
+                          </button>
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -591,10 +636,20 @@
                           [class.dg-master-row--container-focus]="
                             isContainerGroupFocus(container.id)
                           "
+                          [class.dg-master-row--selected]="rowSelection.isSelected(container.id)"
                           (mouseenter)="setContainerGroupHover(container.id)"
                           (mouseleave)="onContainerGroupLeave($event, container.id)"
                         >
-                          <td class="col-index col-group">{{ ci + 1 }}</td>
+                          <td
+                            class="col-index col-group dg-select-cell"
+                            title="Select container"
+                            (pointerdown)="rowSelection.onIndexPointerDown(container.id, $event)"
+                            (pointerenter)="rowSelection.onIndexPointerEnter(container.id)"
+                            (pointerup)="rowSelection.onIndexPointerUp($event)"
+                            (pointercancel)="rowSelection.onIndexPointerCancel($event)"
+                          >
+                            {{ ci + 1 }}
+                          </td>
                           <td class="col-container col-group">
                             <input
                               type="text"
@@ -674,32 +729,7 @@
                                 >
                                   <dg-act-icon kind="restore" />
                                 </button>
-                              } @else {
-                                <button
-                                  type="button"
-                                  class="dg-act dg-act--discharge"
-                                  title="Mark discharged"
-                                  (click)="markDischarged(container.id)"
-                                >
-                                  <dg-act-icon kind="discharge" />
-                                </button>
                               }
-                              <button
-                                type="button"
-                                class="dg-act dg-act--add"
-                                title="Add DG line"
-                                (click)="addLine(container.id)"
-                              >
-                                <dg-act-icon kind="add" />
-                              </button>
-                              <button
-                                type="button"
-                                class="dg-act dg-act--remove"
-                                title="Remove container"
-                                (click)="removeContainer(container.id)"
-                              >
-                                <dg-act-icon kind="remove" />
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -726,6 +756,7 @@
                             [class.dg-master-row--container-focus]="
                               isContainerGroupFocus(container.id)
                             "
+                            [class.dg-master-row--selected]="rowSelection.isSelected(container.id)"
                             [class.dg-master-row--line-hovered]="
                               isCargoLineHovered(container.id, line.id)
                             "
@@ -742,10 +773,15 @@
                           >
                             @if (first) {
                               <td
-                                class="col-index col-group"
+                                class="col-index col-group dg-select-cell"
                                 [attr.rowspan]="containerDisplayLineCount(container)"
                                 [attr.data-container-id]="container.id"
+                                title="Select container"
                                 (mouseenter)="setContainerGroupHover(container.id)"
+                                (pointerdown)="rowSelection.onIndexPointerDown(container.id, $event)"
+                                (pointerenter)="rowSelection.onIndexPointerEnter(container.id)"
+                                (pointerup)="rowSelection.onIndexPointerUp($event)"
+                                (pointercancel)="rowSelection.onIndexPointerCancel($event)"
                               >
                                 {{ ci + 1 }}
                               </td>
@@ -1067,32 +1103,7 @@
                                     >
                                       <dg-act-icon kind="restore" />
                                     </button>
-                                  } @else {
-                                    <button
-                                      type="button"
-                                      class="dg-act dg-act--discharge"
-                                      title="Mark discharged"
-                                      (click)="markDischarged(container.id)"
-                                    >
-                                      <dg-act-icon kind="discharge" />
-                                    </button>
                                   }
-                                  <button
-                                    type="button"
-                                    class="dg-act dg-act--add"
-                                    title="Add DG line"
-                                    (click)="addLine(container.id)"
-                                  >
-                                    <dg-act-icon kind="add" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    class="dg-act dg-act--remove"
-                                    title="Remove container"
-                                    (click)="removeContainer(container.id)"
-                                  >
-                                    <dg-act-icon kind="remove" />
-                                  </button>
                                 </div>
                               </td>
                             }

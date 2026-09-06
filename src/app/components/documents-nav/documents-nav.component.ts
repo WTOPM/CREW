@@ -19,9 +19,7 @@ import {
   ShipStoresDocId,
   portCountry,
 } from '../../models/crew.models';
-import {
-  crewListIdentityPdfFileName,
-} from '../../utils/pdf-filename.util';
+import { crewListIdentityPdfFileName } from '../../utils/pdf-filename.util';
 import {
   CREW_FORM_01,
   CREW_FORM_02,
@@ -37,7 +35,11 @@ import {
 import { CREW_LIST_FORM_01_FEEDBACK_PARAM } from '../../models/crew-list-form-01.paths';
 import { PASSENGER_LIST_FORM_01_FEEDBACK_PARAM } from '../../models/passenger-list-form-01.paths';
 import { PASSENGER_LIST_FORM_02_FEEDBACK_PARAM } from '../../models/passenger-list-form-02.paths';
-import { PAX_LIST_TYPE_IDS, PAX_LIST_TYPE_LABELS, PaxListTypeId } from '../../models/passenger.models';
+import {
+  PAX_LIST_TYPE_IDS,
+  PAX_LIST_TYPE_LABELS,
+  PaxListTypeId,
+} from '../../models/passenger.models';
 import { CREW_LIST_FORM_02_FEEDBACK_PARAM } from '../../models/crew-list-form-02.paths';
 import { CREW_LIST_FORM_03_FEEDBACK_PARAM } from '../../models/crew-list-form-03.paths';
 import { CREW_LIST_FORM_04_FEEDBACK_PARAM } from '../../models/crew-list-form-04.paths';
@@ -219,14 +221,18 @@ export class DocumentsNavComponent implements OnInit {
       ? this.storage.activePassengersArrival()
       : this.storage.activePassengersDeparture();
     if (listType === 'paxV2') {
-      void this.passengerListForm02Pdf.openPreview(this.appData(), passengers, isArrival).then((ok) => {
-        if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');
-      });
+      void this.passengerListForm02Pdf
+        .openPreview(this.appData(), passengers, isArrival)
+        .then((ok) => {
+          if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');
+        });
       return;
     }
-    void this.passengerListForm01Pdf.openPreview(this.appData(), passengers, isArrival).then((ok) => {
-      if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');
-    });
+    void this.passengerListForm01Pdf
+      .openPreview(this.appData(), passengers, isArrival)
+      .then((ok) => {
+        if (!ok) this.toast.showError('Allow pop-ups to open Passenger List preview');
+      });
   }
 
   protected crewListDocLabel(id: CrewListTypeId): string {
@@ -271,7 +277,11 @@ export class DocumentsNavComponent implements OnInit {
     const crew = isArrival ? this.storage.activeCrewArrival() : this.storage.activeCrewDeparture();
     const data: AppData = {
       ...this.appData(isArrival),
-      crewArr: { ...this.appData(isArrival).crewArr, isArrival, identityDocumentType: CREW_IDENTITY_PASSPORT },
+      crewArr: {
+        ...this.appData(isArrival).crewArr,
+        isArrival,
+        identityDocumentType: CREW_IDENTITY_PASSPORT,
+      },
     };
     try {
       const ok = await this.crewListForm01Pdf.openPreview(data, crew, isArrival);
@@ -1101,6 +1111,7 @@ export class DocumentsNavComponent implements OnInit {
       crewMoneyListForm: this.storage.crewMoneyListForm(),
       narcoticListForm: this.storage.narcoticListForm(),
       dgLibrary: this.storage.dgLibrary(),
+      dgUnReference: this.storage.dgUnReference(),
       reeferLibrary: this.storage.reeferLibrary(),
       etaLibrary: this.storage.etaLibrary(),
       documentOverlay: this.storage.documentOverlay(),

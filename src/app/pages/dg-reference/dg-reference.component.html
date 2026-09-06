@@ -1,16 +1,133 @@
 <div class="page dg-ref-page">
   <header class="page-header dg-ref-header">
-    <div>
+    <div class="dg-ref-header__title">
       <a routerLink="/dg" class="back-link">DG</a>
       <h1>DG reference</h1>
-      <p class="subtitle">
-        MFAG fire and spillage schedule codes, and the full UN number lookup ({{
-          unNumberCount
-        }}
-        entries from your Excel UN list). Expand a section when you need it.
-      </p>
     </div>
+
+    <section class="dg-ref-sync" aria-label="IMDG reference sync">
+      <div
+        class="dg-ref-drop"
+        [class.dg-ref-drop--active]="syncDragOver()"
+        [class.dg-ref-drop--busy]="syncPhase() === 'parsing'"
+        [class.dg-ref-drop--error]="syncPhase() === 'error'"
+        (click)="pickSyncPdf()"
+        (dragover)="onSyncDragOver($event)"
+        (dragleave)="onSyncDragLeave()"
+        (drop)="onSyncDrop($event)"
+        title="Drop IMDG Code or DG PDF to update UN / fire / spillage reference"
+      >
+        <input
+          #syncPdfInput
+          type="file"
+          accept=".pdf,application/pdf"
+          hidden
+          (change)="onSyncFileInput($event)"
+        />
+
+        @if (syncPhase() === 'parsing') {
+          <div class="dg-ref-drop__busy" aria-live="polite">
+            <div class="dg-ref-drop__busy-text">
+              <strong>{{ syncStage() || 'Reading PDF…' }}</strong>
+              <span>{{ syncProgress() }}%</span>
+            </div>
+            <div class="dg-ref-drop__bar" aria-hidden="true">
+              <span class="dg-ref-drop__bar-fill" [style.width.%]="syncProgress()"></span>
+            </div>
+          </div>
+        } @else {
+          <svg class="dg-ref-drop__svg" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2.5L18.5 10H13V4.5zM8 13h8v1.5H8V13zm0 3h5v1.5H8V16z"
+            />
+          </svg>
+          <div class="dg-ref-drop__copy">
+            <strong>Drop IMDG / DG PDF</strong>
+            <span>Update UN numbers, fire &amp; spillage schedules</span>
+          </div>
+        }
+      </div>
+
+      @if (syncPhase() === 'error') {
+        <div class="dg-ref-sync__result dg-ref-sync__result--error" role="status">
+          <p class="dg-ref-sync__message">{{ syncMessage() }}</p>
+          @if (syncFiles().length > 0) {
+            <ul class="dg-ref-sync__files">
+              @for (name of syncFiles(); track name) {
+                <li>{{ name }}</li>
+              }
+            </ul>
+          }
+          <button type="button" class="dg-ref-sync__dismiss" (click)="clearSyncStatus()">
+            Dismiss
+          </button>
+        </div>
+      }
+
+      <div class="dg-ref-source">
+        @if (referenceLibrary(); as library) {
+          <p class="dg-ref-source__line">
+            @if (library.origin === 'custom') {
+              <span class="dg-ref-source__tag dg-ref-source__tag--custom">Imported</span>
+              <span
+                ><strong>{{ unNumberCount() }}</strong> UN numbers</span
+              >
+              @if (library.amendment) {
+                <span class="dg-ref-source__sep">·</span>
+                <span>{{ library.amendment }}</span>
+              }
+              @if (library.fileName) {
+                <span class="dg-ref-source__sep">·</span>
+                <span class="dg-ref-source__file">{{ library.fileName }}</span>
+              }
+            } @else {
+              <span class="dg-ref-source__tag">Built-in</span>
+              <span
+                ><strong>{{ unNumberCount() }}</strong> UN numbers</span
+              >
+            }
+          </p>
+
+          <div class="dg-ref-source__actions">
+            @if (library.origin === 'custom') {
+              <button type="button" class="btn-link" (click)="restoreBundledReference()">
+                Restore built-in ({{ bundledCount }})
+              </button>
+            }
+            <button type="button" class="btn-link warn" (click)="askClearReference()">
+              Clear all entries
+            </button>
+          </div>
+
+          @if (confirmClear()) {
+            <div class="dg-ref-source__confirm" role="alertdialog">
+              <p>
+                Delete all {{ unNumberCount() }} UN entries? Tooltips and DG autofill stay empty
+                until you import an IMDG PDF. The built-in list can always be restored.
+              </p>
+              <div class="dg-ref-source__confirm-actions">
+                <button type="button" class="btn btn-secondary" (click)="cancelClearReference()">
+                  Keep them
+                </button>
+                <button type="button" class="btn btn-danger" (click)="clearReference()">
+                  Clear everything
+                </button>
+              </div>
+            </div>
+          }
+        }
+      </div>
+    </section>
   </header>
+
+  @if (importReport(); as report) {
+    <app-dg-un-reference-import-modal
+      [report]="report"
+      (apply)="onImportApply($event)"
+      (cancel)="onImportCancel()"
+    />
+  }
 
   <div class="dg-ref-accordions">
     <section class="dg-ref-accordion" [class.dg-ref-accordion--open]="isSectionOpen('fire')">
@@ -98,7 +215,7 @@
         <span class="dg-ref-accordion__chevron" aria-hidden="true"></span>
         <span class="dg-ref-accordion__title">UN numbers</span>
         <span class="dg-ref-accordion__meta"
-          >{{ unNumberCount }} entries · {{ unClassLabels.length }} IMDG classes</span
+          >{{ unNumberCount() }} entries · {{ unClassLabels().length }} IMDG classes</span
         >
       </button>
 
@@ -140,9 +257,9 @@
                 (click)="setUnClassFilter(null)"
               >
                 All classes
-                <span class="dg-ref-un-chip__count">{{ unNumberCount }}</span>
+                <span class="dg-ref-un-chip__count">{{ unNumberCount() }}</span>
               </button>
-              @for (dgClass of unClassLabels; track dgClass) {
+              @for (dgClass of unClassLabels(); track dgClass) {
                 <button
                   type="button"
                   class="dg-ref-un-chip"
@@ -152,7 +269,7 @@
                   <span class="dg-hint-tooltip-host" [appDgClassTooltip]="dgClass"
                     >Class {{ dgClass }}</span
                   >
-                  <span class="dg-ref-un-chip__count">{{ unClassCounts.get(dgClass) }}</span>
+                  <span class="dg-ref-un-chip__count">{{ unClassCounts().get(dgClass) }}</span>
                 </button>
               }
             </div>

@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -60,6 +60,7 @@ import {
 } from '../../utils/dg-un-number-autofill.util';
 import { normalizeUnNumber } from '../../utils/dg-un-number.util';
 import { dgFlashPointTone } from '../../utils/dg-flash-point-display.util';
+import { DgRowSelection } from '../../utils/dg-row-selection.util';
 
 type DgLineField = keyof Omit<DgCargoLine, 'id'>;
 export type DgInventoryTab = DgActiveInventoryTab;
@@ -172,6 +173,27 @@ export class DgComponent {
   protected readonly dgArchive = this.pageArchive;
   protected readonly showArchiveSaveModal = signal(false);
   protected readonly showArchiveLoadModal = signal(false);
+
+  /** Multi-select by list # (CMA tab). */
+  protected readonly rowSelection = new DgRowSelection();
+
+  constructor() {
+    effect(() => {
+      this.rowSelection.setOrderedIds(this.visibleContainers().map((c) => c.id));
+    });
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscapeClearSelection(): void {
+    if (this.activeInventoryTab() !== 'cmaCgm') return;
+    this.rowSelection.clear();
+  }
+
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
+  protected onDocumentPointerEnd(): void {
+    this.rowSelection.endDragGlobal();
+  }
 
   protected toggleShowDischarged(checked: boolean): void {
     this.dg.updateDgManifestView({ showDischarged: checked });
@@ -353,7 +375,7 @@ export class DgComponent {
   protected manifestLabel(doc: DgManifestDocument): string {
     const parts = [
       doc.voyageNumber ? `Voy ${doc.voyageNumber}` : '',
-      doc.containerCount ? `${doc.containerCount} ctr` : '',
+      doc.containerCount ? `${doc.containerCount} containers` : '',
     ].filter(Boolean);
     return parts.join(' · ');
   }
@@ -471,8 +493,31 @@ export class DgComponent {
     this.dg.setDgOnboardContainerStatus(containerId, 'onboard');
   }
 
+  protected dischargeSelectedContainers(): void {
+    const ids = [...this.rowSelection.selectedIds()];
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      this.dg.setDgOnboardContainerStatus(id, 'discharged');
+    }
+  }
+
+  protected removeSelectedContainers(): void {
+    const ids = [...this.rowSelection.selectedIds()];
+    if (ids.length === 0) return;
+    for (const id of ids) {
+      this.dg.removeDgOnboardContainer(id);
+    }
+    this.rowSelection.clear();
+  }
+
   protected addLine(containerId: string): void {
     this.dg.addDgOnboardCargoLine(containerId);
+  }
+
+  protected addLineToSelectedContainer(): void {
+    const id = this.rowSelection.soleSelectedId();
+    if (!id) return;
+    this.addLine(id);
   }
 
   protected removeLine(containerId: string, lineId: string): void {

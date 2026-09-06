@@ -121,8 +121,27 @@
       el.style.setProperty('text-align', ta, 'important');
       el.style.alignItems = '';
       el.style.justifyContent = '';
-      el.style.whiteSpace = el.style.whiteSpace || 'nowrap';
-      el.style.overflow = el.style.overflow || 'hidden';
+
+      // Never force nowrap onto cells that soft-wrap in the HTML editor
+      // (birth place, textareas, Alt+Enter) — that was clipping PDF vs HTML.
+      const ws = (el.style.whiteSpace || cs.whiteSpace || '').toLowerCase();
+      const allowWrap =
+        el.classList.contains('ci-birth-place') ||
+        el.classList.contains('ci-name') ||
+        ws.includes('pre-wrap') ||
+        ws.includes('pre-line') ||
+        ws === 'pre' ||
+        (el.textContent || '').includes('\n');
+      if (allowWrap) {
+        el.style.whiteSpace = ws.includes('pre') ? el.style.whiteSpace || 'pre-wrap' : 'pre-wrap';
+        el.style.overflowWrap = 'break-word';
+        el.style.wordBreak = 'normal';
+        el.style.height = 'auto';
+        el.style.overflow = 'hidden';
+      } else {
+        el.style.whiteSpace = el.style.whiteSpace || 'nowrap';
+        el.style.overflow = el.style.overflow || 'hidden';
+      }
     });
 
     if (document.querySelector('#ced-grid input.ci, #ced-crew input.ci')) {

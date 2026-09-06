@@ -74,6 +74,7 @@ const MAX_ROWS = 15;
       Array.from(tableBody.children).forEach((row) => {
         const rno = row.querySelector('.ci-rno');
         if (!rno) return;
+        delete rno.dataset.manual;
         if (rowHasData(row)) {
           n += 1;
           rno.textContent = String(n);
@@ -86,20 +87,22 @@ const MAX_ROWS = 15;
     function addRow(d = {}) {
       const row = document.createElement('div');
       row.className = 'table-row';
+      const ta = (cls, val) => HtmlFormCrewListKit.textareaHtml(cls, val);
       row.innerHTML = `
     <div class="td-cell ch-no"><div class="ci ci-rno" tabindex="-1"></div></div>
-    <div class="td-cell ch-name"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></div>
-    <div class="td-cell ch-rank"><input class="ci" type="text" value="${escAttr(d.rank)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-nat"><input class="ci" type="text" value="${escAttr(d.nat)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-birth"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${escAttr(d.dob || '')}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1"><input class="ci ci-birth-place" type="text" value="${escAttr(d.pob || '')}" readonly tabindex="-1"></div></div>
-    <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc1)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-doc"><input class="ci" type="text" value="${escAttr(d.doc2)}" readonly tabindex="-1"></div>
-    <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinDate)}"${dateIsoAttr(d.joinDateIso)} readonly tabindex="-1"></div>
-    <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinPlace)}" readonly tabindex="-1"></div>
+    <div class="td-cell ch-name"><div class="ci ci-name" tabindex="-1">${escapeHtml(d.name || '')}</div></div>
+    <div class="td-cell ch-rank">${ta('', d.rank)}</div>
+    <div class="td-cell ch-nat">${ta('', d.nat)}</div>
+    <div class="td-cell ch-birth"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${escAttr(d.dob || '')}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1">${ta('ci-birth-place', d.pob)}</div></div>
+    <div class="td-cell ch-doc">${ta('', d.doc1)}</div>
+    <div class="td-cell ch-doc">${ta('', d.doc2)}</div>
+    <div class="td-cell ch-vertical"><input class="ci" type="text" value="${escAttr(d.joinDate || '')}"${dateIsoAttr(d.joinDateIso)} readonly tabindex="-1"></div>
+    <div class="td-cell ch-vertical">${ta('', d.joinPlace)}</div>
     <div class="td-cell ch-vertical border-right-none"><input class="ci ci-temp" type="text" value="${escAttr(tempStoredValue(d.temperature || ''))}" inputmode="decimal" tabindex="0"></div>`;
       tableBody.appendChild(row);
       fillTemperatureForRow(row);
       refreshRowNumbers();
+      wrapEdit.syncRowHeights(row);
     }
     function removeRow() {
       if (tableBody.lastChild) {
@@ -141,6 +144,14 @@ const MAX_ROWS = 15;
     let isDragging = false;
     let selectionAnchor = null;
 
+    const wrapEdit = HtmlFormCrewListKit.installWrapEdit({
+      tableRoot: tableBody,
+      pageSelector: '.a4-landscape-page',
+      getSelectedCells: () => selectedCells,
+      isEditableCell: (cell) =>
+        HtmlFormCrewListKit.isWrapEditableCell(cell) && !cell.classList.contains('ci-temp'),
+    });
+
     function cellCoords(el) {
       const rowEl = el.closest('.table-row');
       const row = Array.from(tableBody.children).indexOf(rowEl);
@@ -156,9 +167,7 @@ const MAX_ROWS = 15;
     }
 
     function cellText(cell) {
-      if (!cell) return '';
-      if (cell.tagName === 'INPUT') return cell.value || '';
-      return (cell.textContent || '').trim();
+      return HtmlFormCrewListKit.cellText(cell);
     }
 
     function selectionBounds() {
@@ -219,9 +228,12 @@ const MAX_ROWS = 15;
     }
 
     function exitCellEdit() {
+      wrapEdit.exitCellEdit();
       clearSelection();
       const active = document.activeElement;
       if (isTempInput(active)) active.blur();
+      isDragging = false;
+      selectionAnchor = null;
     }
 
     function normalizeTempInput(inp) {
@@ -265,16 +277,11 @@ const MAX_ROWS = 15;
     }
 
     function syncToolbarFromCell(cell) {
-      if (!cell || cell.classList.contains('ci-rno')) return;
-      const fontSel = document.getElementById('tb-font');
-      const sizeSel = document.getElementById('tb-size');
-      const font = window.CrewCellFormat
-        ? CrewCellFormat.resolveFontSelectValue(cell.style.fontFamily, fontSel)
-        : (cell.style.fontFamily || 'Arial');
-      const size = cell.style.fontSize ? parseInt(cell.style.fontSize, 10) : 6;
-      if (fontSel) fontSel.value = font;
-      if (sizeSel) sizeSel.value = String(size);
+      HtmlFormCrewListKit.syncToolbarFromCell(cell);
     }
+
+    window.applyFontSizeFromToolbar = () =>
+      HtmlFormCrewListKit.applyFontSizeFromToolbar(applyFormat);
 
     function returnUrl() {
       const raw = new URLSearchParams(window.location.search).get('return');
@@ -300,18 +307,27 @@ const MAX_ROWS = 15;
       HtmlFormHeaderCells.clearSelection();
       const tempInp = e.target.closest('input.ci-temp');
       if (tempInp && tableBody.contains(tempInp)) {
+        wrapEdit.exitCellEdit();
         clearSelection();
         return;
       }
       const cell = e.target.closest('.ci');
       if (!cell || !tableBody.contains(cell)) return;
       if (isTempInput(cell)) {
+        wrapEdit.exitCellEdit();
         clearSelection();
         return;
       }
       if (isTempInput(document.activeElement)) {
         document.activeElement.blur();
       }
+
+      const wrapResult = wrapEdit.handleTableMouseDown(e);
+      if (wrapResult === 'edit') {
+        isDragging = false;
+        return;
+      }
+
       e.preventDefault();
       isDragging = true;
       selectionAnchor = cellCoords(cell);
@@ -330,7 +346,7 @@ const MAX_ROWS = 15;
     });
 
     tableBody.addEventListener('mouseover', (e) => {
-      if (!isDragging || !selectionAnchor) return;
+      if (!isDragging || !selectionAnchor || wrapEdit.isEditing()) return;
       const cell = e.target.closest('.ci');
       if (!cell || !tableBody.contains(cell)) return;
       const current = cellCoords(cell);
@@ -342,6 +358,7 @@ const MAX_ROWS = 15;
     });
 
     document.addEventListener('copy', (e) => {
+      if (wrapEdit.isEditing()) return;
       if (!selectedCells.length) return;
       e.preventDefault();
       e.clipboardData.setData('text/plain', buildCopyText());
@@ -354,6 +371,7 @@ const MAX_ROWS = 15;
         commitTempInput(e.target);
         return;
       }
+      if (wrapEdit.handleKeydown(e)) return;
       if (e.key === 'Escape') {
         exitCellEdit();
         HtmlFormHeaderCells.clearSelection();
@@ -376,12 +394,20 @@ const MAX_ROWS = 15;
     function syncCellFlexAlignment(cell) {
       const ta = cell.style.textAlign || '';
       const jc = ta === 'center' ? 'center' : ta === 'right' ? 'flex-end' : 'flex-start';
-      if (cell.style.display === 'flex' || cell.classList.contains('ci-name')) {
+      if (
+        cell.style.display === 'flex' ||
+        cell.classList.contains('ci-name') ||
+        cell.classList.contains('ci-rno')
+      ) {
         cell.style.justifyContent = jc;
       }
     }
 
     function applyVerticalAlignToCell(cell, val) {
+      if (cell.classList.contains('ci-birth-date') || cell.classList.contains('ci-birth-place')) {
+        cell.dataset.verticalAlign = val;
+        return;
+      }
       const alignItems = val === 'top' ? 'flex-start' : val === 'bottom' ? 'flex-end' : 'center';
       cell.style.display = 'flex';
       cell.style.height = '100%';
@@ -392,20 +418,31 @@ const MAX_ROWS = 15;
 
     function applyVerticalAlign(val) {
       selectedCells.forEach((cell) => {
-        if (cell.classList.contains('ci-rno')) return;
         applyVerticalAlignToCell(cell, val);
       });
       HtmlFormHeaderCells.applyVerticalAlign(val);
     }
 
+    function applyHorizontalAlignToCell(cell, val) {
+      HtmlFormCrewListKit.applyHorizontalAlignToCell(cell, val, syncCellFlexAlignment);
+    }
+
     function applyFormat(prop, val) {
       selectedCells.forEach((cell) => {
-        if (cell.classList.contains('ci-rno')) return;
+        if (prop === 'textAlign') {
+          applyHorizontalAlignToCell(cell, val);
+          return;
+        }
+        if (prop === 'fontSize') {
+          HtmlFormCrewListKit.applyFontSizeToCell(cell, val);
+          return;
+        }
         cell.style[prop] = val;
-        if (prop === 'textAlign') syncCellFlexAlignment(cell);
       });
       HtmlFormHeaderCells.applyFormat(prop, val);
     }
+    window.applyFormat = applyFormat;
+    window.applyVerticalAlign = applyVerticalAlign;
 
     let stampImgUrl = null;
     let sigImgUrl = null;
@@ -618,34 +655,95 @@ const MAX_ROWS = 15;
       const rows = tableBody.querySelectorAll('.table-row');
       rows.forEach((rowEl, rowIndex) => {
         const inputs = window.HtmlFormListCellPersist?.dataInputs?.(rowEl)
-          || Array.from(rowEl.querySelectorAll('input.ci'));
+          || Array.from(rowEl.querySelectorAll('input.ci, textarea.ci')).filter(
+            (el) => !el.classList.contains('ci-birth-place'),
+          );
         inputs.forEach((input, colIndex) => {
           const style = cellStyles[`${rowIndex}-${colIndex}`];
           if (style) {
-            if (style.fontFamily) input.style.fontFamily = style.fontFamily;
-            if (style.fontSize) input.style.fontSize = style.fontSize;
-            if (style.textAlign) input.style.textAlign = style.textAlign;
-            if (style.verticalAlign) applyVerticalAlignToCell(input, style.verticalAlign);
-            else if (style.textAlign) syncCellFlexAlignment(input);
+            if (window.CrewCellFormat?.applyStyle) {
+              CrewCellFormat.applyStyle(input, style, {
+                applyTextAlign: applyHorizontalAlignToCell,
+                applyVerticalAlign: applyVerticalAlignToCell,
+                syncFlex: syncCellFlexAlignment,
+              });
+            } else {
+              if (style.fontFamily) input.style.fontFamily = style.fontFamily;
+              if (style.fontSize) input.style.fontSize = style.fontSize;
+              if (style.fontWeight) input.style.fontWeight = style.fontWeight;
+              if (style.fontStyle) input.style.fontStyle = style.fontStyle;
+              if (style.textDecoration) input.style.textDecoration = style.textDecoration;
+              if (style.textAlign) applyHorizontalAlignToCell(input, style.textAlign);
+              if (style.verticalAlign) applyVerticalAlignToCell(input, style.verticalAlign);
+              else if (style.textAlign) syncCellFlexAlignment(input);
+            }
           }
         });
         const pob = rowEl.querySelector('.ci-birth-place');
         const pobStyle = cellStyles[`${rowIndex}-pob`];
         if (pob && pobStyle) {
-          if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
-          if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
-          if (pobStyle.textAlign) pob.style.textAlign = pobStyle.textAlign;
-          if (pobStyle.verticalAlign) applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
-          else if (pobStyle.textAlign) syncCellFlexAlignment(pob);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(pob, pobStyle, {
+              applyTextAlign: typeof applyHorizontalAlignToCell === 'function' ? applyHorizontalAlignToCell : (c, a) => { c.style.textAlign = a; },
+              applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+              syncFlex: typeof syncCellFlexAlignment === 'function' ? syncCellFlexAlignment : undefined,
+            });
+          } else {
+            if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
+            if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
+            if (pobStyle.fontWeight) pob.style.fontWeight = pobStyle.fontWeight;
+            if (pobStyle.fontStyle) pob.style.fontStyle = pobStyle.fontStyle;
+            if (pobStyle.textDecoration) pob.style.textDecoration = pobStyle.textDecoration;
+            if (pobStyle.textAlign) {
+              if (typeof applyHorizontalAlignToCell === 'function') applyHorizontalAlignToCell(pob, pobStyle.textAlign);
+              else pob.style.textAlign = pobStyle.textAlign;
+            }
+            if (pobStyle.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
+            else if (pobStyle.textAlign && typeof syncCellFlexAlignment === 'function') syncCellFlexAlignment(pob);
+          }
         }
         const nameCell = rowEl.querySelector('.ci-name');
         const nameStyle = cellStyles[`${rowIndex}-name`];
         if (nameCell && nameStyle) {
-          if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
-          if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
-          if (nameStyle.textAlign) nameCell.style.textAlign = nameStyle.textAlign;
-          if (nameStyle.verticalAlign) applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
-          else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(nameCell, nameStyle, {
+              applyTextAlign: typeof applyHorizontalAlignToCell === 'function' ? applyHorizontalAlignToCell : (c, a) => { c.style.textAlign = a; },
+              applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+              syncFlex: typeof syncCellFlexAlignment === 'function' ? syncCellFlexAlignment : undefined,
+            });
+          } else {
+            if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
+            if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
+            if (nameStyle.fontWeight) nameCell.style.fontWeight = nameStyle.fontWeight;
+            if (nameStyle.fontStyle) nameCell.style.fontStyle = nameStyle.fontStyle;
+            if (nameStyle.textDecoration) nameCell.style.textDecoration = nameStyle.textDecoration;
+            if (nameStyle.textAlign) {
+              if (typeof applyHorizontalAlignToCell === 'function') applyHorizontalAlignToCell(nameCell, nameStyle.textAlign);
+              else nameCell.style.textAlign = nameStyle.textAlign;
+            }
+            if (nameStyle.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
+            else if (nameStyle.textAlign && typeof syncCellFlexAlignment === 'function') syncCellFlexAlignment(nameCell);
+          }
+        }
+        const rnoCell = rowEl.querySelector('.ci-rno');
+        const rnoStyle = cellStyles[`${rowIndex}-rno`];
+        if (rnoCell && rnoStyle) {
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(rnoCell, rnoStyle, {
+              applyTextAlign: applyHorizontalAlignToCell,
+              applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+              syncFlex: syncCellFlexAlignment,
+            });
+          } else {
+            if (rnoStyle.fontFamily) rnoCell.style.fontFamily = rnoStyle.fontFamily;
+            if (rnoStyle.fontSize) rnoCell.style.fontSize = rnoStyle.fontSize;
+            if (rnoStyle.fontWeight) rnoCell.style.fontWeight = rnoStyle.fontWeight;
+            if (rnoStyle.fontStyle) rnoCell.style.fontStyle = rnoStyle.fontStyle;
+            if (rnoStyle.textDecoration) rnoCell.style.textDecoration = rnoStyle.textDecoration;
+            if (rnoStyle.textAlign) applyHorizontalAlignToCell(rnoCell, rnoStyle.textAlign);
+            if (rnoStyle.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(rnoCell, rnoStyle.verticalAlign);
+            else if (rnoStyle.textAlign) syncCellFlexAlignment(rnoCell);
+          }
         }
       });
       HtmlFormHeaderCells.restoreStyles(cellStyles);
@@ -670,37 +768,34 @@ const MAX_ROWS = 15;
       const rows = tableBody.querySelectorAll('.table-row');
       rows.forEach((rowEl, rowIndex) => {
         const inputs = window.HtmlFormListCellPersist?.dataInputs?.(rowEl)
-          || Array.from(rowEl.querySelectorAll('input.ci'));
+          || Array.from(rowEl.querySelectorAll('input.ci, textarea.ci')).filter(
+            (el) => !el.classList.contains('ci-birth-place'),
+          );
         inputs.forEach((input, colIndex) => {
-          const style = {};
-          if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
-          if (input.style.fontSize) style.fontSize = input.style.fontSize;
-          if (input.style.textAlign) style.textAlign = input.style.textAlign;
-          if (input.dataset.verticalAlign) style.verticalAlign = input.dataset.verticalAlign;
-          if (Object.keys(style).length > 0) {
+          const style = window.CrewCellFormat?.readStyle?.(input) || null;
+          if (style) {
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
         const pob = rowEl.querySelector('.ci-birth-place');
         if (pob) {
-          const pobStyle = {};
-          if (pob.style.fontFamily) pobStyle.fontFamily = pob.style.fontFamily;
-          if (pob.style.fontSize) pobStyle.fontSize = pob.style.fontSize;
-          if (pob.style.textAlign) pobStyle.textAlign = pob.style.textAlign;
-          if (pob.dataset.verticalAlign) pobStyle.verticalAlign = pob.dataset.verticalAlign;
-          if (Object.keys(pobStyle).length > 0) {
+          const pobStyle = window.CrewCellFormat?.readStyle?.(pob) || null;
+          if (pobStyle) {
             cellStyles[`${rowIndex}-pob`] = pobStyle;
           }
         }
         const nameCell = rowEl.querySelector('.ci-name');
         if (nameCell) {
-          const nameStyle = {};
-          if (nameCell.style.fontFamily) nameStyle.fontFamily = nameCell.style.fontFamily;
-          if (nameCell.style.fontSize) nameStyle.fontSize = nameCell.style.fontSize;
-          if (nameCell.style.textAlign) nameStyle.textAlign = nameCell.style.textAlign;
-          if (nameCell.dataset.verticalAlign) nameStyle.verticalAlign = nameCell.dataset.verticalAlign;
-          if (Object.keys(nameStyle).length > 0) {
+          const nameStyle = window.CrewCellFormat?.readStyle?.(nameCell) || null;
+          if (nameStyle) {
             cellStyles[`${rowIndex}-name`] = nameStyle;
+          }
+        }
+        const rnoCell = rowEl.querySelector('.ci-rno');
+        if (rnoCell) {
+          const rnoStyle = window.CrewCellFormat?.readStyle?.(rnoCell) || null;
+          if (rnoStyle) {
+            cellStyles[`${rowIndex}-rno`] = rnoStyle;
           }
         }
       });
@@ -819,6 +914,11 @@ const MAX_ROWS = 15;
           delete cell.dataset.verticalAlign;
         });
       }
+      if (window.HtmlFormCrewListKit?.repairBirthSplitLayout) {
+        HtmlFormCrewListKit.repairBirthSplitLayout(tableBody);
+      }
+      wrapEdit.clearAllLineBreaks();
+      wrapEdit.syncRowHeights();
       HtmlFormHeaderCells.resetAll();
       clearSelection();
       const fontSel = document.getElementById('tb-font');
@@ -827,7 +927,6 @@ const MAX_ROWS = 15;
       if (sizeSel) sizeSel.value = '6';
       if (window._currentPositions) {
         window._currentPositions.cellStyles = {};
-        window._currentPositions.cellValues = {};
       }
     }
 
@@ -836,7 +935,6 @@ const MAX_ROWS = 15;
         window._currentPositions.stamp = {};
         window._currentPositions.sig = {};
         window._currentPositions.cellStyles = {};
-        window._currentPositions.cellValues = {};
       }
       
       const stamp = document.getElementById('stamp-container');
@@ -1113,42 +1211,21 @@ const MAX_ROWS = 15;
       applyEditorZoom();
     }
 
-    /** html2canvas mis-renders <input> text (vertical baseline drifts below the box).
-     *  For a clean capture, swap every input for a plain text element with the same
-     *  class (so the existing CSS — font, padding, alignment — applies unchanged). */
+    /** html2canvas mis-renders <input> text; kit flatten keeps PDF layout = HTML. */
     function flattenInputsForExport() {
-      document.querySelectorAll('input.ci, input.fi').forEach((input) => {
+      if (window.HtmlFormCrewListKit?.flattenInputsForExport) {
+        HtmlFormCrewListKit.flattenInputsForExport(document);
+        return;
+      }
+      document.querySelectorAll('input.ci, textarea.ci, input.fi').forEach((input) => {
         const replacement = document.createElement('div');
         replacement.className = input.className;
         replacement.textContent = input.value || '';
-        replacement.style.cssText = input.style.cssText;
-        const isFooterDate =
-          input.id === 'f-footer-date' || input.classList.contains('form-footer__date');
-        if (input.closest('.imo-table') && !input.closest('.doc-footer')) {
-          replacement.style.border = 'none';
-          replacement.style.borderBottom = 'none';
-        }
-        if (isFooterDate) {
-          replacement.style.display = 'inline';
-          replacement.style.width = 'auto';
-          replacement.style.maxWidth = '100%';
-          replacement.style.overflow = 'visible';
-          replacement.style.whiteSpace = 'nowrap';
-          replacement.style.fontSize = input.style.fontSize || '8pt';
-          replacement.style.fontWeight = '700';
-          replacement.style.textAlign = 'left';
-        } else if (input.classList.contains('ci')) {
-          replacement.style.display = 'flex';
-          replacement.style.alignItems = input.style.alignItems || 'center';
-          replacement.style.justifyContent =
-            replacement.style.textAlign === 'center'
-              ? 'center'
-              : replacement.style.textAlign === 'right'
-                ? 'flex-end'
-                : 'flex-start';
-          replacement.style.whiteSpace = 'nowrap';
-          replacement.style.overflow = 'hidden';
-        }
+        replacement.style.display = 'block';
+        replacement.style.width = '100%';
+        replacement.style.height = '100%';
+        replacement.style.boxSizing = 'border-box';
+        replacement.style.overflow = 'hidden';
         input.replaceWith(replacement);
       });
     }
@@ -1191,6 +1268,8 @@ const MAX_ROWS = 15;
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       restoreCellValues();
+      refreshRowNumbers();
+      wrapEdit.syncRowHeights();
       if (isPdfExport) {
         resetEditorZoomForExport();
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to

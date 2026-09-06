@@ -563,6 +563,8 @@ export interface AppData {
   narcoticListForm: NarcoticListFormSettings;
   /** Dangerous Goods — library of manifests grouped by container. */
   dgLibrary: DgLibrarySettings;
+  /** IMDG UN number reference — bundled baseline or a list imported from chapter 3.2. */
+  dgUnReference: import('./dg-un-reference.models').DgUnReferenceLibrary;
   /** Reefer containers — monitoring log inventory. */
   reeferLibrary: import('./reefer.models').ReeferLibrarySettings;
   /** ETA voyage calculator — saved plans and working draft. */

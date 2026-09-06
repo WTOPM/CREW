@@ -235,11 +235,11 @@
 
           <div class="uf-inventory-strip">
             <span
-              ><strong>{{ unifeederStats().rowCount }}</strong> rows</span
+              ><strong>{{ visibleUnifeederContainerGroups().length }}</strong> containers</span
             >
             <span class="uf-inventory-strip__sep">·</span>
             <span
-              ><strong>{{ visibleUnifeederContainerGroups().length }}</strong> ctr</span
+              ><strong>{{ unifeederStats().rowCount }}</strong> lines</span
             >
             @if (unifeederStats().dischargedCount > 0) {
               <span class="uf-inventory-strip__sep">·</span>
@@ -288,7 +288,20 @@
         </colgroup>
         <thead>
           <tr class="dg-table-head dg-unifeeder-head">
-            <th class="uf-no dg-th--group-start">No</th>
+            <th
+              class="uf-no dg-th--group-start dg-select-th"
+              [class.dg-select-th--active]="rowSelection.hasSelection()"
+              [title]="
+                rowSelection.hasSelection() ? 'Clear selection' : 'Select all containers'
+              "
+              (click)="rowSelection.toggleSelectAll()"
+            >
+              @if (rowSelection.hasSelection()) {
+                <span class="dg-select-th__mark" aria-hidden="true">✓</span>
+              } @else {
+                No
+              }
+            </th>
             <th
               class="uf-size dg-sort-th"
               [class.dg-sort-th--active]="unifeederSortColumn() === 'size'"
@@ -454,7 +467,37 @@
               <span class="dg-th-stack"><span>Spill</span><span>sched.</span></span>
             </th>
             <th class="uf-line-act dg-th--group-start" aria-label="Remove line"></th>
-            <th class="uf-act" aria-label="Actions"></th>
+            <th class="uf-act" aria-label="Actions">
+              <div class="dg-header-actions">
+                <button
+                  type="button"
+                  class="dg-act dg-act--discharge"
+                  title="Mark selected discharged"
+                  [disabled]="!rowSelection.hasSelection()"
+                  (click)="dischargeSelectedUnifeederContainers()"
+                >
+                  <dg-act-icon kind="discharge" />
+                </button>
+                <button
+                  type="button"
+                  class="dg-act dg-act--add"
+                  title="Add DG line to the selected container"
+                  [disabled]="!rowSelection.exactlyOneSelected()"
+                  (click)="addLineToSelectedUnifeederContainer()"
+                >
+                  <dg-act-icon kind="add" />
+                </button>
+                <button
+                  type="button"
+                  class="dg-act dg-act--remove"
+                  title="Remove selected containers"
+                  [disabled]="!rowSelection.hasSelection()"
+                  (click)="removeSelectedUnifeederContainers()"
+                >
+                  <dg-act-icon kind="remove" />
+                </button>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -474,6 +517,7 @@
                 [class.dg-unifeeder-row--single-line]="unifeederContainerLineCount(container) === 1"
                 [class.dg-unifeeder-row--group-active]="isUnifeederGroupActive(container.key)"
                 [class.dg-unifeeder-row--container-focus]="isUnifeederGroupFocus(container.key)"
+                [class.dg-unifeeder-row--selected]="rowSelection.isSelected(container.key)"
                 [class.dg-unifeeder-row--line-hovered]="
                   isUnifeederCargoLineHovered(container.key, line.id)
                 "
@@ -488,10 +532,15 @@
               >
                 @if (first) {
                   <td
-                    class="uf-no uf-group"
+                    class="uf-no uf-group dg-select-cell"
                     [attr.rowspan]="unifeederContainerLineCount(container)"
                     [attr.data-uf-container-key]="container.key"
+                    title="Select container"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
+                    (pointerdown)="rowSelection.onIndexPointerDown(container.key, $event)"
+                    (pointerenter)="rowSelection.onIndexPointerEnter(container.key)"
+                    (pointerup)="rowSelection.onIndexPointerUp($event)"
+                    (pointercancel)="rowSelection.onIndexPointerCancel($event)"
                   >
                     {{ ci + 1 }}
                   </td>
@@ -753,32 +802,7 @@
                         >
                           <dg-act-icon kind="restore" />
                         </button>
-                      } @else {
-                        <button
-                          type="button"
-                          class="dg-act dg-act--discharge"
-                          title="Mark discharged"
-                          (click)="markUnifeederContainerDischarged(container)"
-                        >
-                          <dg-act-icon kind="discharge" />
-                        </button>
                       }
-                      <button
-                        type="button"
-                        class="dg-act dg-act--add"
-                        title="Add DG line"
-                        (click)="addUnifeederCargoLine(container)"
-                      >
-                        <dg-act-icon kind="add" />
-                      </button>
-                      <button
-                        type="button"
-                        class="dg-act dg-act--remove"
-                        title="Remove container"
-                        (click)="removeUnifeederContainer(container)"
-                      >
-                        <dg-act-icon kind="remove" />
-                      </button>
                     </div>
                   </td>
                 }

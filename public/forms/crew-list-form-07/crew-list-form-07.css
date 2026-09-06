@@ -518,15 +518,18 @@ body {
 }
 
 .crew-tbl tbody tr {
-  height: var(--crew-row-h);
+  height: auto;
+  min-height: var(--crew-row-h);
 }
 
 .crew-tbl tbody td {
-  height: var(--crew-row-h);
-  max-height: var(--crew-row-h);
+  height: auto;
+  min-height: var(--crew-row-h);
+  max-height: none;
   padding: 0;
   box-sizing: border-box;
   overflow: hidden;
+  vertical-align: middle;
 }
 
 .crew-tbl tbody tr:nth-child(even) td {
@@ -559,6 +562,52 @@ body {
   cursor: default;
   caret-color: transparent;
   user-select: none;
+  box-sizing: border-box;
+}
+
+textarea.ci {
+  display: block;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.2;
+  min-height: var(--crew-row-h);
+  height: auto;
+  overflow: hidden;
+  field-sizing: content;
+}
+
+.ci.ci-editing {
+  caret-color: #0f172a;
+  user-select: text;
+  cursor: text;
+  background: #fffbeb !important;
+  outline: 2px solid #f59e0b !important;
+  outline-offset: -2px;
+  z-index: 3;
+}
+
+/*
+ * Horizontal align insets — keep text inside the ruled cell.
+ * Left/right used to sit flush on the border and clip half a digit.
+ */
+.ci.ci-align-left {
+  text-align: left;
+  padding-left: 1.35mm;
+  padding-right: 0.55mm;
+}
+
+.ci.ci-align-center {
+  text-align: center;
+  padding-left: 0.85mm;
+  padding-right: 0.85mm;
+}
+
+.ci.ci-align-right {
+  text-align: right;
+  padding-left: 0.55mm;
+  padding-right: 1.35mm;
 }
 
 .ci:focus {
@@ -587,15 +636,44 @@ body {
   padding: 0;
   font-size: 5.6pt;
   color: #444;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Must come AFTER .ci.ci-rno { padding: 0 } — otherwise № align has no inset and digits clip. */
+.ci.ci-rno.ci-align-left {
+  justify-content: flex-start;
+  text-align: left;
+  padding: 0 0.6mm 0 1.7mm;
+}
+
+.ci.ci-rno.ci-align-center {
+  justify-content: center;
+  text-align: center;
+  padding: 0 1.2mm;
+}
+
+.ci.ci-rno.ci-align-right {
+  justify-content: flex-end;
+  text-align: right;
+  padding: 0 1.7mm 0 0.6mm;
 }
 
 .ci.ci-name {
   display: flex;
   align-items: center;
   min-height: 0;
-  white-space: nowrap;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
+  line-height: 1.2;
+}
+
+.ci.ci-name.ci-editing {
+  display: block;
+  align-items: unset;
 }
 
 .form-footer {

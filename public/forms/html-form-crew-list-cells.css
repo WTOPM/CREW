@@ -1,0 +1,130 @@
+/* Shared crew-list cell formatting (forms 03–07): align insets, wrap edit, growing rows */
+
+.ci {
+  box-sizing: border-box;
+}
+
+textarea.ci {
+  display: block;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.2;
+  min-height: var(--crew-row-h, 4.6mm);
+  height: auto;
+  overflow: hidden;
+  field-sizing: content;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: inherit;
+  margin: 0;
+  cursor: default;
+  caret-color: transparent;
+  user-select: none;
+}
+
+.ci.ci-editing {
+  caret-color: #0f172a !important;
+  user-select: text !important;
+  cursor: text !important;
+  background: #fffbeb !important;
+  outline: 2px solid #f59e0b !important;
+  outline-offset: -2px;
+  z-index: 3;
+  position: relative;
+}
+
+/* Horizontal align insets — keep text inside the ruled cell */
+.ci.ci-align-left {
+  text-align: left;
+  padding-left: 1.35mm;
+  padding-right: 0.55mm;
+}
+
+.ci.ci-align-center {
+  text-align: center;
+  padding-left: 0.85mm;
+  padding-right: 0.85mm;
+}
+
+.ci.ci-align-right {
+  text-align: right;
+  padding-left: 0.55mm;
+  padding-right: 1.35mm;
+}
+
+/* Must win over .ci.ci-rno { padding: 0 } */
+.ci.ci-rno.ci-align-left {
+  justify-content: flex-start;
+  text-align: left;
+  padding: 0 0.6mm 0 1.7mm;
+}
+
+.ci.ci-rno.ci-align-center {
+  justify-content: center;
+  text-align: center;
+  padding: 0 1.2mm;
+}
+
+.ci.ci-rno.ci-align-right {
+  justify-content: flex-end;
+  text-align: right;
+  padding: 0 1.7mm 0 0.6mm;
+}
+
+.ci.ci-name {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-overflow: clip;
+  line-height: 1.2;
+}
+
+.ci.ci-name.ci-editing {
+  display: block;
+  align-items: unset;
+}
+
+/* Growing rows when a cell wraps (editor). PDF export forms may override td height. */
+.crew-tbl tbody tr,
+.crew-table tbody tr {
+  height: auto;
+  min-height: var(--crew-row-h, 5mm);
+}
+
+.crew-tbl tbody td,
+.crew-table tbody td {
+  height: auto;
+  min-height: var(--crew-row-h, 5mm);
+  max-height: none;
+  vertical-align: middle;
+}
+
+/*
+ * Editor: never stretch <input.ci> to the full row height.
+ * Native inputs vertically center glyphs inside the control; when a sibling
+ * textarea wraps and the row grows, dates/expiry sit lower than neighbouring
+ * text — HTML no longer matches the flattened PDF. Keep inputs content-sized
+ * and let td vertical-align:middle match PDF flex-centering.
+ */
+.crew-tbl tbody td > input.ci,
+.crew-table tbody td > input.ci,
+.ci-birth-split > input.ci {
+  height: auto !important;
+  min-height: var(--crew-row-h, 5mm);
+  max-height: none;
+  align-self: center;
+  box-sizing: border-box;
+}
+
+/* Flattened PDF cells inherit editor row floor */
+body.is-pdf-export .crew-tbl tbody .ci,
+body.pdf-export .crew-tbl tbody .ci {
+  min-height: var(--crew-row-h, 5mm);
+  box-sizing: border-box;
+}

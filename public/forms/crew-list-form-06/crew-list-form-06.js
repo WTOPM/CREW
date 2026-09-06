@@ -27,10 +27,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       Array.from(tbody.children).forEach((tr) => {
         const rno = tr.querySelector('.ci-rno');
         if (!rno) return;
-        if (rno.dataset.manual === '1') {
-          if (rowHasData(tr)) n += 1;
-          return;
-        }
+        delete rno.dataset.manual;
         if (rowHasData(tr)) {
           n += 1;
           rno.textContent = String(n);
@@ -49,20 +46,22 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
 
     function addRow(d = {}) {
       const tr = document.createElement('tr');
+      const ta = (cls, val) => HtmlFormCrewListKit.textareaHtml(cls, val);
       tr.innerHTML = `
     <td class="c0"><div class="ci ci-rno" tabindex="-1"></div></td>
-    <td class="c1"><div class="ci ci-name" tabindex="-1">${escAttr(d.name)}</div></td>
-    <td class="c2"><input class="ci" type="text" value="${d.rank || ''}" readonly tabindex="-1"></td>
-    <td class="c3"><input class="ci" type="text" value="${d.nat || ''}" readonly tabindex="-1"></td>
-    <td class="c4"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${d.dob || ''}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1"><input class="ci ci-birth-place" type="text" value="${d.pob || ''}" readonly tabindex="-1"></div></td>
-    <td class="c5"><input class="ci" type="text" value="${d.bno || ''}" readonly tabindex="-1"></td>
-    <td class="c6"><input class="ci" type="text" value="${d.bplace || ''}" readonly tabindex="-1"></td>
-    <td class="c7"><input class="ci" type="text" value="${d.bexp || ''}"${dateIsoAttr(d.bexpIso)} readonly tabindex="-1"></td>
-    <td class="c8"><input class="ci" type="text" value="${d.passport || ''}" readonly tabindex="-1"></td>
-    <td class="c9"><input class="ci" type="text" value="${d.joinPort || ''}" readonly tabindex="-1"></td>
-    <td class="c10"><input class="ci" type="text" value="${d.joinDate || ''}"${dateIsoAttr(d.joinDateIso)} readonly tabindex="-1"></td>`;
+    <td class="c1"><div class="ci ci-name" tabindex="-1">${escapeHtml(d.name || '')}</div></td>
+    <td class="c2">${ta('', d.rank)}</td>
+    <td class="c3">${ta('', d.nat)}</td>
+    <td class="c4"><div class="ci-birth-split"><input class="ci ci-birth-date" type="text" value="${escAttr(d.dob || '')}"${dateIsoAttr(d.dobIso)} readonly tabindex="-1">${ta('ci-birth-place', d.pob)}</div></td>
+    <td class="c5">${ta('', d.bno)}</td>
+    <td class="c6">${ta('', d.bplace)}</td>
+    <td class="c7"><input class="ci" type="text" value="${escAttr(d.bexp || '')}"${dateIsoAttr(d.bexpIso)} readonly tabindex="-1"></td>
+    <td class="c8">${ta('', d.passport)}</td>
+    <td class="c9">${ta('', d.joinPort)}</td>
+    <td class="c10"><input class="ci" type="text" value="${escAttr(d.joinDate || '')}"${dateIsoAttr(d.joinDateIso)} readonly tabindex="-1"></td>`;
       tbody.appendChild(tr);
       refreshRowNumbers();
+      wrapEdit.syncRowHeights(tr);
     }
     function removeRow() {
       if (tbody.lastChild) {
@@ -90,6 +89,12 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     let isDragging = false;
     let selectionAnchor = null;
 
+    const wrapEdit = HtmlFormCrewListKit.installWrapEdit({
+      tableRoot: tbody,
+      pageSelector: '.a4-landscape-page',
+      getSelectedCells: () => selectedCells,
+    });
+
     function cellCoords(el) {
       const tr = el.closest('tr');
       const row = Array.from(tbody.children).indexOf(tr);
@@ -105,9 +110,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     }
 
     function cellText(cell) {
-      if (!cell) return '';
-      if (cell.tagName === 'INPUT') return cell.value || '';
-      return (cell.textContent || '').trim();
+      return HtmlFormCrewListKit.cellText(cell);
     }
 
     function selectionBounds() {
@@ -164,6 +167,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     }
 
     function dismissSelection() {
+      wrapEdit.exitCellEdit();
       clearSelection();
       HtmlFormHeaderCells.clearSelection();
       isDragging = false;
@@ -191,16 +195,11 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     }
 
     function syncToolbarFromCell(cell) {
-      if (!cell) return;
-      const fontSel = document.getElementById('tb-font');
-      const sizeSel = document.getElementById('tb-size');
-      const font = window.CrewCellFormat
-        ? CrewCellFormat.resolveFontSelectValue(cell.style.fontFamily, fontSel)
-        : (cell.style.fontFamily || 'Arial');
-      const size = cell.style.fontSize ? parseInt(cell.style.fontSize, 10) : 6;
-      if (fontSel) fontSel.value = font;
-      if (sizeSel) sizeSel.value = String(size);
+      HtmlFormCrewListKit.syncToolbarFromCell(cell);
     }
+
+    window.applyFontSizeFromToolbar = () =>
+      HtmlFormCrewListKit.applyFontSizeFromToolbar(applyFormat);
 
     function returnUrl() {
       const raw = new URLSearchParams(window.location.search).get('return');
@@ -226,6 +225,13 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       HtmlFormHeaderCells.clearSelection();
       const cell = e.target.closest('.ci');
       if (!cell || !tbody.contains(cell)) return;
+
+      const wrapResult = wrapEdit.handleTableMouseDown(e);
+      if (wrapResult === 'edit') {
+        isDragging = false;
+        return;
+      }
+
       e.preventDefault();
       isDragging = true;
       selectionAnchor = cellCoords(cell);
@@ -234,7 +240,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     });
 
     tbody.addEventListener('mouseover', (e) => {
-      if (!isDragging || !selectionAnchor) return;
+      if (!isDragging || !selectionAnchor || wrapEdit.isEditing()) return;
       const cell = e.target.closest('.ci');
       if (!cell || !tbody.contains(cell)) return;
       const current = cellCoords(cell);
@@ -246,6 +252,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     });
 
     document.addEventListener('copy', (e) => {
+      if (wrapEdit.isEditing()) return;
       if (!selectedCells.length) return;
       e.preventDefault();
       e.clipboardData.setData('text/plain', buildCopyText());
@@ -253,6 +260,7 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     });
 
     document.addEventListener('keydown', (e) => {
+      if (wrapEdit.handleKeydown(e)) return;
       if (e.key === 'Escape') {
         dismissSelection();
         return;
@@ -260,34 +268,6 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && selectedCells.length) {
         e.preventDefault();
         document.execCommand('copy');
-        return;
-      }
-      // Manual row-№ edit: type / Backspace when a single № cell is selected.
-      if (
-        selectedCells.length === 1 &&
-        selectedCells[0].classList.contains('ci-rno') &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey
-      ) {
-        const cell = selectedCells[0];
-        if (e.key === 'Backspace') {
-          e.preventDefault();
-          cell.textContent = (cell.textContent || '').slice(0, -1);
-          cell.dataset.manual = '1';
-          return;
-        }
-        if (e.key === 'Delete') {
-          e.preventDefault();
-          cell.textContent = '';
-          cell.dataset.manual = '1';
-          return;
-        }
-        if (e.key.length === 1) {
-          e.preventDefault();
-          cell.textContent = (cell.textContent || '') + e.key;
-          cell.dataset.manual = '1';
-        }
       }
     });
 
@@ -311,6 +291,10 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
     }
 
     function applyVerticalAlignToCell(cell, val) {
+      if (cell.classList.contains('ci-birth-date') || cell.classList.contains('ci-birth-place')) {
+        cell.dataset.verticalAlign = val;
+        return;
+      }
       const alignItems = val === 'top' ? 'flex-start' : val === 'bottom' ? 'flex-end' : 'center';
       cell.style.display = 'flex';
       cell.style.height = '100%';
@@ -326,16 +310,21 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       HtmlFormHeaderCells.applyVerticalAlign(val);
     }
 
+    function applyHorizontalAlignToCell(cell, val) {
+      HtmlFormCrewListKit.applyHorizontalAlignToCell(cell, val, syncCellFlexAlignment);
+    }
+
     function applyFormat(prop, val) {
       selectedCells.forEach((cell) => {
-        cell.style[prop] = val;
         if (prop === 'textAlign') {
-          if (cell.classList.contains('ci-rno')) {
-            cell.style.display = 'flex';
-            cell.style.alignItems = cell.style.alignItems || 'center';
-          }
-          syncCellFlexAlignment(cell);
+          applyHorizontalAlignToCell(cell, val);
+          return;
         }
+        if (prop === 'fontSize') {
+          HtmlFormCrewListKit.applyFontSizeToCell(cell, val);
+          return;
+        }
+        cell.style[prop] = val;
       });
       HtmlFormHeaderCells.applyFormat(prop, val);
     }
@@ -553,46 +542,102 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       const rows = tbody.querySelectorAll('tr');
       rows.forEach((tr, rowIndex) => {
         const inputs = window.HtmlFormListCellPersist?.dataInputs?.(tr)
-          || Array.from(tr.querySelectorAll('input.ci'));
+          || Array.from(tr.querySelectorAll('input.ci, textarea.ci')).filter(
+            (el) => !el.classList.contains('ci-birth-place'),
+          );
         inputs.forEach((input, colIndex) => {
           const style = cellStyles[`${rowIndex}-${colIndex}`];
           if (style) {
-            if (style.fontFamily) input.style.fontFamily = style.fontFamily;
-            if (style.fontSize) input.style.fontSize = style.fontSize;
-            if (style.textAlign) input.style.textAlign = style.textAlign;
-            if (style.verticalAlign) applyVerticalAlignToCell(input, style.verticalAlign);
-            else if (style.textAlign) syncCellFlexAlignment(input);
+            if (window.CrewCellFormat?.applyStyle) {
+              CrewCellFormat.applyStyle(input, style, {
+                applyTextAlign: applyHorizontalAlignToCell,
+                applyVerticalAlign: applyVerticalAlignToCell,
+                syncFlex: syncCellFlexAlignment,
+              });
+            } else {
+              if (style.fontFamily) input.style.fontFamily = style.fontFamily;
+              if (style.fontSize) input.style.fontSize = style.fontSize;
+              if (style.fontWeight) input.style.fontWeight = style.fontWeight;
+              if (style.fontStyle) input.style.fontStyle = style.fontStyle;
+              if (style.textDecoration) input.style.textDecoration = style.textDecoration;
+              if (style.textAlign) applyHorizontalAlignToCell(input, style.textAlign);
+              if (style.verticalAlign) applyVerticalAlignToCell(input, style.verticalAlign);
+              else if (style.textAlign) syncCellFlexAlignment(input);
+            }
           }
         });
         const pob = tr.querySelector('.ci-birth-place');
         const pobStyle = cellStyles[`${rowIndex}-pob`];
         if (pob && pobStyle) {
-          if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
-          if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
-          if (pobStyle.textAlign) pob.style.textAlign = pobStyle.textAlign;
-          if (pobStyle.verticalAlign) applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
-          else if (pobStyle.textAlign) syncCellFlexAlignment(pob);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(pob, pobStyle, {
+              applyTextAlign: typeof applyHorizontalAlignToCell === 'function' ? applyHorizontalAlignToCell : (c, a) => { c.style.textAlign = a; },
+              applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+              syncFlex: typeof syncCellFlexAlignment === 'function' ? syncCellFlexAlignment : undefined,
+            });
+          } else {
+            if (pobStyle.fontFamily) pob.style.fontFamily = pobStyle.fontFamily;
+            if (pobStyle.fontSize) pob.style.fontSize = pobStyle.fontSize;
+            if (pobStyle.fontWeight) pob.style.fontWeight = pobStyle.fontWeight;
+            if (pobStyle.fontStyle) pob.style.fontStyle = pobStyle.fontStyle;
+            if (pobStyle.textDecoration) pob.style.textDecoration = pobStyle.textDecoration;
+            if (pobStyle.textAlign) {
+              if (typeof applyHorizontalAlignToCell === 'function') applyHorizontalAlignToCell(pob, pobStyle.textAlign);
+              else pob.style.textAlign = pobStyle.textAlign;
+            }
+            if (pobStyle.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(pob, pobStyle.verticalAlign);
+            else if (pobStyle.textAlign && typeof syncCellFlexAlignment === 'function') syncCellFlexAlignment(pob);
+          }
         }
         const nameCell = tr.querySelector('.ci-name');
         const nameStyle = cellStyles[`${rowIndex}-name`];
         if (nameCell && nameStyle) {
-          if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
-          if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
-          if (nameStyle.textAlign) nameCell.style.textAlign = nameStyle.textAlign;
-          if (nameStyle.verticalAlign) applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
-          else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(nameCell, nameStyle, {
+              applyTextAlign: typeof applyHorizontalAlignToCell === 'function' ? applyHorizontalAlignToCell : (c, a) => { c.style.textAlign = a; },
+              applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+              syncFlex: typeof syncCellFlexAlignment === 'function' ? syncCellFlexAlignment : undefined,
+            });
+          } else {
+            if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
+            if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
+            if (nameStyle.fontWeight) nameCell.style.fontWeight = nameStyle.fontWeight;
+            if (nameStyle.fontStyle) nameCell.style.fontStyle = nameStyle.fontStyle;
+            if (nameStyle.textDecoration) nameCell.style.textDecoration = nameStyle.textDecoration;
+            if (nameStyle.textAlign) {
+              if (typeof applyHorizontalAlignToCell === 'function') applyHorizontalAlignToCell(nameCell, nameStyle.textAlign);
+              else nameCell.style.textAlign = nameStyle.textAlign;
+            }
+            if (nameStyle.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
+            else if (nameStyle.textAlign && typeof syncCellFlexAlignment === 'function') syncCellFlexAlignment(nameCell);
+          }
         }
         const rnoCell = tr.querySelector('.ci-rno');
         const rnoStyle = cellStyles[`${rowIndex}-rno`];
         if (rnoCell && rnoStyle) {
-          if (rnoStyle.fontFamily) rnoCell.style.fontFamily = rnoStyle.fontFamily;
-          if (rnoStyle.fontSize) rnoCell.style.fontSize = rnoStyle.fontSize;
-          if (rnoStyle.textAlign) rnoCell.style.textAlign = rnoStyle.textAlign;
-          if (rnoStyle.verticalAlign) applyVerticalAlignToCell(rnoCell, rnoStyle.verticalAlign);
-          else if (rnoStyle.textAlign) {
-            rnoCell.style.display = 'flex';
-            rnoCell.style.alignItems = rnoCell.style.alignItems || 'center';
-            syncCellFlexAlignment(rnoCell);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(rnoCell, rnoStyle, {
+              applyTextAlign: applyHorizontalAlignToCell,
+              applyVerticalAlign: applyVerticalAlignToCell,
+              syncFlex: (cell) => {
+                cell.style.display = 'flex';
+                cell.style.alignItems = cell.style.alignItems || 'center';
+                syncCellFlexAlignment(cell);
+              },
+            });
+          } else {
+            if (rnoStyle.fontFamily) rnoCell.style.fontFamily = rnoStyle.fontFamily;
+            if (rnoStyle.fontSize) rnoCell.style.fontSize = rnoStyle.fontSize;
+            if (rnoStyle.fontWeight) rnoCell.style.fontWeight = rnoStyle.fontWeight;
+            if (rnoStyle.fontStyle) rnoCell.style.fontStyle = rnoStyle.fontStyle;
+            if (rnoStyle.textDecoration) rnoCell.style.textDecoration = rnoStyle.textDecoration;
+            if (rnoStyle.textAlign) applyHorizontalAlignToCell(rnoCell, rnoStyle.textAlign);
+            if (rnoStyle.verticalAlign) applyVerticalAlignToCell(rnoCell, rnoStyle.verticalAlign);
+            else if (rnoStyle.textAlign) {
+              rnoCell.style.display = 'flex';
+              rnoCell.style.alignItems = rnoCell.style.alignItems || 'center';
+              syncCellFlexAlignment(rnoCell);
+            }
           }
         }
       });
@@ -618,47 +663,33 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       const rows = tbody.querySelectorAll('tr');
       rows.forEach((tr, rowIndex) => {
         const inputs = window.HtmlFormListCellPersist?.dataInputs?.(tr)
-          || Array.from(tr.querySelectorAll('input.ci'));
+          || Array.from(tr.querySelectorAll('input.ci, textarea.ci')).filter(
+            (el) => !el.classList.contains('ci-birth-place'),
+          );
         inputs.forEach((input, colIndex) => {
-          const style = {};
-          if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
-          if (input.style.fontSize) style.fontSize = input.style.fontSize;
-          if (input.style.textAlign) style.textAlign = input.style.textAlign;
-          if (input.dataset.verticalAlign) style.verticalAlign = input.dataset.verticalAlign;
-          if (Object.keys(style).length > 0) {
+          const style = window.CrewCellFormat?.readStyle?.(input) || null;
+          if (style) {
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
         const pob = tr.querySelector('.ci-birth-place');
         if (pob) {
-          const pobStyle = {};
-          if (pob.style.fontFamily) pobStyle.fontFamily = pob.style.fontFamily;
-          if (pob.style.fontSize) pobStyle.fontSize = pob.style.fontSize;
-          if (pob.style.textAlign) pobStyle.textAlign = pob.style.textAlign;
-          if (pob.dataset.verticalAlign) pobStyle.verticalAlign = pob.dataset.verticalAlign;
-          if (Object.keys(pobStyle).length > 0) {
+          const pobStyle = window.CrewCellFormat?.readStyle?.(pob) || null;
+          if (pobStyle) {
             cellStyles[`${rowIndex}-pob`] = pobStyle;
           }
         }
         const nameCell = tr.querySelector('.ci-name');
         if (nameCell) {
-          const nameStyle = {};
-          if (nameCell.style.fontFamily) nameStyle.fontFamily = nameCell.style.fontFamily;
-          if (nameCell.style.fontSize) nameStyle.fontSize = nameCell.style.fontSize;
-          if (nameCell.style.textAlign) nameStyle.textAlign = nameCell.style.textAlign;
-          if (nameCell.dataset.verticalAlign) nameStyle.verticalAlign = nameCell.dataset.verticalAlign;
-          if (Object.keys(nameStyle).length > 0) {
+          const nameStyle = window.CrewCellFormat?.readStyle?.(nameCell) || null;
+          if (nameStyle) {
             cellStyles[`${rowIndex}-name`] = nameStyle;
           }
         }
         const rnoCell = tr.querySelector('.ci-rno');
         if (rnoCell) {
-          const rnoStyle = {};
-          if (rnoCell.style.fontFamily) rnoStyle.fontFamily = rnoCell.style.fontFamily;
-          if (rnoCell.style.fontSize) rnoStyle.fontSize = rnoCell.style.fontSize;
-          if (rnoCell.style.textAlign) rnoStyle.textAlign = rnoCell.style.textAlign;
-          if (rnoCell.dataset.verticalAlign) rnoStyle.verticalAlign = rnoCell.dataset.verticalAlign;
-          if (Object.keys(rnoStyle).length > 0) {
+          const rnoStyle = window.CrewCellFormat?.readStyle?.(rnoCell) || null;
+          if (rnoStyle) {
             cellStyles[`${rowIndex}-rno`] = rnoStyle;
           }
         }
@@ -797,6 +828,11 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       tbody.querySelectorAll('.ci.ci-rno').forEach((cell) => {
         delete cell.dataset.manual;
       });
+      if (window.HtmlFormCrewListKit?.repairBirthSplitLayout) {
+        HtmlFormCrewListKit.repairBirthSplitLayout(tbody);
+      }
+      wrapEdit.clearAllLineBreaks();
+      wrapEdit.syncRowHeights();
       refreshRowNumbers();
       HtmlFormHeaderCells.resetAll();
       clearSelection();
@@ -806,7 +842,6 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       if (sizeSel) sizeSel.value = '6';
       if (window._currentPositions) {
         window._currentPositions.cellStyles = {};
-        window._currentPositions.cellValues = {};
       }
     }
 
@@ -815,7 +850,6 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
         window._currentPositions.stamp = {};
         window._currentPositions.sig = {};
         window._currentPositions.cellStyles = {};
-        window._currentPositions.cellValues = {};
       }
       
       const stamp = document.getElementById('stamp-container');
@@ -1099,36 +1133,21 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       applyEditorZoom();
     }
 
-    /** html2canvas mis-renders <input> text (vertical baseline drifts below the box).
-     *  For a clean capture, swap every input for a plain text element with the same
-     *  class (so the existing CSS — font, padding, alignment — applies unchanged). */
+    /** html2canvas mis-renders <input> text; kit flatten keeps PDF layout = HTML. */
     function flattenInputsForExport() {
-      document.querySelectorAll('input.ci, input.fi').forEach((input) => {
+      if (window.HtmlFormCrewListKit?.flattenInputsForExport) {
+        HtmlFormCrewListKit.flattenInputsForExport(document);
+        return;
+      }
+      document.querySelectorAll('input.ci, textarea.ci, input.fi').forEach((input) => {
         const replacement = document.createElement('div');
         replacement.className = input.className;
         replacement.textContent = input.value || '';
-        // Carry over ALL inline styles (width, border-bottom-color, toolbar font/align
-        // overrides, ...) — copying only a few properties dropped things like the
-        // master-name field's fixed width, stretching its underline across the page.
-        replacement.style.cssText = input.style.cssText;
-        if (input.closest('.header-block')) {
-          replacement.style.border = 'none';
-          replacement.style.borderBottom = 'none';
-        }
-        if (input.classList.contains('ci')) {
-          // Native <input> vertically centers its value via the UA stylesheet — replicate
-          // that for the plain div so table-cell text lines up with the grid, not below it.
-          replacement.style.display = 'flex';
-          replacement.style.alignItems = input.style.alignItems || 'center';
-          replacement.style.justifyContent =
-            replacement.style.textAlign === 'center'
-              ? 'center'
-              : replacement.style.textAlign === 'right'
-                ? 'flex-end'
-                : 'flex-start';
-          replacement.style.whiteSpace = 'nowrap';
-          replacement.style.overflow = 'hidden';
-        }
+        replacement.style.display = 'block';
+        replacement.style.width = '100%';
+        replacement.style.height = '100%';
+        replacement.style.boxSizing = 'border-box';
+        replacement.style.overflow = 'hidden';
         input.replaceWith(replacement);
       });
     }
@@ -1171,6 +1190,19 @@ const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_06_MAX_ROWS in crew-lis
       await restoreOverlaySettings();
       restoreCellStyles(); // Restore cell styling
       restoreCellValues();
+      // Readonly ship fields always win over stale/empty saved cellValues.
+      if (window._shipData) {
+        const ship = window._shipData;
+        const voyageEl = document.getElementById('h-voyage');
+        if (voyageEl) voyageEl.value = ship.voyageNumber || '';
+        const imoEl = document.getElementById('h-imo');
+        if (imoEl) imoEl.value = ship.imoNo || '';
+        const callEl = document.getElementById('h-call');
+        if (callEl) callEl.value = ship.callSign || '';
+      }
+      // Row № is auto-only — wipe any legacy manual values restored from cellValues.
+      refreshRowNumbers();
+      wrapEdit.syncRowHeights();
       if (isPdfExport) {
         resetEditorZoomForExport();
         // Drop the toolbars from the DOM (not just hide them) so the body shrinks to

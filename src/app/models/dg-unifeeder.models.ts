@@ -76,6 +76,22 @@ export function createDefaultUnifeederLibrary(): DgUnifeederLibrarySettings {
   };
 }
 
+/** Inventory shows MP (not PDF YES/NO). */
+function normalizeUnifeederMpFlag(raw: string): string {
+  const value = raw.trim().toUpperCase();
+  if (!value || value === 'NO' || value === 'N') return '';
+  if (value === 'YES' || value === 'Y' || value === 'MP') return 'MP';
+  return raw.trim();
+}
+
+/** Inventory shows LQ (not PDF YES/NO). */
+function normalizeUnifeederLqFlag(raw: string): string {
+  const value = raw.trim().toUpperCase();
+  if (!value || value === 'NO' || value === 'N') return '';
+  if (value === 'YES' || value === 'Y' || value === 'LQ') return 'LQ';
+  return raw.trim();
+}
+
 export function createDgUnifeederRow(
   partial?: Partial<Omit<DgUnifeederRow, 'id'> & { id?: string }>,
 ): DgUnifeederRow {
@@ -94,9 +110,9 @@ export function createDgUnifeederRow(
     weightKg: weights.weightKg,
     grossWeightKg: weights.grossWeightKg,
     netWeightKg: weights.netWeightKg,
-    lq: (partial?.lq ?? '').trim(),
+    lq: normalizeUnifeederLqFlag(partial?.lq ?? ''),
     flashPoint: (partial?.flashPoint ?? '').trim(),
-    marinePollutant: (partial?.marinePollutant ?? '').trim(),
+    marinePollutant: normalizeUnifeederMpFlag(partial?.marinePollutant ?? ''),
     goodsDescription: (partial?.goodsDescription ?? '').trim(),
     dgClass: (partial?.dgClass ?? '').trim(),
     subRisk: normalizeUnifeederSubRisk(partial?.subRisk ?? ''),

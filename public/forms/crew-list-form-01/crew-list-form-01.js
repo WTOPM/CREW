@@ -500,21 +500,49 @@ const tbody = document.getElementById('tbody');
         inputs.forEach((input, colIndex) => {
           const style = cellStyles[`${rowIndex}-${colIndex}`];
           if (style) {
-            if (style.fontFamily) input.style.fontFamily = style.fontFamily;
-            if (style.fontSize) input.style.fontSize = style.fontSize;
-            if (style.textAlign) input.style.textAlign = style.textAlign;
-            if (style.verticalAlign) applyVerticalAlignToCell(input, style.verticalAlign);
-            else if (style.textAlign) syncCellFlexAlignment(input);
+            if (window.CrewCellFormat?.applyStyle) {
+              CrewCellFormat.applyStyle(input, style, {
+                applyTextAlign: typeof applyHorizontalAlignToCell === 'function' ? applyHorizontalAlignToCell : (c, a) => { c.style.textAlign = a; },
+                applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+                syncFlex: typeof syncCellFlexAlignment === 'function' ? syncCellFlexAlignment : undefined,
+              });
+            } else {
+              if (style.fontFamily) input.style.fontFamily = style.fontFamily;
+              if (style.fontSize) input.style.fontSize = style.fontSize;
+              if (style.fontWeight) input.style.fontWeight = style.fontWeight;
+              if (style.fontStyle) input.style.fontStyle = style.fontStyle;
+              if (style.textDecoration) input.style.textDecoration = style.textDecoration;
+              if (style.textAlign) {
+                if (typeof applyHorizontalAlignToCell === 'function') applyHorizontalAlignToCell(input, style.textAlign);
+                else input.style.textAlign = style.textAlign;
+              }
+              if (style.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(input, style.verticalAlign);
+              else if (style.textAlign && typeof syncCellFlexAlignment === 'function') syncCellFlexAlignment(input);
+            }
           }
         });
         const nameCell = tr.querySelector('.ci-name');
         const nameStyle = cellStyles[`${rowIndex}-name`];
         if (nameCell && nameStyle) {
-          if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
-          if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
-          if (nameStyle.textAlign) nameCell.style.textAlign = nameStyle.textAlign;
-          if (nameStyle.verticalAlign) applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
-          else if (nameStyle.textAlign) syncCellFlexAlignment(nameCell);
+          if (window.CrewCellFormat?.applyStyle) {
+            CrewCellFormat.applyStyle(nameCell, nameStyle, {
+              applyTextAlign: typeof applyHorizontalAlignToCell === 'function' ? applyHorizontalAlignToCell : (c, a) => { c.style.textAlign = a; },
+              applyVerticalAlign: typeof applyVerticalAlignToCell === 'function' ? applyVerticalAlignToCell : undefined,
+              syncFlex: typeof syncCellFlexAlignment === 'function' ? syncCellFlexAlignment : undefined,
+            });
+          } else {
+            if (nameStyle.fontFamily) nameCell.style.fontFamily = nameStyle.fontFamily;
+            if (nameStyle.fontSize) nameCell.style.fontSize = nameStyle.fontSize;
+            if (nameStyle.fontWeight) nameCell.style.fontWeight = nameStyle.fontWeight;
+            if (nameStyle.fontStyle) nameCell.style.fontStyle = nameStyle.fontStyle;
+            if (nameStyle.textDecoration) nameCell.style.textDecoration = nameStyle.textDecoration;
+            if (nameStyle.textAlign) {
+              if (typeof applyHorizontalAlignToCell === 'function') applyHorizontalAlignToCell(nameCell, nameStyle.textAlign);
+              else nameCell.style.textAlign = nameStyle.textAlign;
+            }
+            if (nameStyle.verticalAlign && typeof applyVerticalAlignToCell === 'function') applyVerticalAlignToCell(nameCell, nameStyle.verticalAlign);
+            else if (nameStyle.textAlign && typeof syncCellFlexAlignment === 'function') syncCellFlexAlignment(nameCell);
+          }
         }
       });
       HtmlFormHeaderCells.restoreStyles(cellStyles);
@@ -540,23 +568,15 @@ const tbody = document.getElementById('tbody');
       rows.forEach((tr, rowIndex) => {
         const inputs = tr.querySelectorAll('input.ci');
         inputs.forEach((input, colIndex) => {
-          const style = {};
-          if (input.style.fontFamily) style.fontFamily = input.style.fontFamily;
-          if (input.style.fontSize) style.fontSize = input.style.fontSize;
-          if (input.style.textAlign) style.textAlign = input.style.textAlign;
-          if (input.dataset.verticalAlign) style.verticalAlign = input.dataset.verticalAlign;
-          if (Object.keys(style).length > 0) {
+          const style = window.CrewCellFormat?.readStyle?.(input) || null;
+          if (style) {
             cellStyles[`${rowIndex}-${colIndex}`] = style;
           }
         });
         const nameCell = tr.querySelector('.ci-name');
         if (nameCell) {
-          const nameStyle = {};
-          if (nameCell.style.fontFamily) nameStyle.fontFamily = nameCell.style.fontFamily;
-          if (nameCell.style.fontSize) nameStyle.fontSize = nameCell.style.fontSize;
-          if (nameCell.style.textAlign) nameStyle.textAlign = nameCell.style.textAlign;
-          if (nameCell.dataset.verticalAlign) nameStyle.verticalAlign = nameCell.dataset.verticalAlign;
-          if (Object.keys(nameStyle).length > 0) {
+          const nameStyle = window.CrewCellFormat?.readStyle?.(nameCell) || null;
+          if (nameStyle) {
             cellStyles[`${rowIndex}-name`] = nameStyle;
           }
         }
@@ -962,42 +982,21 @@ const tbody = document.getElementById('tbody');
       refreshRowNumbers();
     }
 
-    /** html2canvas mis-renders <input> text (vertical baseline drifts below the box).
-     *  For a clean capture, swap every input for a plain text element with the same
-     *  class (so the existing CSS — font, padding, alignment — applies unchanged). */
+    /** html2canvas mis-renders <input> text; kit flatten keeps PDF layout = HTML. */
     function flattenInputsForExport() {
+      if (window.HtmlFormCrewListKit?.flattenInputsForExport) {
+        HtmlFormCrewListKit.flattenInputsForExport(document);
+        return;
+      }
       document.querySelectorAll('input.ci, input.fi').forEach((input) => {
         const replacement = document.createElement('div');
         replacement.className = input.className;
         replacement.textContent = input.value || '';
-        replacement.style.cssText = input.style.cssText;
-        const isFooterDate =
-          input.id === 'f-footer-date' || input.classList.contains('form-footer__date');
-        if (input.closest('.header-block')) {
-          replacement.style.border = 'none';
-          replacement.style.borderBottom = 'none';
-        }
-        if (isFooterDate) {
-          replacement.style.display = 'inline';
-          replacement.style.width = 'auto';
-          replacement.style.maxWidth = '100%';
-          replacement.style.overflow = 'visible';
-          replacement.style.whiteSpace = 'nowrap';
-          replacement.style.fontSize = input.style.fontSize || '8pt';
-          replacement.style.fontWeight = '700';
-          replacement.style.textAlign = 'left';
-        } else if (input.classList.contains('ci')) {
-          replacement.style.display = 'flex';
-          replacement.style.alignItems = input.style.alignItems || 'center';
-          replacement.style.justifyContent =
-            replacement.style.textAlign === 'center'
-              ? 'center'
-              : replacement.style.textAlign === 'right'
-                ? 'flex-end'
-                : 'flex-start';
-          replacement.style.whiteSpace = 'nowrap';
-          replacement.style.overflow = 'hidden';
-        }
+        replacement.style.display = 'block';
+        replacement.style.width = '100%';
+        replacement.style.height = '100%';
+        replacement.style.boxSizing = 'border-box';
+        replacement.style.overflow = 'hidden';
         input.replaceWith(replacement);
       });
     }

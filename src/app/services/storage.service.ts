@@ -49,6 +49,7 @@ export class StorageService {
   readonly crewMoneyListForm = computed(() => this.data().crewMoneyListForm);
   readonly narcoticListForm = computed(() => this.data().narcoticListForm);
   readonly dgLibrary = computed(() => this.data().dgLibrary);
+  readonly dgUnReference = computed(() => this.data().dgUnReference);
   readonly reeferLibrary = computed(() => this.data().reeferLibrary);
   readonly etaLibrary = computed(() => this.data().etaLibrary);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
@@ -163,6 +164,7 @@ export class StorageService {
       return normalizeAppData({
         ...merged,
         dgLibrary: d.dgLibrary,
+        dgUnReference: d.dgUnReference,
         reeferLibrary: d.reeferLibrary,
       });
     });
@@ -178,6 +180,7 @@ export class StorageService {
       const merged: Partial<AppData> = {
         ...(raw as Partial<AppData>),
         dgLibrary: empty.dgLibrary,
+        dgUnReference: empty.dgUnReference,
         reeferLibrary: empty.reeferLibrary,
       };
       return extractMainAppSnapshot(normalizeAppData(merged));

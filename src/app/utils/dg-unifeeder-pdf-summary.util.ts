@@ -252,25 +252,17 @@ export function validateUnifeederImportAgainstSummary(
   const pdfKg = Math.round(
     useGrossWeight ? summary.totalImoGrossWeightKg : summary.totalImoNetWeightKg,
   );
-  const weightOk = pdfKg > 0 && weightTotalsMatch(pdfKg, importedKg, rows.length, useGrossWeight);
-  const containerDelta =
-    summary.totalContainers > 0 ? Math.abs(summary.totalContainers - importedContainers) : 0;
   const extractable = options.extractableContainers ?? 0;
-  const allExtractableImported =
-    extractable > 0 && importedContainers === extractable && extractable <= summary.totalContainers;
-
-  // PDF grand-total container count can be off by one vs extractable cargo rows; trust weight.
-  if (weightOk && containerDelta <= 1) {
-    return { ok: true, mismatches: [] };
-  }
-
-  // Grand total can exceed container headers on cargo pages; trust weight when all are imported.
-  if (weightOk && allExtractableImported) {
-    return { ok: true, mismatches: [] };
-  }
 
   if (summary.totalContainers > 0 && importedContainers !== summary.totalContainers) {
     mismatches.push(`containers: PDF ${summary.totalContainers}, imported ${importedContainers}`);
+  }
+
+  // Headers found in the PDF but never turned into cargo rows (page-break orphans, etc.).
+  if (extractable > 0 && importedContainers < extractable) {
+    mismatches.push(
+      `container headers in PDF: ${extractable}, imported ${importedContainers}`,
+    );
   }
 
   for (const key of LENGTH_KEYS) {

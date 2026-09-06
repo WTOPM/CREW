@@ -1,15 +1,14 @@
 import { jsPDF } from 'jspdf';
-import {
-  commitDgWeightKgInput,
-  formatDgWeightKgDisplay,
-  formatDgWeightKgGrossDisplay,
-  parseDgWeightKg,
-} from '../models/dg-manifest.models';
+import { parseDgWeightKg } from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { portCode, resolveManifestPortName, type Port, type ShipInfo } from '../models/crew.models';
 import type { DgPageContext } from './page-ship-context.util';
 import { normalizeMfagEmsCode } from './dg-mfag-schedule.util';
-import { unifeederExportTotalKg, unifeederExportWeightKg } from './dg-unifeeder-weight.util';
+import {
+  formatUnifeederExportAmountKg,
+  unifeederExportTotalKg,
+  unifeederExportWeightKg,
+} from './dg-unifeeder-weight.util';
 import { type DgWeightViewOptions } from './dg-weight-view.util';
 
 export interface UnifeederDgPdfExportOptions {
@@ -251,28 +250,21 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
   return trimmed;
 }
 
-function formatTotalKg(totalKg: number, roundWeights: boolean): string {
-  const text = roundWeights
-    ? formatDgWeightKgGrossDisplay(totalKg) || '0'
-    : formatDgWeightKgDisplay(totalKg) || '0';
-  return `${text} kg`;
+function formatTotalKg(totalKg: number): string {
+  return formatUnifeederExportAmountKg(totalKg) || '0.0 kg';
 }
 
 function formatAmountKgText(
   data: DgUnifeederRow | undefined,
   exportKg: number | undefined,
-  roundWeights: boolean,
 ): string {
   if (!data) return '';
   const amount = exportKg !== undefined ? exportKg : parseDgWeightKg(data.weightKg);
-  if (amount > 0) {
-    const text = roundWeights
-      ? formatDgWeightKgGrossDisplay(amount)
-      : formatDgWeightKgDisplay(amount);
-    return text ? `${text} kg` : '';
-  }
+  if (amount > 0) return formatUnifeederExportAmountKg(amount);
   const raw = data.weightKg.trim();
   if (!raw) return '';
+  const parsed = parseDgWeightKg(raw);
+  if (parsed > 0) return formatUnifeederExportAmountKg(parsed);
   if (/\bkg\b/i.test(raw)) return raw;
   return `${raw} kg`;
 }
@@ -407,6 +399,46 @@ async function loadRambowFlagDataUrl(): Promise<string | null> {
   }
 }
 
+function drawInlineSegments(
+  doc: jsPDF,
+  rect: { x: number; y: number; w: number; h: number },
+  segments: readonly { text: string; bold?: boolean; size: number }[],
+  opts: { pad?: number; align?: 'left' | 'center' } = {},
+): void {
+  const parts = segments.filter((s) => s.text.length > 0);
+  if (!parts.length) return;
+
+  const pad = opts.pad ?? 3;
+  const maxW = Math.max(2, rect.w - pad * 2);
+  let scale = 1;
+  const measure = (factor: number): number => {
+    let total = 0;
+    for (const part of parts) {
+      doc.setFont(BODY_FONT, part.bold ? 'bold' : 'normal');
+      doc.setFontSize(part.size * factor);
+      total += doc.getTextWidth(part.text);
+    }
+    return total;
+  };
+
+  let width = measure(1);
+  if (width > maxW) {
+    scale = Math.max(0.72, maxW / width);
+    width = measure(scale);
+  }
+
+  let x =
+    opts.align === 'left' ? rect.x + pad : rect.x + pad + Math.max(0, (maxW - width) / 2);
+  const y = rect.y + rect.h / 2;
+  doc.setTextColor(0, 0, 0);
+  for (const part of parts) {
+    doc.setFont(BODY_FONT, part.bold ? 'bold' : 'normal');
+    doc.setFontSize(part.size * scale);
+    doc.text(part.text, x, y, { align: 'left', baseline: 'middle' });
+    x += doc.getTextWidth(part.text);
+  }
+}
+
 function drawHeaderBlock(
   doc: jsPDF,
   metrics: GridMetrics,
@@ -453,20 +485,15 @@ function drawHeaderBlock(
   });
 
   const titleRow = cellRect(metrics, 7, 1, 7, 10);
-  const pageLabelRect = cellRect(metrics, 7, 11);
-  const pageNumRect = cellRect(metrics, 7, 12);
+  const pageRect = cellRect(metrics, 7, 11, 7, 12);
   strokeRect(doc, titleRow, thin);
-  strokeRect(doc, pageLabelRect, thin);
-  strokeRect(doc, pageNumRect, thick);
+  strokeRect(doc, pageRect, thick);
 
   drawTextInRect(doc, 'Dangerous Goods', titleRow, { font: TIMES, size: subSize });
-  drawTextInRect(doc, 'Page »', pageLabelRect, {
+  drawTextInRect(doc, `Page »       ${pageNumber}`, pageRect, {
     font: TIMES,
     size: pageLabelSize,
-    align: 'right',
-    pad: 3,
   });
-  drawTextInRect(doc, String(pageNumber), pageNumRect, { font: TIMES, size: pageLabelSize });
 
   const shipRow = 9;
   drawTextInRect(doc, "Ship's Name:", cellRect(metrics, shipRow, 1), {
@@ -500,27 +527,17 @@ function drawHeaderBlock(
   drawTextInRect(doc, ship.voyageNumber.trim(), cellRect(metrics, shipRow, 8, shipRow, 9), {
     size: metaLabelSize,
     bold: true,
-  });
-  drawTextInRect(doc, 'from:', cellRect(metrics, shipRow, 10), {
-    size: metaLabelSize,
     align: 'left',
     pad: 3,
   });
-  drawTextInRect(
-    doc,
-    resolvePortLabel(ctx.portOfCall || ship.portOfCall, ports),
-    cellRect(metrics, shipRow, 11),
-    {
-      size: metaValueSize,
-      bold: true,
-    },
-  );
-  drawTextInRect(
-    doc,
-    `to: ${resolvePortLabel(ctx.nextPortOfCall || ship.nextPortOfCall, ports)}`,
-    cellRect(metrics, shipRow, 12),
-    { size: metaLabelSize, bold: true },
-  );
+  const fromPort = resolvePortLabel(ctx.portOfCall || ship.portOfCall, ports);
+  const toPort = resolvePortLabel(ctx.nextPortOfCall || ship.nextPortOfCall, ports);
+  drawInlineSegments(doc, cellRect(metrics, shipRow, 10, shipRow, 12), [
+    { text: 'from: ', size: metaLabelSize },
+    { text: fromPort, bold: true, size: metaValueSize },
+    { text: '   to: ', size: metaLabelSize },
+    { text: toPort, bold: true, size: metaValueSize },
+  ]);
 
   drawTextInRect(
     doc,
@@ -566,7 +583,6 @@ function drawDataRow(
   data: DgUnifeederRow | undefined,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  roundWeights: boolean,
 ): void {
   const bodySize = fontSize(metrics, 10);
   const emsSize = fontSize(metrics, 9);
@@ -583,7 +599,7 @@ function drawDataRow(
     { col: 3, text: data?.packingGroup ?? '' },
     {
       col: 4,
-      text: formatAmountKgText(data, data ? exportWeights.get(data.id) : undefined, roundWeights),
+      text: formatAmountKgText(data, data ? exportWeights.get(data.id) : undefined),
     },
     { col: 5, text: data?.stow ?? '' },
     { col: 6, text: data?.containerNo ?? '', align: 'left' },
@@ -637,19 +653,14 @@ function drawDataRow(
   });
 }
 
-function drawTotalRow(
-  doc: jsPDF,
-  metrics: GridMetrics,
-  totalKg: number,
-  roundWeights: boolean,
-): void {
+function drawTotalRow(doc: jsPDF, metrics: GridMetrics, totalKg: number): void {
   const bodySize = fontSize(metrics, 10);
   const labelRect = cellRect(metrics, TOTAL_ROW, 2, TOTAL_ROW, 3);
   const amountRect = cellRect(metrics, TOTAL_ROW, 4);
   strokeRect(doc, labelRect);
   strokeRect(doc, amountRect);
   drawTextInRect(doc, 'TOTAL WEIGHT:', labelRect, { size: bodySize, bold: true });
-  drawTextInRect(doc, formatTotalKg(totalKg, roundWeights), amountRect, {
+  drawTextInRect(doc, formatTotalKg(totalKg), amountRect, {
     size: bodySize,
     bold: true,
   });
@@ -673,24 +684,16 @@ function drawPageBlock(
   ctx: DgPageContext,
   ports: readonly Port[],
   exportWeights: Map<string, number>,
-  options: { showTotal: boolean; totalKg: number; roundWeights: boolean },
+  options: { showTotal: boolean; totalKg: number },
   logoDataUrl: string | null,
 ): void {
   drawHeaderBlock(doc, metrics, pageNumber, ship, ctx, ports, logoDataUrl);
   drawTableHeader(doc, metrics);
   for (let i = 0; i < DATA_ROW_COUNT; i++) {
-    drawDataRow(
-      doc,
-      metrics,
-      DATA_FIRST_ROW + i,
-      pageRows[i],
-      ports,
-      exportWeights,
-      options.roundWeights,
-    );
+    drawDataRow(doc, metrics, DATA_FIRST_ROW + i, pageRows[i], ports, exportWeights);
   }
   if (options.showTotal) {
-    drawTotalRow(doc, metrics, options.totalKg, options.roundWeights);
+    drawTotalRow(doc, metrics, options.totalKg);
   }
   if (pageRows.every((row) => !row)) {
     drawNoImdgCargoOverlay(doc, metrics);
@@ -742,7 +745,6 @@ export async function buildUnifeederDgListPdfBytes(
       {
         showTotal: pageIndex === pageCount - 1,
         totalKg,
-        roundWeights: weightOptions.roundWeights,
       },
       logoDataUrl,
     );
