@@ -1,7 +1,12 @@
 import { Injectable, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { openPdfBlobPreview } from '../utils/pdf-blob.util';
 import { uint8ToBase64 } from '../utils/base64.util';
 import { joinOutputDir } from '../utils/package-save-path.util';
+import {
+  getOutputFolderPrefs,
+  outputFolderSectionFromRoute,
+} from '../utils/output-folder-section.util';
 import { StorageService } from './storage.service';
 import { ToastService } from './toast.service';
 import { ConfirmDialogService } from './confirm-dialog.service';
@@ -13,6 +18,7 @@ import { FolderAccessService } from './folder-access.service';
  * - "Save to folder" on    → write the file (Electron) or download it (browser)
  *   under the document name (voyage date already in the name — no "today" suffix),
  *   and ALSO open the preview.
+ * Folder prefs are per tab (Home / DG / Reefer).
  */
 @Injectable({ providedIn: 'root' })
 export class PdfDeliveryService {
@@ -20,13 +26,14 @@ export class PdfDeliveryService {
   private readonly toast = inject(ToastService);
   private readonly folderAccess = inject(FolderAccessService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly router = inject(Router);
 
   async deliver(bytes: Uint8Array, fileName: string): Promise<boolean> {
-    const settings = this.storage.outputSettings();
+    const prefs = this.currentFolderPrefs();
     // Always open the document; additionally save it when "Save to folder" is on.
     const opened = openPdfBlobPreview(bytes);
-    if (settings.saveToFolder) {
-      await this.saveToFolder(bytes, fileName, settings.activePath);
+    if (prefs?.saveToFolder) {
+      await this.saveToFolder(bytes, fileName, prefs.activePath);
     }
     return opened;
   }
@@ -46,10 +53,16 @@ export class PdfDeliveryService {
     fileName: string,
     options?: { subdir?: string; quiet?: boolean },
   ): Promise<boolean> {
-    const settings = this.storage.outputSettings();
-    if (!settings.saveToFolder) return false;
-    await this.saveToFolder(bytes, fileName, settings.activePath, options);
+    const prefs = this.currentFolderPrefs();
+    if (!prefs?.saveToFolder) return false;
+    await this.saveToFolder(bytes, fileName, prefs.activePath, options);
     return true;
+  }
+
+  private currentFolderPrefs() {
+    const section = outputFolderSectionFromRoute(this.router.url);
+    if (!section) return null;
+    return getOutputFolderPrefs(this.storage.outputSettings(), section);
   }
 
   private async saveToFolder(

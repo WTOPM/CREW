@@ -88,7 +88,7 @@ export function mergeSectionForSave(disk: AppData, memory: AppData, section: App
   return {
     ...disk,
     ...pickSectionSlice(memory, section),
-    /** Voyage fields edited on Home; output folder from the top bar on any tab. */
+    /** Voyage fields edited on Home; output folder prefs from the top bar on Home / DG / Reefer. */
     ship: memory.ship,
     outputSettings: memory.outputSettings,
     /** Document overlay prefs edited from Home document menus. */

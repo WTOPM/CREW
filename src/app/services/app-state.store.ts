@@ -234,7 +234,7 @@ export class AppStateStore {
 
   /**
    * Save folder/printer output settings immediately — not tied to the active section lock
-   * (top-bar control is available on every tab).
+   * (top-bar control is available on Home / DG / Reefer).
    */
   async persistOutputSettings(
     notify: PersistNotify = 'silent',

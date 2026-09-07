@@ -599,17 +599,49 @@ export function createDefaultCustomDocuments(): CustomDocument[] {
   return [];
 }
 
+/** Tabs that keep their own save-folder history (ETA / Settings have no output bar). */
+export type OutputFolderSection = 'home' | 'dg' | 'reefer';
+
+export const OUTPUT_FOLDER_SECTIONS: OutputFolderSection[] = ['home', 'dg', 'reefer'];
+
+/** Per-tab save-to-folder prefs (last 5 paths + ON/OFF). */
+export interface OutputFolderPrefs {
+  saveToFolder: boolean;
+  activePath: string;
+  savedPaths: string[];
+}
+
+export function createDefaultOutputFolderPrefs(): OutputFolderPrefs {
+  return { saveToFolder: false, activePath: '', savedPaths: [] };
+}
+
 /** Header "save to folder" preferences for generated PDFs. */
 export interface OutputSettings {
+  /**
+   * Mirrored from `bySection.home` after normalize (legacy flat fields).
+   * Prefer `bySection` for Home / DG / Reefer.
+   */
   saveToFolder: boolean;
   activePath: string;
   savedPaths: string[];
   /** Selected printer (Electron silent printing); empty = system default. */
   printerName: string;
+  /** Independent last-5 paths + ON flag for Home, DG, and Reefer. */
+  bySection: Record<OutputFolderSection, OutputFolderPrefs>;
 }
 
 export function createDefaultOutputSettings(): OutputSettings {
-  return { saveToFolder: false, activePath: '', savedPaths: [], printerName: '' };
+  return {
+    saveToFolder: false,
+    activePath: '',
+    savedPaths: [],
+    printerName: '',
+    bySection: {
+      home: createDefaultOutputFolderPrefs(),
+      dg: createDefaultOutputFolderPrefs(),
+      reefer: createDefaultOutputFolderPrefs(),
+    },
+  };
 }
 
 /** One document choice within an authority. */

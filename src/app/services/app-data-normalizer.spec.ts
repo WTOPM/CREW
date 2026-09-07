@@ -65,11 +65,15 @@ describe('normalizeOutputSettings', () => {
     const out = normalizeOutputSettings(undefined);
     expect(out.saveToFolder).toBe(false);
     expect(out.savedPaths).toEqual([]);
+    expect(out.bySection.home.savedPaths).toEqual([]);
+    expect(out.bySection.dg.savedPaths).toEqual([]);
+    expect(out.bySection.reefer.savedPaths).toEqual([]);
   });
 
   it('coerces saveToFolder to a strict boolean', () => {
     expect(normalizeOutputSettings({ saveToFolder: 'yes' as never }).saveToFolder).toBe(false);
     expect(normalizeOutputSettings({ saveToFolder: true }).saveToFolder).toBe(true);
+    expect(normalizeOutputSettings({ saveToFolder: true }).bySection.home.saveToFolder).toBe(true);
   });
 
   it('trims, dedupes and caps savedPaths to 5', () => {
@@ -77,6 +81,21 @@ describe('normalizeOutputSettings', () => {
       savedPaths: [' a ', 'a', 'b', 'c', 'd', 'e', 'f', '   '],
     });
     expect(out.savedPaths).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(out.bySection.home.savedPaths).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it('keeps independent path lists per Home / DG / Reefer', () => {
+    const out = normalizeOutputSettings({
+      bySection: {
+        home: { saveToFolder: true, activePath: 'C:\\home', savedPaths: ['C:\\home'] },
+        dg: { saveToFolder: false, activePath: 'C:\\dg', savedPaths: ['C:\\dg', 'C:\\dg2'] },
+        reefer: { saveToFolder: true, activePath: '', savedPaths: ['C:\\rf'] },
+      },
+    });
+    expect(out.bySection.home.activePath).toBe('C:\\home');
+    expect(out.bySection.dg.savedPaths).toEqual(['C:\\dg', 'C:\\dg2']);
+    expect(out.bySection.reefer.saveToFolder).toBe(true);
+    expect(out.activePath).toBe('C:\\home');
   });
 });
 

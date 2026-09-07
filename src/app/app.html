@@ -150,62 +150,66 @@
         </div>
       }
 
-      <div
-        class="output-bar"
-        [class.output-bar--active]="outputSettings().saveToFolder"
-        [attr.aria-label]="
-          outputSettings().saveToFolder ? 'Saving to folder is ON' : 'Saving to folder is off'
-        "
-      >
-        <button
-          type="button"
-          class="output-toggle-btn"
-          [class.output-toggle-btn--on]="outputSettings().saveToFolder"
-          title="Save to selected folder — click to toggle"
-          [attr.aria-pressed]="outputSettings().saveToFolder"
-          (click)="toggleSaveToFolder(!outputSettings().saveToFolder)"
+      @if (showOutputBar()) {
+        <div
+          class="output-bar"
+          [class.output-bar--active]="sectionOutputPrefs()?.saveToFolder"
+          [attr.aria-label]="
+            sectionOutputPrefs()?.saveToFolder
+              ? 'Saving to folder is ON'
+              : 'Saving to folder is off'
+          "
         >
-          {{ outputSettings().saveToFolder ? 'ON' : 'OFF' }}
-        </button>
+          <button
+            type="button"
+            class="output-toggle-btn"
+            [class.output-toggle-btn--on]="sectionOutputPrefs()?.saveToFolder"
+            title="Save to selected folder — click to toggle"
+            [attr.aria-pressed]="sectionOutputPrefs()?.saveToFolder"
+            (click)="toggleSaveToFolder(!sectionOutputPrefs()?.saveToFolder)"
+          >
+            {{ sectionOutputPrefs()?.saveToFolder ? 'ON' : 'OFF' }}
+          </button>
 
-        @if (canSaveToFolder) {
-          <select
-            class="output-select"
-            [ngModel]="activeFolderId()"
-            (ngModelChange)="selectFolder($event)"
-            [disabled]="folderOptions().length === 0"
-            title="Active save folder"
-          >
-            @if (folderOptions().length === 0) {
-              <option value="">No folder — click 📁</option>
-            }
-            @for (f of folderOptions(); track f.id) {
-              <option [value]="f.id">{{ f.label }}</option>
-            }
-          </select>
-          <button
-            type="button"
-            class="output-btn"
-            [title]="folderBtnTitle()"
-            (mousedown)="onFolderBtnDown($event)"
-            (mouseup)="onFolderBtnUp()"
-            (mouseleave)="onFolderBtnLeave()"
-          >
-            📁
-          </button>
-          <button
-            type="button"
-            class="output-btn"
-            title="Remove selected folder"
-            [disabled]="!activeFolderId()"
-            (click)="removeActiveFolder()"
-          >
-            ×
-          </button>
-        } @else {
-          <span class="output-note">Folder saving needs Chrome or Edge</span>
-        }
-      </div>
+          @if (canSaveToFolder) {
+            <select
+              class="output-select"
+              [ngModel]="activeFolderId()"
+              (ngModelChange)="selectFolder($event)"
+              [disabled]="folderOptions().length === 0"
+              title="Active save folder"
+            >
+              @if (folderOptions().length === 0) {
+                <option value="">No folder — click 📁</option>
+              }
+              @for (f of folderOptions(); track f.id) {
+                <option [value]="f.id">{{ f.label }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              class="output-btn"
+              [title]="folderBtnTitle()"
+              (mousedown)="onFolderBtnDown($event)"
+              (mouseup)="onFolderBtnUp()"
+              (mouseleave)="onFolderBtnLeave()"
+            >
+              📁
+            </button>
+            <button
+              type="button"
+              class="output-btn"
+              title="Remove selected folder"
+              [disabled]="!activeFolderId()"
+              (click)="removeActiveFolder()"
+            >
+              ×
+            </button>
+          } @else {
+            <span class="output-note">Folder saving needs Chrome or Edge</span>
+          }
+        </div>
+      }
     </div>
   </nav>
   @if (sectionLockBanner(); as banner) {

@@ -24,6 +24,8 @@ import {
 } from '../models/document-overlay.models';
 import { normalizeOutputSettings } from './app-data-normalizer';
 import { AppStateStore } from './app-state.store';
+import type { OutputFolderPrefs, OutputFolderSection } from '../models/crew.models';
+import { createDefaultOutputFolderPrefs } from '../models/crew.models';
 
 @Injectable({ providedIn: 'root' })
 export class DocumentSettingsStore {
@@ -140,39 +142,96 @@ export class DocumentSettingsStore {
     partial: Partial<AppData['outputSettings']>,
     notify: 'silent' | 'saved' = 'silent',
   ): void {
-    this.data.update((d) => ({
-      ...d,
-      outputSettings: normalizeOutputSettings({ ...d.outputSettings, ...partial }),
-    }));
+    this.data.update((d) => {
+      const next: AppData['outputSettings'] = { ...d.outputSettings, ...partial };
+      // Flat path/ON fields without bySection → apply to Home (legacy callers).
+      if (
+        partial.bySection === undefined &&
+        (partial.saveToFolder !== undefined ||
+          partial.activePath !== undefined ||
+          partial.savedPaths !== undefined)
+      ) {
+        next.bySection = {
+          ...d.outputSettings.bySection,
+          home: {
+            ...d.outputSettings.bySection.home,
+            ...(partial.saveToFolder !== undefined ? { saveToFolder: partial.saveToFolder } : {}),
+            ...(partial.activePath !== undefined ? { activePath: partial.activePath } : {}),
+            ...(partial.savedPaths !== undefined ? { savedPaths: partial.savedPaths } : {}),
+          },
+        };
+      }
+      return {
+        ...d,
+        outputSettings: normalizeOutputSettings(next),
+      };
+    });
     void this.state.persistOutputSettings(notify);
   }
 
-  /** Remember a folder path and make it the active output target. */
-  addSavedPath(path: string): void {
-    const p = path.trim();
-    if (!p) return;
-    this.data.update((d) => ({
-      ...d,
-      outputSettings: normalizeOutputSettings({
-        ...d.outputSettings,
-        activePath: p,
-        // Newest first, keep only the last 5 (normalize caps to 5).
-        savedPaths: [p, ...d.outputSettings.savedPaths.filter((x) => x !== p)],
-      }),
-    }));
-    void this.state.persistOutputSettings('saved');
-  }
-
-  removeSavedPath(path: string): void {
+  /** Update save-folder prefs for one tab (Home / DG / Reefer). */
+  updateOutputFolderPrefs(
+    section: OutputFolderSection,
+    partial: Partial<OutputFolderPrefs>,
+    notify: 'silent' | 'saved' = 'silent',
+  ): void {
     this.data.update((d) => {
-      const savedPaths = d.outputSettings.savedPaths.filter((p) => p !== path);
-      const activePath = d.outputSettings.activePath === path ? '' : d.outputSettings.activePath;
+      const current = d.outputSettings.bySection?.[section] ?? createDefaultOutputFolderPrefs();
       return {
         ...d,
         outputSettings: normalizeOutputSettings({
           ...d.outputSettings,
-          activePath,
-          savedPaths,
+          bySection: {
+            ...d.outputSettings.bySection,
+            [section]: { ...current, ...partial },
+          },
+        }),
+      };
+    });
+    void this.state.persistOutputSettings(notify);
+  }
+
+  /** Remember a folder path and make it the active output target for a tab. */
+  addSavedPath(section: OutputFolderSection, path: string): void {
+    const p = path.trim();
+    if (!p) return;
+    this.data.update((d) => {
+      const current = d.outputSettings.bySection?.[section] ?? createDefaultOutputFolderPrefs();
+      return {
+        ...d,
+        outputSettings: normalizeOutputSettings({
+          ...d.outputSettings,
+          bySection: {
+            ...d.outputSettings.bySection,
+            [section]: {
+              ...current,
+              activePath: p,
+              savedPaths: [p, ...current.savedPaths.filter((x) => x !== p)],
+            },
+          },
+        }),
+      };
+    });
+    void this.state.persistOutputSettings('saved');
+  }
+
+  removeSavedPath(section: OutputFolderSection, path: string): void {
+    this.data.update((d) => {
+      const current = d.outputSettings.bySection?.[section] ?? createDefaultOutputFolderPrefs();
+      const savedPaths = current.savedPaths.filter((p) => p !== path);
+      const activePath = current.activePath === path ? '' : current.activePath;
+      return {
+        ...d,
+        outputSettings: normalizeOutputSettings({
+          ...d.outputSettings,
+          bySection: {
+            ...d.outputSettings.bySection,
+            [section]: {
+              ...current,
+              activePath,
+              savedPaths,
+            },
+          },
         }),
       };
     });

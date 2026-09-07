@@ -19,6 +19,9 @@ import {
   PortCallHistoryEntry,
   createDefaultCrewArrSettings,
   createDefaultOutputSettings,
+  createDefaultOutputFolderPrefs,
+  OUTPUT_FOLDER_SECTIONS,
+  type OutputFolderPrefs,
   CustomDocument,
   PortPackage,
   PortAuthority,
@@ -82,6 +85,7 @@ import {
 } from '../models/document-overlay.models';
 import { isValidStampBox } from '../utils/overlay-stamp-box.util';
 import { normalizeCrewSignatureByRow } from '../utils/crew-effect-signature.util';
+import { emptyOutputFolderBySection } from '../utils/output-folder-section.util';
 import {
   normalizeCrewSignatureCellByRow,
   readCrewEffectHtmlOverlayBox,
@@ -371,18 +375,62 @@ export function normalizeOutputSettings(
   raw: Partial<AppData['outputSettings']> | undefined,
 ): AppData['outputSettings'] {
   const defaults = createDefaultOutputSettings();
-  const savedPaths = Array.from(
+  const legacyPaths = normalizeSavedPaths(raw?.savedPaths);
+  const legacyActive = (raw?.activePath ?? defaults.activePath).trim();
+  const legacyOn = raw?.saveToFolder === true;
+
+  const rawBy = (raw as { bySection?: Partial<Record<string, Partial<OutputFolderPrefs>>> } | undefined)
+    ?.bySection;
+  const bySection = emptyOutputFolderBySection();
+  for (const section of OUTPUT_FOLDER_SECTIONS) {
+    const bucket = rawBy?.[section];
+    bySection[section] = normalizeOutputFolderPrefs(bucket);
+  }
+
+  // Migrate flat legacy fields into Home when that bucket is still empty.
+  const homeEmpty =
+    !bySection.home.activePath && bySection.home.savedPaths.length === 0 && !bySection.home.saveToFolder;
+  if (homeEmpty && (legacyActive || legacyPaths.length > 0 || legacyOn)) {
+    bySection.home = normalizeOutputFolderPrefs({
+      saveToFolder: legacyOn,
+      activePath: legacyActive,
+      savedPaths: legacyPaths,
+    });
+  }
+
+  // Keep top-level mirrors of Home for older readers / section-merge tests.
+  return {
+    saveToFolder: bySection.home.saveToFolder,
+    activePath: bySection.home.activePath,
+    savedPaths: bySection.home.savedPaths,
+    printerName: (raw?.printerName ?? defaults.printerName).trim(),
+    bySection,
+  };
+}
+
+function normalizeSavedPaths(raw: unknown): string[] {
+  return Array.from(
     new Set(
-      (Array.isArray(raw?.savedPaths) ? raw!.savedPaths : [])
+      (Array.isArray(raw) ? raw : [])
         .map((p) => String(p).trim())
         .filter((p) => p.length > 0),
     ),
   ).slice(0, 5);
+}
+
+function normalizeOutputFolderPrefs(
+  raw: Partial<OutputFolderPrefs> | undefined,
+): OutputFolderPrefs {
+  const defaults = createDefaultOutputFolderPrefs();
+  const savedPaths = normalizeSavedPaths(raw?.savedPaths);
+  let activePath = (raw?.activePath ?? defaults.activePath).trim();
+  if (activePath && !savedPaths.includes(activePath)) {
+    // Keep active even if not in the list yet (normalize will not drop it from UI).
+  }
   return {
     saveToFolder: raw?.saveToFolder === true,
-    activePath: (raw?.activePath ?? defaults.activePath).trim(),
+    activePath,
     savedPaths,
-    printerName: (raw?.printerName ?? defaults.printerName).trim(),
   };
 }
 

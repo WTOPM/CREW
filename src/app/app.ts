@@ -23,6 +23,11 @@ import { NetworkForceQuitService } from './services/network-force-quit.service';
 import { SectionLockService } from './services/section-lock.service';
 import { SectionReadonlyDomService } from './services/section-readonly-dom.service';
 import { sectionFromRoutePath, AppSection } from './utils/app-data-section.util';
+import {
+  getOutputFolderPrefs,
+  outputFolderSectionFromRoute,
+} from './utils/output-folder-section.util';
+import type { OutputFolderSection } from './models/crew.models';
 import { uint8ToBase64 } from './utils/base64.util';
 
 interface FolderOption {
@@ -80,16 +85,37 @@ export class App implements OnInit {
   /** Whether folder saving is possible at all in this environment. */
   protected readonly canSaveToFolder = this.hasElectron || this.fsSupported;
 
-  /** Unified folder list for the dropdown (desktop paths or website folders). */
-  protected readonly folderOptions = computed<FolderOption[]>(() =>
-    this.hasElectron
-      ? this.outputSettings().savedPaths.map((p) => ({ id: p, label: p }))
-      : this.folderAccess.folders().map((f) => ({ id: f.id, label: f.name })),
+  /** Home / DG / Reefer show the save-folder bar; ETA / Settings hide it. */
+  protected readonly outputFolderSection = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map(() => outputFolderSectionFromRoute(this.router.url)),
+      startWith(outputFolderSectionFromRoute(this.router.url)),
+    ),
+    { initialValue: outputFolderSectionFromRoute(this.router.url) },
   );
 
-  protected readonly activeFolderId = computed(() =>
-    this.hasElectron ? this.outputSettings().activePath : this.folderAccess.activeId(),
-  );
+  protected readonly showOutputBar = computed(() => this.outputFolderSection() != null);
+
+  protected readonly sectionOutputPrefs = computed(() => {
+    const section = this.outputFolderSection();
+    if (!section) return null;
+    return getOutputFolderPrefs(this.outputSettings(), section);
+  });
+
+  /** Unified folder list for the dropdown (desktop paths or website folders). */
+  protected readonly folderOptions = computed<FolderOption[]>(() => {
+    if (!this.hasElectron) {
+      return this.folderAccess.folders().map((f) => ({ id: f.id, label: f.name }));
+    }
+    const prefs = this.sectionOutputPrefs();
+    return (prefs?.savedPaths ?? []).map((p) => ({ id: p, label: p }));
+  });
+
+  protected readonly activeFolderId = computed(() => {
+    if (!this.hasElectron) return this.folderAccess.activeId();
+    return this.sectionOutputPrefs()?.activePath ?? '';
+  });
 
   /** Package bar — hidden on DG / Reefer inventory pages. */
   protected readonly showPkgBar = toSignal(
@@ -210,40 +236,56 @@ export class App implements OnInit {
   }
 
   protected toggleSaveToFolder(saveToFolder: boolean): void {
-    this.docSettings.updateOutputSettings({ saveToFolder });
+    const section = this.requireOutputSection();
+    if (!section) return;
+    this.docSettings.updateOutputFolderPrefs(section, { saveToFolder });
   }
 
   protected selectFolder(id: string): void {
+    const section = this.requireOutputSection();
+    if (!section) return;
     if (this.hasElectron) {
-      this.docSettings.updateOutputSettings({ activePath: id });
+      this.docSettings.updateOutputFolderPrefs(section, { activePath: id });
     } else {
       this.folderAccess.setActive(id);
-      this.docSettings.updateOutputSettings({ activePath: this.folderAccess.activeName() });
+      this.docSettings.updateOutputFolderPrefs(section, {
+        activePath: this.folderAccess.activeName(),
+      });
     }
   }
 
   protected async addFolder(): Promise<void> {
+    const section = this.requireOutputSection();
+    if (!section) return;
     if (this.hasElectron) {
       const picked = await window.electronAPI?.pickDirectory();
-      if (picked) this.docSettings.addSavedPath(picked);
+      if (picked) this.docSettings.addSavedPath(section, picked);
       else return;
     } else {
       const name = await this.folderAccess.pick();
       if (!name) return;
-      this.docSettings.updateOutputSettings({ activePath: name });
+      this.docSettings.updateOutputFolderPrefs(section, { activePath: name });
     }
-    this.docSettings.updateOutputSettings({ saveToFolder: true });
+    this.docSettings.updateOutputFolderPrefs(section, { saveToFolder: true });
   }
 
   protected async removeActiveFolder(): Promise<void> {
+    const section = this.requireOutputSection();
+    if (!section) return;
     const id = this.activeFolderId();
     if (!id) return;
     if (this.hasElectron) {
-      this.docSettings.removeSavedPath(id);
+      this.docSettings.removeSavedPath(section, id);
     } else {
       await this.folderAccess.remove(id);
-      this.docSettings.updateOutputSettings({ activePath: this.folderAccess.activeName() });
+      this.docSettings.updateOutputFolderPrefs(section, {
+        activePath: this.folderAccess.activeName(),
+      });
     }
+  }
+
+  private requireOutputSection(): OutputFolderSection | null {
+    return this.outputFolderSection();
   }
 
   protected folderBtnTitle(): string {
@@ -310,6 +352,10 @@ export class App implements OnInit {
 
   private async onMainSectionNav(url: string): Promise<void> {
     const section = sectionFromRoutePath(url);
+    const folderSection = outputFolderSectionFromRoute(url);
+    if (folderSection) {
+      this.folderAccess.setSection(folderSection);
+    }
     if (section && this.hasElectron && !this.shouldSkipSectionReload(section)) {
       await this.appState.reloadSectionFromDisk(section);
     }
