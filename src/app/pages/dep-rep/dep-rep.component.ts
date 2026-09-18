@@ -24,6 +24,7 @@ import {
 import { normalizeShipMetresInput } from '../../services/airdraft-field-positions';
 import { DepRepStore } from '../../services/dep-rep.store';
 import { DgManifestStore } from '../../services/dg-manifest.store';
+import { PdfDepRepService } from '../../services/pdf-dep-rep.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 
@@ -47,6 +48,7 @@ export class DepRepComponent {
   private readonly storage = inject(StorageService);
   private readonly depRepStore = inject(DepRepStore);
   private readonly dg = inject(DgManifestStore);
+  private readonly depRepPdf = inject(PdfDepRepService);
   private readonly toast = inject(ToastService);
 
   protected readonly hasElectronPicker = !!window.electronAPI?.pickExcelFile;
@@ -341,6 +343,29 @@ export class DepRepComponent {
       this.toast.show(`Loaded "${snap.sheetName}"`, 'success');
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Failed to refresh from sheet');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async exportPdf(): Promise<void> {
+    const path = this.library().sourcePath.trim() || this.pathDraft().trim();
+    if (!path) {
+      this.toast.showError('Choose DEP REP.xlsx path first');
+      return;
+    }
+    const name = this.sheetName();
+    if (!name) {
+      this.toast.showError('Set voyage and POL first');
+      return;
+    }
+    this.busy.set(true);
+    try {
+      const ok = await this.depRepPdf.openFromExcel(path, name);
+      if (ok) this.toast.show('DEP REP PDF opened (from Excel)', 'success');
+      else this.toast.showError('Could not open PDF');
+    } catch (e) {
+      this.toast.showError(e instanceof Error ? e.message : 'PDF export failed');
     } finally {
       this.busy.set(false);
     }

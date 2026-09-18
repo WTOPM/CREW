@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeFileBase64: (filePath, base64) => ipcRenderer.invoke('write-file-base64', filePath, base64),
   writeDepRepSheet: (filePath, payload) =>
     ipcRenderer.invoke('write-dep-rep-sheet', filePath, payload),
+  exportDepRepPdf: (filePath, sheetName) =>
+    ipcRenderer.invoke('export-dep-rep-pdf', filePath, sheetName),
   pickDirectory: () => ipcRenderer.invoke('pick-directory'),
   openDirectory: (dirPath) => ipcRenderer.invoke('open-directory', dirPath),
   openTempFile: (fileName, base64) => ipcRenderer.invoke('open-temp-file', fileName, base64),

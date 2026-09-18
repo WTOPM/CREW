@@ -133,12 +133,16 @@
   color: #9a3412;
 }
 
-.dep-rep-source-actions {
-  flex: 0 0 auto;
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 0.4rem;
-  align-items: center;
+.dep-rep-pdf-btn {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+  font-weight: 700;
+}
+
+.dep-rep-pdf-btn:hover:not(:disabled) {
+  background: #ffedd5;
+  border-color: #fb923c;
 }
 
 .dep-rep-last {

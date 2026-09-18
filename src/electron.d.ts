@@ -99,6 +99,11 @@ declare global {
           }>;
         },
       ) => Promise<{ ok: boolean; created?: boolean; sheetName?: string; error?: string }>;
+      /** Excel ExportAsFixedFormat for a DEP REP sheet → PDF base64 (print layout as in Excel). */
+      exportDepRepPdf: (
+        filePath: string,
+        sheetName: string,
+      ) => Promise<{ ok: boolean; base64?: string; sheetName?: string; error?: string }>;
       pickDirectory: () => Promise<string | null>;
       openDirectory: (dirPath: string) => Promise<{ ok: boolean; error?: string }>;
       openTempFile: (

@@ -1403,6 +1403,140 @@ ipcMain.handle('write-dep-rep-sheet', async (_event, filePath, payload) => {
   }
 });
 
+/**
+ * Export one DEP REP sheet to PDF via Excel ExportAsFixedFormat (same as Print → PDF).
+ * Uses the sheet's print area / page setup — no custom layout.
+ */
+ipcMain.handle('export-dep-rep-pdf', async (_event, filePath, sheetName) => {
+  const { spawnSync } = require('child_process');
+  try {
+    const p = String(filePath || '').trim();
+    const name = String(sheetName || '').trim();
+    if (!p) return { ok: false, error: 'Empty path' };
+    if (!path.isAbsolute(p)) return { ok: false, error: 'Path must be absolute' };
+    if (!fs.existsSync(p)) return { ok: false, error: 'File not found' };
+    if (!name) return { ok: false, error: 'Sheet name is empty' };
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crew-dep-rep-pdf-'));
+    const pdfPath = path.join(tmpDir, 'dep-rep.pdf');
+    const scriptPath = path.join(tmpDir, 'export-dep-rep-pdf.ps1');
+    fs.writeFileSync(
+      scriptPath,
+      [
+        'param([string]$WorkbookPath, [string]$SheetName, [string]$PdfPath)',
+        "$ErrorActionPreference = 'Stop'",
+        '$excel = $null',
+        '$wb = $null',
+        'try {',
+        '  $excel = New-Object -ComObject Excel.Application',
+        '  $excel.Visible = $false',
+        '  $excel.DisplayAlerts = $false',
+        '  $excel.ScreenUpdating = $false',
+        '  # Read-only — do not change the workbook',
+        '  $wb = $excel.Workbooks.Open($WorkbookPath, 0, $true)',
+        '  $ws = $null',
+        '  foreach ($s in @($wb.Worksheets)) {',
+        '    if ($s.Name -eq $SheetName) { $ws = $s; break }',
+        '  }',
+        '  if ($null -eq $ws) {',
+        "    throw ('Sheet not found: ' + $SheetName + '. Write to Excel first.')",
+        '  }',
+        '  $ws.Activate() | Out-Null',
+        '  # 0 = xlTypePDF, 0 = xlQualityStandard, IgnorePrintAreas=$false → use Excel print area',
+        '  $ws.ExportAsFixedFormat(0, $PdfPath, 0, $true, $false) | Out-Null',
+        '  $wb.Close($false) | Out-Null',
+        '  $wb = $null',
+        '  if (-not (Test-Path -LiteralPath $PdfPath)) { throw \'PDF was not created\' }',
+        "  Write-Output ((@{ ok = $true; pdfPath = $PdfPath } | ConvertTo-Json -Compress))",
+        '} catch {',
+        "  $msg = $_.Exception.Message",
+        '  if ($msg -match \'locked|in use|Sharing|Permission\') {',
+        "    $msg = 'Close DEP REP.xlsx in Excel, then try again. ' + $msg",
+        '  }',
+        "  Write-Output ((@{ ok = $false; error = $msg } | ConvertTo-Json -Compress))",
+        '  exit 1',
+        '} finally {',
+        '  if ($null -ne $wb) { try { $wb.Close($false) | Out-Null } catch {} }',
+        '  if ($null -ne $excel) {',
+        '    try { $excel.Quit() | Out-Null } catch {}',
+        '    try { [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) } catch {}',
+        '  }',
+        '  [GC]::Collect()',
+        '}',
+      ].join('\r\n'),
+      'utf8',
+    );
+
+    const result = spawnSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        scriptPath,
+        '-WorkbookPath',
+        p,
+        '-SheetName',
+        name,
+        '-PdfPath',
+        pdfPath,
+      ],
+      { encoding: 'utf8', windowsHide: true, timeout: 180000 },
+    );
+
+    const stdout = String(result.stdout || '').trim();
+    const stderr = String(result.stderr || '').trim();
+    let parsed = null;
+    if (stdout) {
+      try {
+        const lines = stdout.split(/\r?\n/).filter(Boolean);
+        parsed = JSON.parse(lines[lines.length - 1]);
+      } catch {
+        parsed = null;
+      }
+    }
+
+    if (parsed && parsed.ok && fs.existsSync(pdfPath)) {
+      const base64 = fs.readFileSync(pdfPath).toString('base64');
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
+      return { ok: true, base64, sheetName: name };
+    }
+
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+
+    if (parsed && typeof parsed === 'object' && !parsed.ok) {
+      return { ok: false, error: String(parsed.error || 'Excel PDF export failed') };
+    }
+    if (result.error) {
+      return {
+        ok: false,
+        error:
+          result.error.code === 'ENOENT'
+            ? 'PowerShell not found — Excel PDF export requires Windows'
+            : result.error.message || 'Could not run Excel PDF export',
+      };
+    }
+    return {
+      ok: false,
+      error:
+        stderr ||
+        stdout ||
+        'Excel PDF export failed (is Microsoft Excel installed? Close the file if it is open).',
+    };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Could not export DEP REP PDF' };
+  }
+});
+
 ipcMain.handle('save-crew-pdf', (_event, crewId, docType, sourcePath) => {
   ensureDataDir();
   const dir = path.join(getDocumentsDir(), crewId);

@@ -50,22 +50,6 @@
           }</a
         >
         <a
-          routerLink="/reefer"
-          routerLinkActive="active"
-          class="nav-reefer nav-link--lockable"
-          [class.nav-link--lock-mine]="navLockState('reefer') === 'mine'"
-          [class.nav-link--lock-other]="navLockState('reefer') === 'other'"
-          [title]="navLockTooltip('reefer')"
-          >REEFER
-          @if (navLockBadge('reefer'); as badge) {
-            <span
-              class="nav-lock-badge"
-              [class.nav-lock-badge--mine]="navLockState('reefer') === 'mine'"
-              >{{ badge }}</span
-            >
-          }</a
-        >
-        <a
           routerLink="/eta"
           routerLinkActive="active"
           class="nav-eta nav-link--lockable"

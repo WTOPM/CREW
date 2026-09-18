@@ -54,6 +54,15 @@
         </button>
         <button
           type="button"
+          class="btn btn-secondary dep-rep-pdf-btn"
+          (click)="exportPdf()"
+          [disabled]="busy()"
+          title="Print the Excel sheet to PDF (same as Excel Ctrl+P → PDF)"
+        >
+          PDF
+        </button>
+        <button
+          type="button"
           class="btn btn-primary"
           (click)="writeToExcel()"
           [disabled]="busy()"
