@@ -106,6 +106,10 @@ export class SectionLockService {
       this.readOnly.set(false);
       this.heldBy.set(null);
       this.startHeartbeat(section);
+    } else if (result.error === 'invalid section') {
+      // Unknown / not yet registered section — allow editing rather than fake "view only".
+      this.readOnly.set(false);
+      this.heldBy.set(null);
     } else {
       this.readOnly.set(true);
       this.heldBy.set(result.heldBy ?? null);

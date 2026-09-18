@@ -3,6 +3,7 @@ import {
   formatAirdraftMetres,
   normalizeShipMetresInput,
   parseAirdraftMetres,
+  shipPresentDraftMetres,
 } from './airdraft-field-positions';
 
 describe('airdraft metres helpers', () => {
@@ -16,6 +17,13 @@ describe('airdraft metres helpers', () => {
     expect(airdraftHeightAboveWaterMetres('37.5', '9.2')).toBeCloseTo(28.3);
     expect(airdraftHeightAboveWaterMetres('37.5', '')).toBeNull();
     expect(formatAirdraftMetres(28.3)).toBe('28.3');
+  });
+
+  it('takes the greater of draft fore / aft as present draft', () => {
+    expect(shipPresentDraftMetres('9.2', '9.5')).toBe('9.5');
+    expect(shipPresentDraftMetres('9.2', '')).toBe('9.2');
+    expect(shipPresentDraftMetres('', '8.0')).toBe('8.0');
+    expect(shipPresentDraftMetres('', '')).toBe('');
   });
 
   it('normalizes confirm display to one decimal with a dot', () => {

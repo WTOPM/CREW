@@ -1,3 +1,8 @@
+.dg-archive-modal {
+  width: min(42rem, calc(100vw - 1.5rem));
+  max-width: 42rem;
+}
+
 .eta-archive-route-hint {
   margin: 0 0 0.85rem;
   padding: 0.45rem 0.6rem;
@@ -6,4 +11,38 @@
   color: #1e40af;
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+/* Compact one-line saved voyage rows (global card is multi-line for DG/Reefer). */
+.dg-archive-load-card--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.7rem;
+}
+
+.dg-archive-load-card--row .dg-archive-load-card__label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dg-archive-load-card--row .dg-archive-load-card__meta,
+.dg-archive-load-card--row .dg-archive-load-card__stats {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.dg-archive-load-list {
+  gap: 0.3rem;
+}
+
+.dg-archive-load-row {
+  align-items: center;
+}
+
+.dg-archive-load-delete {
+  width: 1.85rem;
+  height: 1.85rem;
+  font-size: 1.15rem;
 }

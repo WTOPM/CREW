@@ -109,6 +109,54 @@ describe('parseUnifeederDangerousCargoManifest page-break orphan header', () => 
 
     expect(byContainer.has('EURU1673876')).toBe(true);
   });
+
+  it('merges overflow cargo on the next page into the same container (no duplicate number)', () => {
+    // Page 1: container with one DG line + stow. Page 2: more DG for same box, no container/stow reprint.
+    const items: DgPdfTextItem[] = [
+      item('Dangerous Cargo Manifest', 40, 40, 1),
+      item('430,08', 138, 173, 1),
+      item('Gweight', 123, 177, 1),
+      item('S-E', 138, 251, 1),
+      item('F-E', 138, 286, 1),
+      item('110188', 42, 313, 1),
+      item('Stowage position', 42, 375, 1),
+      item('III', 138, 373, 1),
+      item('1139', 138, 469, 1),
+      item('NO', 173, 469, 1),
+      item('COATING SOLUTION', 152, 466, 1),
+      item('0,0', 184, 466, 1),
+      item('/ / /', 197, 466, 1),
+      item('3', 138, 514, 1),
+      item('CBHU 431507-6', 30, 505, 1),
+      item('22GP', 30, 532, 1),
+      item('IMO Information', 110, 532, 1),
+      item('Proper ship. name:', 152, 532, 1),
+
+      item('Dangerous Cargo Manifest', 40, 40, 2),
+      item('121,68', 32, 173, 2),
+      item('71,52', 32, 127, 2),
+      item('S-U', 32, 251, 2),
+      item('F-D', 32, 286, 2),
+      item('--', 32, 372, 2),
+      item('1950', 32, 469, 2),
+      item('NO', 67, 469, 2),
+      item('AEROSOLS', 46, 466, 2),
+      item('AEROSOLS (maximum 1L) (not waste aerosols)', 55, 466, 2),
+      item('0,0', 78, 466, 2),
+      item('SP / / /', 91, 466, 2),
+      item('2.1', 32, 514, 2),
+      item('Proper ship. name:', 46, 532, 2),
+      item('Technical name:', 55, 532, 2),
+    ];
+
+    const result = parseUnifeederDangerousCargoManifest(items, {});
+    const rows = result.rows.filter((r) => r.containerNo === 'CBHU4315076');
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(rows.map((r) => r.containerNo)).size).toBe(1);
+    expect(rows.every((r) => r.stow === '110188')).toBe(true);
+    expect(rows.some((r) => r.unNo === '1139')).toBe(true);
+    expect(rows.some((r) => r.unNo === '1950' && r.weightKg === '121.68')).toBe(true);
+  });
 });
 
 describe('validateUnifeederImportAgainstSummary', () => {
@@ -135,6 +183,73 @@ describe('validateUnifeederImportAgainstSummary', () => {
     });
 
     expect(validation.ok).toBe(false);
-    expect(validation.mismatches.some((m) => m.includes('containers:'))).toBe(true);
+    expect(validation.mismatches.some((m) => m.includes('container headers in PDF'))).toBe(true);
+  });
+
+  it('warns when Grand Total counts more than cargo-page headers', () => {
+    const rows = [
+      {
+        containerNo: 'AAAA1111111',
+        size: '25GP',
+        weightKg: '1000',
+        grossWeightKg: '1000',
+        netWeightKg: '1',
+      },
+      {
+        containerNo: 'BBBB2222222',
+        size: '45GP',
+        weightKg: '2000',
+        grossWeightKg: '2000',
+        netWeightKg: '2',
+      },
+    ];
+    const summary = {
+      containerCountsByLength: { '20': 12, '30': 0, '40': 4, '45': 0 },
+      totalContainers: 16,
+      totalImoNetWeightKg: 3,
+      totalImoGrossWeightKg: 3000,
+    };
+
+    const validation = validateUnifeederImportAgainstSummary(rows, summary, {
+      useGrossWeight: true,
+      extractableContainers: 2,
+    });
+
+    expect(validation.ok).toBe(false);
+    expect(validation.mismatches.some((m) => m.includes('containers: PDF 16'))).toBe(true);
+    expect(validation.mismatches.some((m) => m.includes("20'"))).toBe(true);
+    expect(validation.mismatches.some((m) => m.includes("40'"))).toBe(true);
+  });
+
+  it('counts 25GP as 20′ for Unifeeder Grand Total length checks', () => {
+    const rows = [
+      {
+        containerNo: 'AAAA1111111',
+        size: '25GP',
+        weightKg: '1000',
+        grossWeightKg: '1000',
+        netWeightKg: '1',
+      },
+      {
+        containerNo: 'BBBB2222222',
+        size: '22GP',
+        weightKg: '1000',
+        grossWeightKg: '1000',
+        netWeightKg: '1',
+      },
+    ];
+    const summary = {
+      containerCountsByLength: { '20': 2, '30': 0, '40': 0, '45': 0 },
+      totalContainers: 2,
+      totalImoNetWeightKg: 2,
+      totalImoGrossWeightKg: 2000,
+    };
+
+    const validation = validateUnifeederImportAgainstSummary(rows, summary, {
+      useGrossWeight: true,
+      extractableContainers: 2,
+    });
+
+    expect(validation.ok).toBe(true);
   });
 });

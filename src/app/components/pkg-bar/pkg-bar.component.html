@@ -231,10 +231,6 @@
         </div>
         <div class="dg-archive-modal__intro">
           <h3 id="pkg-archive-save-title">Save app snapshot</h3>
-          <p class="dg-archive-modal__hint">
-            Stores crew, voyage and forms under a name you can load later. DG and Reefer stay
-            unchanged. Ports, ranks and archives are never reduced on load.
-          </p>
         </div>
       </header>
 
@@ -287,11 +283,6 @@
         <div class="pkg-load-head__mark" aria-hidden="true"></div>
         <div class="pkg-load-head__text">
           <h3>Load snapshot</h3>
-          <p class="pkg-load-modal-hint">
-            Pick a saved app snapshot. Crew, voyage and forms are restored. Ports, ranks,
-            nationalities, document packages and crew/passenger archives are kept as complete as
-            possible — nothing is removed.
-          </p>
         </div>
       </header>
 
@@ -313,18 +304,14 @@
                   [class.pkg-load-card--active]="archive.loaded()?.id === entry.id"
                   (click)="pickArchive(entry)"
                 >
-                  <span class="pkg-load-card__header">
-                    <span class="pkg-load-card__label">{{ entry.label }}</span>
-                    @if (archive.loaded()?.id === entry.id) {
-                      <span class="pkg-load-card__badge">Loaded</span>
-                    }
+                  <span class="pkg-load-card__label">{{ entry.label }}</span>
+                  @if (archive.loaded()?.id === entry.id) {
+                    <span class="pkg-load-card__badge">Loaded</span>
+                  }
+                  <span class="pkg-load-card__meta">
+                    {{ entry.portName || '—' }} · Voy {{ entry.voyageNumber || '—' }} · Arr.
+                    {{ formatDate(entry.arrivalDate) }} · Saved {{ formatSavedAt(entry.savedAt) }}
                   </span>
-                  <span class="pkg-load-card__chips">
-                    <span class="pkg-load-chip">{{ entry.portName || '—' }}</span>
-                    <span class="pkg-load-chip">Voy {{ entry.voyageNumber || '—' }}</span>
-                    <span class="pkg-load-chip">Arr. {{ formatDate(entry.arrivalDate) }}</span>
-                  </span>
-                  <span class="pkg-load-card__when">Saved {{ formatSavedAt(entry.savedAt) }}</span>
                 </button>
                 <button
                   type="button"

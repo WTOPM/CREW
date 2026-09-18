@@ -135,6 +135,7 @@
     const pax = activePax(appData, list);
 
     const defaultArticles = normalizeRows(form.rows, !!formatForPdf);
+    // Name/qty/unit always from live shipStoresForm02. Extra Form 02 cols stay overlay-only.
     const articles = [];
     for (let i = 0; i < ROW_COUNT; i++) {
       const base = defaultArticles[i] || {
@@ -146,11 +147,9 @@
         colRight1: '',
         colRight2: '',
       };
-      const name = cv[`d-${i}-0`] !== undefined ? String(cv[`d-${i}-0`]) : base.nameOfArticle;
-      const quantity = cv[`d-${i}-1`] !== undefined ? String(cv[`d-${i}-1`]) : base.quantity;
-      const unit = cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.unit;
-      const colAfterQuantity =
-        cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.colAfterQuantity;
+      const name = base.nameOfArticle;
+      const quantity = base.quantity;
+      const unit = base.unit;
       const officialUse = cv[`d-${i}-3`] !== undefined ? String(cv[`d-${i}-3`]) : base.officialUse;
       const colRight1 = cv[`d-${i}-4`] !== undefined ? String(cv[`d-${i}-4`]) : base.colRight1;
       const colRight2 = cv[`d-${i}-5`] !== undefined ? String(cv[`d-${i}-5`]) : base.colRight2;
@@ -158,7 +157,7 @@
         nameOfArticle: name,
         quantity: formatForPdf ? formatQuantity(name, quantity) : quantity,
         unit: formatForPdf ? formatUnit(name, unit) : unit,
-        colAfterQuantity: formatForPdf ? formatUnit(name, colAfterQuantity) : colAfterQuantity,
+        colAfterQuantity: formatForPdf ? formatUnit(name, unit) : unit,
         officialUse,
         colRight1,
         colRight2,
@@ -169,26 +168,26 @@
       arrival: isArrival,
       departure: !isArrival,
       pageNo: cv['h-pageNo'] ?? '1',
-      nameOfShip: cv['h-nameOfShip'] ?? formatPortName(ship.name),
-      imoNumber: cv['h-imo'] ?? String(ship.imoNo || '').trim(),
-      callSign: cv['h-callSign'] ?? String(ship.callSign || '').trim(),
-      portOfArrivalDeparture:
-        cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, appData.ports || []),
-      dateOfArrivalDeparture:
-        cv['h-date'] ??
-        formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
-      nationalityOfShip: cv['h-nationality'] ?? formatPortName(ship.nationality),
-      lastNextPortOfCall:
-        cv['h-portsRoute'] ??
-        formatPortsRoute02(ship.lastPortOfCall, ship.nextPortOfCall, ship.portOfCall, appData.ports || []),
-      numberOfPersonsOnBoard: cv['h-persons'] ?? String(crew.length + pax.length),
-      periodOfStay: cv['h-period'] ?? formatPeriod(periodDays(ship.dateOfArrival, ship.dateOfDeparture)),
-      placeOfStorage: cv['h-storage'] ?? String(form.placeOfStorage || '').trim(),
+      nameOfShip: formatPortName(ship.name),
+      imoNumber: String(ship.imoNo || '').trim(),
+      callSign: String(ship.callSign || '').trim(),
+      portOfArrivalDeparture: formatPortWithCountry(ship.portOfCall, appData.ports || []),
+      dateOfArrivalDeparture: formatDisplayDate(
+        isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
+      ),
+      nationalityOfShip: formatPortName(ship.nationality),
+      lastNextPortOfCall: formatPortsRoute02(
+        ship.lastPortOfCall,
+        ship.nextPortOfCall,
+        ship.portOfCall,
+        appData.ports || [],
+      ),
+      numberOfPersonsOnBoard: String(crew.length + pax.length),
+      periodOfStay: formatPeriod(periodDays(ship.dateOfArrival, ship.dateOfDeparture)),
+      placeOfStorage: String(form.placeOfStorage || '').trim(),
       articles,
-      footerDate:
-        cv['footer-date'] ??
-        formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
-      footerMaster: cv['footer-master'] ?? formatMasterName(findMaster(crew)),
+      footerDate: formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
+      footerMaster: formatMasterName(findMaster(crew)),
     };
   }
 

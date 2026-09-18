@@ -5,6 +5,7 @@ import {
   unifeederAutofillFromUnNumber,
 } from './dg-un-number-autofill.util';
 import { lookupUnNumberReference } from './dg-un-number.util';
+import { coalesceUnifeederContainerMeta } from './dg-unifeeder-merge.util';
 
 /** Reference-backed cargo text fields parsed from a CMA manifest row. */
 export interface CmaManifestParsedCargo {
@@ -83,7 +84,7 @@ export function finalizeUnifeederImportRows(
     return next;
   });
   appendManifestFilledUnWarning(warnings, manifestFilled);
-  return { rows: merged, warnings };
+  return { rows: coalesceUnifeederContainerMeta(merged), warnings };
 }
 
 /** @internal For tests — fields taken from reference on manual UN entry. */

@@ -155,7 +155,25 @@ export class FormsStore {
   }
 
   updateShipStoresPlaceOfStorage(docId: ShipStoresDocId, placeOfStorage: string): void {
-    this.patchShipStoresForm(docId, { placeOfStorage });
+    const field = shipStoresFormField(docId);
+    const normalize = this.shipStoresNormalize(docId);
+    this.data.update((d) => {
+      const prev = d.documentOverlay[docId] as { cellValues?: Record<string, string> } | undefined;
+      const cv = { ...(prev?.cellValues ?? {}) };
+      delete cv['h-storage'];
+      const next: typeof d = {
+        ...d,
+        [field]: normalize({ ...d[field], placeOfStorage }),
+      };
+      if (docId === 'shipStores' || docId === 'shipStores02') {
+        next.documentOverlay = {
+          ...d.documentOverlay,
+          [docId]: { ...prev, cellValues: cv },
+        };
+      }
+      return next;
+    });
+    void this.state.persist('silent');
   }
 
   /**
@@ -338,6 +356,11 @@ export class FormsStore {
       const rows = form.rows.map((r, i) => (i === rowIndex ? { ...r, ...partial } : r));
       return { ...d, [field]: normalize({ ...form, rows }) };
     });
+    this.clearShipStoresOverlayKeys(docId, [
+      `d-${rowIndex}-0`,
+      `d-${rowIndex}-1`,
+      `d-${rowIndex}-2`,
+    ]);
     void this.state.persist('silent');
   }
 
@@ -365,7 +388,38 @@ export class FormsStore {
       rows.splice(currentIndex, 0, moved);
       return { ...d, [field]: normalize({ ...form, rows }) };
     });
+    // Row order changed — drop all article overlay cells so PDF follows form rows.
+    const keys: string[] = [];
+    for (let i = 0; i < rowCount; i++) {
+      keys.push(`d-${i}-0`, `d-${i}-1`, `d-${i}-2`);
+    }
+    this.clearShipStoresOverlayKeys(docId, keys);
     void this.state.persist('silent');
+  }
+
+  /** Clear frozen HTML overlay keys for Form 01/02 so live settings win. */
+  private clearShipStoresOverlayKeys(docId: ShipStoresDocId, keys: string[]): void {
+    if (docId !== 'shipStores' && docId !== 'shipStores02') return;
+    if (!keys.length) return;
+    this.data.update((d) => {
+      const prev = d.documentOverlay[docId] as { cellValues?: Record<string, string> };
+      const cv = { ...(prev?.cellValues ?? {}) };
+      let changed = false;
+      for (const key of keys) {
+        if (cv[key] !== undefined) {
+          delete cv[key];
+          changed = true;
+        }
+      }
+      if (!changed) return d;
+      return {
+        ...d,
+        documentOverlay: {
+          ...d.documentOverlay,
+          [docId]: { ...prev, cellValues: cv },
+        },
+      };
+    });
   }
 
   private patchShipStoresForm(

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AppStateStore } from './app-state.store';
+import { EtaStore } from './eta.store';
 import { SectionLockService } from './section-lock.service';
 import { ToastService } from './toast.service';
 
@@ -15,6 +16,7 @@ export class NetworkForceQuitService {
   private static readonly START_SKEW_MS = 5_000;
 
   private readonly state = inject(AppStateStore);
+  private readonly etaStore = inject(EtaStore);
   private readonly sectionLock = inject(SectionLockService);
   private readonly toast = inject(ToastService);
 
@@ -76,6 +78,7 @@ export class NetworkForceQuitService {
     try {
       // Flush whatever this session is allowed to write (skip if view-only).
       // Does not wipe peers’ already-saved data — cooperative merge / lock guard.
+      this.etaStore.flushPersist('silent');
       await this.state.persist('silent');
       await this.sectionLock.releaseCurrent();
     } catch {

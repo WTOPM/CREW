@@ -69,15 +69,39 @@
             />
           </label>
           <label class="ship-field">
-            <span>Maximum Present Draft, m</span>
+            <span>Moulded depth, m</span>
             <input
-              [value]="metresFieldValue('maximumPresentDraft')"
-              (focus)="onMetresFocus('maximumPresentDraft', $event)"
-              (input)="onMetresInput('maximumPresentDraft', $event)"
-              (blur)="onMetresBlur('maximumPresentDraft', $event)"
-              (keydown)="onMetresKeydown('maximumPresentDraft', $event)"
+              [value]="metresFieldValue('mouldedDepth')"
+              (focus)="onMetresFocus('mouldedDepth', $event)"
+              (input)="onMetresInput('mouldedDepth', $event)"
+              (blur)="onMetresBlur('mouldedDepth', $event)"
+              (keydown)="onMetresKeydown('mouldedDepth', $event)"
+              inputmode="decimal"
+              placeholder="e.g. 15.0"
+            />
+          </label>
+          <label class="ship-field">
+            <span>Draft fore, m</span>
+            <input
+              [value]="metresFieldValue('draftFore')"
+              (focus)="onMetresFocus('draftFore', $event)"
+              (input)="onMetresInput('draftFore', $event)"
+              (blur)="onMetresBlur('draftFore', $event)"
+              (keydown)="onMetresKeydown('draftFore', $event)"
               inputmode="decimal"
               placeholder="e.g. 9.2"
+            />
+          </label>
+          <label class="ship-field">
+            <span>Draft aft, m</span>
+            <input
+              [value]="metresFieldValue('draftAft')"
+              (focus)="onMetresFocus('draftAft', $event)"
+              (input)="onMetresInput('draftAft', $event)"
+              (blur)="onMetresBlur('draftAft', $event)"
+              (keydown)="onMetresKeydown('draftAft', $event)"
+              inputmode="decimal"
+              placeholder="e.g. 9.5"
             />
           </label>
         </div>

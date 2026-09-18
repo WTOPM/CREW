@@ -6,27 +6,61 @@ import {
   type AppSnapshotEntry,
   type AppSnapshotSession,
 } from '../models/app-snapshot.models';
-import { cloneMainAppSnapshot, extractMainAppSnapshot } from '../utils/app-snapshot.util';
+import {
+  cloneMainAppSnapshot,
+  findAppSnapshotByVoyageKey,
+} from '../utils/app-snapshot.util';
 import {
   readLocalStorage,
   removeLocalStorage,
   writeLocalStorage,
 } from '../utils/browser-storage.util';
+import {
+  normalizeAppSnapshotEntries,
+} from './app-data-normalizer';
+import { AppStateStore } from './app-state.store';
 import { StorageService } from './storage.service';
 
-/** Full app snapshots (except DG / Reefer) — stored separately from crew-data.json. */
+/** Full app snapshots (except DG / Reefer) — stored in shared crew-data.json. */
 @Injectable({ providedIn: 'root' })
 export class AppSnapshotArchiveService {
   private readonly storage = inject(StorageService);
+  private readonly state = inject(AppStateStore);
 
-  readonly entries = signal<AppSnapshotEntry[]>(this.readEntries());
+  readonly entries = computed(() => this.state.data().appSnapshots);
   readonly entriesNewestFirst = computed(() => this.sortNewestFirst(this.entries()));
   readonly loaded = signal<AppSnapshotEntry | null>(null);
   readonly saving = signal(false);
 
   private liveBackup: AppMainSnapshot | null = null;
 
-  save(label: string): AppSnapshotEntry | null {
+  /**
+   * One-time: move browser-local snapshots into shared AppData so other PCs see them.
+   * Call after storage.init(), before restoreSession().
+   */
+  migrateLegacyLocalStorage(): void {
+    const legacy = this.readLegacyLocalEntries();
+    if (legacy.length === 0) {
+      removeLocalStorage(APP_SNAPSHOT_STORAGE_KEY);
+      return;
+    }
+    const current = this.state.data().appSnapshots;
+    const byId = new Map<string, AppSnapshotEntry>();
+    for (const e of current) byId.set(e.id, e);
+    let added = 0;
+    for (const e of legacy) {
+      if (byId.has(e.id)) continue;
+      byId.set(e.id, e);
+      added += 1;
+    }
+    removeLocalStorage(APP_SNAPSHOT_STORAGE_KEY);
+    if (added === 0) return;
+    const merged = this.sortNewestFirst([...byId.values()]);
+    this.state.data.update((d) => ({ ...d, appSnapshots: merged }));
+    void this.state.persist('silent');
+  }
+
+  save(label: string, options?: { overwriteId?: string }): AppSnapshotEntry | null {
     const trimmed = label.trim();
     if (!trimmed) return null;
 
@@ -34,22 +68,53 @@ export class AppSnapshotArchiveService {
     try {
       const ship = this.storage.ship();
       const data = this.storage.captureMainAppSnapshot();
+      const portName = ship.portOfCall?.trim() ?? '';
+      const voyageNumber = ship.voyageNumber?.trim() ?? '';
+      const arrivalDate = ship.dateOfArrival?.trim() ?? '';
+      const now = new Date().toISOString();
+      const existing = options?.overwriteId
+        ? this.entries().find((e) => e.id === options.overwriteId)
+        : undefined;
+
       const entry: AppSnapshotEntry = {
-        id: crypto.randomUUID(),
+        id: existing?.id ?? crypto.randomUUID(),
         label: trimmed,
-        savedAt: new Date().toISOString(),
-        portName: ship.portOfCall?.trim() ?? '',
-        voyageNumber: ship.voyageNumber?.trim() ?? '',
-        arrivalDate: ship.dateOfArrival?.trim() ?? '',
+        savedAt: now,
+        portName,
+        voyageNumber,
+        arrivalDate,
         data: cloneMainAppSnapshot(data),
       };
 
-      this.entries.update((list) => [entry, ...list]);
-      this.writeEntries();
+      this.state.data.update((d) => {
+        if (existing) {
+          return {
+            ...d,
+            appSnapshots: this.sortNewestFirst(
+              d.appSnapshots.map((e) => (e.id === existing.id ? entry : e)),
+            ),
+          };
+        }
+        return {
+          ...d,
+          appSnapshots: this.sortNewestFirst([entry, ...d.appSnapshots]),
+        };
+      });
+      void this.state.persist('silent');
       return entry;
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** Match by current ship port + voyage + arrival date (all must be set). */
+  findByCurrentVoyageKey(): AppSnapshotEntry | undefined {
+    const ship = this.storage.ship();
+    return findAppSnapshotByVoyageKey(this.entries(), {
+      portName: ship.portOfCall,
+      voyageNumber: ship.voyageNumber,
+      arrivalDate: ship.dateOfArrival,
+    });
   }
 
   load(id: string): boolean {
@@ -103,8 +168,11 @@ export class AppSnapshotArchiveService {
 
   remove(id: string): void {
     const wasLoaded = this.loaded()?.id === id;
-    this.entries.update((list) => list.filter((e) => e.id !== id));
-    this.writeEntries();
+    this.state.data.update((d) => ({
+      ...d,
+      appSnapshots: d.appSnapshots.filter((e) => e.id !== id),
+    }));
+    void this.state.persist('silent');
     if (wasLoaded) {
       this.reset();
     }
@@ -159,45 +227,14 @@ export class AppSnapshotArchiveService {
     }
   }
 
-  private readEntries(): AppSnapshotEntry[] {
+  private readLegacyLocalEntries(): AppSnapshotEntry[] {
     try {
       const raw = readLocalStorage(APP_SNAPSHOT_STORAGE_KEY);
       if (!raw) return [];
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return [];
-      return this.sortNewestFirst(
-        parsed
-          .map((item) => this.normalizeEntry(item))
-          .filter((e): e is AppSnapshotEntry => e != null),
-      );
+      return normalizeAppSnapshotEntries(JSON.parse(raw) as unknown);
     } catch {
       return [];
     }
-  }
-
-  private writeEntries(): void {
-    writeLocalStorage(APP_SNAPSHOT_STORAGE_KEY, JSON.stringify(this.entries()));
-  }
-
-  private normalizeEntry(raw: unknown): AppSnapshotEntry | null {
-    if (!raw || typeof raw !== 'object') return null;
-    const o = raw as Record<string, unknown>;
-    const id = String(o['id'] ?? '').trim();
-    const label = String(o['label'] ?? '').trim();
-    const savedAt = String(o['savedAt'] ?? '').trim();
-    const dataRaw = o['data'];
-    if (!id || !label || !dataRaw) return null;
-    const data = this.storage.coerceStoredMainSnapshot(dataRaw);
-    if (!data) return null;
-    return {
-      id,
-      label,
-      savedAt: savedAt || new Date().toISOString(),
-      portName: String(o['portName'] ?? data.ship.portOfCall ?? '').trim(),
-      voyageNumber: String(o['voyageNumber'] ?? data.ship.voyageNumber ?? '').trim(),
-      arrivalDate: String(o['arrivalDate'] ?? data.ship.dateOfArrival ?? '').trim(),
-      data,
-    };
   }
 
   private sortNewestFirst(list: AppSnapshotEntry[]): AppSnapshotEntry[] {

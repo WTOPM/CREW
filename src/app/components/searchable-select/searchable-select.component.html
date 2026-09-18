@@ -1,0 +1,49 @@
+<div
+  class="ss"
+  [class.ss--open]="open()"
+  [class.ss--unset]="unset() && !value()"
+>
+  <input
+    #filterInput
+    class="ss__input"
+    type="text"
+    autocomplete="off"
+    spellcheck="false"
+    [placeholder]="placeholder()"
+    [ngModel]="inputText()"
+    (ngModelChange)="onDraftChange($event)"
+    (focus)="onFocus()"
+  />
+  @if (value()) {
+    <button type="button" class="ss__clear" title="Clear" (mousedown)="clearSelection($event)">
+      ×
+    </button>
+  }
+</div>
+@if (open()) {
+  <ul
+    #panel
+    class="ss__list"
+    role="listbox"
+    [style.top.px]="panelPos().top"
+    [style.left.px]="panelPos().left"
+    [style.width.px]="panelPos().width"
+    [style.maxHeight.px]="panelPos().maxHeight"
+  >
+    @if (filtered().length === 0) {
+      <li class="ss__empty">No matches</li>
+    } @else {
+      @for (opt of filtered(); track opt.value) {
+        <li
+          class="ss__option"
+          role="option"
+          [class.ss__option--selected]="opt.value === value()"
+          [class.ss__option--disabled]="opt.disabled"
+          (mousedown)="pick(opt, $event)"
+        >
+          {{ opt.label }}
+        </li>
+      }
+    }
+  </ul>
+}

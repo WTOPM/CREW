@@ -15,6 +15,8 @@ import {
   removeLocalStorage,
   writeLocalStorage,
 } from '../utils/browser-storage.util';
+import { normalizeReeferPageArchiveEntries } from './app-data-normalizer';
+import { AppStateStore } from './app-state.store';
 import { StorageService } from './storage.service';
 import { ReeferStore } from './reefer.store';
 
@@ -22,13 +24,37 @@ import { ReeferStore } from './reefer.store';
 export class ReeferPageArchiveService {
   private readonly storage = inject(StorageService);
   private readonly reefer = inject(ReeferStore);
+  private readonly state = inject(AppStateStore);
 
-  readonly entries = signal<ReeferPageSnapshot[]>(this.readEntries());
+  readonly entries = computed(() => this.state.data().reeferPageArchives);
   readonly entriesNewestFirst = computed(() => this.sortNewestFirst(this.entries()));
   readonly loaded = signal<ReeferPageSnapshot | null>(null);
   readonly saving = signal(false);
 
   private liveBackup: ReeferPageLiveBackup | null = null;
+
+  /** Move browser-local Reefer snapshots into shared AppData. Call after storage.init(). */
+  migrateLegacyLocalStorage(): void {
+    const legacy = this.readLegacyLocalEntries();
+    if (legacy.length === 0) {
+      removeLocalStorage(REEFER_PAGE_ARCHIVE_STORAGE_KEY);
+      return;
+    }
+    const current = this.state.data().reeferPageArchives;
+    const byId = new Map<string, ReeferPageSnapshot>();
+    for (const e of current) byId.set(e.id, e);
+    let added = 0;
+    for (const e of legacy) {
+      if (byId.has(e.id)) continue;
+      byId.set(e.id, e);
+      added += 1;
+    }
+    removeLocalStorage(REEFER_PAGE_ARCHIVE_STORAGE_KEY);
+    if (added === 0) return;
+    const merged = this.sortNewestFirst([...byId.values()]);
+    this.state.data.update((d) => ({ ...d, reeferPageArchives: merged }));
+    void this.state.persist('silent');
+  }
 
   save(label: string): ReeferPageSnapshot | null {
     const trimmed = label.trim();
@@ -46,8 +72,11 @@ export class ReeferPageArchiveService {
         reeferLibrary: cloneReeferLibrary(reeferLibrary, this.storage.ports()),
       };
 
-      this.entries.update((list) => [entry, ...list]);
-      this.writeEntries();
+      this.state.data.update((d) => ({
+        ...d,
+        reeferPageArchives: this.sortNewestFirst([entry, ...d.reeferPageArchives]),
+      }));
+      void this.state.persist('silent');
       return entry;
     } finally {
       this.saving.set(false);
@@ -113,8 +142,11 @@ export class ReeferPageArchiveService {
 
   remove(id: string): void {
     const wasLoaded = this.loaded()?.id === id;
-    this.entries.update((list) => list.filter((e) => e.id !== id));
-    this.writeEntries();
+    this.state.data.update((d) => ({
+      ...d,
+      reeferPageArchives: d.reeferPageArchives.filter((e) => e.id !== id),
+    }));
+    void this.state.persist('silent');
     if (wasLoaded) {
       this.reset();
     }
@@ -177,48 +209,14 @@ export class ReeferPageArchiveService {
     }
   }
 
-  private readEntries(): ReeferPageSnapshot[] {
+  private readLegacyLocalEntries(): ReeferPageSnapshot[] {
     try {
       const raw = readLocalStorage(REEFER_PAGE_ARCHIVE_STORAGE_KEY);
       if (!raw) return [];
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return [];
-      return this.sortNewestFirst(
-        parsed
-          .map((item) => this.normalizeEntry(item))
-          .filter((e): e is ReeferPageSnapshot => e != null),
-      );
+      return normalizeReeferPageArchiveEntries(JSON.parse(raw) as unknown, this.storage.ports());
     } catch {
       return [];
     }
-  }
-
-  private writeEntries(): void {
-    writeLocalStorage(REEFER_PAGE_ARCHIVE_STORAGE_KEY, JSON.stringify(this.entries()));
-  }
-
-  private normalizeEntry(raw: unknown): ReeferPageSnapshot | null {
-    if (!raw || typeof raw !== 'object') return null;
-    const o = raw as Record<string, unknown>;
-    const id = String(o['id'] ?? '').trim();
-    const label = String(o['label'] ?? '').trim();
-    const savedAt = String(o['savedAt'] ?? '').trim();
-    const shipRaw = o['ship'];
-    const libRaw = o['reeferLibrary'];
-    if (!id || !label || !shipRaw || typeof shipRaw !== 'object' || !libRaw) return null;
-    const shipObj = shipRaw as Record<string, unknown>;
-    const ship: ReeferPageShipContext = {
-      voyageNumber: String(shipObj['voyageNumber'] ?? '').trim(),
-      portOfCall: String(shipObj['portOfCall'] ?? '').trim(),
-      dateOfDeparture: String(shipObj['dateOfDeparture'] ?? '').trim(),
-    };
-    return {
-      id,
-      label,
-      savedAt: savedAt || new Date().toISOString(),
-      ship,
-      reeferLibrary: normalizeReeferLibrary(libRaw as ReeferLibrarySettings),
-    };
   }
 
   private sortNewestFirst(list: ReeferPageSnapshot[]): ReeferPageSnapshot[] {

@@ -349,20 +349,23 @@ function pruneBackupsBySuffix(dir, suffix, maxCount) {
 
 function readPreWriteMeta(dir) {
   const metaPath = path.join(dir, BACKUP_PRE_WRITE_META);
-  if (!fs.existsSync(metaPath)) return { hourKey: null };
+  if (!fs.existsSync(metaPath)) return { hourKey: null, lastCopyAt: null };
   try {
     const raw = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-    return { hourKey: typeof raw?.hourKey === 'string' ? raw.hourKey : null };
+    return {
+      hourKey: typeof raw?.hourKey === 'string' ? raw.hourKey : null,
+      lastCopyAt: typeof raw?.lastCopyAt === 'number' ? raw.lastCopyAt : null,
+    };
   } catch {
-    return { hourKey: null };
+    return { hourKey: null, lastCopyAt: null };
   }
 }
 
-function writePreWriteMeta(dir, hourKey) {
+function writePreWriteMeta(dir, hourKey, lastCopyAt = Date.now()) {
   const metaPath = path.join(dir, BACKUP_PRE_WRITE_META);
   fs.writeFileSync(
     metaPath,
-    JSON.stringify({ hourKey, updatedAt: Date.now() }, null, 2),
+    JSON.stringify({ hourKey, lastCopyAt, updatedAt: Date.now() }, null, 2),
     'utf-8',
   );
 }
@@ -373,6 +376,17 @@ function createPreWriteBackup(source) {
   const currentPath = path.join(dir, BACKUP_PRE_WRITE_CURRENT);
   const previousPath = path.join(dir, BACKUP_PRE_WRITE_PREVIOUS);
   const meta = readPreWriteMeta(dir);
+  const now = Date.now();
+  // Typing (ETA etc.) can save many times per second — don't copy multi‑MB file every time.
+  const minIntervalMs = 30_000;
+  if (
+    meta.hourKey === hourKey &&
+    typeof meta.lastCopyAt === 'number' &&
+    now - meta.lastCopyAt < minIntervalMs &&
+    fs.existsSync(currentPath)
+  ) {
+    return currentPath;
+  }
 
   if (meta.hourKey && meta.hourKey !== hourKey) {
     if (fs.existsSync(currentPath)) {
@@ -381,7 +395,7 @@ function createPreWriteBackup(source) {
   }
 
   fs.copyFileSync(source, currentPath);
-  writePreWriteMeta(dir, hourKey);
+  writePreWriteMeta(dir, hourKey, now);
 
   for (const f of fs.readdirSync(dir)) {
     if (f.startsWith('crew-data-') && f.endsWith('-pre-write.json')) {
@@ -449,7 +463,7 @@ function guardShrinkBeforeWrite(data) {
   }
 }
 
-const SECTION_LOCK_IDS = ['home', 'dg', 'reefer', 'eta', 'settings'];
+const SECTION_LOCK_IDS = ['home', 'dg', 'reefer', 'eta', 'fuel', 'settings'];
 const LOCK_STALE_MS = 90_000;
 /** Shared-folder signal: close every running CREW instance (for exe replace). */
 const FORCE_QUIT_FILE = 'force-quit.json';
@@ -1175,6 +1189,218 @@ ipcMain.handle('pick-pdf-file', async () => {
   });
   if (canceled || !filePaths?.[0]) return null;
   return filePaths[0];
+});
+
+ipcMain.handle('pick-excel-file', async () => {
+  const win = BrowserWindow.getFocusedWindow();
+  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+    title: 'Select Excel file',
+    filters: [{ name: 'Excel', extensions: ['xlsx', 'xlsm'] }],
+    properties: ['openFile'],
+  });
+  if (canceled || !filePaths?.[0]) return null;
+  return filePaths[0];
+});
+
+ipcMain.handle('read-file-base64', (_event, filePath) => {
+  try {
+    const p = String(filePath || '').trim();
+    if (!p) return { ok: false, error: 'Empty path' };
+    if (!fs.existsSync(p)) return { ok: false, error: 'File not found' };
+    const base64 = fs.readFileSync(p).toString('base64');
+    return { ok: true, base64 };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Could not read file' };
+  }
+});
+
+ipcMain.handle('write-file-base64', (_event, filePath, base64) => {
+  try {
+    const p = String(filePath || '').trim();
+    if (!p) return { ok: false, error: 'Empty path' };
+    if (!path.isAbsolute(p)) return { ok: false, error: 'Path must be absolute' };
+    const dir = path.dirname(p);
+    if (!fs.existsSync(dir)) return { ok: false, error: 'Folder not found' };
+    fs.writeFileSync(p, Buffer.from(String(base64 || ''), 'base64'));
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Could not write file' };
+  }
+});
+
+/**
+ * DEP REP.xlsx: identical Worksheet.Copy via Excel COM (keeps Tables + ship drawing),
+ * then fill data cells only. Never touch density K:L. Requires desktop Excel.
+ */
+ipcMain.handle('write-dep-rep-sheet', async (_event, filePath, payload) => {
+  const { spawnSync } = require('child_process');
+  try {
+    const p = String(filePath || '').trim();
+    if (!p) return { ok: false, error: 'Empty path' };
+    if (!path.isAbsolute(p)) return { ok: false, error: 'Path must be absolute' };
+    if (!fs.existsSync(p)) return { ok: false, error: 'File not found' };
+    if (!payload || typeof payload !== 'object') {
+      return { ok: false, error: 'Missing write payload' };
+    }
+    const sheetName = String(payload.sheetName || '').trim();
+    if (!sheetName) return { ok: false, error: 'Sheet name is empty' };
+    const updates = Array.isArray(payload.updates) ? payload.updates : [];
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crew-dep-rep-'));
+    const payloadPath = path.join(tmpDir, 'payload.json');
+    const scriptPath = path.join(tmpDir, 'write-dep-rep.ps1');
+    fs.writeFileSync(
+      payloadPath,
+      JSON.stringify({ sheetName, updates }),
+      'utf8',
+    );
+    fs.writeFileSync(
+      scriptPath,
+      [
+        'param([string]$WorkbookPath, [string]$PayloadPath)',
+        "$ErrorActionPreference = 'Stop'",
+        '$raw = Get-Content -LiteralPath $PayloadPath -Raw -Encoding UTF8',
+        '$payload = $raw | ConvertFrom-Json',
+        '$sheetName = [string]$payload.sheetName',
+        '$excel = $null',
+        '$wb = $null',
+        'try {',
+        '  $excel = New-Object -ComObject Excel.Application',
+        '  $excel.Visible = $false',
+        '  $excel.DisplayAlerts = $false',
+        '  $excel.ScreenUpdating = $false',
+        '  $wb = $excel.Workbooks.Open($WorkbookPath, 0, $false)',
+        '  $existing = $null',
+        '  foreach ($s in @($wb.Worksheets)) {',
+        '    if ($s.Name -eq $sheetName) { $existing = $s; break }',
+        '  }',
+        '  $created = $false',
+        '  if ($null -ne $existing) {',
+        '    $ws = $existing',
+        '  } else {',
+        '    $template = $wb.Worksheets.Item(1)',
+        '    # Identical clone: cells, Excel Tables (density), pictures (ship drawing)',
+        '    $template.Copy($template) | Out-Null',
+        '    $ws = $wb.Worksheets.Item(1)',
+        '    $ws.Name = $sheetName',
+        '    $created = $true',
+        '  }',
+        '  if ($ws.Index -ne 1) { $ws.Move($wb.Worksheets.Item(1)) | Out-Null }',
+        '  foreach ($u in @($payload.updates)) {',
+        '    $addr = [string]$u.address',
+        '    if (-not $addr) { continue }',
+        '    $cell = $ws.Range($addr)',
+        '    if ($cell.MergeCells) { $cell = $cell.MergeArea.Cells.Item(1, 1) }',
+        "    $kind = [string]$u.kind",
+        "    if ($kind -eq 'clear') { $cell.ClearContents() | Out-Null; continue }",
+        "    if ($kind -eq 'text') { $cell.Value2 = [string]$u.value; continue }",
+        "    if ($kind -eq 'number') {",
+        '      $cell.Value2 = [double]$u.value',
+        "      # TOTAL CARGO F9:G9 often shows \"14719 t\"",
+        "      if ($addr -eq 'F9' -or $addr -eq 'G9' -or $addr -eq 'H9') {",
+        "        if (-not $cell.NumberFormat -or $cell.NumberFormat -eq 'General') {",
+        '          $cell.NumberFormat = \'0" t"\'',
+        '        }',
+        '      }',
+        '      continue',
+        '    }',
+        "    if ($kind -eq 'formula') { $cell.Formula = '=' + ([string]$u.formula).TrimStart('='); continue }",
+        "    if ($kind -eq 'date') {",
+        '      $iso = [string]$u.iso',
+        "      if ($iso -match '^(\\d{4})-(\\d{2})-(\\d{2})') {",
+        '        $cell.Value2 = [datetime]::new([int]$Matches[1], [int]$Matches[2], [int]$Matches[3])',
+        '      }',
+        '      continue',
+        '    }',
+        '  }',
+        '  $wb.Save() | Out-Null',
+        '  $wb.Close($false) | Out-Null',
+        '  $wb = $null',
+        "  Write-Output ((@{ ok = $true; created = $created; sheetName = $sheetName } | ConvertTo-Json -Compress))",
+        '} catch {',
+        "  $msg = $_.Exception.Message",
+        '  if ($msg -match \'locked|in use|Sharing|Permission\') {',
+        "    $msg = 'Close DEP REP.xlsx in Excel, then try again. ' + $msg",
+        '  }',
+        "  Write-Output ((@{ ok = $false; error = $msg } | ConvertTo-Json -Compress))",
+        '  exit 1',
+        '} finally {',
+        '  if ($null -ne $wb) { try { $wb.Close($false) | Out-Null } catch {} }',
+        '  if ($null -ne $excel) {',
+        '    try { $excel.Quit() | Out-Null } catch {}',
+        '    try { [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) } catch {}',
+        '  }',
+        '  [GC]::Collect()',
+        '}',
+      ].join('\r\n'),
+      'utf8',
+    );
+
+    const result = spawnSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        scriptPath,
+        '-WorkbookPath',
+        p,
+        '-PayloadPath',
+        payloadPath,
+      ],
+      { encoding: 'utf8', windowsHide: true, timeout: 120000 },
+    );
+
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* ignore tmp cleanup */
+    }
+
+    const stdout = String(result.stdout || '').trim();
+    const stderr = String(result.stderr || '').trim();
+    let parsed = null;
+    if (stdout) {
+      try {
+        const lines = stdout.split(/\r?\n/).filter(Boolean);
+        parsed = JSON.parse(lines[lines.length - 1]);
+      } catch {
+        parsed = null;
+      }
+    }
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.ok) {
+        return {
+          ok: true,
+          created: !!parsed.created,
+          sheetName: String(parsed.sheetName || sheetName),
+        };
+      }
+      return { ok: false, error: String(parsed.error || 'Excel write failed') };
+    }
+    if (result.error) {
+      return {
+        ok: false,
+        error:
+          result.error.code === 'ENOENT'
+            ? 'PowerShell not found — Excel COM write requires Windows'
+            : result.error.message || 'Could not run Excel write',
+      };
+    }
+    if (result.status !== 0) {
+      return {
+        ok: false,
+        error:
+          stderr ||
+          stdout ||
+          'Excel write failed (is Microsoft Excel installed? Close the file if it is open).',
+      };
+    }
+    return { ok: false, error: stderr || 'Excel write returned no result' };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Could not write DEP REP sheet' };
+  }
 });
 
 ipcMain.handle('save-crew-pdf', (_event, crewId, docType, sourcePath) => {

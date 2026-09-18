@@ -48,4 +48,32 @@ describe('buildShipStoresHtmlPdfSnapshot', () => {
     expect(snap.form02?.placeOfStorage).toBe('Store');
     expect(snap.withOverlay).toBe(true);
   });
+
+  it('ignores stale overlay article/header cells for form 01', () => {
+    const data = createEmptyAppData();
+    data.ship.name = 'Live Ship';
+    data.ship.portOfCall = 'Hamburg';
+    data.shipStoresForm.placeOfStorage = 'Live Store';
+    data.shipStoresForm.rows[0] = { name: 'Live Tea', quantity: '2', unit: 'kg' };
+    data.documentOverlay.shipStores.cellValues = {
+      'd-0-0': 'Frozen Tea',
+      'd-0-1': '99',
+      'h-nameOfShip': 'FROZEN SHIP',
+      'h-port': 'FROZEN PORT',
+      'h-storage': 'Frozen Store',
+      '_ssMode': 'arrival',
+      'h-pageNo': '3',
+    };
+
+    const snap = buildShipStoresHtmlPdfSnapshot(data, true, '01');
+    expect(snap.form01?.nameOfShip).toBe('LIVE SHIP');
+    expect(snap.form01?.portOfArrivalDeparture).toContain('HAMBURG');
+    expect(snap.form01?.placeOfStorage).toBe('Live Store');
+    expect(snap.form01?.articles[0]).toEqual({
+      nameOfArticle: 'Live Tea',
+      quantity: '2',
+      unit: 'kg',
+    });
+    expect(snap.form01?.pageNo).toBe('3');
+  });
 });

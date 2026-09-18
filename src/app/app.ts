@@ -189,6 +189,9 @@ export class App implements OnInit {
   }
 
   private async finishAppStartup(): Promise<void> {
+    this.appSnapshotArchive.migrateLegacyLocalStorage();
+    this.dgPageArchive.migrateLegacyLocalStorage();
+    this.reeferPageArchive.migrateLegacyLocalStorage();
     this.dgPageArchive.restoreSession();
     this.reeferPageArchive.restoreSession();
     this.appSnapshotArchive.restoreSession();
@@ -338,7 +341,7 @@ export class App implements OnInit {
 
   private isStandaloneInventoryRoute(): boolean {
     const path = this.router.url.split('?')[0].split('#')[0];
-    return path === '/dg' || path === '/reefer' || path === '/eta';
+    return path === '/dg' || path === '/reefer' || path === '/eta' || path === '/fuel';
   }
 
   private shouldSkipSectionReload(

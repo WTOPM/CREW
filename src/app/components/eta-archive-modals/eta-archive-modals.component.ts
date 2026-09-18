@@ -57,6 +57,21 @@ export class EtaArchiveModalsComponent {
     return from || to;
   }
 
+  /** Route text only when the name is not already the same FROM/TO pair. */
+  protected extraRouteHint(plan: EtaPlan): string {
+    const route = this.planRoute(plan);
+    if (!route) return '';
+    const name = plan.name.trim();
+    if (!name || name === route) return '';
+    const from = plan.fromPort.trim();
+    const to = plan.toPort.trim();
+    if (from && to) {
+      const variants = [`${from} — ${to}`, `${from} - ${to}`, `${from} → ${to}`, `${from} -> ${to}`];
+      if (variants.some((v) => v.toLowerCase() === name.toLowerCase())) return '';
+    }
+    return route;
+  }
+
   protected cancelSave(): void {
     this.closeSave.emit();
   }

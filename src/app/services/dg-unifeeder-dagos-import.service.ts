@@ -25,7 +25,7 @@ export class DgUnifeederDagosImportService {
     const positions = parseUnifeederDagosPositions(items);
     if (!positions.length) {
       return {
-        format: 'unknown',
+        format: 'unifeeder-dagos',
         positions: [],
         warnings: ['No container positions found in Dagos on Board PDF.'],
       };

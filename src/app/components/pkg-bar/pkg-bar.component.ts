@@ -81,9 +81,38 @@ export class PkgBarComponent {
     return !this.archive.saving() && !this.packageRunner.busy();
   }
 
-  protected confirmSave(): void {
+  protected async confirmSave(): Promise<void> {
     if (!this.canSave()) return;
-    const entry = this.archive.save(this.saveLabel);
+    const label = this.saveLabel.trim();
+    if (!label) {
+      this.toast.showError('Enter a name for the snapshot');
+      return;
+    }
+
+    const existing = this.archive.findByCurrentVoyageKey();
+    if (existing) {
+      const ok = await this.confirmDialog.confirm({
+        title: 'Overwrite snapshot',
+        message:
+          `A snapshot for this port, voyage and arrival date already exists:\n` +
+          `"${existing.label}"\n\n` +
+          'Replace it with the current app data? The previous snapshot will be lost.',
+        confirmLabel: 'Overwrite',
+        variant: 'danger',
+      });
+      if (!ok) return;
+      const entry = this.archive.save(label, { overwriteId: existing.id });
+      if (!entry) {
+        this.toast.showError('Enter a name for the snapshot');
+        return;
+      }
+      this.showSavePanel.set(false);
+      this.saveLabel = '';
+      this.toast.show(`Updated snapshot "${entry.label}"`, 'success');
+      return;
+    }
+
+    const entry = this.archive.save(label);
     if (!entry) {
       this.toast.showError('Enter a name for the snapshot');
       return;

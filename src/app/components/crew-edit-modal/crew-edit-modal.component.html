@@ -217,6 +217,19 @@
               (valueChange)="updateField('joiningPort', $event)"
             />
           </label>
+          <label>
+            <span>Cabin</span>
+            <input
+              type="text"
+              inputmode="numeric"
+              maxlength="3"
+              placeholder="1–999"
+              [ngModel]="draft().cabin"
+              (ngModelChange)="onCabinDraft($event)"
+              (keydown.enter)="applyCabin($event)"
+              (blur)="applyCabin()"
+            />
+          </label>
         </div>
       </section>
 

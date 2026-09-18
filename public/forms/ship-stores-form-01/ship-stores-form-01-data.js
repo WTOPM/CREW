@@ -131,41 +131,32 @@
     const crew = activeCrew(appData, list);
     const pax = activePax(appData, list);
 
-    const defaultArticles = normalizeRows(form.rows, !!formatForPdf);
-    const articles = [];
-    for (let i = 0; i < ROW_COUNT; i++) {
-      const base = defaultArticles[i] || { nameOfArticle: '', quantity: '', unit: '' };
-      const name = cv[`d-${i}-0`] !== undefined ? String(cv[`d-${i}-0`]) : base.nameOfArticle;
-      const quantity = cv[`d-${i}-1`] !== undefined ? String(cv[`d-${i}-1`]) : base.quantity;
-      const unit = cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.unit;
-      articles.push({
-        nameOfArticle: name,
-        quantity: formatForPdf ? formatQuantity(name, quantity) : quantity,
-        unit: formatForPdf ? formatUnit(name, unit) : unit,
-      });
-    }
+    const articles = normalizeRows(form.rows, !!formatForPdf);
+    // Articles + ship headers always from live AppData. Overlay may only keep
+    // _ssMode / h-pageNo / Form-02 extra cols (and styles) — see stripLiveShipStoresCellValues.
 
     return {
       arrival: isArrival,
       departure: !isArrival,
       pageNo: cv['h-pageNo'] ?? '1',
-      nameOfShip: cv['h-nameOfShip'] ?? formatPortName(ship.name),
-      portOfArrivalDeparture: cv['h-port'] ?? formatPortName(ship.portOfCall),
-      dateOfArrivalDeparture:
-        cv['h-date'] ??
-        formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
-      nationalityOfShip: cv['h-nationality'] ?? formatPortName(ship.nationality),
-      portArrivedFromOrDestination:
-        cv['h-portsRoute'] ??
-        formatPortsRoute(ship.lastPortOfCall, ship.nextPortOfCall, ship.portOfCall, appData.ports || []),
-      numberOfPersonsOnBoard: cv['h-persons'] ?? String(crew.length + pax.length),
-      periodOfStay: cv['h-period'] ?? formatPeriod(periodDays(ship.dateOfArrival, ship.dateOfDeparture)),
-      placeOfStorage: cv['h-storage'] ?? String(form.placeOfStorage || '').trim(),
+      nameOfShip: formatPortName(ship.name),
+      portOfArrivalDeparture: formatPortName(ship.portOfCall),
+      dateOfArrivalDeparture: formatDisplayDate(
+        isArrival ? ship.dateOfArrival : ship.dateOfDeparture,
+      ),
+      nationalityOfShip: formatPortName(ship.nationality),
+      portArrivedFromOrDestination: formatPortsRoute(
+        ship.lastPortOfCall,
+        ship.nextPortOfCall,
+        ship.portOfCall,
+        appData.ports || [],
+      ),
+      numberOfPersonsOnBoard: String(crew.length + pax.length),
+      periodOfStay: formatPeriod(periodDays(ship.dateOfArrival, ship.dateOfDeparture)),
+      placeOfStorage: String(form.placeOfStorage || '').trim(),
       articles,
-      footerDate:
-        cv['footer-date'] ??
-        formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
-      footerMaster: cv['footer-master'] ?? formatMasterName(findMaster(crew)),
+      footerDate: formatDisplayDate(isArrival ? ship.dateOfArrival : ship.dateOfDeparture),
+      footerMaster: formatMasterName(findMaster(crew)),
     };
   }
 

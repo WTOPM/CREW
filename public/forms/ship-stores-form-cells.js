@@ -39,6 +39,57 @@
     return (cell.textContent || '').trim();
   }
 
+  function normalizeComparable(text) {
+    return String(text == null ? '' : text)
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Prefer live AppData text over stale overlay cellValues.
+   * Keep saved only when it matches live (wrap / format of the same text).
+   */
+  function shouldKeepLiveOverSaved(liveText, savedText) {
+    const cur = String(liveText ?? '');
+    const val = String(savedText ?? '');
+    if (!val.trim() && cur.trim()) return true;
+    if (cur.trim() && val.trim() && normalizeComparable(cur) !== normalizeComparable(val)) {
+      return true;
+    }
+    return false;
+  }
+
+  /** Keys that always come from ship / shipStoresForm* — never freeze in overlay. */
+  function isLiveShipStoresCellKey(key) {
+    if (!key) return false;
+    // Article name / qty / unit (cols 0–2). Form 02 extra cols 3+ stay overlay-only.
+    if (/^d-\d+-[012]$/i.test(key)) return true;
+    return (
+      key === 'h-nameOfShip' ||
+      key === 'h-port' ||
+      key === 'h-date' ||
+      key === 'h-nationality' ||
+      key === 'h-portsRoute' ||
+      key === 'h-persons' ||
+      key === 'h-period' ||
+      key === 'h-storage' ||
+      key === 'h-imo' ||
+      key === 'h-callSign' ||
+      key === 'footer-date' ||
+      key === 'footer-master'
+    );
+  }
+
+  function stripLiveShipStoresCellValues(cellValues) {
+    const out = {};
+    if (!cellValues || typeof cellValues !== 'object') return out;
+    for (const [key, val] of Object.entries(cellValues)) {
+      if (isLiveShipStoresCellKey(key)) continue;
+      if (typeof val === 'string') out[key] = val;
+    }
+    return out;
+  }
+
   function clearSelection() {
     selectedCells.forEach((c) => c.classList.remove('selected'));
     selectedCells = [];
@@ -237,7 +288,8 @@
     const cellValues = {};
     scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
       const key = el.dataset.cellKey;
-      if (key) cellValues[key] = cellText(el);
+      if (!key || isLiveShipStoresCellKey(key)) return;
+      cellValues[key] = cellText(el);
     });
     return cellValues;
   }
@@ -248,7 +300,10 @@
     scope.querySelectorAll('input.ci[data-cell-key]').forEach((el) => {
       const key = el.dataset.cellKey;
       if (!key || cellValues[key] === undefined) return;
-      setCellValue(el, cellValues[key]);
+      if (isLiveShipStoresCellKey(key)) return;
+      const saved = cellValues[key];
+      if (shouldKeepLiveOverSaved(cellText(el), saved)) return;
+      setCellValue(el, saved);
       reflowCell(el);
     });
   }
@@ -493,6 +548,8 @@
     collectCellValues,
     restoreCellStyles,
     restoreCellValues,
+    isLiveShipStoresCellKey,
+    stripLiveShipStoresCellValues,
     flattenInputsForExport,
     reflowAllWrappedCells() {
       document

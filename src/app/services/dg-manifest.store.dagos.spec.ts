@@ -56,6 +56,7 @@ describe('DgManifestStore.applyUnifeederDagosPositions', () => {
     expect(result.updatedLines).toBe(2);
     expect(result.checked).toBe(2);
     expect(result.replaced).toBe(1);
+    expect(result.discharged).toBe(0);
     expect(result.unmatched).toEqual(['HASU1202445', 'ZZZZ1234567']);
 
     const onboard = state.data().dgLibrary.unifeeder.onboard;
@@ -65,5 +66,33 @@ describe('DgManifestStore.applyUnifeederDagosPositions', () => {
     ]);
     expect(onboard.find((r) => r.containerNo === 'MRKU9861852')?.stow).toBe('090284');
     expect(onboard.find((r) => r.containerNo === 'HASU1202445')?.stow).toBe('111111');
+  });
+
+  it('marks onboard containers missing from Dagos as discharged', () => {
+    seedOnboard([
+      { containerNo: 'TRHU1197969', stow: '030182' },
+      { containerNo: 'OLDCTR1111111', stow: '010101' },
+      { containerNo: 'OLDCTR1111111', stow: '010101' }, // multi-line same ctr
+      { containerNo: 'ALREADYOUT2222', stow: '020202', status: 'discharged' },
+    ]);
+
+    const result = store.applyUnifeederDagosPositions([
+      { containerNo: 'TRHU1197969', position: '030199' },
+    ]);
+
+    expect(result.checked).toBe(1);
+    expect(result.replaced).toBe(1);
+    expect(result.discharged).toBe(1);
+    expect(result.dischargedContainers).toEqual(['OLDCTR1111111']);
+
+    const onboard = state.data().dgLibrary.unifeeder.onboard;
+    expect(onboard.find((r) => r.containerNo === 'TRHU1197969')).toMatchObject({
+      stow: '030199',
+      status: 'onboard',
+    });
+    expect(
+      onboard.filter((r) => r.containerNo === 'OLDCTR1111111').every((r) => r.status === 'discharged'),
+    ).toBe(true);
+    expect(onboard.find((r) => r.containerNo === 'ALREADYOUT2222')?.status).toBe('discharged');
   });
 });

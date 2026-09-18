@@ -19,9 +19,6 @@
         </div>
         <div class="dg-archive-modal__intro">
           <h3 id="eta-archive-save-title">Save ETA voyage</h3>
-          <p class="dg-archive-modal__hint">
-            Saves route, legs, schedule and time zones. Ports from → to are stored with the voyage.
-          </p>
         </div>
       </header>
 
@@ -86,9 +83,6 @@
         </div>
         <div class="dg-archive-modal__intro">
           <h3 id="eta-archive-load-title">Load saved voyage</h3>
-          <p class="dg-archive-modal__hint">
-            Fills the calculator with saved data. Edit anything and save again under a new name.
-          </p>
         </div>
       </header>
 
@@ -106,14 +100,12 @@
               <li class="dg-archive-load-row">
                 <button
                   type="button"
-                  class="dg-archive-load-card"
+                  class="dg-archive-load-card dg-archive-load-card--row"
                   (click)="pickPlan(plan.id)"
                 >
-                  <span class="dg-archive-load-card__header">
-                    <span class="dg-archive-load-card__label">{{ plan.name }}</span>
-                  </span>
-                  @if (planRoute(plan)) {
-                    <span class="dg-archive-load-card__meta">{{ planRoute(plan) }}</span>
+                  <span class="dg-archive-load-card__label">{{ plan.name }}</span>
+                  @if (extraRouteHint(plan); as route) {
+                    <span class="dg-archive-load-card__meta">{{ route }}</span>
                   }
                   <span class="dg-archive-load-card__stats">
                     saved {{ formatSavedAt(plan.updatedAt) }}

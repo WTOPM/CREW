@@ -52,6 +52,12 @@ export class StorageService {
   readonly dgUnReference = computed(() => this.data().dgUnReference);
   readonly reeferLibrary = computed(() => this.data().reeferLibrary);
   readonly etaLibrary = computed(() => this.data().etaLibrary);
+  readonly fuelLibrary = computed(() => this.data().fuelLibrary);
+  readonly phoneLibrary = computed(() => this.data().phoneLibrary);
+  readonly depRepLibrary = computed(() => this.data().depRepLibrary);
+  readonly appSnapshots = computed(() => this.data().appSnapshots);
+  readonly dgPageArchives = computed(() => this.data().dgPageArchives);
+  readonly reeferPageArchives = computed(() => this.data().reeferPageArchives);
   readonly documentOverlay = computed(() => this.data().documentOverlay);
   readonly shipAssets = computed(() => this.data().shipAssets);
   readonly outputSettings = computed(() => this.data().outputSettings);
@@ -166,6 +172,9 @@ export class StorageService {
         dgLibrary: d.dgLibrary,
         dgUnReference: d.dgUnReference,
         reeferLibrary: d.reeferLibrary,
+        appSnapshots: d.appSnapshots,
+        dgPageArchives: d.dgPageArchives,
+        reeferPageArchives: d.reeferPageArchives,
       });
     });
     void this.persist('silent');
@@ -182,6 +191,9 @@ export class StorageService {
         dgLibrary: empty.dgLibrary,
         dgUnReference: empty.dgUnReference,
         reeferLibrary: empty.reeferLibrary,
+        appSnapshots: [],
+        dgPageArchives: [],
+        reeferPageArchives: [],
       };
       return extractMainAppSnapshot(normalizeAppData(merged));
     } catch {

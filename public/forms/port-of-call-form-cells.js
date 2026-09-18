@@ -40,6 +40,26 @@
     return (cell.textContent || '').trim();
   }
 
+  function normalizeComparable(text) {
+    return String(text == null ? '' : text)
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Prefer live ship / port-history text from AppData over stale overlay cellValues.
+   * Keep a saved value only when it matches live (wrap / format edits of the same text).
+   */
+  function shouldKeepLiveOverSaved(liveText, savedText) {
+    const cur = String(liveText ?? '');
+    const val = String(savedText ?? '');
+    if (!val.trim() && cur.trim()) return true;
+    if (cur.trim() && val.trim() && normalizeComparable(cur) !== normalizeComparable(val)) {
+      return true;
+    }
+    return false;
+  }
+
   function clearSelection() {
     selectedCells.forEach((c) => c.classList.remove('selected'));
     selectedCells = [];
@@ -231,12 +251,13 @@
   }
 
   function isDataRowKey(key) {
-    return /^d-\d+-\d+$/.test(key);
+    // Form 02 country uses d-0-0c; dates/LOCODE use d-0-1, d-0-2, …
+    return /^d-\d+-\d+[a-z]*$/i.test(key);
   }
 
   function storageKeyFromDomKey(domKey, voyOffset) {
     if (typeof voyOffset !== 'number' || !isDataRowKey(domKey)) return domKey;
-    const m = /^d-(\d+)-(\d+)$/.exec(domKey);
+    const m = /^d-(\d+)-(\d+[a-z]*)$/i.exec(domKey);
     if (!m) return domKey;
     return `d-${voyOffset + parseInt(m[1], 10)}-${m[2]}`;
   }
@@ -271,6 +292,8 @@
     scope.querySelectorAll('input.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
       const domKey = el.dataset.cellKey;
       if (!domKey) return;
+      // Do not persist history-table text — always re-read from AppData on open.
+      if (isDataRowKey(domKey)) return;
       cellValues[storageKeyFromDomKey(domKey, voyOffset)] = cellText(el);
     });
     return cellValues;
@@ -282,10 +305,12 @@
     scope.querySelectorAll('input.ci[data-cell-key], [data-cell-key^="footer-"]').forEach((el) => {
       const domKey = el.dataset.cellKey;
       if (!domKey) return;
+      // Port-call history rows always come from AppData — never freeze an old Save.
+      if (isDataRowKey(domKey)) return;
       const storageKey = storageKeyFromDomKey(domKey, voyOffset);
       let val = cellValues[storageKey];
-      if (val === undefined && isDataRowKey(domKey)) val = cellValues[domKey];
       if (val === undefined) return;
+      if (shouldKeepLiveOverSaved(cellText(el), val)) return;
       setCellValue(el, val);
       reflowCell(el);
     });

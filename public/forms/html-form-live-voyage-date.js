@@ -1,6 +1,6 @@
 /**
- * Keep HTML form voyage dates in sync with Home (ship.dateOfArrival / dateOfDeparture).
- * Saved cellValues / footerSignatureDate must not freeze an old voyage date into PDFs.
+ * Keep HTML form voyage dates (and Port of Call ship/port headers) in sync with Home.
+ * Saved cellValues / footerSignatureDate must not freeze old voyage fields into PDFs.
  */
 (function (global) {
   function fmtDate(iso) {
@@ -29,9 +29,22 @@
     }
   }
 
+  function setCellKey(key, display, iso) {
+    document.querySelectorAll(`input.ci[data-cell-key="${key}"]`).forEach((el) => {
+      setInputOrText(el, display, iso);
+    });
+  }
+
+  function formatPortHeader(name, ports, withCountry) {
+    const POC = global.CrewPortOfCallPdf;
+    if (!POC) return String(name || '');
+    if (withCountry) return POC.formatPortWithCountry(name, ports);
+    return POC.formatPortName(name);
+  }
+
   /**
    * @param {'arrival'|'departure'} mode
-   * @param {{ ship?: object } | null} [opts]
+   * @param {{ ship?: object, ports?: object[] } | null} [opts]
    */
   function sync(mode, opts) {
     const ship = opts?.ship || global._shipData || global._appData?.ship;
@@ -46,12 +59,45 @@
     document.querySelectorAll('[data-cell-key="footer-date"]').forEach((el) => {
       setInputOrText(el, display, iso);
     });
+
+    // Port of Call headers — always follow Home (not frozen overlay cellValues).
+    const ports =
+      opts?.ports ||
+      global._pocEditorSnapshot?.ports ||
+      global._appData?.ports ||
+      [];
+    const isForm02 = !!document.querySelector('.poc-form-02');
+    const isForm01 = !!document.querySelector('.poc-form-01');
+    if (!isForm01 && !isForm02) return;
+
+    setCellKey('h-0-0', String(ship.name || ''));
+    if (isForm02) {
+      setCellKey('h-0-1', String(ship.imoNo || ''));
+      setCellKey('h-0-2', formatPortHeader(ship.portOfCall, ports, true));
+      setCellKey('h-1-0', formatPortHeader(ship.nationality, ports, false));
+      setCellKey('h-1-1', formatPortHeader(ship.lastPortOfCall, ports, true));
+      setCellKey('h-1-2', formatPortHeader(ship.nextPortOfCall, ports, true));
+    } else {
+      setCellKey('h-0-1', String(ship.callSign || ''));
+      setCellKey('h-0-2', formatPortHeader(ship.portOfCall, ports, false));
+      setCellKey('h-1-0', formatPortHeader(ship.nationality, ports, false));
+      setCellKey('h-1-1', formatPortHeader(ship.homeport, ports, false));
+      setCellKey('h-1-2', formatPortHeader(ship.lastPortOfCall, ports, false));
+      setCellKey('h-1-3', formatPortHeader(ship.nextPortOfCall, ports, false));
+    }
   }
 
-  /** Keys that must always follow Home voyage dates — strip on save / skip on restore. */
+  /** Keys that must always follow Home voyage fields — strip on save / skip on restore. */
   const LIVE_VOYAGE_VALUE_KEYS = new Set([
     'h-date',
+    'h-0-0',
+    'h-0-1',
+    'h-0-2',
     'h-0-3',
+    'h-1-0',
+    'h-1-1',
+    'h-1-2',
+    'h-1-3',
     'footer-date',
     'f-footer-date',
     'poc-footer-date',
@@ -62,6 +108,8 @@
     const out = { ...cellValues };
     for (const key of Object.keys(out)) {
       if (LIVE_VOYAGE_VALUE_KEYS.has(key)) delete out[key];
+      // Drop frozen port-history / LOCODE cells from older Saves.
+      if (/^d-\d+-\d+[a-z]*$/i.test(key)) delete out[key];
     }
     return out;
   }

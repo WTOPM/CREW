@@ -43,19 +43,9 @@ export function shipStoresRowHasContent(row: ShipStoresRow): boolean {
   return !!(row.name.trim() || row.quantity.trim() || row.unit.trim());
 }
 
-function overlayCellValues(
-  data: AppData,
-  docId: ShipStoresDocId,
-): Record<string, string> {
-  const overlay = data.documentOverlay?.[docId] as
-    | { cellValues?: Record<string, string> }
-    | undefined;
-  return overlay?.cellValues ?? {};
-}
-
 /**
- * Articles + place of storage as shown on the form (HTML overlay cells win over
- * persisted `shipStoresForm*` rows).
+ * Articles + place of storage from persisted `shipStoresForm*` (settings / Home).
+ * HTML overlay no longer freezes name/qty/unit/storage — same pattern as Port of Call Form 02.
  */
 export function readEffectiveShipStoresForm(
   data: AppData,
@@ -63,24 +53,7 @@ export function readEffectiveShipStoresForm(
 ): ShipStoresFormSettings {
   const rowCount = shipStoresRowCountFor(docId);
   const field = shipStoresFormField(docId);
-  const form = normalizeShipStoresForm(data[field], rowCount);
-  const cv = overlayCellValues(data, docId);
-  const rows = form.rows.map((r, i) => {
-    const name = cv[`d-${i}-0`] !== undefined ? String(cv[`d-${i}-0`]) : r.name;
-    const quantity = cv[`d-${i}-1`] !== undefined ? String(cv[`d-${i}-1`]) : r.quantity;
-    const unitRaw = cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : r.unit;
-    const unit = unitRaw.trim() === 'NIL' ? '' : unitRaw;
-    return {
-      name: name.trim(),
-      quantity: quantity.trim(),
-      unit: unit.trim(),
-    };
-  });
-  const placeOfStorage =
-    cv['h-storage'] !== undefined
-      ? String(cv['h-storage']).trim()
-      : form.placeOfStorage;
-  return { placeOfStorage, rows };
+  return normalizeShipStoresForm(data[field], rowCount);
 }
 
 /**

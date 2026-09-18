@@ -87,6 +87,47 @@ export function addYearsToIsoDate(iso: string, years: number): string {
 
 export type DateMaskSegment = 'day' | 'month' | 'year';
 
+export interface DateMaskBackspaceResult {
+  /** Updated DD.MM.YYYY mask, or '' when the whole date is cleared. */
+  text: string;
+  /** Which segment to select next (`empty` = field cleared). */
+  select: DateMaskSegment | 'empty';
+}
+
+const DATE_MASK_RE = /^([\d_]{2})\.([\d_]{2})\.([\d_]{4})$/;
+
+function segmentIsCleared(raw: string): boolean {
+  return !raw || /^_+$/.test(raw);
+}
+
+/**
+ * Backspace clears a DD.MM.YYYY mask in order: year → month → day.
+ * Cleared segments become underscores so the user can retype; a final
+ * Backspace on the day clears the field entirely.
+ */
+export function clearDisplayDateByBackspace(mask: string): DateMaskBackspaceResult {
+  const trimmed = String(mask ?? '').trim();
+  if (!trimmed) return { text: '', select: 'empty' };
+
+  const m = trimmed.match(DATE_MASK_RE);
+  if (!m) return { text: '', select: 'empty' };
+
+  const day = m[1]!;
+  const month = m[2]!;
+  const year = m[3]!;
+
+  if (!segmentIsCleared(year)) {
+    return { text: `${day}.${month}.____`, select: 'year' };
+  }
+  if (!segmentIsCleared(month)) {
+    return { text: `${day}.__.____`, select: 'month' };
+  }
+  if (!segmentIsCleared(day)) {
+    return { text: '', select: 'empty' };
+  }
+  return { text: '', select: 'empty' };
+}
+
 /** Adjust one segment of a DD.MM.YYYY mask by ±1; returns new mask or null. */
 export function adjustDisplayDateSegment(
   mask: string,

@@ -58,10 +58,11 @@ describe('ship-stores-sync.util', () => {
     expect(built.stats.didNotFit).toBe(0);
   });
 
-  it('readEffectiveShipStoresForm prefers overlay article cells', () => {
+  it('readEffectiveShipStoresForm uses live form rows (not stale overlay)', () => {
     const data = createEmptyAppData();
     data.shipStoresForm = createDefaultShipStoresForm();
     data.shipStoresForm.rows[0] = { name: 'FromForm', quantity: '1', unit: 'pcs' };
+    data.shipStoresForm.placeOfStorage = 'Provision Room';
     data.documentOverlay.shipStores.cellValues = {
       'd-0-0': 'FromOverlay',
       'd-0-1': '9',
@@ -69,10 +70,10 @@ describe('ship-stores-sync.util', () => {
     };
     const effective = readEffectiveShipStoresForm(data, 'shipStores');
     expect(effective.rows[0]).toEqual({
-      name: 'FromOverlay',
-      quantity: '9',
+      name: 'FromForm',
+      quantity: '1',
       unit: 'pcs',
     });
-    expect(effective.placeOfStorage).toBe('Deck locker');
+    expect(effective.placeOfStorage).toBe('Provision Room');
   });
 });

@@ -2,15 +2,17 @@ import { APP_DATA_SCHEMA_VERSION } from '../data/empty-app-data';
 import { AppData } from '../models/crew.models';
 
 /** Main nav sections — one cooperative lock each when sharing a data folder. */
-export type AppSection = 'home' | 'dg' | 'reefer' | 'eta' | 'settings';
+export type AppSection = 'home' | 'dg' | 'reefer' | 'eta' | 'fuel' | 'phone' | 'settings';
 
-export const APP_SECTIONS: AppSection[] = ['home', 'dg', 'reefer', 'eta', 'settings'];
+export const APP_SECTIONS: AppSection[] = ['home', 'dg', 'reefer', 'eta', 'fuel', 'phone', 'settings'];
 
 export const APP_SECTION_LABELS: Record<AppSection, string> = {
   home: 'Home',
   dg: 'DG',
   reefer: 'REEFER',
   eta: 'ETA',
+  fuel: 'FUEL',
+  phone: 'PHONE',
   settings: 'Settings',
 };
 
@@ -20,6 +22,8 @@ export function sectionFromRoutePath(urlPath: string): AppSection | null {
   if (path === '/dg' || path.startsWith('/dg/')) return 'dg';
   if (path === '/reefer' || path.startsWith('/reefer/')) return 'reefer';
   if (path === '/eta' || path.startsWith('/eta/')) return 'eta';
+  if (path === '/fuel' || path.startsWith('/fuel/')) return 'fuel';
+  if (path === '/phone' || path.startsWith('/phone/')) return 'phone';
   if (path === '/settings' || path.startsWith('/settings/')) return 'settings';
   return null;
 }
@@ -51,13 +55,23 @@ export function pickSectionSlice(data: AppData, section: AppSection): Partial<Ap
         cashAdvanceForm: data.cashAdvanceForm,
         crewMoneyListForm: data.crewMoneyListForm,
         narcoticListForm: data.narcoticListForm,
+        appSnapshots: data.appSnapshots,
       };
     case 'dg':
-      return { dgLibrary: data.dgLibrary, dgUnReference: data.dgUnReference };
+      return {
+        dgLibrary: data.dgLibrary,
+        dgUnReference: data.dgUnReference,
+        dgPageArchives: data.dgPageArchives,
+        depRepLibrary: data.depRepLibrary,
+      };
     case 'reefer':
-      return { reeferLibrary: data.reeferLibrary };
+      return { reeferLibrary: data.reeferLibrary, reeferPageArchives: data.reeferPageArchives };
     case 'eta':
       return { etaLibrary: data.etaLibrary };
+    case 'fuel':
+      return { fuelLibrary: data.fuelLibrary };
+    case 'phone':
+      return { phoneLibrary: data.phoneLibrary };
     case 'settings':
       return {
         ship: data.ship,

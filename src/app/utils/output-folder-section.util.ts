@@ -9,6 +9,7 @@ import { createDefaultOutputFolderPrefs, OUTPUT_FOLDER_SECTIONS } from '../model
 export function outputFolderSectionFromRoute(urlPath: string): OutputFolderSection | null {
   const path = urlPath.split('?')[0].split('#')[0];
   if (path === '/eta' || path.startsWith('/eta/')) return null;
+  if (path === '/fuel' || path.startsWith('/fuel/')) return null;
   if (path === '/settings' || path.startsWith('/settings/')) return null;
   if (path === '/dg' || path.startsWith('/dg/')) return 'dg';
   if (path === '/reefer' || path.startsWith('/reefer/')) return 'reefer';

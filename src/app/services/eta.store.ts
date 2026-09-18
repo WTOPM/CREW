@@ -11,28 +11,64 @@ import {
 } from '../models/eta.models';
 import { AppStateStore } from './app-state.store';
 
+/** Coalesce disk writes while typing (full crew-data.json is multi‑MB). */
+const ETA_PERSIST_DEBOUNCE_MS = 450;
+
 @Injectable({ providedIn: 'root' })
 export class EtaStore {
   private readonly state = inject(AppStateStore);
   private readonly data = this.state.data;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   private touchDraft(draft: EtaPlan): EtaPlan {
     return { ...draft, updatedAt: new Date().toISOString() };
   }
 
-  private updateLibrary(mutator: (lib: EtaLibrarySettings) => EtaLibrarySettings, notify: 'silent' | 'saved' = 'silent'): void {
+  /**
+   * Update etaLibrary in memory immediately; debounce silent disk writes.
+   * Immediate persist for 'saved' (and after flush).
+   * Skips re-normalizing the whole library on each keystroke — data is already trusted in-app.
+   */
+  private updateLibrary(
+    mutator: (lib: EtaLibrarySettings) => EtaLibrarySettings,
+    notify: 'silent' | 'saved' = 'silent',
+  ): void {
     this.data.update((d) => ({
       ...d,
-      etaLibrary: mutator(normalizeEtaLibrary(d.etaLibrary)),
+      etaLibrary: mutator(d.etaLibrary),
     }));
+    if (notify === 'saved') {
+      this.flushPersist('saved');
+      return;
+    }
+    this.schedulePersist();
+  }
+
+  private schedulePersist(): void {
+    if (this.persistTimer != null) clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      void this.state.persist('silent');
+    }, ETA_PERSIST_DEBOUNCE_MS);
+  }
+
+  /** Flush any pending ETA write (route leave, save, quit). */
+  flushPersist(notify: 'silent' | 'saved' = 'silent'): void {
+    if (this.persistTimer != null) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
     void this.state.persist(notify);
   }
 
   updateDraft(partial: Partial<EtaPlan>, notify: 'silent' | 'saved' = 'silent'): void {
-    this.updateLibrary((lib) => ({
-      ...lib,
-      draft: this.touchDraft({ ...lib.draft, ...partial }),
-    }), notify);
+    this.updateLibrary(
+      (lib) => ({
+        ...lib,
+        draft: this.touchDraft({ ...lib.draft, ...partial }),
+      }),
+      notify,
+    );
   }
 
   setDraftField<K extends keyof EtaPlan>(field: K, value: EtaPlan[K]): void {
@@ -74,19 +110,20 @@ export class EtaStore {
       ...lib,
       draft: this.touchDraft({
         ...lib.draft,
-        legs: lib.draft.legs.map((leg) =>
-          leg.id === legId ? { ...leg, ...partial } : leg,
-        ),
+        legs: lib.draft.legs.map((leg) => (leg.id === legId ? { ...leg, ...partial } : leg)),
       }),
     }));
   }
 
   newDraft(): void {
-    this.updateLibrary((lib) => ({
-      ...lib,
-      draft: createDefaultEtaPlan(),
-      activePlanId: null,
-    }), 'saved');
+    this.updateLibrary(
+      (lib) => ({
+        ...lib,
+        draft: createDefaultEtaPlan(),
+        activePlanId: null,
+      }),
+      'saved',
+    );
   }
 
   /** Saves current draft as a new library entry, or overwrites an existing plan when overwritePlanId is set. */
@@ -150,14 +187,18 @@ export class EtaStore {
         draft: this.touchDraft(draft),
         activePlanId: null,
       };
-    }, 'silent');
+    });
+    this.flushPersist('silent');
   }
 
   deletePlan(planId: string): void {
-    this.updateLibrary((lib) => ({
-      ...lib,
-      plans: lib.plans.filter((p) => p.id !== planId),
-      activePlanId: lib.activePlanId === planId ? null : lib.activePlanId,
-    }), 'saved');
+    this.updateLibrary(
+      (lib) => ({
+        ...lib,
+        plans: lib.plans.filter((p) => p.id !== planId),
+        activePlanId: lib.activePlanId === planId ? null : lib.activePlanId,
+      }),
+      'saved',
+    );
   }
 }

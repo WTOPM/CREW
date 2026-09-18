@@ -33,6 +33,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('app-restored-from-tray', listener);
   },
   pickPdfFile: () => ipcRenderer.invoke('pick-pdf-file'),
+  pickExcelFile: () => ipcRenderer.invoke('pick-excel-file'),
+  readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
+  writeFileBase64: (filePath, base64) => ipcRenderer.invoke('write-file-base64', filePath, base64),
+  writeDepRepSheet: (filePath, payload) =>
+    ipcRenderer.invoke('write-dep-rep-sheet', filePath, payload),
   pickDirectory: () => ipcRenderer.invoke('pick-directory'),
   openDirectory: (dirPath) => ipcRenderer.invoke('open-directory', dirPath),
   openTempFile: (fileName, base64) => ipcRenderer.invoke('open-temp-file', fileName, base64),

@@ -917,6 +917,21 @@ function parsePageRows(
         binding = orphanQueue.shift() ?? activeBinding;
       }
     }
+    // Page-break continuations often omit stow/size — keep the open container header.
+    if (binding && activeBinding && binding.containerNo === activeBinding.containerNo) {
+      binding = {
+        ...binding,
+        size: binding.size || activeBinding.size,
+        stow: binding.stow || activeBinding.stow,
+      };
+    } else if (binding && !binding.stow && activeBinding?.stow && !binding.containerNo) {
+      binding = {
+        ...binding,
+        containerNo: activeBinding.containerNo,
+        size: binding.size || activeBinding.size,
+        stow: activeBinding.stow,
+      };
+    }
     const blockRows = parseImoBlock(
       items,
       anchor.y,

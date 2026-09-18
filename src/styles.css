@@ -715,6 +715,78 @@ th {
   flex-shrink: 0;
 }
 
+/* Distinct nav chips: DEP REP vs DG reference (not twin secondary buttons). */
+.dg-nav-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.45rem;
+  padding: 0.28rem 0.75rem 0.28rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  text-decoration: none;
+  line-height: 1.15;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.14s ease;
+}
+
+.dg-nav-chip__icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+}
+
+.dg-nav-chip__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.dg-nav-chip__label {
+  font-size: 0.8rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.dg-nav-chip__sub {
+  font-size: 0.65rem;
+  font-weight: 600;
+  opacity: 0.78;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dg-nav-chip--dep-rep {
+  color: #0f766e;
+  border-color: #5eead4;
+  background: linear-gradient(180deg, #f0fdfa 0%, #ccfbf1 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%);
+}
+
+.dg-nav-chip--dep-rep:hover {
+  background: linear-gradient(180deg, #ccfbf1 0%, #99f6e4 100%);
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 2px rgb(20 184 166 / 18%);
+}
+
+.dg-nav-chip--reference {
+  color: #4338ca;
+  border-color: #c7d2fe;
+  background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%);
+}
+
+.dg-nav-chip--reference:hover {
+  background: linear-gradient(180deg, #e0e7ff 0%, #c7d2fe 100%);
+  border-color: #818cf8;
+  box-shadow: 0 0 0 2px rgb(99 102 241 / 18%);
+}
+
 .dg-page-action-btn {
   display: inline-flex;
   align-items: center;
@@ -1474,6 +1546,16 @@ th {
 .dg-voyage-item--field .port-select {
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.dg-voyage-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .dg-voyage-label {

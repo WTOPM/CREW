@@ -92,7 +92,9 @@
         if (px > 0) return px;
       }
     }
-    return probe.getBoundingClientRect().height || 18;
+    // offsetHeight = layout px. getBoundingClientRect is wrong under editor CSS zoom
+    // (scale transform) and was blowing up row heights after Arrival/Departure rebuild.
+    return probe.offsetHeight || 18;
   }
 
   function syncCellHeight(cell, tableRoot) {

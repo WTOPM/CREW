@@ -175,9 +175,11 @@ function unifeederPdfLengthLabelFromSizeCode(sizeCode: string): string {
   const normalized = sizeCode.trim().toUpperCase();
   if (!normalized) return '';
   const key = normalized.slice(0, 2);
-  if (key === '20' || key === '22') return "20'";
+  // ISO 6346: first char is length family. Unifeeder Grand Total only has 20/30/40/45.
+  // 22–26 are all 20′; 42 is 40′; 45 is often rolled into the 40′ GTS row (separate 45 rarely used).
+  if (key[0] === '2') return "20'";
   if (key === '30') return "30'";
-  if (key === '40' || key === '42' || key === '45') return "40'";
+  if (key[0] === '4') return "40'";
   if (key === 'L2' || key === 'L5') return "45'";
   return manifestLengthLabelFromSizeCode(sizeCode);
 }
@@ -254,15 +256,13 @@ export function validateUnifeederImportAgainstSummary(
   );
   const extractable = options.extractableContainers ?? 0;
 
-  if (summary.totalContainers > 0 && importedContainers !== summary.totalContainers) {
-    mismatches.push(`containers: PDF ${summary.totalContainers}, imported ${importedContainers}`);
-  }
-
-  // Headers found in the PDF but never turned into cargo rows (page-break orphans, etc.).
+  // Inventory totals always come from cargo pages; Grand Total is only a check.
   if (extractable > 0 && importedContainers < extractable) {
     mismatches.push(
       `container headers in PDF: ${extractable}, imported ${importedContainers}`,
     );
+  } else if (summary.totalContainers > 0 && importedContainers !== summary.totalContainers) {
+    mismatches.push(`containers: PDF ${summary.totalContainers}, imported ${importedContainers}`);
   }
 
   for (const key of LENGTH_KEYS) {

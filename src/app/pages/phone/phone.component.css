@@ -1,0 +1,363 @@
+.page.phone-page {
+  --phone-accent: #0369a1;
+  --phone-accent-soft: #f0f9ff;
+  --phone-accent-line: #7dd3fc;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0.85rem 1.25rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.phone-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid rgb(14 165 233 / 30%);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, #f0f9ff 0%, #fff 42%, #fff 100%),
+    linear-gradient(90deg, rgb(3 105 161 / 8%), transparent 40%);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 80%) inset;
+}
+
+.phone-page-header__text {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.phone-page-header h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 1.8vw, 1.6rem);
+  letter-spacing: 0.04em;
+  color: #0c4a6e;
+  line-height: 1.1;
+}
+
+.phone-dirty-pill {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.phone-page-header__badges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.phone-pulled-pill {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  border: 1px solid #22c55e;
+  color: #166534;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.phone-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.phone-edit-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0c4a6e;
+  cursor: pointer;
+  user-select: none;
+}
+
+.phone-edit-toggle input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #0369a1;
+}
+
+.phone-toolbar,
+.phone-table-card {
+  margin: 0 0 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.phone-toolbar__source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+}
+
+.phone-path-field {
+  flex: 1 1 16rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.phone-path-field__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.phone-path-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.2rem;
+  min-height: 2.1rem;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.phone-path-crumbs--empty {
+  color: #94a3b8;
+}
+
+.phone-path-placeholder {
+  font-size: 0.82rem;
+  padding: 0.15rem 0.2rem;
+}
+
+.phone-path-seg {
+  border: 0;
+  background: #e0f2fe;
+  color: #075985;
+  border-radius: 5px;
+  padding: 0.18rem 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-path-seg:hover {
+  background: #bae6fd;
+}
+
+.phone-path-seg--file {
+  background: #0369a1;
+  color: #fff;
+}
+
+.phone-path-seg--root {
+  font-weight: 800;
+}
+
+.phone-path-sep {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  user-select: none;
+}
+
+.phone-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.phone-file-label {
+  cursor: pointer;
+  margin: 0;
+}
+
+.phone-upload-btn,
+.phone-save-btn {
+  background: #0369a1;
+  border-color: #0369a1;
+}
+
+.phone-upload-btn:hover:not(:disabled),
+.phone-save-btn:hover:not(:disabled) {
+  background: #075985;
+  border-color: #075985;
+}
+
+.phone-toolbar__hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.phone-table-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.phone-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #0c4a6e;
+}
+
+.phone-row-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.phone-empty {
+  margin: 0;
+  padding: 1.25rem 0.5rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.phone-table-card {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.phone-table-wrap {
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.phone-tbl {
+  width: auto;
+  min-width: 0;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 0.78rem;
+}
+
+.phone-tbl th,
+.phone-tbl td {
+  border: 1px solid #e2e8f0;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.phone-tbl thead th {
+  background: #f0f9ff;
+  color: #0c4a6e;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.45rem 0.5rem;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.phone-col-sub {
+  width: 9.5rem;
+}
+.phone-col-call {
+  width: 3.5rem;
+}
+.phone-col-cabin {
+  width: 3.75rem;
+}
+.phone-col-name {
+  width: 8.5rem;
+}
+.phone-col-fac {
+  width: 11rem;
+}
+.phone-col-fac-call {
+  width: 3.5rem;
+}
+
+.phone-cell {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  background: transparent;
+  padding: 0.28rem 0.4rem;
+  font: inherit;
+  color: #0f172a;
+  outline: none;
+}
+
+.phone-cell[readonly] {
+  cursor: default;
+  color: #334155;
+}
+
+.phone-cell:focus:not([readonly]) {
+  background: #e0f2fe;
+  box-shadow: inset 0 0 0 1px #0284c7;
+}
+
+.phone-cell--center {
+  text-align: center;
+}
+
+.phone-cell--pulled {
+  background: #dcfce7 !important;
+  font-weight: 700;
+  color: #166534;
+}
+
+.phone-tbl tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.phone-tbl tbody tr:hover td {
+  background: #f0f9ff;
+}
+
+.back-link {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0369a1;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}

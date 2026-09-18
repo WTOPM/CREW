@@ -201,7 +201,11 @@
         useStamp: !!global._currentPositions.stamp.visible,
         useSignature: !!global._currentPositions.sig.visible,
         cellStyles: global._currentPositions.cellStyles || {},
-        cellValues: global._currentPositions.cellValues || {},
+        cellValues: global.ShipStoresFormCells?.stripLiveShipStoresCellValues
+          ? global.ShipStoresFormCells.stripLiveShipStoresCellValues(
+              global._currentPositions.cellValues || {},
+            )
+          : global._currentPositions.cellValues || {},
         ...(stampBox ? { stampBox } : {}),
         ...(signatureBox ? { signatureBox } : {}),
       };

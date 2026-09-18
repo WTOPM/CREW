@@ -74,6 +74,31 @@ declare global {
       setLocalPrefs: (patch: Partial<ElectronLocalPrefs>) => Promise<ElectronLocalPrefs>;
       onAppRestoredFromTray: (callback: () => void) => () => void;
       pickPdfFile: () => Promise<string | null>;
+      pickExcelFile: () => Promise<string | null>;
+      readFileBase64: (
+        filePath: string,
+      ) => Promise<{ ok: boolean; base64?: string; error?: string }>;
+      writeFileBase64: (
+        filePath: string,
+        base64: string,
+      ) => Promise<{ ok: boolean; error?: string }>;
+      /**
+       * Identical Excel Worksheet.Copy + data fill for DEP REP.xlsx (COM).
+       * Preserves density Tables and ship drawings; never rewrites K:L.
+       */
+      writeDepRepSheet: (
+        filePath: string,
+        payload: {
+          sheetName: string;
+          updates: Array<{
+            address: string;
+            kind: string;
+            value?: string | number;
+            formula?: string;
+            iso?: string;
+          }>;
+        },
+      ) => Promise<{ ok: boolean; created?: boolean; sheetName?: string; error?: string }>;
       pickDirectory: () => Promise<string | null>;
       openDirectory: (dirPath: string) => Promise<{ ok: boolean; error?: string }>;
       openTempFile: (

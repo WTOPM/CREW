@@ -31,6 +31,15 @@ const tbody = document.getElementById('tbody');
       });
     }
 
+    /** Centered NIL over the passenger table when the list has no people. */
+    function syncBodyNil() {
+      const el = document.getElementById('body-nil');
+      if (!el) return;
+      const hasPassengers = Array.from(tbody.children).some((tr) => rowHasData(tr));
+      el.hidden = hasPassengers;
+      el.setAttribute('aria-hidden', hasPassengers ? 'true' : 'false');
+    }
+
     function escAttr(val) {
       return String(val || '')
         .replace(/&/g, '&amp;')
@@ -58,7 +67,52 @@ const tbody = document.getElementById('tbody');
         refreshRowNumbers();
       }
     }
-    function setAD(v) {
+    function mapPassengerMemberToRow(p) {
+      return {
+        name: CrewNameFormat.formatCrewListName(p, { upper: true }),
+        rank: PASSENGER_RANK,
+        nat: p.nationality || '',
+        dob: fmtDate(p.dateOfBirth),
+        dobIso: p.dateOfBirth || '',
+        pob: p.placeOfBirth || '',
+        identity: p.passport || '',
+        expiry: fmtDate(p.passportExpiryDate),
+        expiryIso: p.passportExpiryDate || '',
+      };
+    }
+
+    function rebuildListForMode(mode) {
+      if (!window._appData || !window.HtmlFormListMode) return;
+      const savedVar = window._appData.documentOverlay?.[OVERLAY_KEY];
+      HtmlFormListMode.rebuildList({
+        mode,
+        kind: 'pax',
+        appData: window._appData,
+        bodyEl: tbody,
+        addRow,
+        mapMember: mapPassengerMemberToRow,
+        maxRows: PASSENGER_LIST_MAX_ROWS,
+        tableRowCount: savedVar?.tableRowCount,
+        restoreStyles: restoreCellStyles,
+        refreshRowNumbers,
+        masterNameUpper: true,
+        overlayPath: [OVERLAY_KEY],
+      });
+      syncBodyNil();
+      if (window.CrewHtmlFormEditorDirty?.captureBaseline && typeof EDITOR_DIRTY_OPTS !== 'undefined') {
+        CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);
+      }
+    }
+
+    function setAD(v, opts) {
+      const skipList = !!(opts && opts.skipList);
+      if (window.HtmlFormListMode) {
+        HtmlFormListMode.setArrivalDeparture(v, {
+          ship: window._shipData,
+          rebuild: !skipList && window._appData ? rebuildListForMode : null,
+        });
+        return;
+      }
       window._adMode = v;
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
@@ -67,11 +121,19 @@ const tbody = document.getElementById('tbody');
       });
       if (window._shipData) {
         const ship = window._shipData;
-        const dateVal = v === 'arrival' ? fmtDate(ship.dateOfArrival) : fmtDate(ship.dateOfDeparture);
+        const iso = v === 'arrival' ? ship.dateOfArrival : ship.dateOfDeparture;
         const dateEl = document.getElementById('h-date');
-        if (dateEl) dateEl.value = dateVal;
+        if (dateEl && window.HtmlFormDateFormat) {
+          window.HtmlFormDateFormat.setElement(dateEl, iso);
+        } else if (dateEl) {
+          dateEl.value = fmtDate(iso);
+        }
         const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl) footerDateEl.value = dateVal;
+        if (footerDateEl && window.HtmlFormDateFormat) {
+          window.HtmlFormDateFormat.setElement(footerDateEl, iso);
+        } else if (footerDateEl) {
+          footerDateEl.value = fmtDate(iso);
+        }
       }
     }
 
@@ -934,18 +996,20 @@ const tbody = document.getElementById('tbody');
                 : !ship.dateOfDeparture;
 
         if (isArrival) {
-          setAD('arrival');
+          setAD('arrival', { skipList: true });
         } else {
-          setAD('departure');
+          setAD('departure', { skipList: true });
         }
 
         let passengerList = [];
         if (snapshot && Array.isArray(appData.crew)) {
           passengerList = appData.crew;
         } else if (Array.isArray(appData.passengers)) {
-          passengerList = appData.passengers.filter(
-            (p) => !p.archived && (isArrival ? p.onArrivalList !== false : p.onDepartureList !== false),
-          );
+          passengerList = window.HtmlFormListMode
+            ? HtmlFormListMode.filterPassengers(appData, isArrival ? 'arrival' : 'departure')
+            : appData.passengers.filter(
+                (p) => !p.archived && (isArrival ? !!p.onArrivalList : !!p.onDepartureList),
+              );
         }
 
         const masterSource = snapshot?.allCrew || appData.crew || [];
@@ -994,6 +1058,7 @@ const tbody = document.getElementById('tbody');
         for (let i = tbody.children.length; i < targetRows; i++) addRow();
       }
       refreshRowNumbers();
+      syncBodyNil();
     }
 
     /** html2canvas mis-renders <input> text (vertical baseline drifts below the box).

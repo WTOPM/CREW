@@ -7,13 +7,19 @@ import { ReeferComponent } from './pages/reefer/reefer.component';
 import { EtaComponent } from './pages/eta/eta.component';
 import { EtaTimezonesComponent } from './pages/eta-timezones/eta-timezones.component';
 import { DgReferenceComponent } from './pages/dg-reference/dg-reference.component';
+import { FuelComponent } from './pages/fuel/fuel.component';
+import { PhoneComponent } from './pages/phone/phone.component';
+import { DepRepComponent } from './pages/dep-rep/dep-rep.component';
 export const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'dg', component: DgComponent },
   { path: 'dg/reference', component: DgReferenceComponent },
+  { path: 'dg/dep-rep', component: DepRepComponent },
   { path: 'reefer', component: ReeferComponent },
   { path: 'eta', component: EtaComponent },
   { path: 'eta/timezones', component: EtaTimezonesComponent },
+  { path: 'fuel', component: FuelComponent },
+  { path: 'phone', component: PhoneComponent },
   { path: 'crew-arr', component: CrewArrComponent },
   { path: 'settings', component: SettingsComponent },
   { path: '**', redirectTo: '' },

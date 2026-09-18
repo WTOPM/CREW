@@ -40,6 +40,7 @@ import {
   normalizePortSettingsDocId,
   normalizePortTerminals,
   normalizeShipStoresDocId,
+  type ShipInfo,
 } from '../models/crew.models';
 import {
   PassengerMember,
@@ -73,6 +74,13 @@ import {
 import { normalizeUnNumber, type UnNumberReferenceRow } from '../utils/dg-un-number.util';
 import { normalizeReeferLibrary } from '../models/reefer.models';
 import { normalizeEtaLibrary } from '../models/eta.models';
+import { normalizeFuelLibrary } from '../models/fuel.models';
+import { normalizePhoneLibrary } from '../models/phone.models';
+import { normalizeDepRepLibrary } from '../models/dep-rep.models';
+import type { AppSnapshotEntry } from '../models/app-snapshot.models';
+import type { DgPageSnapshot } from '../models/dg-page-archive.models';
+import type { ReeferPageSnapshot } from '../models/reefer-page-archive.models';
+import { extractMainAppSnapshot } from '../utils/app-snapshot.util';
 import {
   isCrewListForm05CssBox,
   normalizeCrewListDocumentPrefs,
@@ -94,6 +102,7 @@ import {
 /** Normalize raw (possibly legacy / partial) persisted data into a complete AppData. */
 export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): AppData {
   const ship = { ...createEmptyShip(), ...raw.ship };
+  migrateLegacyShipDraftFields(ship, raw.ship);
   let crew = (raw.crew ?? []).map((m) => normalizeMember(m, raw.ports));
   const crewArr = { ...createDefaultCrewArrSettings(), ...raw.crewArr };
   // Ports/ranks/nationalities are user-managed suggestion lists: keep exactly what
@@ -172,6 +181,12 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
   const dgUnReference = normalizeDgUnReference(raw.dgUnReference);
   const reeferLibrary = normalizeReeferLibrary(raw.reeferLibrary, ports, ship);
   const etaLibrary = normalizeEtaLibrary(raw.etaLibrary);
+  const fuelLibrary = normalizeFuelLibrary(raw.fuelLibrary);
+  const phoneLibrary = normalizePhoneLibrary(raw.phoneLibrary);
+  const depRepLibrary = normalizeDepRepLibrary(raw.depRepLibrary);
+  const appSnapshots = normalizeAppSnapshotEntries(raw.appSnapshots);
+  const dgPageArchives = normalizeDgPageArchiveEntries(raw.dgPageArchives, ports);
+  const reeferPageArchives = normalizeReeferPageArchiveEntries(raw.reeferPageArchives, ports);
   const documentOverlay = normalizeDocumentOverlay(raw.documentOverlay, raw);
   const shipAssets = { ...createEmptyShipAssetsMeta(), ...raw.shipAssets };
   const outputSettings = normalizeOutputSettings(raw.outputSettings);
@@ -210,6 +225,12 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     dgUnReference,
     reeferLibrary,
     etaLibrary,
+    fuelLibrary,
+    phoneLibrary,
+    depRepLibrary,
+    appSnapshots,
+    dgPageArchives,
+    reeferPageArchives,
     documentOverlay,
     shipAssets,
     outputSettings,
@@ -217,6 +238,122 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     customDocuments,
     seedVersion: APP_DATA_SCHEMA_VERSION,
   };
+}
+
+function sortNewestFirstBySavedAt<T extends { savedAt: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}
+
+/** Normalize Home Save/Load entries stored in AppData (shared across PCs). */
+export function normalizeAppSnapshotEntries(raw: unknown): AppSnapshotEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AppSnapshotEntry[] = [];
+  for (const item of raw) {
+    const entry = coerceAppSnapshotEntry(item);
+    if (entry) out.push(entry);
+  }
+  return sortNewestFirstBySavedAt(out);
+}
+
+function coerceAppSnapshotEntry(raw: unknown): AppSnapshotEntry | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const id = String(o['id'] ?? '').trim();
+  const label = String(o['label'] ?? '').trim();
+  const savedAt = String(o['savedAt'] ?? '').trim();
+  const dataRaw = o['data'];
+  if (!id || !label || !dataRaw || typeof dataRaw !== 'object') return null;
+  const empty = {
+    dgLibrary: undefined,
+    dgUnReference: undefined,
+    reeferLibrary: undefined,
+    appSnapshots: [] as AppSnapshotEntry[],
+    dgPageArchives: [] as DgPageSnapshot[],
+    reeferPageArchives: [] as ReeferPageSnapshot[],
+  };
+  try {
+    const data = extractMainAppSnapshot(
+      normalizeAppData({
+        ...(dataRaw as Partial<AppData>),
+        ...empty,
+      }),
+    );
+    return {
+      id,
+      label,
+      savedAt: savedAt || new Date().toISOString(),
+      portName: String(o['portName'] ?? data.ship.portOfCall ?? '').trim(),
+      voyageNumber: String(o['voyageNumber'] ?? data.ship.voyageNumber ?? '').trim(),
+      arrivalDate: String(o['arrivalDate'] ?? data.ship.dateOfArrival ?? '').trim(),
+      data,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeDgPageArchiveEntries(
+  raw: unknown,
+  ports: Port[] = [],
+): DgPageSnapshot[] {
+  if (!Array.isArray(raw)) return [];
+  const out: DgPageSnapshot[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const id = String(o['id'] ?? '').trim();
+    const label = String(o['label'] ?? '').trim();
+    const savedAt = String(o['savedAt'] ?? '').trim();
+    const shipRaw = o['ship'];
+    const libRaw = o['dgLibrary'];
+    if (!id || !label || !shipRaw || typeof shipRaw !== 'object' || !libRaw) continue;
+    const shipObj = shipRaw as Record<string, unknown>;
+    out.push({
+      id,
+      label,
+      savedAt: savedAt || new Date().toISOString(),
+      ship: {
+        voyageNumber: String(shipObj['voyageNumber'] ?? '').trim(),
+        portOfCall: String(shipObj['portOfCall'] ?? '').trim(),
+        nextPortOfCall: String(shipObj['nextPortOfCall'] ?? '').trim(),
+        dateOfDeparture: String(shipObj['dateOfDeparture'] ?? '').trim(),
+        dateOfArrival: String(shipObj['dateOfArrival'] ?? '').trim(),
+      },
+      dgLibrary: normalizeDgLibrary(libRaw as never, undefined, ports),
+    });
+  }
+  return sortNewestFirstBySavedAt(out);
+}
+
+export function normalizeReeferPageArchiveEntries(
+  raw: unknown,
+  ports: Port[] = [],
+): ReeferPageSnapshot[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ReeferPageSnapshot[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const id = String(o['id'] ?? '').trim();
+    const label = String(o['label'] ?? '').trim();
+    const savedAt = String(o['savedAt'] ?? '').trim();
+    const shipRaw = o['ship'];
+    const libRaw = o['reeferLibrary'];
+    if (!id || !label || !shipRaw || typeof shipRaw !== 'object' || !libRaw) continue;
+    const shipObj = shipRaw as Record<string, unknown>;
+    out.push({
+      id,
+      label,
+      savedAt: savedAt || new Date().toISOString(),
+      ship: {
+        voyageNumber: String(shipObj['voyageNumber'] ?? '').trim(),
+        portOfCall: String(shipObj['portOfCall'] ?? '').trim(),
+        dateOfDeparture: String(shipObj['dateOfDeparture'] ?? '').trim(),
+      },
+      reeferLibrary: normalizeReeferLibrary(libRaw as never, ports),
+    });
+  }
+  return sortNewestFirstBySavedAt(out);
 }
 
 function normalizeListOrder(raw: unknown): string[] | undefined {
@@ -532,7 +669,35 @@ function normalizeShipStoresHtmlFormPrefs(
     out.cellStyles = raw.cellStyles;
   }
   if (raw?.cellValues && typeof raw.cellValues === 'object') {
-    out.cellValues = raw.cellValues;
+    out.cellValues = stripShipStoresLiveCellValues(raw.cellValues);
+  }
+  return out;
+}
+
+/** Drop frozen ship/article cell text — always come from ship + shipStoresForm*. */
+function stripShipStoresLiveCellValues(
+  cellValues: Record<string, unknown>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, val] of Object.entries(cellValues)) {
+    if (/^d-\d+-[012]$/i.test(key)) continue;
+    if (
+      key === 'h-nameOfShip' ||
+      key === 'h-port' ||
+      key === 'h-date' ||
+      key === 'h-nationality' ||
+      key === 'h-portsRoute' ||
+      key === 'h-persons' ||
+      key === 'h-period' ||
+      key === 'h-storage' ||
+      key === 'h-imo' ||
+      key === 'h-callSign' ||
+      key === 'footer-date' ||
+      key === 'footer-master'
+    ) {
+      continue;
+    }
+    if (typeof val === 'string') out[key] = val;
   }
   return out;
 }
@@ -561,7 +726,7 @@ function normalizePortOfCallHtmlFormPrefs(
     out.cellStyles = raw.cellStyles;
   }
   if (raw?.cellValues && typeof raw.cellValues === 'object') {
-    out.cellValues = raw.cellValues;
+    out.cellValues = stripPortOfCallHistoryCellValues(raw.cellValues);
   }
   const rows = raw?.rowsPerPage ?? defaults.rowsPerPage ?? POC_DEFAULT_ROW_COUNT;
   out.rowsPerPage = Math.min(PORT_OF_CALL_HTML_MAX_ROWS_PER_PAGE, Math.max(POC_MIN_ROW_COUNT, rows));
@@ -571,8 +736,37 @@ function normalizePortOfCallHtmlFormPrefs(
   if (typeof raw?.footerMasterName === 'string') {
     out.footerMasterName = raw.footerMasterName;
   }
-  if (raw?.dateDisplayFormat === 'dot' || raw?.dateDisplayFormat === 'shortMonth' || raw?.dateDisplayFormat === 'fullMonth' || raw?.dateDisplayFormat === 'isoSlash') {
+  if (
+    raw?.dateDisplayFormat === 'dot' ||
+    raw?.dateDisplayFormat === 'shortMonth' ||
+    raw?.dateDisplayFormat === 'fullMonth' ||
+    raw?.dateDisplayFormat === 'isoSlash'
+  ) {
     out.dateDisplayFormat = raw.dateDisplayFormat;
+  }
+  return out;
+}
+
+/** Drop frozen history/LOCODE cell text — ports always come from portCallHistory. */
+function stripPortOfCallHistoryCellValues(
+  cellValues: Record<string, unknown>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, val] of Object.entries(cellValues)) {
+    if (/^d-\d+-\d+[a-z]*$/i.test(key)) continue;
+    if (
+      key === 'h-0-0' ||
+      key === 'h-0-1' ||
+      key === 'h-0-2' ||
+      key === 'h-0-3' ||
+      key === 'h-1-0' ||
+      key === 'h-1-1' ||
+      key === 'h-1-2' ||
+      key === 'h-1-3'
+    ) {
+      continue;
+    }
+    if (typeof val === 'string') out[key] = val;
   }
   return out;
 }
@@ -747,6 +941,29 @@ function normalizeCrewEffectForms(raw: Partial<AppData>): {
     crewEffectForm02: normalizeCrewEffectForm02(raw.crewEffectForm02),
     crewEffectForm03: normalizeCrewEffectForm03(raw.crewEffectForm03),
   };
+}
+
+/**
+ * Additive ship metres: moulded depth + draft fore/aft.
+ * Legacy `maximumPresentDraft` seeds both drafts when the new fields are empty.
+ */
+function migrateLegacyShipDraftFields(
+  ship: ShipInfo & Record<string, unknown>,
+  rawShip: Partial<ShipInfo> | Record<string, unknown> | undefined,
+): void {
+  ship.mouldedDepth = String(ship.mouldedDepth ?? '').trim();
+  ship.draftFore = String(ship.draftFore ?? '').trim();
+  ship.draftAft = String(ship.draftAft ?? '').trim();
+  ship.heightKeelToMastTop = String(ship.heightKeelToMastTop ?? '').trim();
+
+  const legacy = String(
+    (rawShip as { maximumPresentDraft?: unknown } | undefined)?.maximumPresentDraft ?? '',
+  ).trim();
+  if (legacy && !ship.draftFore && !ship.draftAft) {
+    ship.draftFore = legacy;
+    ship.draftAft = legacy;
+  }
+  delete ship['maximumPresentDraft'];
 }
 
 export function rescueOrphanCrew(crew: CrewMember[]): CrewMember[] {

@@ -1,7 +1,18 @@
 import type { AppData } from './crew.models';
 
-/** All persisted app data except DG and Reefer inventories. */
-export type AppMainSnapshot = Omit<AppData, 'dgLibrary' | 'reeferLibrary' | 'seedVersion'>;
+/**
+ * Voyage/home payload inside a snapshot — excludes inventories and the snapshot
+ * lists themselves (those live on live AppData / shared crew-data.json).
+ */
+export type AppMainSnapshot = Omit<
+  AppData,
+  | 'dgLibrary'
+  | 'reeferLibrary'
+  | 'seedVersion'
+  | 'appSnapshots'
+  | 'dgPageArchives'
+  | 'reeferPageArchives'
+>;
 
 export interface AppSnapshotEntry {
   id: string;

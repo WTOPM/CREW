@@ -28,17 +28,68 @@ function unifeederRowHasCargo(
 export function unifeederContainerKey(
   row: Pick<
     DgUnifeederRow,
-    'containerNo' | 'loadPort' | 'dischargePort' | 'status' | 'size' | 'stow'
+    'id' | 'containerNo' | 'loadPort' | 'dischargePort' | 'status' | 'size' | 'stow'
   >,
 ): string {
-  return [
-    row.containerNo.trim().toUpperCase(),
-    row.loadPort.trim(),
-    row.dischargePort.trim(),
-    row.status,
-    row.size.trim(),
-    row.stow.trim(),
-  ].join('|');
+  const containerNo = row.containerNo.trim().toUpperCase();
+  // One physical container = one group. Stow/POL/POD must not split the same number
+  // (DP World PDFs often reprint the header on the next page without stow).
+  if (containerNo) return containerNo;
+  return `empty:${row.id}`;
+}
+
+/** Prefer filled container header fields across lines of the same container. */
+export function pickUnifeederContainerHeaderField(
+  rows: readonly Pick<DgUnifeederRow, 'size' | 'stow' | 'loadPort' | 'dischargePort'>[],
+  field: 'size' | 'stow' | 'loadPort' | 'dischargePort',
+): string {
+  for (const row of rows) {
+    const value = row[field]?.trim() ?? '';
+    if (value) return value;
+  }
+  return '';
+}
+
+/**
+ * Copy size/stow (and ports) onto sibling lines missing them so a page-break
+ * continuation shares the same container header as the first page.
+ */
+export function coalesceUnifeederContainerMeta<
+  T extends Pick<
+    DgUnifeederRow,
+    'containerNo' | 'size' | 'stow' | 'loadPort' | 'dischargePort'
+  >,
+>(rows: readonly T[]): T[] {
+  const best = new Map<
+    string,
+    { size: string; stow: string; loadPort: string; dischargePort: string }
+  >();
+
+  for (const row of rows) {
+    const key = row.containerNo.trim().toUpperCase();
+    if (!key) continue;
+    const prev = best.get(key) ?? { size: '', stow: '', loadPort: '', dischargePort: '' };
+    best.set(key, {
+      size: prev.size || row.size.trim(),
+      stow: prev.stow || row.stow.trim(),
+      loadPort: prev.loadPort || row.loadPort.trim(),
+      dischargePort: prev.dischargePort || row.dischargePort.trim(),
+    });
+  }
+
+  return rows.map((row) => {
+    const key = row.containerNo.trim().toUpperCase();
+    if (!key) return row;
+    const meta = best.get(key);
+    if (!meta) return row;
+    return {
+      ...row,
+      size: row.size.trim() || meta.size,
+      stow: row.stow.trim() || meta.stow,
+      loadPort: row.loadPort.trim() || meta.loadPort,
+      dischargePort: row.dischargePort.trim() || meta.dischargePort,
+    };
+  });
 }
 
 export interface DgUnifeederRawContainerGroup {
@@ -250,11 +301,14 @@ export function buildUnifeederContainerDisplayGroups(
     const first = group.rows[0];
     return {
       key: group.key,
-      size: first?.size ?? '',
-      stow: first?.stow ?? '',
+      size: pickUnifeederContainerHeaderField(group.rows, 'size') || (first?.size ?? ''),
+      stow: pickUnifeederContainerHeaderField(group.rows, 'stow') || (first?.stow ?? ''),
       containerNo: first?.containerNo ?? '',
-      loadPort: first?.loadPort ?? '',
-      dischargePort: first?.dischargePort ?? '',
+      loadPort:
+        pickUnifeederContainerHeaderField(group.rows, 'loadPort') || (first?.loadPort ?? ''),
+      dischargePort:
+        pickUnifeederContainerHeaderField(group.rows, 'dischargePort') ||
+        (first?.dischargePort ?? ''),
       loadTerminal: first?.loadTerminal ?? '',
       dischargeTerminal: first?.dischargeTerminal ?? '',
       status: first?.status ?? 'onboard',

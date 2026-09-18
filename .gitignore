@@ -61,3 +61,9 @@ reference-*.xlsx
 # Seed / sample data sources (dev-only; app starts empty via empty-app-data.ts)
 src/app/data/default-crew.seed.ts
 src/app/data/default-port-call.seed.ts
+
+# External VPS ShipForms pack (local only — not part of CREW source)
+/VPS LAST VERSION*/
+/VPS*/
+/FUEL/*.xlsx
+/FUEL/**/*.xlsx

@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { NgStyle } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { formatDisplayDate, parsePastedDateToIso, adjustDisplayDateSegment } from '../../utils/date.util';
+import { formatDisplayDate, parsePastedDateToIso, adjustDisplayDateSegment, clearDisplayDateByBackspace } from '../../utils/date.util';
 import {
   EN_MONTHS,
   EN_WEEKDAYS,
@@ -28,6 +28,7 @@ export type DatePickerSize = 'sm' | 'md' | 'lg';
 
 /** Editable digit positions in the fixed "DD.MM.YYYY" mask (dots at 2 and 5). */
 const MASK_DIGIT_POS = [0, 1, 3, 4, 6, 7, 8, 9];
+const DATE_MASK_EDIT_RE = /^[\d_]{2}\.[\d_]{2}\.[\d_]{4}$/;
 
 function digitAtOrAfter(p: number): number {
   for (const e of MASK_DIGIT_POS) if (e >= p) return e;
@@ -43,10 +44,12 @@ function prevDigitPos(p: number): number {
 }
 
 function clampDaySegment(s: string): string {
+  if (!/^\d{2}/.test(s)) return s;
   const dd = Math.min(31, Math.max(1, parseInt(s.slice(0, 2), 10) || 1));
   return String(dd).padStart(2, '0') + s.slice(2);
 }
 function clampMonthSegment(s: string): string {
+  if (!/^\d{2}\.\d{2}/.test(s)) return s;
   const mm = Math.min(12, Math.max(1, parseInt(s.slice(3, 5), 10) || 1));
   return s.slice(0, 3) + String(mm).padStart(2, '0') + s.slice(5);
 }
@@ -195,7 +198,18 @@ export class DatePickerComponent implements OnDestroy {
     this.onCopyPressEnd();
     this.focused.set(false);
     const el = this.fieldRef()?.nativeElement;
-    const current = this.ensureMaskText(el?.value ?? this.text());
+    const raw = (el?.value ?? this.text()).trim();
+    if (!raw) {
+      this.text.set('');
+      if (this.value()) this.valueChange.emit('');
+      return;
+    }
+    const current = this.ensureMaskText(raw);
+    if (!/^\d{2}\.\d{2}\.\d{4}$/.test(current)) {
+      // Incomplete backspace clear (e.g. year wiped) — restore last committed value.
+      this.text.set(formatDisplayDate(this.value()) || '');
+      return;
+    }
     const clamped = clampMonthSegment(clampDaySegment(current));
     const iso = isoFromMask(clamped);
     if (iso) {
@@ -294,7 +308,20 @@ export class DatePickerComponent implements OnDestroy {
     }
     if (key === 'Backspace') {
       event.preventDefault();
-      this.selectDigit(prevDigitPos(pos));
+      const current = DATE_MASK_EDIT_RE.test(el.value.trim())
+        ? el.value.trim()
+        : this.ensureMaskText(el.value);
+      const cleared = clearDisplayDateByBackspace(current);
+      if (cleared.select === 'empty') {
+        el.value = '';
+        this.text.set('');
+        if (this.value()) this.valueChange.emit('');
+        return;
+      }
+      el.value = cleared.text;
+      this.text.set(cleared.text);
+      const select = cleared.select;
+      queueMicrotask(() => this.selectSegment(select));
       return;
     }
     if (key === 'Home') {
@@ -335,7 +362,9 @@ export class DatePickerComponent implements OnDestroy {
 
   /** Current input as a valid mask string, or a freshly prefilled one. */
   private ensureMaskText(v: string): string {
-    if (/^\d{2}\.\d{2}\.\d{4}$/.test(v)) return v;
+    const trimmed = v.trim();
+    if (DATE_MASK_EDIT_RE.test(trimmed)) return trimmed;
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) return trimmed;
     const val = this.value();
     if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) return formatDisplayDate(val);
     return preparePartialDateOnFocus('').text;

@@ -1,0 +1,190 @@
+<div class="page phone-page">
+  <header class="phone-page-header">
+    <div class="phone-page-header__text">
+      <a routerLink="/" class="back-link">Home</a>
+      <h1>PHONE</h1>
+    </div>
+    <div class="phone-page-header__badges">
+      @if (pulledCount()) {
+        <span class="phone-pulled-pill" title="Surnames filled from crew since last Update">
+          {{ pulledCount() }} pulled
+        </span>
+      }
+      @if (dirty()) {
+        <span class="phone-dirty-pill" title="Edits not yet written to the Excel file">Unsaved</span>
+      }
+    </div>
+  </header>
+
+  <section class="phone-toolbar card">
+    <div class="phone-toolbar__source">
+      <div class="phone-path-field">
+        <span class="phone-path-field__label">Excel path</span>
+        <div class="phone-path-crumbs" [class.phone-path-crumbs--empty]="!pathSegments().length">
+          @if (pathSegments().length) {
+            @for (seg of pathSegments(); track seg.fullPath; let last = $last) {
+              <button
+                type="button"
+                class="phone-path-seg"
+                [class.phone-path-seg--file]="seg.isFile"
+                [class.phone-path-seg--root]="seg.isRoot"
+                [title]="seg.isFile ? 'Open file' : 'Open folder'"
+                (mousedown)="onPathSegmentPress(seg, $event)"
+              >
+                {{ seg.label }}
+              </button>
+              @if (!last) {
+                <span class="phone-path-sep" aria-hidden="true">\</span>
+              }
+            }
+          } @else {
+            <span class="phone-path-placeholder">Browse to choose CREW CABIN PHONE.xlsx…</span>
+          }
+        </div>
+      </div>
+      <div class="phone-source-actions">
+        <button type="button" class="btn btn-secondary" (click)="rememberPath()" [disabled]="busy()">
+          Save path
+        </button>
+        @if (hasElectronPicker) {
+          <button type="button" class="btn btn-secondary" (click)="pickExcel()" [disabled]="busy()">
+            Browse…
+          </button>
+        } @else {
+          <label class="btn btn-secondary phone-file-label">
+            Browse…
+            <input type="file" accept=".xlsx,.xlsm" hidden (change)="onFileChosen($event)" />
+          </label>
+        }
+        <button
+          type="button"
+          class="btn btn-primary phone-upload-btn"
+          (click)="uploadOrUpdate()"
+          [disabled]="busy()"
+        >
+          {{ busy() ? 'Loading…' : rowCount() ? 'Update' : 'Upload' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary phone-save-btn"
+          (click)="saveToExcel()"
+          [disabled]="busy() || !rowCount() || !canWriteExcel"
+          title="Write current table back into the linked Excel (both print copies)"
+        >
+          Save to Excel
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary phone-clear-btn"
+          (click)="clearData()"
+          [disabled]="busy() || !rowCount()"
+          title="Clear loaded phone rows in the app (does not delete the Excel file)"
+        >
+          CLEAR
+        </button>
+      </div>
+    </div>
+    <div class="phone-toggles">
+      <label class="phone-edit-toggle">
+        <input type="checkbox" [ngModel]="editingEnabled()" (ngModelChange)="editingEnabled.set($event)" />
+        <span>Allow editing</span>
+      </label>
+      <label
+        class="phone-edit-toggle"
+        title="Fill Name only for rows whose Cabin matches a crew cabin; clear all other names"
+      >
+        <input type="checkbox" [ngModel]="cabinOnlySync()" (ngModelChange)="cabinOnlySync.set($event)" />
+        <span>Only by cabin</span>
+      </label>
+    </div>
+  </section>
+
+  <section class="phone-table-card card">
+    <div class="phone-table-head">
+      <h2 class="phone-section-title">
+        {{ library().title || "CREW MEMBER'S CABIN AND PHONE NUMBERS" }}
+      </h2>
+      <span class="phone-row-count">{{ rowCount() }} rows</span>
+    </div>
+
+    @if (!rowCount()) {
+      <p class="phone-empty">Upload the cabin phone Excel to edit Subscribe / CALL / Cabin / Name.</p>
+    } @else {
+      <div class="phone-table-wrap">
+        <table class="phone-tbl">
+          <thead>
+            <tr>
+              <th class="phone-col-sub">Subscribe</th>
+              <th class="phone-col-call">CALL</th>
+              <th class="phone-col-cabin">Cabin</th>
+              <th class="phone-col-name">Name</th>
+              <th class="phone-col-fac">Subscribe</th>
+              <th class="phone-col-fac-call">CALL</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of library().rows; track row.excelRow) {
+              <tr>
+                <td>
+                  <input
+                    class="phone-cell"
+                    type="text"
+                    [readonly]="!editingEnabled()"
+                    [ngModel]="row.subscribe"
+                    (ngModelChange)="onCellChange(row.excelRow, 'subscribe', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    class="phone-cell phone-cell--center"
+                    type="text"
+                    [readonly]="!editingEnabled()"
+                    [ngModel]="row.call"
+                    (ngModelChange)="onCellChange(row.excelRow, 'call', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    class="phone-cell phone-cell--center"
+                    type="text"
+                    [readonly]="!editingEnabled()"
+                    [ngModel]="row.cabin"
+                    (ngModelChange)="onCellChange(row.excelRow, 'cabin', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    class="phone-cell"
+                    type="text"
+                    [class.phone-cell--pulled]="isNamePulled(row.excelRow)"
+                    [readonly]="!editingEnabled()"
+                    [ngModel]="row.name"
+                    (ngModelChange)="onCellChange(row.excelRow, 'name', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    class="phone-cell"
+                    type="text"
+                    [readonly]="!editingEnabled()"
+                    [ngModel]="row.facilitySubscribe"
+                    (ngModelChange)="onCellChange(row.excelRow, 'facilitySubscribe', $event)"
+                  />
+                </td>
+                <td>
+                  <input
+                    class="phone-cell phone-cell--center"
+                    type="text"
+                    [readonly]="!editingEnabled()"
+                    [ngModel]="row.facilityCall"
+                    (ngModelChange)="onCellChange(row.excelRow, 'facilityCall', $event)"
+                  />
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

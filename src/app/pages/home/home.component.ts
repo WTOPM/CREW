@@ -494,6 +494,7 @@ export class HomeComponent {
       visaExpiryDate: draft.visaExpiryDate,
       joiningDate: draft.joiningDate,
       joiningPort: draft.joiningPort,
+      cabin: draft.cabin,
       vaccineMedicalProduct: draft.vaccineMedicalProduct,
       dateOfVaccination: draft.dateOfVaccination,
       dateOfYellowFeverVaccination: draft.dateOfYellowFeverVaccination,

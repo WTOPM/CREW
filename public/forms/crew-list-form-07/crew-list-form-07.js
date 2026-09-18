@@ -64,7 +64,56 @@ function resolveTargetRowCount(savedCount, currentCount, maxRows) {
         refreshRowNumbers();
       }
     }
-    function setAD(v) {
+    function mapCrewMemberToRow(c) {
+      return {
+        name: CrewNameFormat.formatCrewListName(c),
+        rank: c.rank || '',
+        nat: c.nationality || '',
+        dob: fmtDate(c.dateOfBirth),
+        dobIso: c.dateOfBirth || '',
+        pob: c.placeOfBirth || '',
+        bno: c.seamansBook || '',
+        bplace: (c.seamansBookPlaceOfIssue || '').toUpperCase(),
+        bexp: fmtDate(c.sbookExpiryDate),
+        bexpIso: c.sbookExpiryDate || '',
+        passport: c.passport || '',
+        pplace: (c.passportPlaceOfIssue || '').toUpperCase(),
+        pexp: fmtDate(c.passportExpiryDate),
+        pexpIso: c.passportExpiryDate || '',
+      };
+    }
+
+    function rebuildListForMode(mode) {
+      if (!window._appData || !window.HtmlFormListMode) return;
+      const savedVar = window._appData.documentOverlay?.crewList?.byType?.[CREW_FORM_07_TYPE];
+      HtmlFormListMode.rebuildList({
+        mode,
+        kind: 'crew',
+        appData: window._appData,
+        bodyEl: tbody,
+        addRow,
+        mapMember: mapCrewMemberToRow,
+        maxRows: MAX_ROWS,
+        tableRowCount: savedVar?.tableRowCount,
+        restoreStyles: restoreCellStyles,
+        refreshRowNumbers,
+        masterNameUpper: false,
+        overlayPath: ['crewList', 'byType', CREW_FORM_07_TYPE],
+      });
+      if (window.CrewHtmlFormEditorDirty?.captureBaseline && typeof EDITOR_DIRTY_OPTS !== 'undefined') {
+        CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);
+      }
+    }
+
+    function setAD(v, opts) {
+      const skipList = !!(opts && opts.skipList);
+      if (window.HtmlFormListMode) {
+        HtmlFormListMode.setArrivalDeparture(v, {
+          ship: window._shipData,
+          rebuild: !skipList && window._appData ? rebuildListForMode : null,
+        });
+        return;
+      }
       window._adMode = v;
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
@@ -73,11 +122,19 @@ function resolveTargetRowCount(savedCount, currentCount, maxRows) {
       });
       if (window._shipData) {
         const ship = window._shipData;
-        const dateVal = v === 'arrival' ? fmtDate(ship.dateOfArrival) : fmtDate(ship.dateOfDeparture);
+        const iso = v === 'arrival' ? ship.dateOfArrival : ship.dateOfDeparture;
         const dateEl = document.getElementById('h-date');
-        if (dateEl) dateEl.value = dateVal;
+        if (dateEl && window.HtmlFormDateFormat) {
+          window.HtmlFormDateFormat.setElement(dateEl, iso);
+        } else if (dateEl) {
+          dateEl.value = fmtDate(iso);
+        }
         const footerDateEl = document.getElementById('f-footer-date');
-        if (footerDateEl) footerDateEl.value = dateVal;
+        if (footerDateEl && window.HtmlFormDateFormat) {
+          window.HtmlFormDateFormat.setElement(footerDateEl, iso);
+        } else if (footerDateEl) {
+          footerDateEl.value = fmtDate(iso);
+        }
       }
     }
 
@@ -1355,9 +1412,9 @@ function resolveTargetRowCount(savedCount, currentCount, maxRows) {
         const isArrival = urlMode === 'departure' ? false : (urlMode === 'arrival' ? true : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
 
         if (isArrival) {
-          setAD('arrival');
+          setAD('arrival', { skipList: true });
         } else {
-          setAD('departure');
+          setAD('departure', { skipList: true });
         }
 
         const imoEl = document.getElementById('h-imo');
@@ -1372,7 +1429,9 @@ function resolveTargetRowCount(savedCount, currentCount, maxRows) {
           // Snapshot mode already carries the exact filtered/ordered list — use as-is.
           crewList = snapshot
             ? appData.crew
-            : appData.crew.filter(c => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false));
+            : (window.HtmlFormListMode
+              ? HtmlFormListMode.filterCrew(appData, isArrival ? 'arrival' : 'departure')
+              : appData.crew.filter(c => !c.archived && (isArrival ? !!c.onArrivalList : !!c.onDepartureList)));
         }
 
         let master = null;

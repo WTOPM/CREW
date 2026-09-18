@@ -57,7 +57,49 @@ const tbody = document.getElementById('tbody');
         refreshRowNumbers();
       }
     }
-    function setAD(v) {
+    function mapCrewMemberToRow(c) {
+      return {
+        name: CrewNameFormat.formatCrewListName(c, { upper: true }),
+        rank: c.rank || '',
+        nat: c.nationality || '',
+        dob: fmtDate(c.dateOfBirth),
+        dobIso: c.dateOfBirth || '',
+        pob: c.placeOfBirth || '',
+        identity: c.passport || '',
+      };
+    }
+
+    function rebuildListForMode(mode) {
+      if (!window._appData || !window.HtmlFormListMode) return;
+      const savedVar = window._appData.documentOverlay?.crewList?.byType?.[CREW_FORM_01_TYPE];
+      HtmlFormListMode.rebuildList({
+        mode,
+        kind: 'crew',
+        appData: window._appData,
+        bodyEl: tbody,
+        addRow,
+        mapMember: mapCrewMemberToRow,
+        maxRows: CREW_LIST_MAX_ROWS,
+        tableRowCount: savedVar?.tableRowCount,
+        restoreStyles: restoreCellStyles,
+        refreshRowNumbers,
+        masterNameUpper: true,
+        overlayPath: ['crewList', 'byType', CREW_FORM_01_TYPE],
+      });
+      if (window.CrewHtmlFormEditorDirty?.captureBaseline) {
+        CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);
+      }
+    }
+
+    function setAD(v, opts) {
+      const skipList = !!(opts && opts.skipList);
+      if (window.HtmlFormListMode) {
+        HtmlFormListMode.setArrivalDeparture(v, {
+          ship: window._shipData,
+          rebuild: !skipList && window._appData ? rebuildListForMode : null,
+        });
+        return;
+      }
       window._adMode = v;
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
@@ -944,9 +986,9 @@ const tbody = document.getElementById('tbody');
         const isArrival = urlMode === 'departure' ? false : (urlMode === 'arrival' ? true : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
 
         if (isArrival) {
-          setAD('arrival');
+          setAD('arrival', { skipList: true });
         } else {
-          setAD('departure');
+          setAD('departure', { skipList: true });
         }
 
         let crewList = [];
@@ -954,7 +996,9 @@ const tbody = document.getElementById('tbody');
           // Snapshot mode already carries the exact filtered/ordered list — use as-is.
           crewList = snapshot
             ? appData.crew
-            : appData.crew.filter(c => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false));
+            : (window.HtmlFormListMode
+              ? HtmlFormListMode.filterCrew(appData, isArrival ? 'arrival' : 'departure')
+              : appData.crew.filter(c => !c.archived && (isArrival ? !!c.onArrivalList : !!c.onDepartureList)));
         }
 
         let master = null;

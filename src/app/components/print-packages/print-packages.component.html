@@ -124,17 +124,13 @@
 
                 @for (item of auth.items; track $index) {
                   <div class="pkg-item">
-                    <select
-                      class="pkg-doc"
-                      [class.pkg-doc--unset]="!item.documentId"
-                      [ngModel]="item.documentId"
-                      (ngModelChange)="updateItem(pkg, authIdx, $index, { documentId: $event })"
-                    >
-                      <option value="">— select document —</option>
-                      @for (d of catalogDocs(); track d.id) {
-                        <option [value]="d.id" [disabled]="!d.enabled">{{ d.label }}</option>
-                      }
-                    </select>
+                    <app-searchable-select
+                      [value]="item.documentId"
+                      [options]="catalogSelectOptions()"
+                      [unset]="!item.documentId"
+                      placeholder="— select document —"
+                      (valueChange)="updateItem(pkg, authIdx, $index, { documentId: $event })"
+                    />
                     <input
                       class="pkg-copies"
                       type="number"

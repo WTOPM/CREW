@@ -136,44 +136,31 @@ function buildForm01Data(data: AppData, formatForPdf: boolean): ShipStoresForm01
     defaultArticles.push({ nameOfArticle: '', quantity: '', unit: '' });
   }
 
-  const articles: ShipStoresForm01ArticleRow[] = [];
-  for (let i = 0; i < SHIP_STORES_ROW_COUNT; i++) {
-    const base = defaultArticles[i] ?? { nameOfArticle: '', quantity: '', unit: '' };
-    const name = cv[`d-${i}-0`] !== undefined ? String(cv[`d-${i}-0`]) : base.nameOfArticle;
-    const quantity = cv[`d-${i}-1`] !== undefined ? String(cv[`d-${i}-1`]) : base.quantity;
-    const unit = cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.unit;
-    articles.push({
-      nameOfArticle: name,
-      quantity: formatForPdf ? formatShipStoresQuantityText(name, quantity) : quantity,
-      unit: formatForPdf ? formatShipStoresUnitText(name, quantity, unit) : unit,
-    });
-  }
+  // Live AppData only for articles + ship headers (overlay kept for _ssMode / pageNo / styles).
+  const articles = defaultArticles;
 
   return {
     arrival: isArrival,
     departure: !isArrival,
     pageNo: cv['h-pageNo'] ?? '1',
-    nameOfShip: cv['h-nameOfShip'] ?? formatPortCallPortName(ship.name),
-    portOfArrivalDeparture:
-      cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, data.ports),
+    nameOfShip: formatPortCallPortName(ship.name),
+    portOfArrivalDeparture: formatPortWithCountry(ship.portOfCall, data.ports),
     dateOfArrivalDeparture: formatDisplayDate(voyageDateByArrivalFlag(ship, isArrival)),
-    nationalityOfShip: cv['h-nationality'] ?? formatPortCallPortName(ship.nationality),
-    portArrivedFromOrDestination:
-      cv['h-portsRoute'] ??
-      formatShipStoresPortsRoute(
-        ship.lastPortOfCall,
-        ship.nextPortOfCall,
-        ship.portOfCall,
-        data.ports,
-        formatPortCallPortName,
-        portCountry,
-      ),
-    numberOfPersonsOnBoard: cv['h-persons'] ?? String(crewCount + paxCount),
-    periodOfStay: cv['h-period'] ?? formatShipStoresPeriodOfStay(periodDays),
-    placeOfStorage: cv['h-storage'] ?? form.placeOfStorage,
+    nationalityOfShip: formatPortCallPortName(ship.nationality),
+    portArrivedFromOrDestination: formatShipStoresPortsRoute(
+      ship.lastPortOfCall,
+      ship.nextPortOfCall,
+      ship.portOfCall,
+      data.ports,
+      formatPortCallPortName,
+      portCountry,
+    ),
+    numberOfPersonsOnBoard: String(crewCount + paxCount),
+    periodOfStay: formatShipStoresPeriodOfStay(periodDays),
+    placeOfStorage: form.placeOfStorage,
     articles,
     footerDate: formatDisplayDate(voyageDateByArrivalFlag(ship, isArrival)),
-    footerMaster: cv['footer-master'] ?? (master ? formatCaptainName(master) : ''),
+    footerMaster: master ? formatCaptainName(master) : '',
   };
 }
 
@@ -244,24 +231,12 @@ function buildForm02Data(data: AppData, formatForPdf: boolean): ShipStoresForm02
       colRight1: '',
       colRight2: '',
     };
-    const name = cv[`d-${i}-0`] !== undefined ? String(cv[`d-${i}-0`]) : base.nameOfArticle;
-    const quantity = cv[`d-${i}-1`] !== undefined ? String(cv[`d-${i}-1`]) : base.quantity;
-    const unit = cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.unit;
-    const colAfterQuantity =
-      cv[`d-${i}-2`] !== undefined ? String(cv[`d-${i}-2`]) : base.colAfterQuantity;
-    const officialUse = cv[`d-${i}-3`] !== undefined ? String(cv[`d-${i}-3`]) : base.officialUse;
-    const colRight1 = cv[`d-${i}-4`] !== undefined ? String(cv[`d-${i}-4`]) : base.colRight1;
-    const colRight2 = cv[`d-${i}-5`] !== undefined ? String(cv[`d-${i}-5`]) : base.colRight2;
+    // Name/qty/unit from live form; Form 02 extra cols may stay in overlay.
     articles.push({
-      nameOfArticle: name,
-      quantity: formatForPdf ? formatShipStoresQuantityText(name, quantity) : quantity,
-      unit: formatForPdf ? formatShipStoresUnitText(name, quantity, unit) : unit,
-      colAfterQuantity: formatForPdf
-        ? formatShipStoresUnitText(name, quantity, colAfterQuantity)
-        : colAfterQuantity,
-      officialUse,
-      colRight1,
-      colRight2,
+      ...base,
+      officialUse: cv[`d-${i}-3`] !== undefined ? String(cv[`d-${i}-3`]) : base.officialUse,
+      colRight1: cv[`d-${i}-4`] !== undefined ? String(cv[`d-${i}-4`]) : base.colRight1,
+      colRight2: cv[`d-${i}-5`] !== undefined ? String(cv[`d-${i}-5`]) : base.colRight2,
     });
   }
 
@@ -269,34 +244,29 @@ function buildForm02Data(data: AppData, formatForPdf: boolean): ShipStoresForm02
     arrival: isArrival,
     departure: !isArrival,
     pageNo: cv['h-pageNo'] ?? '1',
-    nameOfShip: cv['h-nameOfShip'] ?? formatPortCallPortName(ship.name),
-    imoNumber: cv['h-imo'] ?? ship.imoNo,
-    callSign: cv['h-callSign'] ?? ship.callSign,
-    portOfArrivalDeparture:
-      cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, data.ports),
+    nameOfShip: formatPortCallPortName(ship.name),
+    imoNumber: ship.imoNo,
+    callSign: ship.callSign,
+    portOfArrivalDeparture: formatPortWithCountry(ship.portOfCall, data.ports),
     dateOfArrivalDeparture: formatDisplayDate(voyageDateByArrivalFlag(ship, isArrival)),
-    nationalityOfShip: cv['h-nationality'] ?? formatPortCallPortName(ship.nationality),
-    lastNextPortOfCall:
-      cv['h-portsRoute'] ??
-      formatShipStores02PortsRoute(
-        ship.lastPortOfCall,
-        ship.nextPortOfCall,
-        ship.portOfCall,
-        data.ports,
-        formatPortCallPortName,
-        portCountry,
-      ),
-    numberOfPersonsOnBoard: cv['h-persons'] ?? String(crewCount + paxCount),
-    periodOfStay: cv['h-period'] ?? formatShipStoresPeriodOfStay(periodDays),
-    placeOfStorage: cv['h-storage'] ?? form.placeOfStorage,
+    nationalityOfShip: formatPortCallPortName(ship.nationality),
+    lastNextPortOfCall: formatShipStores02PortsRoute(
+      ship.lastPortOfCall,
+      ship.nextPortOfCall,
+      ship.portOfCall,
+      data.ports,
+      formatPortCallPortName,
+      portCountry,
+    ),
+    numberOfPersonsOnBoard: String(crewCount + paxCount),
+    periodOfStay: formatShipStoresPeriodOfStay(periodDays),
+    placeOfStorage: form.placeOfStorage,
     articles,
     footerDate: formatDisplayDate(voyageDateByArrivalFlag(ship, isArrival)),
-    footerMaster:
-      cv['footer-master'] ??
-      (() => {
-        const master = findMaster(filterActiveCrewListFromData(data, list));
-        return master ? formatCaptainName(master) : '';
-      })(),
+    footerMaster: (() => {
+      const master = findMaster(filterActiveCrewListFromData(data, list));
+      return master ? formatCaptainName(master) : '';
+    })(),
   };
 }
 

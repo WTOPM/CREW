@@ -6,7 +6,38 @@
   <header class="page-header dg-page-header">
     <a routerLink="/" class="back-link">Home</a>
     <div class="dg-page-actions">
-      <a routerLink="/dg/reference" class="btn btn-secondary btn-sm dg-ref-link">DG reference</a>
+      <a
+        routerLink="/dg/dep-rep"
+        class="btn dg-nav-chip dg-nav-chip--dep-rep"
+        title="Departure Cargo Report"
+      >
+        <svg class="dg-nav-chip__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1 7V3.5L19.5 9H15zM8 13h8v2H8v-2zm0 4h5v2H8v-2z"
+          />
+        </svg>
+        <span class="dg-nav-chip__text">
+          <span class="dg-nav-chip__label">DEP REP</span>
+          <span class="dg-nav-chip__sub">Cargo report</span>
+        </span>
+      </a>
+      <a
+        routerLink="/dg/reference"
+        class="btn dg-nav-chip dg-nav-chip--reference"
+        title="IMDG / UN reference tables"
+      >
+        <svg class="dg-nav-chip__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12V2zM6 4h5v7l-2.5-1.5L6 11V4zm0 16V13h12v7H6z"
+          />
+        </svg>
+        <span class="dg-nav-chip__text">
+          <span class="dg-nav-chip__label">DG reference</span>
+          <span class="dg-nav-chip__sub">IMDG / UN</span>
+        </span>
+      </a>
       <button
         type="button"
         class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
@@ -76,10 +107,15 @@
           <span class="dg-voyage-muted">/ {{ ship().callSign }}</span>
         }
       </div>
-      <div class="dg-voyage-item dg-voyage-item--readonly">
+      <label class="dg-voyage-item dg-voyage-item--field">
         <span class="dg-voyage-label">Voyage</span>
-        <strong>{{ ship().voyageNumber || '—' }}</strong>
-      </div>
+        <input
+          class="dg-voyage-input"
+          [ngModel]="ship().voyageNumber"
+          (ngModelChange)="onVoyageNumberChange($event)"
+          placeholder="—"
+        />
+      </label>
       <label class="dg-voyage-item dg-voyage-item--field">
         <span class="dg-voyage-label">Port of call</span>
         <app-port-select

@@ -66,4 +66,24 @@ describe('dg-unifeeder-dagos-pdf', () => {
       { containerNo: 'MRKU9861852', position: '090284' },
     ]);
   });
+
+  it('parses Serial Number column when MACS3 places it near x71', () => {
+    // Real “Dagos positions.pdf” layout: Serial header/value at x≈71.3 (was missed when col started at 72).
+    const items: DgPdfTextItem[] = [
+      item('Dagos on Board (IMDG-Code Amendment 42) - Dangerous goods, All items', 42.5, 78.8, 1),
+      item('Pos.', 43.7, 89.9, 1),
+      item('Serial Number', 71.3, 89.9, 1),
+      item('030182', 43.7, 98, 1),
+      item('TRHU1197969', 71.3, 98, 1),
+      item('030184', 43.7, 106, 1),
+      item('SDDU2029252', 71.3, 106, 1),
+      // Continuation line without Pos — must not invent a row
+      item('CBHU4315076', 71.3, 122, 1),
+    ];
+    expect(isUnifeederDagosPositionsPdf(items)).toBe(true);
+    expect(parseUnifeederDagosPositions(items)).toEqual([
+      { containerNo: 'SDDU2029252', position: '030184' },
+      { containerNo: 'TRHU1197969', position: '030182' },
+    ]);
+  });
 });

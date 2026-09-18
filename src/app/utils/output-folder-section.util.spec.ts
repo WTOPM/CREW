@@ -13,9 +13,10 @@ describe('outputFolderSectionFromRoute', () => {
     expect(outputFolderSectionFromRoute('/reefer')).toBe('reefer');
   });
 
-  it('hides the bar on ETA and Settings', () => {
+  it('hides the bar on ETA, FUEL and Settings', () => {
     expect(outputFolderSectionFromRoute('/eta')).toBeNull();
     expect(outputFolderSectionFromRoute('/eta/timezones')).toBeNull();
+    expect(outputFolderSectionFromRoute('/fuel')).toBeNull();
     expect(outputFolderSectionFromRoute('/settings')).toBeNull();
   });
 });

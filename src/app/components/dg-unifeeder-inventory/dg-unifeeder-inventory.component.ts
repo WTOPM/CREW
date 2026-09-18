@@ -21,6 +21,7 @@ import {
   buildUnifeederInventoryDisplayRows,
   groupUnifeederRawRowsByContainer,
   mergeUnifeederRowsInContainers,
+  pickUnifeederContainerHeaderField,
   planUnifeederMergedWeightDisplays,
   type DgUnifeederContainerDisplayGroup,
   type DgUnifeederRowDisplay,
@@ -185,11 +186,14 @@ export class DgUnifeederInventoryComponent {
         const first = group.rows[0];
         return {
           key: group.key,
-          size: first?.size ?? '',
-          stow: first?.stow ?? '',
+          size: pickUnifeederContainerHeaderField(group.rows, 'size') || (first?.size ?? ''),
+          stow: pickUnifeederContainerHeaderField(group.rows, 'stow') || (first?.stow ?? ''),
           containerNo: first?.containerNo ?? '',
-          loadPort: first?.loadPort ?? '',
-          dischargePort: first?.dischargePort ?? '',
+          loadPort:
+            pickUnifeederContainerHeaderField(group.rows, 'loadPort') || (first?.loadPort ?? ''),
+          dischargePort:
+            pickUnifeederContainerHeaderField(group.rows, 'dischargePort') ||
+            (first?.dischargePort ?? ''),
           loadTerminal: first?.loadTerminal ?? '',
           dischargeTerminal: first?.dischargeTerminal ?? '',
           status: first?.status ?? 'onboard',
@@ -566,13 +570,35 @@ export class DgUnifeederInventoryComponent {
 
       const dagosResult = await this.dagosImporter.importFromPdfBytes(bytes);
       if (dagosResult.format === 'unifeeder-dagos') {
+        if (!dagosResult.positions.length) {
+          this.toast.showError(
+            dagosResult.warnings[0] ?? 'No container positions found in Dagos on Board PDF.',
+          );
+          return;
+        }
         const applied = this.dg.applyUnifeederDagosPositions(dagosResult.positions);
-        if (applied.checked === 0) {
+        if (applied.checked === 0 && applied.discharged === 0) {
           this.toast.showError('No matching onboard containers found for Dagos positions');
         } else {
+          const parts = [
+            `Checked ${applied.checked}`,
+            `replaced ${applied.replaced}`,
+          ];
+          if (applied.discharged > 0) {
+            parts.push(`discharged ${applied.discharged}`);
+          }
           this.toast.show(
-            `Checked ${applied.checked} container(s) · replaced ${applied.replaced}`,
-            applied.replaced > 0 ? 'success' : 'info',
+            `${parts.join(' · ')} container(s)`,
+            applied.replaced > 0 || applied.discharged > 0 ? 'success' : 'info',
+          );
+        }
+        if (applied.discharged > 0) {
+          if (!this.unifeederLibrary().showDischarged) {
+            this.dg.updateUnifeederViewSettings({ showDischarged: true });
+          }
+          this.toast.show(
+            `${applied.discharged} container(s) not in Dagos — marked discharged`,
+            'info',
           );
         }
         if (applied.unmatched.length) {

@@ -14,7 +14,7 @@
           (dragover)="onUnifeederDragOver($event)"
           (dragleave)="onUnifeederDragLeave()"
           (drop)="onUnifeederDrop($event)"
-          title="Drop PDF manifest or Dagos positions"
+          title="Drop PDF manifest or Dagos on Board (any filename)"
         >
           <input
             #unifeederExcelFile
@@ -70,7 +70,7 @@
             }
           </ul>
         } @else {
-          <p class="uf-import-hint">Drop PDF manifest or Dagos positions</p>
+          <p class="uf-import-hint">Drop PDF manifest or Dagos on Board (any filename)</p>
         }
       </div>
     </section>

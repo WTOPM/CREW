@@ -8,10 +8,14 @@ import { PackageRunnerService } from '../../services/package-runner.service';
 import { ToastService } from '../../services/toast.service';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import { NumberSpinDirective } from '../../directives/number-spin.directive';
+import {
+  SearchableSelectComponent,
+  type SearchableSelectOption,
+} from '../searchable-select/searchable-select.component';
 
 @Component({
   selector: 'app-print-packages',
-  imports: [FormsModule, ClickOutsideDirective, NumberSpinDirective],
+  imports: [FormsModule, ClickOutsideDirective, NumberSpinDirective, SearchableSelectComponent],
   templateUrl: './print-packages.component.html',
   styleUrl: './print-packages.component.css',
 })
@@ -38,6 +42,13 @@ export class PrintPackagesComponent implements OnInit {
 
   protected readonly catalogDocs = computed(() => this.catalog.available());
 
+  protected readonly catalogSelectOptions = computed<SearchableSelectOption[]>(() =>
+    this.catalogDocs().map((d) => ({
+      value: d.id,
+      label: d.label,
+      disabled: !d.enabled,
+    })),
+  );
   /** Ports not yet configured (for the add dropdown). */
   protected readonly addablePorts = computed(() => {
     const used = new Set(this.packages().map((p) => p.port));

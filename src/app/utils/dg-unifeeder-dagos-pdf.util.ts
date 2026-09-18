@@ -9,9 +9,9 @@ export interface UnifeederDagosPositionRow {
 const CONTAINER_RE = /^[A-Z]{4}\d{7}$/;
 const POSITION_RE = /^\d{6}$/;
 
-/** Landscape MACS3 table: Pos. ~x44, Serial Number ~x77. */
-const POS_COL: readonly [number, number] = [25, 72];
-const SERIAL_COL: readonly [number, number] = [72, 140];
+/** Landscape MACS3 table: Pos. ~x44, Serial Number ~x71–77 (varies by export). */
+const POS_COL: readonly [number, number] = [25, 65];
+const SERIAL_COL: readonly [number, number] = [65, 150];
 
 function normalizeContainerNo(raw: string): string {
   return raw.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');

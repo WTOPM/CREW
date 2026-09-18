@@ -9,12 +9,62 @@ import type { AppMainSnapshot } from '../models/app-snapshot.models';
 import type { PassengerMember } from '../models/passenger.models';
 
 export function extractMainAppSnapshot(data: AppData): AppMainSnapshot {
-  const { dgLibrary: _dg, reeferLibrary: _rf, seedVersion: _sv, ...main } = structuredClone(data);
+  const {
+    dgLibrary: _dg,
+    reeferLibrary: _rf,
+    seedVersion: _sv,
+    appSnapshots: _as,
+    dgPageArchives: _da,
+    reeferPageArchives: _ra,
+    ...main
+  } = structuredClone(data);
   return main;
 }
 
 export function cloneMainAppSnapshot(snapshot: AppMainSnapshot): AppMainSnapshot {
   return structuredClone(snapshot);
+}
+
+/** Normalize port + voyage + arrival date for snapshot identity matching. */
+export function appSnapshotVoyageKey(parts: {
+  portName?: string | null;
+  voyageNumber?: string | null;
+  arrivalDate?: string | null;
+}): string {
+  return [
+    String(parts.portName ?? '').trim().toLowerCase(),
+    String(parts.voyageNumber ?? '').trim().toLowerCase(),
+    String(parts.arrivalDate ?? '').trim(),
+  ].join('\u0001');
+}
+
+/** True when port, voyage and arrival date are all set (enough to overwrite safely). */
+export function appSnapshotVoyageKeyIsComplete(parts: {
+  portName?: string | null;
+  voyageNumber?: string | null;
+  arrivalDate?: string | null;
+}): boolean {
+  return (
+    !!String(parts.portName ?? '').trim() &&
+    !!String(parts.voyageNumber ?? '').trim() &&
+    !!String(parts.arrivalDate ?? '').trim()
+  );
+}
+
+export function findAppSnapshotByVoyageKey<
+  T extends {
+    portName?: string | null;
+    voyageNumber?: string | null;
+    arrivalDate?: string | null;
+  },
+>(entries: readonly T[], parts: {
+  portName?: string | null;
+  voyageNumber?: string | null;
+  arrivalDate?: string | null;
+}): T | undefined {
+  if (!appSnapshotVoyageKeyIsComplete(parts)) return undefined;
+  const key = appSnapshotVoyageKey(parts);
+  return entries.find((e) => appSnapshotVoyageKey(e) === key);
 }
 
 /**

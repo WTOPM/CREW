@@ -16,6 +16,8 @@ import {
   removeLocalStorage,
   writeLocalStorage,
 } from '../utils/browser-storage.util';
+import { normalizeDgPageArchiveEntries } from './app-data-normalizer';
+import { AppStateStore } from './app-state.store';
 import { StorageService } from './storage.service';
 import { DgManifestStore } from './dg-manifest.store';
 
@@ -23,13 +25,37 @@ import { DgManifestStore } from './dg-manifest.store';
 export class DgPageArchiveService {
   private readonly storage = inject(StorageService);
   private readonly dg = inject(DgManifestStore);
+  private readonly state = inject(AppStateStore);
 
-  readonly entries = signal<DgPageSnapshot[]>(this.readEntries());
+  readonly entries = computed(() => this.state.data().dgPageArchives);
   readonly entriesNewestFirst = computed(() => this.sortNewestFirst(this.entries()));
   readonly loaded = signal<DgPageSnapshot | null>(null);
   readonly saving = signal(false);
 
   private liveBackup: DgPageLiveBackup | null = null;
+
+  /** Move browser-local DG snapshots into shared AppData. Call after storage.init(). */
+  migrateLegacyLocalStorage(): void {
+    const legacy = this.readLegacyLocalEntries();
+    if (legacy.length === 0) {
+      removeLocalStorage(DG_PAGE_ARCHIVE_STORAGE_KEY);
+      return;
+    }
+    const current = this.state.data().dgPageArchives;
+    const byId = new Map<string, DgPageSnapshot>();
+    for (const e of current) byId.set(e.id, e);
+    let added = 0;
+    for (const e of legacy) {
+      if (byId.has(e.id)) continue;
+      byId.set(e.id, e);
+      added += 1;
+    }
+    removeLocalStorage(DG_PAGE_ARCHIVE_STORAGE_KEY);
+    if (added === 0) return;
+    const merged = this.sortNewestFirst([...byId.values()]);
+    this.state.data.update((d) => ({ ...d, dgPageArchives: merged }));
+    void this.state.persist('silent');
+  }
 
   save(label: string): DgPageSnapshot | null {
     const trimmed = label.trim();
@@ -47,8 +73,11 @@ export class DgPageArchiveService {
         dgLibrary: cloneDgLibrary(dgLibrary, this.storage.ports()),
       };
 
-      this.entries.update((list) => [entry, ...list]);
-      this.writeEntries();
+      this.state.data.update((d) => ({
+        ...d,
+        dgPageArchives: this.sortNewestFirst([entry, ...d.dgPageArchives]),
+      }));
+      void this.state.persist('silent');
       return entry;
     } finally {
       this.saving.set(false);
@@ -111,8 +140,11 @@ export class DgPageArchiveService {
 
   remove(id: string): void {
     const wasLoaded = this.loaded()?.id === id;
-    this.entries.update((list) => list.filter((e) => e.id !== id));
-    this.writeEntries();
+    this.state.data.update((d) => ({
+      ...d,
+      dgPageArchives: d.dgPageArchives.filter((e) => e.id !== id),
+    }));
+    void this.state.persist('silent');
     if (wasLoaded) {
       this.reset();
     }
@@ -176,50 +208,14 @@ export class DgPageArchiveService {
     }
   }
 
-  private readEntries(): DgPageSnapshot[] {
+  private readLegacyLocalEntries(): DgPageSnapshot[] {
     try {
       const raw = readLocalStorage(DG_PAGE_ARCHIVE_STORAGE_KEY);
       if (!raw) return [];
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return [];
-      return this.sortNewestFirst(
-        parsed
-          .map((item) => this.normalizeEntry(item))
-          .filter((e): e is DgPageSnapshot => e != null),
-      );
+      return normalizeDgPageArchiveEntries(JSON.parse(raw) as unknown, this.storage.ports());
     } catch {
       return [];
     }
-  }
-
-  private writeEntries(): void {
-    writeLocalStorage(DG_PAGE_ARCHIVE_STORAGE_KEY, JSON.stringify(this.entries()));
-  }
-
-  private normalizeEntry(raw: unknown): DgPageSnapshot | null {
-    if (!raw || typeof raw !== 'object') return null;
-    const o = raw as Record<string, unknown>;
-    const id = String(o['id'] ?? '').trim();
-    const label = String(o['label'] ?? '').trim();
-    const savedAt = String(o['savedAt'] ?? '').trim();
-    const shipRaw = o['ship'];
-    const libRaw = o['dgLibrary'];
-    if (!id || !label || !shipRaw || typeof shipRaw !== 'object' || !libRaw) return null;
-    const shipObj = shipRaw as Record<string, unknown>;
-    const ship: DgPageShipContext = {
-      voyageNumber: String(shipObj['voyageNumber'] ?? '').trim(),
-      portOfCall: String(shipObj['portOfCall'] ?? '').trim(),
-      nextPortOfCall: String(shipObj['nextPortOfCall'] ?? '').trim(),
-      dateOfDeparture: String(shipObj['dateOfDeparture'] ?? '').trim(),
-      dateOfArrival: String(shipObj['dateOfArrival'] ?? '').trim(),
-    };
-    return {
-      id,
-      label,
-      savedAt: savedAt || new Date().toISOString(),
-      ship,
-      dgLibrary: normalizeDgLibrary(libRaw as DgLibrarySettings),
-    };
   }
 
   private sortNewestFirst(list: DgPageSnapshot[]): DgPageSnapshot[] {

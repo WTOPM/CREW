@@ -11,8 +11,10 @@ describe('app-data-section.util', () => {
     expect(sectionFromRoutePath('/')).toBe('home');
     expect(sectionFromRoutePath('/dg')).toBe('dg');
     expect(sectionFromRoutePath('/dg/reference')).toBe('dg');
+    expect(sectionFromRoutePath('/dg/dep-rep')).toBe('dg');
     expect(sectionFromRoutePath('/eta')).toBe('eta');
-    expect(sectionFromRoutePath('/settings')).toBe('settings');
+  expect(sectionFromRoutePath('/fuel')).toBe('fuel');
+  expect(sectionFromRoutePath('/settings')).toBe('settings');
     expect(sectionFromRoutePath('/crew-arr')).toBeNull();
   });
 

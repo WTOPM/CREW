@@ -642,11 +642,14 @@ export class DgManifestStore {
    * Apply MACS3 “Dagos on Board” positions onto DP WORLD onboard rows.
    * Final list wins: overwrites `stow` when different. Updates every line
    * for a matched container number.
+   * Onboard containers absent from Dagos are marked discharged (left the ship).
    */
   applyUnifeederDagosPositions(positions: readonly { containerNo: string; position: string }[]): {
     checked: number;
     replaced: number;
     updatedLines: number;
+    discharged: number;
+    dischargedContainers: string[];
     unmatched: string[];
   } {
     const byContainer = new Map(
@@ -654,14 +657,21 @@ export class DgManifestStore {
     );
     const matched = new Set<string>();
     const replaced = new Set<string>();
+    const dischargedContainers = new Set<string>();
     let updatedLines = 0;
 
     this.data.update((d) => {
       const dgLib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
       const onboard = dgLib.unifeeder.onboard.map((row) => {
         const key = row.containerNo.trim().toUpperCase();
+        if (!key || row.status !== 'onboard') return row;
+
         const position = byContainer.get(key);
-        if (!position || row.status !== 'onboard') return row;
+        if (!position) {
+          dischargedContainers.add(key);
+          return { ...row, status: 'discharged' as const };
+        }
+
         matched.add(key);
         if (row.stow.trim() === position) return row;
         replaced.add(key);
@@ -683,6 +693,8 @@ export class DgManifestStore {
       checked: matched.size,
       replaced: replaced.size,
       updatedLines,
+      discharged: dischargedContainers.size,
+      dischargedContainers: [...dischargedContainers].sort(),
       unmatched: [...byContainer.keys()].filter((key) => !matched.has(key)).sort(),
     };
   }

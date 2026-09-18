@@ -463,6 +463,31 @@
     }
 
     /* ── CREW TABLE (no extra wrapper, fills form-sheet) ── */
+    .crew-tbl-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    .body-nil {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 4;
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      font-size: 42pt;
+      letter-spacing: 0.04em;
+      color: #808080;
+      line-height: 1;
+    }
+
+    .body-nil[hidden] {
+      display: none !important;
+    }
+
     .crew-tbl {
       width: 100%;
       border-collapse: collapse;

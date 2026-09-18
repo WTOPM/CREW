@@ -426,15 +426,13 @@
 .nav-refresh-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  justify-content: center;
   margin-left: 0.35rem;
-  padding: 0.35rem 0.65rem;
+  padding: 0.35rem 0.45rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
   color: var(--text-muted);
-  font-size: 0.82rem;
-  font-weight: 600;
   cursor: pointer;
   transition:
     background 0.15s ease,
@@ -469,12 +467,6 @@
   }
   to {
     transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 720px) {
-  .nav-refresh-btn__label {
-    display: none;
   }
 }
 
@@ -530,6 +522,38 @@
 .nav-eta.active {
   color: #fff;
   background: #0d9488;
+}
+
+.nav-fuel {
+  font-weight: 700;
+  color: #b45309;
+  letter-spacing: 0.06em;
+}
+
+.nav-fuel:hover {
+  color: #fff;
+  background: #f59e0b;
+}
+
+.nav-fuel.active {
+  color: #fff;
+  background: #d97706;
+}
+
+.nav-phone {
+  font-weight: 700;
+  color: #0369a1;
+  letter-spacing: 0.06em;
+}
+
+.nav-phone:hover {
+  color: #fff;
+  background: #0ea5e9;
+}
+
+.nav-phone.active {
+  color: #fff;
+  background: #0369a1;
 }
 
 .nav-settings {

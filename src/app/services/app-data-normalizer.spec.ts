@@ -19,6 +19,38 @@ describe('normalizeAppData', () => {
     expect(Array.isArray(data.ports)).toBe(true);
     expect(Array.isArray(data.ranks)).toBe(true);
     expect(data.ship).toBeTruthy();
+    expect(data.ship.mouldedDepth).toBe('');
+    expect(data.ship.draftFore).toBe('');
+    expect(data.ship.draftAft).toBe('');
+    expect(Array.isArray(data.appSnapshots)).toBe(true);
+    expect(Array.isArray(data.dgPageArchives)).toBe(true);
+    expect(Array.isArray(data.reeferPageArchives)).toBe(true);
+  });
+
+  it('migrates legacy maximumPresentDraft into draft fore/aft when new fields are empty', () => {
+    const data = normalizeAppData({
+      ship: {
+        name: 'JUDITH',
+        maximumPresentDraft: '9.2',
+      } as never,
+    });
+    expect(data.ship.draftFore).toBe('9.2');
+    expect(data.ship.draftAft).toBe('9.2');
+    expect((data.ship as { maximumPresentDraft?: string }).maximumPresentDraft).toBeUndefined();
+  });
+
+  it('keeps explicit draft fore/aft over legacy maximumPresentDraft', () => {
+    const data = normalizeAppData({
+      ship: {
+        draftFore: '8.5',
+        draftAft: '9.0',
+        mouldedDepth: '15.1',
+        maximumPresentDraft: '9.2',
+      } as never,
+    });
+    expect(data.ship.draftFore).toBe('8.5');
+    expect(data.ship.draftAft).toBe('9.0');
+    expect(data.ship.mouldedDepth).toBe('15.1');
   });
 
   it('keeps saved ports exactly (dedupe only, no default injection)', () => {
@@ -187,7 +219,8 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
       height: '32px',
     });
     expect(overlay.cellStyles).toEqual({ 'd-0-0': { fontSize: '8pt' } });
-    expect(overlay.cellValues).toEqual({ 'h-port': 'GENOA', _ssMode: 'arrival' });
+    // Live ship/article keys are stripped; mode / page chrome stay.
+    expect(overlay.cellValues).toEqual({ _ssMode: 'arrival' });
   });
 
   it('cleans legacy Crew Effect 01/02 overlay data on normalize', () => {
@@ -261,7 +294,7 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
     expect(data.documentOverlay.portOfCall.useStamp).toBe(true);
     expect(data.documentOverlay.portOfCall.stampBox).toEqual(stampBox);
     expect(data.documentOverlay.portOfCall.signatureBox).toEqual(signatureBox);
-    expect(data.documentOverlay.portOfCall.cellValues).toEqual({ 'h-0-0': 'TEST' });
+    expect(data.documentOverlay.portOfCall.cellValues).toEqual({});
     expect(data.documentOverlay.portsOfCall.useStamp).toBe(true);
     expect(data.documentOverlay.portsOfCall.stampBox).toEqual(stampBox);
     expect(data.documentOverlay.portsOfCall.rowsPerPage).toBe(10);

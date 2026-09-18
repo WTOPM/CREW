@@ -1,6 +1,6 @@
 import { Component, inject, input, linkedSignal, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CrewMember } from '../../models/crew.models';
+import { CrewMember, normalizeCrewCabin } from '../../models/crew.models';
 import { StorageService } from '../../services/storage.service';
 import { addYearsToIsoDate } from '../../utils/date.util';
 import { LookupSelectComponent } from '../lookup-select/lookup-select.component';
@@ -64,6 +64,19 @@ export class CrewEditModalComponent {
     this.draft.update((d) => ({ ...d, [field]: value }));
   }
 
+  /** Digits only while typing (max 3). */
+  protected onCabinDraft(value: string): void {
+    const digits = String(value ?? '').replace(/\D/g, '').slice(0, 3);
+    this.updateField('cabin', digits);
+  }
+
+  /** Enter / blur — keep only a valid cabin 1–999 (or clear). */
+  protected applyCabin(event?: Event): void {
+    event?.preventDefault();
+    const next = normalizeCrewCabin(this.draft().cabin);
+    if (next !== this.draft().cabin) this.updateField('cabin', next);
+  }
+
   protected onDocumentIssueDateCommitted(
     expiryField: 'passportExpiryDate' | 'sbookExpiryDate' | 'cyprusExpiryDate',
     issueIso: string,
@@ -95,6 +108,7 @@ export class CrewEditModalComponent {
   }
 
   protected onSave(): void {
-    this.save.emit(this.draft());
+    const cabin = normalizeCrewCabin(this.draft().cabin);
+    this.save.emit({ ...this.draft(), cabin });
   }
 }

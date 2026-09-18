@@ -1,0 +1,340 @@
+<div class="page dep-rep-page">
+  <header class="dep-rep-header">
+    <div class="dep-rep-header__text">
+      <a routerLink="/dg" class="back-link">DG</a>
+      <h1>DEP REP</h1>
+    </div>
+  </header>
+
+  <section class="card dep-rep-toolbar">
+    <div class="dep-rep-toolbar__source">
+      <div class="dep-rep-path-field">
+        <span class="dep-rep-path-field__label">Excel path</span>
+        <div class="dep-rep-path-crumbs" [class.dep-rep-path-crumbs--empty]="!pathSegments().length">
+          @if (pathSegments().length) {
+            @for (seg of pathSegments(); track seg.fullPath; let last = $last) {
+              <button
+                type="button"
+                class="dep-rep-path-seg"
+                [class.dep-rep-path-seg--file]="seg.isFile"
+                [class.dep-rep-path-seg--root]="seg.isRoot"
+                [title]="seg.isFile ? 'Open file' : 'Open folder'"
+                (mousedown)="onPathSegmentPress(seg, $event)"
+              >
+                {{ seg.label }}
+              </button>
+              @if (!last) {
+                <span class="dep-rep-path-sep" aria-hidden="true">\</span>
+              }
+            }
+          } @else {
+            <span class="dep-rep-path-placeholder">Browse to choose DEP REP.xlsx…</span>
+          }
+        </div>
+      </div>
+      <div class="dep-rep-source-actions">
+        @if (hasElectronPicker) {
+          <button type="button" class="btn btn-secondary" (click)="pickExcel()" [disabled]="busy()">
+            Browse…
+          </button>
+        } @else {
+          <label class="btn btn-secondary">
+            Browse…
+            <input type="file" accept=".xlsx,.xlsm" hidden (change)="onFileChosen($event)" />
+          </label>
+        }
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="refreshFromSheet()"
+          [disabled]="busy()"
+          title="Load data from the sheet named voyage + POL"
+        >
+          {{ busy() ? '…' : 'Refresh' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          (click)="writeToExcel()"
+          [disabled]="busy()"
+        >
+          {{ busy() ? 'Writing…' : 'Write to Excel' }}
+        </button>
+      </div>
+    </div>
+    @if (sheetStatus()) {
+      <p class="dep-rep-last" [class.dep-rep-last--warn]="sheetStatusKind() === 'missing'">
+        {{ sheetStatus() }}
+      </p>
+    } @else if (library().lastWrittenSheet) {
+      <p class="dep-rep-last">
+        Last write: <strong>{{ library().lastWrittenSheet }}</strong>
+      </p>
+    }
+  </section>
+
+  <section class="card dep-rep-board">
+    <div class="dep-rep-board__head">
+      <div class="dep-rep-board__titles">
+        <h2 class="dep-rep-board__title">Departure</h2>
+        <p class="dep-rep-board__lead">Voyage · ports · sheet for Excel</p>
+      </div>
+      <div class="dep-rep-sheet-badge">
+        <span class="dep-rep-sheet-badge__label">
+          Sheet
+          <span class="dep-rep-info" tabindex="0">
+            <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+            <span class="dep-rep-info__tip" role="tooltip">
+              IF THIS TAB ALREADY EXISTS — UPDATE IT.
+              IF NOT — COPY THE LEFTMOST SHEET AND CREATE A NEW ONE.
+            </span>
+          </span>
+        </span>
+        <strong class="dep-rep-sheet-badge__name">{{ sheetName() || '—' }}</strong>
+      </div>
+    </div>
+
+    <div class="dep-rep-voyage">
+      <label class="dep-rep-field dep-rep-field--voy">
+        <span class="dep-rep-field-label">
+          Voyage
+          <span class="dep-rep-info" tabindex="0">
+            <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+            <span class="dep-rep-info__tip" role="tooltip">
+              SETTINGS ↔ DEP REP ↔ EXCEL F2.
+              ALSO BUILDS THE SHEET NAME WITH POL.
+            </span>
+          </span>
+        </span>
+        <input
+          [ngModel]="ship().voyageNumber"
+          (ngModelChange)="onVoyageChange($event)"
+          placeholder="138"
+        />
+      </label>
+      <label class="dep-rep-field dep-rep-field--port">
+        <span class="dep-rep-field-label">
+          POL <em>{{ polCode() || '—' }}</em>
+          <span class="dep-rep-info" tabindex="0">
+            <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+            <span class="dep-rep-info__tip" role="tooltip">
+              DG PAGE + SETTINGS ↔ DEP REP ↔ EXCEL B2.
+              CODE ALSO BUILDS THE SHEET NAME.
+            </span>
+          </span>
+        </span>
+        <app-port-select
+          [ports]="ports()"
+          [value]="pageContext().portOfCall"
+          (valueChange)="onPolChange($event)"
+        />
+      </label>
+      <label class="dep-rep-field dep-rep-field--port">
+        <span class="dep-rep-field-label">
+          POD <em>{{ podCode() || '—' }}</em>
+          <span class="dep-rep-info" tabindex="0">
+            <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+            <span class="dep-rep-info__tip" role="tooltip">
+              DG PAGE + SETTINGS ↔ DEP REP ↔ EXCEL D2.
+            </span>
+          </span>
+        </span>
+        <app-port-select
+          [ports]="ports()"
+          [value]="pageContext().nextPortOfCall"
+          (valueChange)="onPodChange($event)"
+        />
+      </label>
+      <label class="dep-rep-field dep-rep-field--date">
+        <span class="dep-rep-field-label">
+          Date
+          <span class="dep-rep-info" tabindex="0">
+            <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+            <span class="dep-rep-info__tip" role="tooltip">
+              DG PAGE + SETTINGS ↔ DEP REP ↔ EXCEL B4.
+            </span>
+          </span>
+        </span>
+        <app-date-picker
+          [value]="pageContext().dateOfDeparture || ship().dateOfDeparture"
+          (committed)="onDepartureDateChange($event)"
+        />
+      </label>
+    </div>
+
+    <div class="dep-rep-split">
+      <div class="dep-rep-panel dep-rep-panel--drafts">
+        <div class="dep-rep-panel__head">
+          <h3 class="dep-rep-panel__title">
+            Drafts
+            <span class="dep-rep-info" tabindex="0">
+              <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+              <span class="dep-rep-info__tip" role="tooltip">
+                SETTINGS ↔ DEP REP.
+                WRITE SENDS AFT→B8, FORE→D8; MID/TRIM STAY EXCEL FORMULAS.
+              </span>
+            </span>
+          </h3>
+          <span class="dep-rep-panel__hint">Settings sync</span>
+        </div>
+        <div class="dep-rep-drafts">
+          <label class="dep-rep-draft" title="SETTINGS ↔ DEP REP ↔ EXCEL B8">
+            <span>Aft</span>
+            <input
+              [value]="metresFieldValue('draftAft')"
+              (focus)="onMetresFocus('draftAft', $event)"
+              (input)="onMetresInput('draftAft', $event)"
+              (blur)="onMetresBlur('draftAft', $event)"
+              inputmode="decimal"
+              placeholder="9.4"
+            />
+            <span class="dep-rep-draft__unit">m</span>
+          </label>
+          <label class="dep-rep-draft" title="SETTINGS ↔ DEP REP ↔ EXCEL D8">
+            <span>Fore</span>
+            <input
+              [value]="metresFieldValue('draftFore')"
+              (focus)="onMetresFocus('draftFore', $event)"
+              (input)="onMetresInput('draftFore', $event)"
+              (blur)="onMetresBlur('draftFore', $event)"
+              inputmode="decimal"
+              placeholder="9.3"
+            />
+            <span class="dep-rep-draft__unit">m</span>
+          </label>
+          <label
+            class="dep-rep-draft dep-rep-draft--mid"
+            title="CALCULATED (FORE+AFT)/2 FROM SETTINGS DRAFTS → EXCEL C8 FORMULA"
+          >
+            <span>Mid</span>
+            <input [value]="midDraft()" readonly tabindex="-1" />
+            <span class="dep-rep-draft__unit">m</span>
+          </label>
+        </div>
+
+        <div
+          class="dep-rep-density"
+          [class.dep-rep-density--ok]="!!polDensity()"
+          [class.dep-rep-density--miss]="!!polCode() && !polDensity()"
+        >
+          <div class="dep-rep-density__head">
+            <span class="dep-rep-density__title">
+              Water density
+              <span class="dep-rep-info" tabindex="0">
+                <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+                <span class="dep-rep-info__tip" role="tooltip">
+                  APP LIST (IMPORT FROM EXCEL K:L ON REFRESH).
+                  POL MATCH → THIS DENSITY → EXCEL E6 ON WRITE.
+                  K:L TABLE IS NOT MODIFIED.
+                </span>
+              </span>
+            </span>
+            @if (polCode() && polDensity()) {
+              <span class="dep-rep-density__tag">{{ polCode() }} · {{ polDensity() }}</span>
+            } @else if (polCode()) {
+              <span class="dep-rep-density__tag dep-rep-density__tag--warn">{{ polCode() }} not listed</span>
+            } @else {
+              <span class="dep-rep-density__tag">choose POL</span>
+            }
+          </div>
+          <div class="dep-rep-density__row">
+            <select
+              class="dep-rep-density__select"
+              [ngModel]="densitySelectPort()"
+              (ngModelChange)="onDensitySelect($event)"
+              [attr.title]="densities().length ? 'Density list' : 'Empty — Add for current POL'"
+            >
+              <option value="">{{ polCode() && !polDensity() ? 'Add for POL…' : 'Port list' }}</option>
+              @for (d of densities(); track d.port) {
+                <option [value]="d.port">{{ d.port }} — {{ d.density || '—' }}</option>
+              }
+            </select>
+            <input
+              class="dep-rep-density__value"
+              [ngModel]="densityEditValue()"
+              (ngModelChange)="densityEditValue.set($event)"
+              (blur)="saveDensityEdit()"
+              inputmode="decimal"
+              placeholder="1.025"
+              [disabled]="!densitySelectPort() && !polCode()"
+            />
+            <button
+              type="button"
+              class="dep-rep-density__btn dep-rep-density__btn--save"
+              (click)="addPolDensity()"
+              [disabled]="!polCode()"
+              title="Save density for current POL"
+            >
+              {{ polDensity() ? 'Save' : 'Add' }}
+            </button>
+            <button
+              type="button"
+              class="dep-rep-density__btn dep-rep-density__btn--del"
+              (click)="removeSelectedDensity()"
+              [disabled]="!densitySelectPort()"
+              title="Remove selected port"
+            >
+              Del
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dep-rep-panel dep-rep-panel--cargo">
+        <div class="dep-rep-panel__head">
+          <h3 class="dep-rep-panel__title">Cargo</h3>
+          <span class="dep-rep-panel__hint">TOTAL → Excel F9</span>
+        </div>
+        <label class="dep-rep-total" title="DEP REP ONLY ↔ EXCEL F9 (TOTAL CARGO)">
+          <span class="dep-rep-total__label">
+            TOTAL CARGO
+            <span class="dep-rep-info" tabindex="0">
+              <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+              <span class="dep-rep-info__tip" role="tooltip">
+                ENTERED HERE IN DEP REP ONLY.
+                WRITE → EXCEL F9 (MERGED F9:G9).
+              </span>
+            </span>
+          </span>
+          <div class="dep-rep-total__input-wrap">
+            <input
+              [ngModel]="library().totalCargo"
+              (ngModelChange)="onTotalCargoChange($event)"
+              inputmode="decimal"
+              placeholder="14719"
+            />
+            <span class="dep-rep-total__unit">t</span>
+          </div>
+        </label>
+
+        <div class="dep-rep-dg">
+          <div class="dep-rep-dg__head">
+            <span class="dep-rep-dg__title">
+              DG classes
+              <span class="dep-rep-info" tabindex="0">
+                <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+                <span class="dep-rep-info__tip" role="tooltip">
+                  DG PAGE INVENTORY (CMA + UNIFEEDER) → DEP REP.
+                  WRITE → EXCEL CLASS/WEIGHT A11:B23.
+                </span>
+              </span>
+            </span>
+            <span class="dep-rep-dg__meta">from inventory, kg</span>
+          </div>
+          @if (classRows().length === 0) {
+            <p class="dep-rep-empty">No onboard DG — import a manifest on the DG page first.</p>
+          } @else {
+            <ul class="dep-rep-dg__list">
+              @for (row of classRows(); track row.dgClass) {
+                <li class="dep-rep-dg__item" [title]="'DG INVENTORY → EXCEL CLASS ' + row.dgClass">
+                  <span class="dep-rep-dg__class">{{ row.dgClass }}</span>
+                  <span class="dep-rep-dg__kg">{{ row.totalKg }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

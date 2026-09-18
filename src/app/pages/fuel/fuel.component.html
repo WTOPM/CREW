@@ -1,0 +1,415 @@
+<div class="page fuel-page">
+  <header class="fuel-page-header">
+    <div class="fuel-page-header__text">
+      <a routerLink="/" class="back-link">Home</a>
+      <h1>FUEL</h1>
+    </div>
+  </header>
+
+  <section class="fuel-toolbar card">
+    <div class="fuel-toolbar__source">
+      <div class="fuel-path-field">
+        <span class="fuel-path-field__label">Excel path</span>
+        <div class="fuel-path-crumbs" [class.fuel-path-crumbs--empty]="!pathSegments().length">
+          @if (pathSegments().length) {
+            @for (seg of pathSegments(); track seg.fullPath; let last = $last) {
+              <button
+                type="button"
+                class="fuel-path-seg"
+                [class.fuel-path-seg--file]="seg.isFile"
+                [class.fuel-path-seg--root]="seg.isRoot"
+                [title]="seg.isFile ? 'Open file' : 'Open folder'"
+                (mousedown)="onPathSegmentPress(seg, $event)"
+              >
+                {{ seg.label }}
+              </button>
+              @if (!last) {
+                <span class="fuel-path-sep" aria-hidden="true">\</span>
+              }
+            }
+          } @else {
+            <span class="fuel-path-placeholder">Browse to choose FO-VPC Excel…</span>
+          }
+        </div>
+      </div>
+      <div class="fuel-source-actions">
+        <button type="button" class="btn btn-secondary" (click)="rememberPath()" [disabled]="busy()">
+          Save path
+        </button>
+        @if (hasElectronPicker) {
+          <button type="button" class="btn btn-secondary" (click)="pickExcel()" [disabled]="busy()">
+            Browse…
+          </button>
+        } @else {
+          <label class="btn btn-secondary fuel-file-label">
+            Browse…
+            <input type="file" accept=".xlsx,.xlsm" hidden (change)="onFileChosen($event)" />
+          </label>
+        }
+        <button
+          type="button"
+          class="btn btn-primary fuel-upload-btn"
+          (click)="uploadOrUpdate()"
+          [disabled]="busy()"
+        >
+          {{ busy() ? 'Loading…' : library().events.length ? 'Update' : 'Upload' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary fuel-clear-btn"
+          (click)="clearData()"
+          [disabled]="busy() || !library().events.length"
+          title="Clear imported fuel events"
+        >
+          CLEAR
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="fuel-filters card">
+    <div class="fuel-filters-head">
+      <h2 class="fuel-section-title">VPS events</h2>
+      <div class="fuel-filter-presets">
+        <button type="button" class="fuel-chip fuel-chip--preset" (click)="setVpsPreset()">
+          VPS only
+        </button>
+        <button type="button" class="fuel-chip fuel-chip--preset" (click)="setAllKinds()">
+          All events
+        </button>
+        <button type="button" class="fuel-chip fuel-chip--preset" (click)="toggleNewestFirst()">
+          {{ library().view.newestFirst ? 'Newest first' : 'Oldest first' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="fuel-kind-toggles" role="group" aria-label="Event kinds">
+      @for (kind of allKinds; track kind) {
+        <button
+          type="button"
+          class="fuel-chip"
+          [class.fuel-chip--on]="kindOn(kind)"
+          [attr.data-kind]="kind"
+          (click)="toggleKind(kind)"
+        >
+          {{ kindLabels[kind] }}
+        </button>
+      }
+    </div>
+
+    <div class="fuel-filter-row">
+      <label class="fuel-mini-field fuel-mini-field--date">
+        <span>From</span>
+        <app-date-picker
+          size="sm"
+          [value]="library().view.dateFrom"
+          (valueChange)="onDateFrom($event)"
+        />
+      </label>
+      <label class="fuel-mini-field fuel-mini-field--date">
+        <span>To</span>
+        <app-date-picker
+          size="sm"
+          [value]="library().view.dateTo"
+          (valueChange)="onDateTo($event)"
+        />
+      </label>
+      <label class="fuel-mini-field fuel-mini-field--show">
+        <span>Show</span>
+        <span class="fuel-show-wrap">
+          <select
+            [ngModel]="library().view.limitCount"
+            (ngModelChange)="onLimitCount($event)"
+            title="How many latest matching events to show"
+          >
+            @for (opt of limitOptions; track opt.value) {
+              <option [ngValue]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+          <span class="fuel-match-total" title="Matching events before limit"
+            >{{ matchCountBeforeLimit() }} total</span
+          >
+        </span>
+      </label>
+      <label class="fuel-mini-field fuel-mini-field--grow">
+        <span>Search</span>
+        <input
+          type="search"
+          [ngModel]="library().view.search"
+          (ngModelChange)="onSearch($event)"
+          placeholder="Port or event text"
+        />
+      </label>
+    </div>
+  </section>
+
+  <section class="fuel-table-card card">
+    @if (visibleEvents().length === 0) {
+      <div class="fuel-empty">
+        @if (library().events.length === 0) {
+          <strong>No log loaded</strong>
+          <span>Upload the FO-VPC Excel to fill this table.</span>
+        } @else {
+          <strong>Nothing matches</strong>
+          <span>Try “VPS only” or “All events”, or clear the date / search filters.</span>
+        }
+      </div>
+    } @else {
+      <div class="fuel-table-wrap">
+        <table class="fuel-table">
+          <thead>
+            <tr>
+              <th [title]="colTips.date">Date</th>
+              <th [title]="colTips.time">Time</th>
+              <th [title]="colTips.place">Place</th>
+              <th [title]="colTips.kind">Kind</th>
+              <th [title]="colTips.rawEvent">Excel event</th>
+              <th class="num" [title]="colTips.hrs">Hrs</th>
+              <th class="num fuel-col--me" [title]="colTips.meMt">ME t</th>
+              <th class="num fuel-col--ae" [title]="colTips.aeMt">AE t</th>
+              <th class="num fuel-col--boiler" [title]="colTips.boilerMt">Boiler t</th>
+              <th class="num" [title]="colTips.totalMt">Total t</th>
+              <th class="num" [title]="colTips.robB100">ROB B100</th>
+              <th class="num" [title]="colTips.robDma">ROB DMA</th>
+              <th class="num fuel-col--me" [title]="colTips.meHours">ME hrs</th>
+              <th class="num fuel-col--me" [title]="colTips.meRpm">ME RPM</th>
+              <th class="num fuel-col--me" [title]="colTips.meKw">ME kW</th>
+              <th class="num fuel-col--ae1" [title]="colTips.ae1Hours">AE1 hrs</th>
+              <th class="num fuel-col--ae1" [title]="colTips.ae1Kw">AE1 kW</th>
+              <th class="num fuel-col--ae2" [title]="colTips.ae2Hours">AE2 hrs</th>
+              <th class="num fuel-col--ae2" [title]="colTips.ae2Kw">AE2 kW</th>
+              <th class="num fuel-col--ae3" [title]="colTips.ae3Hours">AE3 hrs</th>
+              <th class="num fuel-col--ae3" [title]="colTips.ae3Kw">AE3 kW</th>
+              <th class="num fuel-col--boiler" [title]="colTips.boilerHours">Boiler hrs</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of visibleEvents(); track e.id) {
+              <tr [attr.data-kind]="e.kind">
+                <td class="fuel-date">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    (click)="copyCell(formatDate(e.date), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatDate(e.date) }}</span>
+                  </button>
+                </td>
+                <td class="fuel-time">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="!e.time"
+                    (click)="copyCell(e.time, $event)"
+                  >
+                    <span class="fuel-copy__text">{{ e.time || '—' }}</span>
+                  </button>
+                </td>
+                <td class="fuel-place">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="!e.place"
+                    (click)="copyCell(e.place, $event)"
+                  >
+                    <span class="fuel-copy__text">{{ e.place || '—' }}</span>
+                  </button>
+                </td>
+                <td>
+                  <span class="fuel-kind-badge" [attr.data-kind]="e.kind">{{
+                    kindLabels[e.kind]
+                  }}</span>
+                </td>
+                <td class="fuel-raw" [title]="e.rawEvent">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="!e.rawEvent"
+                    (click)="copyCell(e.rawEvent, $event)"
+                  >
+                    <span class="fuel-copy__text">{{ e.rawEvent || '—' }}</span>
+                  </button>
+                </td>
+                <td class="num">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.timeUsedHours == null"
+                    (click)="copyCell(formatNum(e.timeUsedHours), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.timeUsedHours) }}</span>
+                    @if (e.rolledFromCount > 1) {
+                      <span class="fuel-roll-tag" [title]="'Sum of ' + e.rolledFromCount + ' events'"
+                        >×{{ e.rolledFromCount }}</span
+                      >
+                    }
+                  </button>
+                </td>
+                <td class="num fuel-col--me">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.meMt == null"
+                    (click)="copyCell(formatNum(e.meMt), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.meMt) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--ae">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.aeMt == null"
+                    (click)="copyCell(formatNum(e.aeMt), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.aeMt) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--boiler">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.boilerMt == null"
+                    (click)="copyCell(formatNum(e.boilerMt), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.boilerMt) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-total-cell">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.totalMt == null"
+                    (click)="copyCell(formatNum(e.totalMt), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.totalMt) }}</span>
+                  </button>
+                </td>
+                <td class="num">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.robB100Mt == null"
+                    (click)="copyCell(formatNum(e.robB100Mt), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.robB100Mt) }}</span>
+                  </button>
+                </td>
+                <td class="num">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.robDmaMt == null"
+                    (click)="copyCell(formatNum(e.robDmaMt), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.robDmaMt) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--me">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.meHours == null"
+                    (click)="copyCell(formatNum(e.meHours), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.meHours) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--me">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.meRpm == null"
+                    (click)="copyCell(formatNum(e.meRpm), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.meRpm) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--me">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.meKw == null"
+                    (click)="copyCell(formatKw(e.meKw), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatKw(e.meKw) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--ae1">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.ae1Hours == null"
+                    (click)="copyCell(formatNum(e.ae1Hours), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.ae1Hours) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--ae1">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.ae1Kw == null"
+                    (click)="copyCell(formatKw(e.ae1Kw), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatKw(e.ae1Kw) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--ae2">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.ae2Hours == null"
+                    (click)="copyCell(formatNum(e.ae2Hours), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.ae2Hours) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--ae2">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.ae2Kw == null"
+                    (click)="copyCell(formatKw(e.ae2Kw), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatKw(e.ae2Kw) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--ae3">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.ae3Hours == null"
+                    (click)="copyCell(formatNum(e.ae3Hours), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.ae3Hours) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--ae3">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.ae3Kw == null"
+                    (click)="copyCell(formatKw(e.ae3Kw), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatKw(e.ae3Kw) }}</span>
+                  </button>
+                </td>
+                <td class="num fuel-col--boiler">
+                  <button
+                    type="button"
+                    class="fuel-copy"
+                    [disabled]="e.boilerHours == null"
+                    (click)="copyCell(formatNum(e.boilerHours), $event)"
+                  >
+                    <span class="fuel-copy__text">{{ formatNum(e.boilerHours) }}</span>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

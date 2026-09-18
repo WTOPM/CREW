@@ -146,7 +146,54 @@ const MAX_ROWS = 22; // keep in sync with CREW_LIST_FORM_03_MAX_ROWS in crew-lis
       fillAllTemperatures(true);
     }
 
-    function setAD(v) {
+    function mapCrewMemberToRow(c) {
+      return {
+        name: CrewNameFormat.formatCrewListName(c),
+        rank: c.rank || '',
+        nat: c.nationality || '',
+        dob: fmtDate(c.dateOfBirth),
+        dobIso: c.dateOfBirth || '',
+        pob: c.placeOfBirth || '',
+        doc1: c.passport || '',
+        doc2: c.seamansBook || '',
+        joinDate: fmtDate(c.joiningDate),
+        joinDateIso: c.joiningDate || '',
+        joinPlace: c.joiningPort || '',
+      };
+    }
+
+    function rebuildListForMode(mode) {
+      if (!window._appData || !window.HtmlFormListMode) return;
+      const savedVar = window._appData.documentOverlay?.crewList?.byType?.[CREW_FORM_03_TYPE];
+      HtmlFormListMode.rebuildList({
+        mode,
+        kind: 'crew',
+        appData: window._appData,
+        bodyEl: tableBody,
+        addRow,
+        mapMember: mapCrewMemberToRow,
+        maxRows: MAX_ROWS,
+        tableRowCount: savedVar?.tableRowCount,
+        restoreStyles: restoreCellStyles,
+        refreshRowNumbers,
+        masterNameUpper: false,
+        overlayPath: ['crewList', 'byType', CREW_FORM_03_TYPE],
+        afterFill: () => { fillAllTemperatures(false); },
+      });
+      if (window.CrewHtmlFormEditorDirty?.captureBaseline && typeof EDITOR_DIRTY_OPTS !== 'undefined') {
+        CrewHtmlFormEditorDirty.captureBaseline(EDITOR_DIRTY_OPTS);
+      }
+    }
+
+    function setAD(v, opts) {
+      const skipList = !!(opts && opts.skipList);
+      if (window.HtmlFormListMode) {
+        HtmlFormListMode.setArrivalDeparture(v, {
+          ship: window._shipData,
+          rebuild: !skipList && window._appData ? rebuildListForMode : null,
+        });
+        return;
+      }
       window._adMode = v;
       document.getElementById('cb-arr').textContent = v === 'arrival' ? '\u2713' : '';
       document.getElementById('cb-dep').textContent = v === 'departure' ? '\u2713' : '';
@@ -1190,16 +1237,18 @@ const MAX_ROWS = 22; // keep in sync with CREW_LIST_FORM_03_MAX_ROWS in crew-lis
             : (ship.dateOfArrival && !ship.dateOfDeparture ? true : !ship.dateOfDeparture));
 
         if (isArrival) {
-          setAD('arrival');
+          setAD('arrival', { skipList: true });
         } else {
-          setAD('departure');
+          setAD('departure', { skipList: true });
         }
 
         let crewList = [];
         if (Array.isArray(appData.crew)) {
           crewList = snapshot
             ? appData.crew
-            : appData.crew.filter(c => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false));
+            : (window.HtmlFormListMode
+              ? HtmlFormListMode.filterCrew(appData, isArrival ? 'arrival' : 'departure')
+              : appData.crew.filter(c => !c.archived && (isArrival ? !!c.onArrivalList : !!c.onDepartureList)));
         }
 
         let master = null;

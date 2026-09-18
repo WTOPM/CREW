@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adjustDisplayDateSegment } from './date.util';
+import { adjustDisplayDateSegment, clearDisplayDateByBackspace } from './date.util';
 
 describe('adjustDisplayDateSegment', () => {
   it('adds and subtracts days', () => {
@@ -20,5 +20,27 @@ describe('adjustDisplayDateSegment', () => {
   it('returns null for invalid masks', () => {
     expect(adjustDisplayDateSegment('32.13.2026', 'day', 1)).toBeNull();
     expect(adjustDisplayDateSegment('1.2.2026', 'day', 1)).toBeNull();
+  });
+});
+
+describe('clearDisplayDateByBackspace', () => {
+  it('clears year, then month, then the whole date', () => {
+    expect(clearDisplayDateByBackspace('15.03.2026')).toEqual({
+      text: '15.03.____',
+      select: 'year',
+    });
+    expect(clearDisplayDateByBackspace('15.03.____')).toEqual({
+      text: '15.__.____',
+      select: 'month',
+    });
+    expect(clearDisplayDateByBackspace('15.__.____')).toEqual({
+      text: '',
+      select: 'empty',
+    });
+  });
+
+  it('treats empty / junk as a full clear', () => {
+    expect(clearDisplayDateByBackspace('')).toEqual({ text: '', select: 'empty' });
+    expect(clearDisplayDateByBackspace('nope')).toEqual({ text: '', select: 'empty' });
   });
 });

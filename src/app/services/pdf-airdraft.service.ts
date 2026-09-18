@@ -17,6 +17,7 @@ import {
   airdraftHeightAboveWaterMetres,
   formatAirdraftMetres,
   parseAirdraftMetres,
+  shipPresentDraftMetres,
   type AirdraftTextPlacement,
 } from './airdraft-field-positions';
 
@@ -90,14 +91,12 @@ export class PdfAirdraftService {
       draw(this.formatMasterName(master), AIRDRAFT_FIELDS.masterName);
     }
 
-    const draft = parseAirdraftMetres(ship.maximumPresentDraft);
+    const draftText = shipPresentDraftMetres(ship.draftFore, ship.draftAft);
+    const draft = parseAirdraftMetres(draftText);
     if (draft != null) {
       draw(formatAirdraftMetres(draft), AIRDRAFT_FIELDS.presentDraft);
     }
-    const aboveWater = airdraftHeightAboveWaterMetres(
-      ship.heightKeelToMastTop,
-      ship.maximumPresentDraft,
-    );
+    const aboveWater = airdraftHeightAboveWaterMetres(ship.heightKeelToMastTop, draftText);
     if (aboveWater != null) {
       draw(formatAirdraftMetres(aboveWater), AIRDRAFT_FIELDS.heightAboveWater);
     }

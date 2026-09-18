@@ -82,6 +82,38 @@
           }</a
         >
         <a
+          routerLink="/fuel"
+          routerLinkActive="active"
+          class="nav-fuel nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('fuel') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('fuel') === 'other'"
+          [title]="navLockTooltip('fuel')"
+          >FUEL
+          @if (navLockBadge('fuel'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('fuel') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
+          routerLink="/phone"
+          routerLinkActive="active"
+          class="nav-phone nav-link--lockable"
+          [class.nav-link--lock-mine]="navLockState('phone') === 'mine'"
+          [class.nav-link--lock-other]="navLockState('phone') === 'other'"
+          [title]="navLockTooltip('phone')"
+          >PHONE
+          @if (navLockBadge('phone'); as badge) {
+            <span
+              class="nav-lock-badge"
+              [class.nav-lock-badge--mine]="navLockState('phone') === 'mine'"
+              >{{ badge }}</span
+            >
+          }</a
+        >
+        <a
           routerLink="/settings"
           routerLinkActive="active"
           class="nav-settings nav-link--lockable"
@@ -111,13 +143,13 @@
           type="button"
           class="nav-refresh-btn"
           title="Refresh current section from shared data folder"
+          aria-label="Refresh"
           [disabled]="refreshBusy()"
           (click)="refreshFromDisk()"
         >
           <span class="nav-refresh-btn__icon" [class.nav-refresh-btn__icon--spin]="refreshBusy()"
             >↻</span
           >
-          <span class="nav-refresh-btn__label">Refresh</span>
         </button>
       }
     </div>

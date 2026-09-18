@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EtaArchiveModalsComponent } from '../../components/eta-archive-modals/eta-archive-modals.component';
@@ -53,7 +53,7 @@ import { etaUtcOffsetHoursForPort } from '../../utils/timezone-browser.util';
   templateUrl: './eta.component.html',
   styleUrl: './eta.component.css',
 })
-export class EtaComponent {
+export class EtaComponent implements OnDestroy {
   private readonly storage = inject(StorageService);
   private readonly etaStore = inject(EtaStore);
   private readonly toast = inject(ToastService);
@@ -72,27 +72,28 @@ export class EtaComponent {
 
   protected readonly etaTips = ETA_FIELD_TOOLTIPS;
 
+  ngOnDestroy(): void {
+    this.etaStore.flushPersist('silent');
+  }
+
   protected setFromPort(value: string): void {
-    this.etaStore.setDraftField('fromPort', value);
-    this.applyPortUtcOffset('departureUtcOffsetHours', value, this.draft().departureDate);
+    const port = this.ports().find((p) => p.name === value);
+    const hours = etaUtcOffsetHoursForPort(port, this.draft().departureDate);
+    this.etaStore.updateDraft({
+      fromPort: value,
+      ...(hours != null ? { departureUtcOffsetHours: hours } : {}),
+    });
+    if (hours != null) this.utcOffsetEdit.set(null);
   }
 
   protected setToPort(value: string): void {
-    this.etaStore.setDraftField('toPort', value);
-    this.applyPortUtcOffset('arrivalUtcOffsetHours', value, this.draft().arrivalDate);
-  }
-
-  /** Autofill UTC hours from port country / IANA zone; leave manual edits free afterwards. */
-  private applyPortUtcOffset(
-    field: 'departureUtcOffsetHours' | 'arrivalUtcOffsetHours',
-    portName: string,
-    isoDate: string,
-  ): void {
-    const port = this.ports().find((p) => p.name === portName);
-    const hours = etaUtcOffsetHoursForPort(port, isoDate);
-    if (hours == null) return;
-    this.etaStore.setDraftField(field, hours);
-    this.utcOffsetEdit.set(null);
+    const port = this.ports().find((p) => p.name === value);
+    const hours = etaUtcOffsetHoursForPort(port, this.draft().arrivalDate);
+    this.etaStore.updateDraft({
+      toPort: value,
+      ...(hours != null ? { arrivalUtcOffsetHours: hours } : {}),
+    });
+    if (hours != null) this.utcOffsetEdit.set(null);
   }
 
   protected setScenario(scenario: EtaScenario): void {

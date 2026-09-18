@@ -432,30 +432,35 @@ function parseDpWorldCargoPage(
   loadPort: string,
   dischargePort: string,
   useGrossWeight: boolean,
+  inherited?: { containerNo: string; size: string; stow: string },
 ): UnifeederImportRowPartial[] {
   const imo = pageItems.find((it) => it.str === 'IMO Information');
-  if (!imo) return [];
+  const properFallback = !imo
+    ? pageItems.find((it) => /^Proper ship\.\s*name:?\s*$/i.test(it.str.trim()))
+    : undefined;
+  if (!imo && !properFallback) return [];
 
-  const imoY = imo.y;
+  const imoY = imo?.y ?? properFallback!.y;
   const headerY = imoY + DP_IMO.containerNo;
   const cols = resolveDpWorldColumns(pageItems, imoY);
 
-  const containerNo = normalizeContainerNo(
-    pickLeftField(pageItems, headerY, (v) => CONTAINER_RAW_RE.test(v)),
-  );
+  const containerNo =
+    normalizeContainerNo(pickLeftField(pageItems, headerY, (v) => CONTAINER_RAW_RE.test(v))) ||
+    inherited?.containerNo ||
+    '';
   if (!containerNo) return [];
 
   const sizeRaw = pickLeftField(pageItems, headerY, (v) => {
     const n = normalizeSizeCode(v);
     return ISO_SIZE_RE.test(n) || LETTER_SIZE_RE.test(n);
   });
-  const size = normalizeSizeCode(sizeRaw);
+  const size = normalizeSizeCode(sizeRaw) || inherited?.size || '';
   const stowRaw = pickLeftField(
     pageItems,
     imoY + DP_IMO.stowage,
     (v) => /^\d{4,6}$/i.test(v) || /^none$/i.test(v),
   );
-  const stow = /^none$/i.test(stowRaw) ? '' : stowRaw;
+  const stow = /^none$/i.test(stowRaw) ? '' : stowRaw || inherited?.stow || '';
 
   const dataYs = findAllDataRowYs(pageItems, imoY);
   if (!dataYs.length) return [];
@@ -491,12 +496,19 @@ export function parseDpWorldDangerousCargoPages(
   const dischargePort = header.portOfArrival ?? '';
   const pages = [...new Set(items.map((i) => i.page))].sort((a, b) => a - b);
   const rows: UnifeederImportRowPartial[] = [];
+  let openContainer: { containerNo: string; size: string; stow: string } | undefined;
 
   for (const page of pages) {
     const pageItems = items.filter((i) => i.page === page);
     if (pageItems.some((it) => /Grand Total Summary/i.test(it.str))) continue;
 
-    const pageRows = parseDpWorldCargoPage(pageItems, loadPort, dischargePort, useGrossWeight);
+    const pageRows = parseDpWorldCargoPage(
+      pageItems,
+      loadPort,
+      dischargePort,
+      useGrossWeight,
+      openContainer,
+    );
     if (!pageRows.length) {
       const mightHaveCargo = pageItems.some(
         (it) => it.str === 'IMO Information' || /^Proper ship\.\s*name:?\s*$/i.test(it.str.trim()),
@@ -505,6 +517,14 @@ export function parseDpWorldDangerousCargoPages(
       continue;
     }
     rows.push(...pageRows);
+    const last = pageRows[pageRows.length - 1]!;
+    if (last.containerNo) {
+      openContainer = {
+        containerNo: last.containerNo,
+        size: last.size,
+        stow: last.stow,
+      };
+    }
   }
 
   return { rows, warnings };

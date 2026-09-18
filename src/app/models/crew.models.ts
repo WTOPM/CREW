@@ -111,8 +111,12 @@ export interface ShipInfo {
   netTonnage: string;
   /** Height keel → mast top, metres (Airdraft / canal clearance). */
   heightKeelToMastTop: string;
-  /** Maximum present draught, metres. */
-  maximumPresentDraft: string;
+  /** Moulded depth, metres. */
+  mouldedDepth: string;
+  /** Present draft forward, metres. */
+  draftFore: string;
+  /** Present draft aft, metres. */
+  draftAft: string;
   dateOfArrival: string;
   dateOfDeparture: string;
   portOfCall: string;
@@ -173,7 +177,9 @@ export const SHIP_FIELD_UPDATED_MESSAGES: Partial<Record<keyof ShipInfo, string>
   grossTonnage: 'Gross tonnage updated',
   netTonnage: 'Net tonnage updated',
   heightKeelToMastTop: 'Height (keel–mast) updated',
-  maximumPresentDraft: 'Maximum present draft updated',
+  mouldedDepth: 'Moulded depth updated',
+  draftFore: 'Draft fore updated',
+  draftAft: 'Draft aft updated',
 };
 
 export function shipFieldUpdatedMessage(field: keyof ShipInfo): string {
@@ -235,6 +241,8 @@ export interface CrewMember {
   joiningDate: string;
   /** Port name (code resolved from ports directory). */
   joiningPort: string;
+  /** Cabin number on board (1–999), used by PHONE directory sync. */
+  cabin: string;
   /** COVID vaccine medical product name. */
   vaccineMedicalProduct: string;
   /** COVID date of vaccination (ISO date). */
@@ -577,6 +585,18 @@ export interface AppData {
   reeferLibrary: import('./reefer.models').ReeferLibrarySettings;
   /** ETA voyage calculator — saved plans and working draft. */
   etaLibrary: import('./eta.models').EtaLibrarySettings;
+  /** Fuel log from FO-VPC / SHAPOLI Excel (VPS report prep). */
+  fuelLibrary: import('./fuel.models').FuelLibrarySettings;
+  /** Cabin / phone directory from CREW CABIN PHONE.xlsx (editable + write-back). */
+  phoneLibrary: import('./phone.models').PhoneLibrarySettings;
+  /** Departure Cargo Report (DEP REP.xlsx) path + TOTAL CARGO. */
+  depRepLibrary: import('./dep-rep.models').DepRepLibrarySettings;
+  /** Home Save/Load snapshots — shared via crew-data.json (not browser localStorage). */
+  appSnapshots: import('./app-snapshot.models').AppSnapshotEntry[];
+  /** DG page Save/Load snapshots — shared via crew-data.json. */
+  dgPageArchives: import('./dg-page-archive.models').DgPageSnapshot[];
+  /** Reefer page Save/Load snapshots — shared via crew-data.json. */
+  reeferPageArchives: import('./reefer-page-archive.models').ReeferPageSnapshot[];
   documentOverlay: DocumentOverlayPrefs;
   shipAssets: ShipAssetsMeta;
   /** Where generated PDFs are written when "save to folder" is enabled. */
@@ -734,7 +754,9 @@ export function createEmptyShip(): ShipInfo {
     grossTonnage: '',
     netTonnage: '',
     heightKeelToMastTop: '',
-    maximumPresentDraft: '',
+    mouldedDepth: '',
+    draftFore: '',
+    draftAft: '',
     dateOfArrival: '',
     dateOfDeparture: '',
     portOfCall: '',
@@ -803,6 +825,7 @@ export function createEmptyCrewMember(): CrewMember {
     visaExpiryDate: '',
     joiningDate: '',
     joiningPort: '',
+    cabin: '',
     vaccineMedicalProduct: '',
     dateOfVaccination: '',
     dateOfYellowFeverVaccination: '',
@@ -1161,8 +1184,18 @@ export function migrateCrewMember(
   migrateLegacyValidity(base, raw.visaValidity, 'visaIssueDate', 'visaExpiryDate');
   base.gender = normalizePersonGender(base.gender);
   base.yellowFeverExpiryIsText = !!base.yellowFeverExpiryIsText;
+  base.cabin = normalizeCrewCabin(base.cabin);
 
   return base;
+}
+
+/** Cabin as digits 1–999 (empty if unset / invalid). */
+export function normalizeCrewCabin(raw: unknown): string {
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  const n = Number(digits);
+  if (!Number.isFinite(n) || n < 1 || n > 999) return '';
+  return String(n);
 }
 
 function migrateLegacyValidity(

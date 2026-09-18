@@ -56,10 +56,26 @@ export function normalizeShipMetresInput(raw: string | undefined | null): string
 /** Height above water level = keel–mast top − present draft. */
 export function airdraftHeightAboveWaterMetres(
   heightKeelToMastTop: string | undefined | null,
-  maximumPresentDraft: string | undefined | null,
+  presentDraft: string | undefined | null,
 ): number | null {
   const height = parseAirdraftMetres(heightKeelToMastTop);
-  const draft = parseAirdraftMetres(maximumPresentDraft);
+  const draft = parseAirdraftMetres(presentDraft);
   if (height == null || draft == null) return null;
   return height - draft;
+}
+
+/**
+ * Present draft for Airdraft / clearance: max of draft fore and draft aft
+ * (whichever values are set).
+ */
+export function shipPresentDraftMetres(
+  draftFore: string | undefined | null,
+  draftAft: string | undefined | null,
+): string {
+  const fore = parseAirdraftMetres(draftFore);
+  const aft = parseAirdraftMetres(draftAft);
+  if (fore == null && aft == null) return '';
+  if (fore == null) return formatAirdraftMetres(aft!);
+  if (aft == null) return formatAirdraftMetres(fore);
+  return formatAirdraftMetres(Math.max(fore, aft));
 }
