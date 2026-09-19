@@ -399,16 +399,8 @@ export class DgComponent {
   }
 
   protected onPageContextChange(field: keyof DgPageContext, value: string): void {
+    // DG voyage strip is independent from HOME ship dates/ports (Settings still owns ship).
     this.dg.updateDgPageContext({ [field]: value });
-    if (field === 'portOfCall') {
-      this.storage.updateShip({ portOfCall: value }, 'silent');
-    } else if (field === 'nextPortOfCall') {
-      this.storage.updateShip({ nextPortOfCall: value }, 'silent');
-    } else if (field === 'dateOfDeparture') {
-      this.storage.updateShip({ dateOfDeparture: value }, 'silent');
-    } else if (field === 'dateOfArrival') {
-      this.storage.updateShip({ dateOfArrival: value }, 'silent');
-    }
   }
 
   protected onVoyageNumberChange(value: string): void {

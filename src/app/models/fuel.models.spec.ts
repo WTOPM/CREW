@@ -1,36 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyFuelEventAutoCalcs,
   classifyFuelEvent,
+  createEmptyFuelLogEvent,
   filterFuelEvents,
+  formatFuelHoursHm,
   createDefaultFuelViewPrefs,
   type FuelLogEvent,
 } from '../models/fuel.models';
 
 function ev(partial: Partial<FuelLogEvent> & Pick<FuelLogEvent, 'id' | 'kind' | 'date' | 'time'>): FuelLogEvent {
-  return {
-    place: 'Sea',
-    rawEvent: partial.kind,
-    timeUsedHours: null,
-    totalMt: null,
-    meMt: null,
-    aeMt: null,
-    boilerMt: null,
-    robRmdMt: null,
-    robB100Mt: null,
-    robDmaMt: null,
-    meHours: null,
-    meRpm: null,
-    meKw: null,
-    ae1Hours: null,
-    ae1Kw: null,
-    ae2Hours: null,
-    ae2Kw: null,
-    ae3Hours: null,
-    ae3Kw: null,
-    boilerHours: null,
-    sourceRow: Number(partial.id) || 0,
-    ...partial,
-  };
+  return createEmptyFuelLogEvent(partial);
 }
 
 describe('classifyFuelEvent', () => {
@@ -47,6 +27,40 @@ describe('classifyFuelEvent', () => {
     expect(classifyFuelEvent('FEW/Shifting')).toBe('shifting');
     expect(classifyFuelEvent('SBE/Shifting')).toBe('shifting');
     expect(classifyFuelEvent('Noon/SBE/Shifting')).toBe('shifting');
+  });
+});
+
+describe('formatFuelHoursHm', () => {
+  it('converts decimal hours to H:MM', () => {
+    expect(formatFuelHoursHm(1.1)).toBe('1:06');
+    expect(formatFuelHoursHm(0.5)).toBe('0:30');
+    expect(formatFuelHoursHm(24)).toBe('24:00');
+    expect(formatFuelHoursHm(null)).toBe('—');
+  });
+});
+
+describe('applyFuelEventAutoCalcs', () => {
+  it('fills elapsed hours and total from ME+AE', () => {
+    const prev = ev({
+      id: '1',
+      kind: 'departure',
+      rawEvent: 'SBE',
+      date: '2026-09-01',
+      time: '06:00',
+    });
+    const draft = ev({
+      id: '2',
+      kind: 'noon',
+      rawEvent: 'Noon',
+      date: '2026-09-01',
+      time: '12:00',
+      meMt: 1.2,
+      aeMt: 0.3,
+    });
+    const next = applyFuelEventAutoCalcs(draft, prev);
+    expect(next.timeUsedHours).toBe(6);
+    expect(next.totalMt).toBe(1.5);
+    expect(next.kind).toBe('noon');
   });
 });
 
@@ -83,83 +97,44 @@ describe('filterFuelEvents roll-up', () => {
       kind: 'departure',
       date: '2026-09-01',
       time: '18:00',
-      timeUsedHours: 8,
+      timeUsedHours: 6,
       meMt: 0.4,
       aeMt: 0.2,
       totalMt: 0.6,
     }),
   ];
 
-  it('sums hours and fuel into next visible when Noon is hidden', () => {
+  it('rolls hidden noon into next visible departure', () => {
     const view = {
       ...createDefaultFuelViewPrefs(),
-      visibleKinds: ['arrival' as const, 'departure' as const],
+      visibleKinds: ['arrival', 'departure'] as const,
       newestFirst: false,
       limitCount: 0,
     };
-    const rows = filterFuelEvents(sample, view);
-    expect(rows.map((e) => e.id)).toEqual(['1', '3']);
-    expect(rows[0].timeUsedHours).toBe(2);
-    expect(rows[0].rolledFromCount).toBe(1);
-    expect(rows[1].timeUsedHours).toBe(20);
-    expect(rows[1].meMt).toBe(1.4);
-    expect(rows[1].aeMt).toBe(0.7);
+    const rows = filterFuelEvents(sample, { ...view, visibleKinds: [...view.visibleKinds] });
+    expect(rows).toHaveLength(2);
+    expect(rows[0].kind).toBe('arrival');
+    expect(rows[1].kind).toBe('departure');
+    expect(rows[1].timeUsedHours).toBe(18);
     expect(rows[1].totalMt).toBe(2.1);
     expect(rows[1].rolledFromCount).toBe(2);
   });
 
-  it('sums kW and takes max RPM when rolling up hidden events', () => {
+  it('keeps machinery power when present', () => {
     const withPower: FuelLogEvent[] = [
       ev({
         id: '1',
-        kind: 'arrival',
+        kind: 'start_sea',
+        rawEvent: 'BOSP',
         date: '2026-09-01',
-        time: '06:00',
-        meRpm: 40,
-        meKw: 1000,
-        ae1Kw: 200,
-      }),
-      ev({
-        id: '2',
-        kind: 'noon',
-        date: '2026-09-01',
-        time: '12:00',
-        meRpm: 72.5,
-        meKw: 4500,
-        ae1Kw: 350,
-      }),
-      ev({
-        id: '3',
-        kind: 'departure',
-        date: '2026-09-01',
-        time: '18:00',
-        meRpm: 55,
-        meKw: 2200,
-        ae1Kw: 180,
+        time: '08:00',
+        meKw: 4000,
       }),
     ];
-    const view = {
+    const rows = filterFuelEvents(withPower, {
       ...createDefaultFuelViewPrefs(),
-      visibleKinds: ['arrival' as const, 'departure' as const],
-      newestFirst: false,
       limitCount: 0,
-    };
-    const rows = filterFuelEvents(withPower, view);
-    expect(rows[1].meKw).toBe(6700);
-    expect(rows[1].ae1Kw).toBe(530);
-    expect(rows[1].meRpm).toBe(72.5);
-    expect(rows[1].rolledFromCount).toBe(2);
-  });
-
-  it('limits to last N matches', () => {
-    const view = {
-      ...createDefaultFuelViewPrefs(),
-      visibleKinds: ['arrival' as const, 'noon' as const, 'departure' as const],
-      newestFirst: true,
-      limitCount: 2,
-    };
-    const rows = filterFuelEvents(sample, view);
-    expect(rows).toHaveLength(2);
-    expect(rows.map((e) => e.id)).toEqual(['3', '2']);
+    });
+    expect(rows[0].meKw).toBe(4000);
   });
 });

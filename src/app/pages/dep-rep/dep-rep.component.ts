@@ -57,6 +57,7 @@ export class DepRepComponent {
   protected readonly ports = this.storage.ports;
   protected readonly dgLibrary = this.storage.dgLibrary;
   protected readonly busy = signal(false);
+  protected readonly busyLabel = signal('');
   protected readonly pathDraft = linkedSignal(() => this.library().sourcePath);
   protected readonly sheetStatus = signal<string>('');
   protected readonly sheetStatusKind = signal<'ok' | 'missing' | ''>('');
@@ -210,7 +211,6 @@ export class DepRepComponent {
 
   protected onPolChange(value: string): void {
     this.dg.updateDgPageContext({ portOfCall: value });
-    this.storage.updateShip({ portOfCall: value }, 'saved', shipFieldUpdatedMessage('portOfCall'));
     this.sheetStatus.set('');
     this.sheetStatusKind.set('');
     this.densitySelectOverride.set(null);
@@ -218,20 +218,10 @@ export class DepRepComponent {
 
   protected onPodChange(value: string): void {
     this.dg.updateDgPageContext({ nextPortOfCall: value });
-    this.storage.updateShip(
-      { nextPortOfCall: value },
-      'saved',
-      shipFieldUpdatedMessage('nextPortOfCall'),
-    );
   }
 
   protected onDepartureDateChange(value: string): void {
     this.dg.updateDgPageContext({ dateOfDeparture: value });
-    this.storage.updateShip(
-      { dateOfDeparture: value },
-      'saved',
-      shipFieldUpdatedMessage('dateOfDeparture'),
-    );
   }
 
   protected onTotalCargoChange(value: string): void {
@@ -287,7 +277,7 @@ export class DepRepComponent {
       return;
     }
 
-    this.busy.set(true);
+    this.beginBusy('Refreshing from Excel…');
     try {
       const read = await window.electronAPI.readFileBase64(path);
       if (!read.ok || !read.base64) {
@@ -311,19 +301,9 @@ export class DepRepComponent {
           this.ports().find((p) => p.code.trim().toUpperCase() === snap.podCode)?.name ??
           snap.podCode;
         this.dg.updateDgPageContext({ nextPortOfCall: podName });
-        this.storage.updateShip(
-          { nextPortOfCall: podName },
-          'saved',
-          shipFieldUpdatedMessage('nextPortOfCall'),
-        );
       }
       if (snap.departureDate) {
         this.dg.updateDgPageContext({ dateOfDeparture: snap.departureDate });
-        this.storage.updateShip(
-          { dateOfDeparture: snap.departureDate },
-          'saved',
-          shipFieldUpdatedMessage('dateOfDeparture'),
-        );
       }
       const aft = normalizeShipMetresInput(snap.draftAft);
       const fore = normalizeShipMetresInput(snap.draftFore);
@@ -344,7 +324,7 @@ export class DepRepComponent {
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Failed to refresh from sheet');
     } finally {
-      this.busy.set(false);
+      this.endBusy();
     }
   }
 
@@ -359,7 +339,7 @@ export class DepRepComponent {
       this.toast.showError('Set voyage and POL first');
       return;
     }
-    this.busy.set(true);
+    this.beginBusy('Creating PDF from Excel…');
     try {
       const ok = await this.depRepPdf.openFromExcel(path, name);
       if (ok) this.toast.show('DEP REP PDF opened (from Excel)', 'success');
@@ -367,7 +347,7 @@ export class DepRepComponent {
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'PDF export failed');
     } finally {
-      this.busy.set(false);
+      this.endBusy();
     }
   }
 
@@ -387,7 +367,7 @@ export class DepRepComponent {
       return;
     }
 
-    this.busy.set(true);
+    this.beginBusy('Writing to Excel…');
     try {
       const electron = window.electronAPI;
       if (!electron?.writeDepRepSheet) {
@@ -430,8 +410,18 @@ export class DepRepComponent {
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Failed to write DEP REP');
     } finally {
-      this.busy.set(false);
+      this.endBusy();
     }
+  }
+
+  private beginBusy(label: string): void {
+    this.busyLabel.set(label);
+    this.busy.set(true);
+  }
+
+  private endBusy(): void {
+    this.busy.set(false);
+    this.busyLabel.set('');
   }
 
   /** Pull PORT/DENSITY from Excel K:L into the app list (missing ports only). */

@@ -1,0 +1,164 @@
+<div class="modal-backdrop fuel-event-backdrop">
+  <div
+    class="modal fuel-event-modal"
+    appClickOutside
+    (appClickOutside)="cancel.emit()"
+    (click)="$event.stopPropagation()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="fuel-event-modal-title"
+  >
+    <header class="fuel-event-modal__head">
+      <div class="fuel-event-modal__head-main">
+        <h3 id="fuel-event-modal-title">Add fuel event</h3>
+        <span class="fuel-event-kind" [attr.data-kind]="draft().kind">{{ kindLabels[draft().kind] }}</span>
+      </div>
+      <p class="fuel-event-modal__hint">{{ autoHint() }}</p>
+    </header>
+
+    <div class="fuel-event-modal__body">
+      <section class="fuel-event-section">
+        <h4 class="fuel-event-section__title">When</h4>
+        <div class="fuel-event-grid fuel-event-grid--3">
+          <label class="fuel-event-field">
+            <span class="fuel-event-field__label">Date</span>
+            <app-date-picker [value]="draft().date" (valueChange)="updateField('date', $event)" />
+          </label>
+          <label class="fuel-event-field">
+            <span class="fuel-event-field__label">Time</span>
+            <input
+              type="time"
+              class="fuel-event-field__control"
+              [ngModel]="draft().time"
+              (ngModelChange)="updateField('time', $event)"
+            />
+          </label>
+          <label class="fuel-event-field">
+            <span class="fuel-event-field__label">Hrs {{ hoursAsHm() ? '(H:MM)' : '' }}</span>
+            <input
+              class="fuel-event-field__control"
+              [ngModel]="hoursDisplay()"
+              (ngModelChange)="onNum('timeUsedHours', $event)"
+              [placeholder]="hoursAsHm() ? '1:06' : '1.1'"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section class="fuel-event-section">
+        <h4 class="fuel-event-section__title">Where &amp; event</h4>
+        <div class="fuel-event-grid fuel-event-grid--2">
+          <label class="fuel-event-field">
+            <span class="fuel-event-field__label">Place</span>
+            <select
+              class="fuel-event-field__control"
+              [ngModel]="draft().place"
+              (ngModelChange)="updateField('place', $event)"
+            >
+              <option value="">— select place —</option>
+              @for (place of placeOptions(); track place) {
+                <option [value]="place">{{ place }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="fuel-event-field">
+            <span class="fuel-event-field__label">Excel event</span>
+            @if (!customEvent()) {
+              <select
+                class="fuel-event-field__control"
+                [ngModel]="draft().rawEvent"
+                (ngModelChange)="onRawEventPick($event)"
+              >
+                <option value="">— select event —</option>
+                @for (opt of eventOptions; track opt) {
+                  <option [value]="opt">{{ opt }}</option>
+                }
+                <option value="__custom__">Custom…</option>
+              </select>
+            } @else {
+              <div class="fuel-event-custom-row">
+                <input
+                  class="fuel-event-field__control"
+                  [ngModel]="draft().rawEvent"
+                  (ngModelChange)="updateField('rawEvent', $event)"
+                  placeholder="Excel event text"
+                />
+                <button type="button" class="fuel-event-link-btn" (click)="backToEventList()">List</button>
+              </div>
+            }
+          </label>
+        </div>
+      </section>
+
+      <section class="fuel-event-section fuel-event-section--fuel">
+        <div class="fuel-event-section__head">
+          <h4 class="fuel-event-section__title">Fuel (mt)</h4>
+          <button type="button" class="fuel-event-recalc" (click)="recalc()" title="Recalculate hours and totals from previous event">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 0 1-8.9 3.1L6.7 17.5A7 7 0 0 0 19 13c0-3.87-3.13-7-7-7zm-7 7c0-1.34.38-2.59 1.03-3.66l1.42 1.42A4.96 4.96 0 0 0 7 13c0 2.76 2.24 5 5 5v3l4-4-4-4v3c-2.76 0-5-2.24-5-5z"
+              />
+            </svg>
+            Recalculate
+          </button>
+        </div>
+        <div class="fuel-event-grid fuel-event-grid--4">
+          <label class="fuel-event-field">
+            <span class="fuel-event-field__label">ME t</span>
+            <input
+              class="fuel-event-field__control"
+              [ngModel]="draft().meMt ?? ''"
+              (ngModelChange)="onNum('meMt', $event)"
+              inputmode="decimal"
+              placeholder="0.0"
+            />
+          </label>
+          <label class="fuel-event-field">
+            <span class="fuel-event-field__label">AE t</span>
+            <input
+              class="fuel-event-field__control"
+              [ngModel]="draft().aeMt ?? ''"
+              (ngModelChange)="onNum('aeMt', $event)"
+              inputmode="decimal"
+              placeholder="0.0"
+            />
+          </label>
+          <label class="fuel-event-field">
+            <span class="fuel-event-field__label">DMA / Boiler t</span>
+            <input
+              class="fuel-event-field__control"
+              [ngModel]="draft().boilerMt ?? ''"
+              (ngModelChange)="onNum('boilerMt', $event)"
+              inputmode="decimal"
+              placeholder="0.0"
+            />
+          </label>
+          <label class="fuel-event-field fuel-event-field--total">
+            <span class="fuel-event-field__label">Total t</span>
+            <input
+              class="fuel-event-field__control"
+              [ngModel]="draft().totalMt ?? ''"
+              (ngModelChange)="onNum('totalMt', $event)"
+              inputmode="decimal"
+              placeholder="ME + AE"
+            />
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <footer class="fuel-event-modal__actions">
+      <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
+      <button
+        type="button"
+        class="btn btn-primary fuel-event-add-btn"
+        (click)="submit()"
+        [disabled]="!draft().date || (!draft().rawEvent && !draft().place)"
+      >
+        Add event
+      </button>
+    </footer>
+  </div>
+</div>

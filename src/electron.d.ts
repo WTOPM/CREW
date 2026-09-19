@@ -33,6 +33,21 @@ export interface SectionLockBanner {
 
 export interface ElectronLocalPrefs {
   minimizeToTray: boolean;
+  /** Per-machine FUEL table column layout (not shared via data folder). */
+  fuelVisibleColumns?: string[];
+  /** Show FUEL hour fields as H:MM instead of decimal. */
+  fuelHoursAsHm?: boolean;
+  /**
+   * @deprecated Migrated into shared fuelLibrary.displayPresets.
+   * Still read once for migration, then cleared.
+   */
+  fuelDisplayPresets?: Array<{
+    id: string;
+    name: string;
+    savedAt: string;
+    visibleColumns: string[];
+    hoursAsHm: boolean;
+  }>;
 }
 
 export {};

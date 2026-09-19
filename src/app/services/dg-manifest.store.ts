@@ -107,9 +107,12 @@ export class DgManifestStore {
   addDgOnboardContainer(partial?: Partial<Omit<DgOnboardContainer, 'id' | 'lines'>>): void {
     this.data.update((d) => {
       const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
-      const loadPort = resolveKnownPortName(partial?.loadPort ?? d.ship.portOfCall ?? '', d.ports);
+      const loadPort = resolveKnownPortName(
+        partial?.loadPort ?? lib.pageContext.portOfCall ?? '',
+        d.ports,
+      );
       const dischargePort = resolveKnownPortName(
-        partial?.dischargePort ?? d.ship.nextPortOfCall ?? '',
+        partial?.dischargePort ?? lib.pageContext.nextPortOfCall ?? '',
         d.ports,
       );
       return {

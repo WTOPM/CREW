@@ -1,0 +1,4 @@
+/* Reuses global .dg-archive-* styles; keep file for Angular styleUrl requirement. */
+:host {
+  display: contents;
+}

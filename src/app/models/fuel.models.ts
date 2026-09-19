@@ -38,31 +38,467 @@ export const FUEL_EVENT_KIND_LABELS: Record<FuelEventKind, string> = {
   other: 'Other',
 };
 
-/** Column header titles (hover tips). */
-export const FUEL_COLUMN_TIPS = {
-  date: 'Event date from the fuel log (local ship date).',
-  time: 'Event time from the fuel log (HH:mm).',
-  place: 'Port name or Sea for the event.',
-  kind: 'Normalized type used for filters (Arrival, Departure, Shifting, …).',
-  rawEvent: 'Original Excel label (BOSP, FEW, SBE/Shifting, …).',
-  hrs: 'Hours since the previous visible event. Hidden events in between are summed in.',
-  meMt: 'Main engine fuel consumed in this period (mt) — Excel Fuel Log MASTER, 1 decimal.',
-  aeMt: 'Auxiliary engines fuel consumed in this period (mt).',
-  boilerMt: 'Boiler fuel consumed in this period (mt).',
-  totalMt: 'Total fuel consumption for the period (mt).',
-  robB100: 'ROB of biofuel blend (B100) at this event (mt).',
-  robDma: 'ROB of DMA / MGO at this event (mt).',
-  meHours: 'Main engine running hours (CENG / VPC Drivers).',
-  meRpm: 'Main engine average RPM (CENG / VPC Drivers).',
-  meKw: 'Main engine / shaft power in kW (CENG / VPC Drivers).',
-  ae1Hours: 'Aux engine 1 running hours.',
-  ae1Kw: 'Aux engine 1 total energy for the event (kWh) — not average kW/h.',
-  ae2Hours: 'Aux engine 2 running hours.',
-  ae2Kw: 'Aux engine 2 total energy for the event (kWh) — not average kW/h.',
-  ae3Hours: 'Aux engine 3 running hours.',
-  ae3Kw: 'Aux engine 3 total energy for the event (kWh) — not average kW/h.',
-  boilerHours: 'Boiler running hours.',
-} as const;
+/** Common Excel event labels for the add-row picker. */
+export const FUEL_RAW_EVENT_OPTIONS: string[] = [
+  'BOSP',
+  'EOSP',
+  'SBE',
+  'FEW',
+  'FWE',
+  'Noon',
+  'Port Report',
+  'Canal In',
+  'Canal Out',
+  'Anchor',
+  'Bunker',
+  'Off hire',
+  'SBE/Shifting',
+  'FEW/Shifting',
+  'FWE/Shifting',
+  'Noon/SBE/Shifting',
+  'Noon / EOSP',
+];
+
+export type FuelColumnId =
+  | 'date'
+  | 'time'
+  | 'place'
+  | 'kind'
+  | 'rawEvent'
+  | 'hrs'
+  | 'fmMeAe'
+  | 'totalM3'
+  | 'totalMt'
+  | 'meMt'
+  | 'aeMt'
+  | 'robRmd'
+  | 'robB100'
+  | 'bunkerRmdBio'
+  | 'bunkerDma'
+  | 'robDma'
+  | 'dmaConsMt'
+  | 'dmaConsM3'
+  | 'boilerFm'
+  | 'meCounterRh'
+  | 'meShapoliRev'
+  | 'meShapoliKwh'
+  | 'meHours'
+  | 'meRpm'
+  | 'meKw'
+  | 'ae1CounterRh'
+  | 'ae1KwAvg'
+  | 'ae1Hours'
+  | 'ae1Kw'
+  | 'ae2CounterRh'
+  | 'ae2KwAvg'
+  | 'ae2Hours'
+  | 'ae2Kw'
+  | 'ae3CounterRh'
+  | 'ae3KwAvg'
+  | 'ae3Hours'
+  | 'ae3Kw'
+  | 'boilerCounterRh'
+  | 'boilerHours'
+  | 'boilerFmCeng'
+  | 'boilerConsM3'
+  | 'boilerConsMt';
+
+export type FuelColumnValueType = 'text' | 'date' | 'time' | 'hours' | 'num' | 'kw' | 'kind';
+
+export interface FuelColumnDef {
+  id: FuelColumnId;
+  label: string;
+  tip: string;
+  type: FuelColumnValueType;
+  /** CSS modifier class suffix (me / ae / boiler…). */
+  tone?: 'me' | 'ae' | 'ae1' | 'ae2' | 'ae3' | 'boiler';
+  /** Field on FuelLogEvent (kind column is special). */
+  field?: keyof FuelLogEvent;
+  numeric?: boolean;
+}
+
+/**
+ * Full Fuel Log column set (MASTER A–R + CENG machinery).
+ * MASTER S1–AC4 summary block and other sheets are intentionally omitted.
+ */
+export const FUEL_COLUMNS: FuelColumnDef[] = [
+  { id: 'date', label: 'Date', tip: 'Event date from the fuel log (local ship date).', type: 'date', field: 'date' },
+  { id: 'time', label: 'Time', tip: 'Event time from the fuel log (HH:mm).', type: 'time', field: 'time' },
+  { id: 'place', label: 'Place', tip: 'Port name or Sea for the event.', type: 'text', field: 'place' },
+  {
+    id: 'kind',
+    label: 'Kind',
+    tip: 'Normalized type used for filters (Arrival, Departure, Shifting, …).',
+    type: 'kind',
+    field: 'kind',
+  },
+  {
+    id: 'rawEvent',
+    label: 'Excel event',
+    tip: 'Original Excel label (BOSP, FEW, SBE/Shifting, …).',
+    type: 'text',
+    field: 'rawEvent',
+  },
+  {
+    id: 'hrs',
+    label: 'Hrs',
+    tip: 'Hours since the previous visible event. Hidden events in between are summed in.',
+    type: 'hours',
+    field: 'timeUsedHours',
+    numeric: true,
+  },
+  {
+    id: 'fmMeAe',
+    label: 'ME/AE FM',
+    tip: 'Main/aux fuel flowmeter counter (MASTER col F).',
+    type: 'num',
+    field: 'fmMeAe',
+    numeric: true,
+  },
+  {
+    id: 'totalM3',
+    label: 'Total m³',
+    tip: 'Total ME+AE consumption volume (m³).',
+    type: 'num',
+    field: 'totalM3',
+    numeric: true,
+  },
+  {
+    id: 'totalMt',
+    label: 'Total t',
+    tip: 'Total fuel consumption for the period (mt).',
+    type: 'num',
+    field: 'totalMt',
+    numeric: true,
+  },
+  {
+    id: 'meMt',
+    label: 'ME t',
+    tip: 'Main engine fuel consumed in this period (mt).',
+    type: 'num',
+    field: 'meMt',
+    tone: 'me',
+    numeric: true,
+  },
+  {
+    id: 'aeMt',
+    label: 'AE t',
+    tip: 'Auxiliary engines fuel consumed in this period (mt).',
+    type: 'num',
+    field: 'aeMt',
+    tone: 'ae',
+    numeric: true,
+  },
+  {
+    id: 'robRmd',
+    label: 'ROB RMD',
+    tip: 'ROB of ULSFO / RMD at this event (mt).',
+    type: 'num',
+    field: 'robRmdMt',
+    numeric: true,
+  },
+  {
+    id: 'robB100',
+    label: 'ROB B100',
+    tip: 'ROB of biofuel blend (B100) at this event (mt).',
+    type: 'num',
+    field: 'robB100Mt',
+    numeric: true,
+  },
+  {
+    id: 'bunkerRmdBio',
+    label: 'Bunker RMD/BIO',
+    tip: 'Bunker received RMD/BIO this event (mt).',
+    type: 'num',
+    field: 'bunkerRmdBioMt',
+    numeric: true,
+  },
+  {
+    id: 'bunkerDma',
+    label: 'Bunker DMA',
+    tip: 'Bunker received DMA this event (mt).',
+    type: 'num',
+    field: 'bunkerDmaMt',
+    numeric: true,
+  },
+  {
+    id: 'robDma',
+    label: 'ROB DMA',
+    tip: 'ROB of DMA / MGO at this event (mt).',
+    type: 'num',
+    field: 'robDmaMt',
+    numeric: true,
+  },
+  {
+    id: 'dmaConsMt',
+    label: 'DMA / Boiler t',
+    tip: 'DMA total consumption (mt) — used as boiler-side fuel in MASTER.',
+    type: 'num',
+    field: 'boilerMt',
+    tone: 'boiler',
+    numeric: true,
+  },
+  {
+    id: 'dmaConsM3',
+    label: 'DMA m³',
+    tip: 'DMA total consumption volume (m³).',
+    type: 'num',
+    field: 'dmaConsM3',
+    tone: 'boiler',
+    numeric: true,
+  },
+  {
+    id: 'boilerFm',
+    label: 'Boiler FM',
+    tip: 'Boiler flowmeter counter (MASTER col R).',
+    type: 'num',
+    field: 'boilerFm',
+    tone: 'boiler',
+    numeric: true,
+  },
+  {
+    id: 'meCounterRh',
+    label: 'ME counter',
+    tip: 'Main engine running-hours counter (CENG).',
+    type: 'num',
+    field: 'meCounterRh',
+    tone: 'me',
+    numeric: true,
+  },
+  {
+    id: 'meShapoliRev',
+    label: 'SHAPOLI rev',
+    tip: 'SHAPOLI revolution counter (CENG).',
+    type: 'num',
+    field: 'meShapoliRev',
+    tone: 'me',
+    numeric: true,
+  },
+  {
+    id: 'meShapoliKwh',
+    label: 'SHAPOLI kWh',
+    tip: 'SHAPOLI energy counter (CENG).',
+    type: 'kw',
+    field: 'meShapoliKwh',
+    tone: 'me',
+    numeric: true,
+  },
+  {
+    id: 'meHours',
+    label: 'ME hrs',
+    tip: 'Main engine running hours (CENG).',
+    type: 'hours',
+    field: 'meHours',
+    tone: 'me',
+    numeric: true,
+  },
+  {
+    id: 'meRpm',
+    label: 'ME RPM',
+    tip: 'Main engine average RPM (CENG).',
+    type: 'num',
+    field: 'meRpm',
+    tone: 'me',
+    numeric: true,
+  },
+  {
+    id: 'meKw',
+    label: 'ME kW',
+    tip: 'Main engine / shaft power in kW (CENG).',
+    type: 'kw',
+    field: 'meKw',
+    tone: 'me',
+    numeric: true,
+  },
+  {
+    id: 'ae1CounterRh',
+    label: 'AE1 counter',
+    tip: 'Aux engine 1 running-hours counter.',
+    type: 'num',
+    field: 'ae1CounterRh',
+    tone: 'ae1',
+    numeric: true,
+  },
+  {
+    id: 'ae1KwAvg',
+    label: 'AE1 kW avg',
+    tip: 'Aux engine 1 average kW (CENG).',
+    type: 'kw',
+    field: 'ae1KwAvg',
+    tone: 'ae1',
+    numeric: true,
+  },
+  {
+    id: 'ae1Hours',
+    label: 'AE1 hrs',
+    tip: 'Aux engine 1 running hours.',
+    type: 'hours',
+    field: 'ae1Hours',
+    tone: 'ae1',
+    numeric: true,
+  },
+  {
+    id: 'ae1Kw',
+    label: 'AE1 kWh',
+    tip: 'Aux engine 1 total energy for the event (kWh).',
+    type: 'kw',
+    field: 'ae1Kw',
+    tone: 'ae1',
+    numeric: true,
+  },
+  {
+    id: 'ae2CounterRh',
+    label: 'AE2 counter',
+    tip: 'Aux engine 2 running-hours counter.',
+    type: 'num',
+    field: 'ae2CounterRh',
+    tone: 'ae2',
+    numeric: true,
+  },
+  {
+    id: 'ae2KwAvg',
+    label: 'AE2 kW avg',
+    tip: 'Aux engine 2 average kW (CENG).',
+    type: 'kw',
+    field: 'ae2KwAvg',
+    tone: 'ae2',
+    numeric: true,
+  },
+  {
+    id: 'ae2Hours',
+    label: 'AE2 hrs',
+    tip: 'Aux engine 2 running hours.',
+    type: 'hours',
+    field: 'ae2Hours',
+    tone: 'ae2',
+    numeric: true,
+  },
+  {
+    id: 'ae2Kw',
+    label: 'AE2 kWh',
+    tip: 'Aux engine 2 total energy for the event (kWh).',
+    type: 'kw',
+    field: 'ae2Kw',
+    tone: 'ae2',
+    numeric: true,
+  },
+  {
+    id: 'ae3CounterRh',
+    label: 'AE3 counter',
+    tip: 'Aux engine 3 running-hours counter.',
+    type: 'num',
+    field: 'ae3CounterRh',
+    tone: 'ae3',
+    numeric: true,
+  },
+  {
+    id: 'ae3KwAvg',
+    label: 'AE3 kW avg',
+    tip: 'Aux engine 3 average kW (CENG).',
+    type: 'kw',
+    field: 'ae3KwAvg',
+    tone: 'ae3',
+    numeric: true,
+  },
+  {
+    id: 'ae3Hours',
+    label: 'AE3 hrs',
+    tip: 'Aux engine 3 running hours.',
+    type: 'hours',
+    field: 'ae3Hours',
+    tone: 'ae3',
+    numeric: true,
+  },
+  {
+    id: 'ae3Kw',
+    label: 'AE3 kWh',
+    tip: 'Aux engine 3 total energy for the event (kWh).',
+    type: 'kw',
+    field: 'ae3Kw',
+    tone: 'ae3',
+    numeric: true,
+  },
+  {
+    id: 'boilerCounterRh',
+    label: 'Boiler counter',
+    tip: 'Boiler running-hours counter (CENG).',
+    type: 'num',
+    field: 'boilerCounterRh',
+    tone: 'boiler',
+    numeric: true,
+  },
+  {
+    id: 'boilerHours',
+    label: 'Boiler hrs',
+    tip: 'Boiler running hours (CENG).',
+    type: 'hours',
+    field: 'boilerHours',
+    tone: 'boiler',
+    numeric: true,
+  },
+  {
+    id: 'boilerFmCeng',
+    label: 'Boiler FM (CENG)',
+    tip: 'Boiler flowmeter from CENG sheet.',
+    type: 'num',
+    field: 'boilerFmCeng',
+    tone: 'boiler',
+    numeric: true,
+  },
+  {
+    id: 'boilerConsM3',
+    label: 'Boiler m³',
+    tip: 'Boiler consumption volume (CENG).',
+    type: 'num',
+    field: 'boilerConsM3',
+    tone: 'boiler',
+    numeric: true,
+  },
+  {
+    id: 'boilerConsMt',
+    label: 'Boiler cons t',
+    tip: 'Boiler consumption mass (CENG).',
+    type: 'num',
+    field: 'boilerConsMt',
+    tone: 'boiler',
+    numeric: true,
+  },
+];
+
+export const FUEL_COLUMN_BY_ID: Record<FuelColumnId, FuelColumnDef> = Object.fromEntries(
+  FUEL_COLUMNS.map((c) => [c.id, c]),
+) as Record<FuelColumnId, FuelColumnDef>;
+
+/** Columns shown by default (matches the previous compact table). */
+export const FUEL_DEFAULT_VISIBLE_COLUMNS: FuelColumnId[] = [
+  'date',
+  'time',
+  'place',
+  'kind',
+  'rawEvent',
+  'hrs',
+  'meMt',
+  'aeMt',
+  'dmaConsMt',
+  'totalMt',
+  'robB100',
+  'robDma',
+  'meHours',
+  'meRpm',
+  'meKw',
+  'ae1Hours',
+  'ae1Kw',
+  'ae2Hours',
+  'ae2Kw',
+  'ae3Hours',
+  'ae3Kw',
+  'boilerHours',
+];
+
+/** @deprecated Use FUEL_COLUMNS tips — kept for older call sites. */
+export const FUEL_COLUMN_TIPS = Object.fromEntries(
+  FUEL_COLUMNS.map((c) => [c.id, c.tip]),
+) as Record<FuelColumnId, string>;
 
 /** One row from Fuel Log MASTER (optionally enriched from CENG). */
 export interface FuelLogEvent {
@@ -78,26 +514,47 @@ export interface FuelLogEvent {
   time: string;
   /** Hours since previous event. */
   timeUsedHours: number | null;
+  /** ME/AE flowmeter counter. */
+  fmMeAe: number | null;
+  /** Total ME+AE consumption m³. */
+  totalM3: number | null;
   /** ULSFO / bio total consumption mt. */
   totalMt: number | null;
   meMt: number | null;
   aeMt: number | null;
-  /** DMA / boiler-side consumption mt when present. */
+  /** DMA / boiler-side consumption mt (MASTER col P). */
   boilerMt: number | null;
   robRmdMt: number | null;
   robB100Mt: number | null;
+  bunkerRmdBioMt: number | null;
+  bunkerDmaMt: number | null;
   robDmaMt: number | null;
+  dmaConsM3: number | null;
+  boilerFm: number | null;
   /** Optional machinery (from CENG when matched). */
+  meCounterRh: number | null;
+  meShapoliRev: number | null;
+  meShapoliKwh: number | null;
   meHours: number | null;
   meRpm: number | null;
   meKw: number | null;
+  ae1CounterRh: number | null;
+  ae1KwAvg: number | null;
   ae1Hours: number | null;
   ae1Kw: number | null;
+  ae2CounterRh: number | null;
+  ae2KwAvg: number | null;
   ae2Hours: number | null;
   ae2Kw: number | null;
+  ae3CounterRh: number | null;
+  ae3KwAvg: number | null;
   ae3Hours: number | null;
   ae3Kw: number | null;
+  boilerCounterRh: number | null;
   boilerHours: number | null;
+  boilerFmCeng: number | null;
+  boilerConsM3: number | null;
+  boilerConsMt: number | null;
   sourceRow: number;
 }
 
@@ -115,6 +572,22 @@ export interface FuelViewPrefs {
    * Applied as “latest N” in time, then sorted per newestFirst.
    */
   limitCount: number;
+}
+
+/** Local-only UI prefs (per machine — not shared via data folder). */
+export interface FuelLocalUiPrefs {
+  visibleColumns: FuelColumnId[];
+  /** Show hour fields as H:MM instead of decimal (1.1 → 1:06). */
+  hoursAsHm: boolean;
+}
+
+/** One saved column layout (Save / Load display) — shared via data folder. */
+export interface FuelDisplayPreset {
+  id: string;
+  name: string;
+  savedAt: string;
+  visibleColumns: FuelColumnId[];
+  hoursAsHm: boolean;
 }
 
 /** Row shown in the FUEL table (may roll up hidden intermediates). */
@@ -139,6 +612,8 @@ export interface FuelLibrarySettings {
   sheetName: string;
   events: FuelLogEvent[];
   view: FuelViewPrefs;
+  /** Named column layouts — shared across PCs via the data folder. */
+  displayPresets: FuelDisplayPreset[];
 }
 
 export function createDefaultFuelViewPrefs(): FuelViewPrefs {
@@ -152,6 +627,13 @@ export function createDefaultFuelViewPrefs(): FuelViewPrefs {
   };
 }
 
+export function createDefaultFuelLocalUiPrefs(): FuelLocalUiPrefs {
+  return {
+    visibleColumns: [...FUEL_DEFAULT_VISIBLE_COLUMNS],
+    hoursAsHm: false,
+  };
+}
+
 export function createDefaultFuelLibrary(): FuelLibrarySettings {
   return {
     sourcePath: '',
@@ -160,7 +642,61 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
     sheetName: '',
     events: [],
     view: createDefaultFuelViewPrefs(),
+    displayPresets: [],
   };
+}
+
+export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLogEvent {
+  const rawEvent = String(partial?.rawEvent ?? '').trim();
+  return normalizeFuelLogEvent(
+    {
+      id: partial?.id ?? `fuel-new-${Date.now()}`,
+      place: partial?.place ?? '',
+      rawEvent,
+      kind: partial?.kind ?? classifyFuelEvent(rawEvent),
+      date: partial?.date ?? '',
+      time: partial?.time ?? '',
+      timeUsedHours: partial?.timeUsedHours ?? null,
+      fmMeAe: partial?.fmMeAe ?? null,
+      totalM3: partial?.totalM3 ?? null,
+      totalMt: partial?.totalMt ?? null,
+      meMt: partial?.meMt ?? null,
+      aeMt: partial?.aeMt ?? null,
+      boilerMt: partial?.boilerMt ?? null,
+      robRmdMt: partial?.robRmdMt ?? null,
+      robB100Mt: partial?.robB100Mt ?? null,
+      bunkerRmdBioMt: partial?.bunkerRmdBioMt ?? null,
+      bunkerDmaMt: partial?.bunkerDmaMt ?? null,
+      robDmaMt: partial?.robDmaMt ?? null,
+      dmaConsM3: partial?.dmaConsM3 ?? null,
+      boilerFm: partial?.boilerFm ?? null,
+      meCounterRh: partial?.meCounterRh ?? null,
+      meShapoliRev: partial?.meShapoliRev ?? null,
+      meShapoliKwh: partial?.meShapoliKwh ?? null,
+      meHours: partial?.meHours ?? null,
+      meRpm: partial?.meRpm ?? null,
+      meKw: partial?.meKw ?? null,
+      ae1CounterRh: partial?.ae1CounterRh ?? null,
+      ae1KwAvg: partial?.ae1KwAvg ?? null,
+      ae1Hours: partial?.ae1Hours ?? null,
+      ae1Kw: partial?.ae1Kw ?? null,
+      ae2CounterRh: partial?.ae2CounterRh ?? null,
+      ae2KwAvg: partial?.ae2KwAvg ?? null,
+      ae2Hours: partial?.ae2Hours ?? null,
+      ae2Kw: partial?.ae2Kw ?? null,
+      ae3CounterRh: partial?.ae3CounterRh ?? null,
+      ae3KwAvg: partial?.ae3KwAvg ?? null,
+      ae3Hours: partial?.ae3Hours ?? null,
+      ae3Kw: partial?.ae3Kw ?? null,
+      boilerCounterRh: partial?.boilerCounterRh ?? null,
+      boilerHours: partial?.boilerHours ?? null,
+      boilerFmCeng: partial?.boilerFmCeng ?? null,
+      boilerConsM3: partial?.boilerConsM3 ?? null,
+      boilerConsMt: partial?.boilerConsMt ?? null,
+      sourceRow: partial?.sourceRow ?? 0,
+    },
+    0,
+  )!;
 }
 
 export function normalizeFuelLibrary(
@@ -189,7 +725,62 @@ export function normalizeFuelLibrary(
       search: String(viewRaw?.search ?? '').trim(),
       limitCount: normalizeLimitCount(viewRaw?.limitCount),
     },
+    displayPresets: normalizeFuelDisplayPresets(raw?.displayPresets),
   };
+}
+
+export function normalizeFuelLocalUiPrefs(
+  raw: Partial<FuelLocalUiPrefs> | null | undefined,
+): FuelLocalUiPrefs {
+  const defaults = createDefaultFuelLocalUiPrefs();
+  const colsRaw = Array.isArray(raw?.visibleColumns) ? raw!.visibleColumns : null;
+  const mapped = colsRaw
+    ? colsRaw.flatMap((id): FuelColumnId[] => {
+        if (id === ('event' as string)) return ['kind', 'rawEvent'];
+        return id in FUEL_COLUMN_BY_ID ? [id as FuelColumnId] : [];
+      })
+    : [...defaults.visibleColumns];
+  // Dedupe while keeping order
+  const seen = new Set<FuelColumnId>();
+  const cols = mapped.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+  return {
+    visibleColumns: cols.length ? cols : [...defaults.visibleColumns],
+    hoursAsHm: raw?.hoursAsHm === true,
+  };
+}
+
+export function normalizeFuelDisplayPresets(raw: unknown): FuelDisplayPreset[] {
+  if (!Array.isArray(raw)) return [];
+  const out: FuelDisplayPreset[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const p = item as Partial<FuelDisplayPreset>;
+    const name = String(p.name ?? '').trim();
+    if (!name) continue;
+    const colsRaw = Array.isArray(p.visibleColumns) ? p.visibleColumns : [];
+    const mapped = colsRaw.flatMap((id): FuelColumnId[] => {
+      if (id === ('event' as string)) return ['kind', 'rawEvent'];
+      return typeof id === 'string' && id in FUEL_COLUMN_BY_ID ? [id as FuelColumnId] : [];
+    });
+    const seen = new Set<FuelColumnId>();
+    const visibleColumns = mapped.filter((id) => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    out.push({
+      id: String(p.id ?? '').trim() || `fuel-disp-${Date.now()}-${out.length}`,
+      name: name.slice(0, 80),
+      savedAt: String(p.savedAt ?? '').trim() || new Date().toISOString(),
+      visibleColumns: visibleColumns.length ? visibleColumns : [...FUEL_DEFAULT_VISIBLE_COLUMNS],
+      hoursAsHm: p.hoursAsHm === true,
+    });
+  }
+  return out.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 
 function normalizeLimitCount(raw: unknown): number {
@@ -211,23 +802,42 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
     date: String(e.date ?? '').trim(),
     time: String(e.time ?? '').trim(),
     timeUsedHours: numOrNull(e.timeUsedHours),
+    fmMeAe: numOrNull(e.fmMeAe),
+    totalM3: numOrNull(e.totalM3),
     totalMt: numOrNull(e.totalMt),
     meMt: numOrNull(e.meMt),
     aeMt: numOrNull(e.aeMt),
     boilerMt: numOrNull(e.boilerMt),
     robRmdMt: numOrNull(e.robRmdMt),
     robB100Mt: numOrNull(e.robB100Mt),
+    bunkerRmdBioMt: numOrNull(e.bunkerRmdBioMt),
+    bunkerDmaMt: numOrNull(e.bunkerDmaMt),
     robDmaMt: numOrNull(e.robDmaMt),
+    dmaConsM3: numOrNull(e.dmaConsM3),
+    boilerFm: numOrNull(e.boilerFm),
+    meCounterRh: numOrNull(e.meCounterRh),
+    meShapoliRev: numOrNull(e.meShapoliRev),
+    meShapoliKwh: numOrNull(e.meShapoliKwh),
     meHours: numOrNull(e.meHours),
     meRpm: numOrNull(e.meRpm),
     meKw: numOrNull(e.meKw),
+    ae1CounterRh: numOrNull(e.ae1CounterRh),
+    ae1KwAvg: numOrNull(e.ae1KwAvg),
     ae1Hours: numOrNull(e.ae1Hours),
     ae1Kw: numOrNull(e.ae1Kw),
+    ae2CounterRh: numOrNull(e.ae2CounterRh),
+    ae2KwAvg: numOrNull(e.ae2KwAvg),
     ae2Hours: numOrNull(e.ae2Hours),
     ae2Kw: numOrNull(e.ae2Kw),
+    ae3CounterRh: numOrNull(e.ae3CounterRh),
+    ae3KwAvg: numOrNull(e.ae3KwAvg),
     ae3Hours: numOrNull(e.ae3Hours),
     ae3Kw: numOrNull(e.ae3Kw),
+    boilerCounterRh: numOrNull(e.boilerCounterRh),
     boilerHours: numOrNull(e.boilerHours),
+    boilerFmCeng: numOrNull(e.boilerFmCeng),
+    boilerConsM3: numOrNull(e.boilerConsM3),
+    boilerConsMt: numOrNull(e.boilerConsMt),
     sourceRow: typeof e.sourceRow === 'number' && Number.isFinite(e.sourceRow) ? e.sourceRow : index,
   };
 }
@@ -288,6 +898,71 @@ export function classifyFuelEvent(rawEvent: string): FuelEventKind {
   }
 
   return 'other';
+}
+
+/** Decimal hours → H:MM (1.1 → 1:06). */
+export function formatFuelHoursHm(hours: number | null | undefined): string {
+  if (hours == null || !Number.isFinite(hours)) return '—';
+  const sign = hours < 0 ? '-' : '';
+  const abs = Math.abs(hours);
+  const h = Math.floor(abs);
+  let m = Math.round((abs - h) * 60);
+  let hh = h;
+  if (m === 60) {
+    hh += 1;
+    m = 0;
+  }
+  return `${sign}${hh}:${String(m).padStart(2, '0')}`;
+}
+
+/** Parse H:MM or decimal into hours. */
+export function parseFuelHoursInput(raw: string): number | null {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+  const hm = s.match(/^(-)?(\d+):([0-5]?\d)$/);
+  if (hm) {
+    const sign = hm[1] ? -1 : 1;
+    return sign * (Number(hm[2]) + Number(hm[3]) / 60);
+  }
+  const n = Number(s.replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Hours between two date+time pairs (ISO date + HH:mm). */
+export function fuelElapsedHours(
+  fromDate: string,
+  fromTime: string,
+  toDate: string,
+  toTime: string,
+): number | null {
+  if (!fromDate || !toDate) return null;
+  const a = Date.parse(`${fromDate}T${(fromTime || '00:00').padStart(5, '0')}:00`);
+  const b = Date.parse(`${toDate}T${(toTime || '00:00').padStart(5, '0')}:00`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return null;
+  return Math.round(((b - a) / 3600000) * 10) / 10;
+}
+
+/** Recompute totalMt from ME + AE when either side is set. */
+export function recomputeFuelTotalMt(meMt: number | null, aeMt: number | null): number | null {
+  if (meMt == null && aeMt == null) return null;
+  return Math.round(((meMt ?? 0) + (aeMt ?? 0)) * 10) / 10;
+}
+
+/**
+ * Apply auto-calcs when drafting a new/edited event against the chronologically previous row.
+ */
+export function applyFuelEventAutoCalcs(
+  draft: FuelLogEvent,
+  previous: FuelLogEvent | null | undefined,
+): FuelLogEvent {
+  let next = { ...draft, kind: classifyFuelEvent(draft.rawEvent) };
+  if (previous?.date && next.date) {
+    const hrs = fuelElapsedHours(previous.date, previous.time, next.date, next.time);
+    if (hrs != null) next = { ...next, timeUsedHours: hrs };
+  }
+  const total = recomputeFuelTotalMt(next.meMt, next.aeMt);
+  if (total != null) next = { ...next, totalMt: total };
+  return next;
 }
 
 export function filterFuelEvents(
@@ -356,30 +1031,42 @@ function eventKey(e: Pick<FuelLogEvent, 'date' | 'time' | 'sourceRow'>): string 
   return `${e.date}T${e.time || '00:00'}#${String(e.sourceRow).padStart(6, '0')}`;
 }
 
+const SUM_FIELDS: Array<keyof FuelLogEvent> = [
+  'timeUsedHours',
+  'totalM3',
+  'totalMt',
+  'meMt',
+  'aeMt',
+  'boilerMt',
+  'bunkerRmdBioMt',
+  'bunkerDmaMt',
+  'dmaConsM3',
+  'meHours',
+  'ae1Hours',
+  'ae2Hours',
+  'ae3Hours',
+  'boilerHours',
+  'meKw',
+  'ae1Kw',
+  'ae2Kw',
+  'ae3Kw',
+  'meShapoliKwh',
+  'boilerConsM3',
+  'boilerConsMt',
+];
+
 function rollUpFuelSlice(head: FuelLogEvent, slice: FuelLogEvent[]): FuelDisplayEvent {
   if (slice.length <= 1) {
     return { ...head, rolledFromCount: 1 };
   }
-  return {
-    ...head,
-    timeUsedHours: sumNullable(slice.map((e) => e.timeUsedHours)),
-    totalMt: sumNullable(slice.map((e) => e.totalMt)),
-    meMt: sumNullable(slice.map((e) => e.meMt)),
-    aeMt: sumNullable(slice.map((e) => e.aeMt)),
-    boilerMt: sumNullable(slice.map((e) => e.boilerMt)),
-    meHours: sumNullable(slice.map((e) => e.meHours)),
-    ae1Hours: sumNullable(slice.map((e) => e.ae1Hours)),
-    ae2Hours: sumNullable(slice.map((e) => e.ae2Hours)),
-    ae3Hours: sumNullable(slice.map((e) => e.ae3Hours)),
-    boilerHours: sumNullable(slice.map((e) => e.boilerHours)),
-    meKw: sumNullable(slice.map((e) => e.meKw)),
-    ae1Kw: sumNullable(slice.map((e) => e.ae1Kw)),
-    ae2Kw: sumNullable(slice.map((e) => e.ae2Kw)),
-    ae3Kw: sumNullable(slice.map((e) => e.ae3Kw)),
-    meRpm: maxNullable(slice.map((e) => e.meRpm)),
-    // ROB stays as at the visible event (end of period)
-    rolledFromCount: slice.length,
-  };
+  const rolled: FuelDisplayEvent = { ...head, rolledFromCount: slice.length };
+  for (const field of SUM_FIELDS) {
+    (rolled as unknown as Record<string, unknown>)[field] = sumNullable(
+      slice.map((e) => e[field] as number | null),
+    );
+  }
+  rolled.meRpm = maxNullable(slice.map((e) => e.meRpm));
+  return rolled;
 }
 
 function sumNullable(vals: Array<number | null>): number | null {
@@ -424,4 +1111,28 @@ export function sumFuelBetween(
     count += 1;
   }
   return { meMt, aeMt, boilerMt, totalMt, count };
+}
+
+/** Previous chronological event before a candidate date/time. */
+export function findPreviousFuelEvent(
+  events: readonly FuelLogEvent[],
+  date: string,
+  time: string,
+  excludeId?: string,
+): FuelLogEvent | null {
+  if (!date) return null;
+  const key = `${date}T${time || '00:00'}`;
+  let best: FuelLogEvent | null = null;
+  let bestKey = '';
+  for (const e of events) {
+    if (excludeId && e.id === excludeId) continue;
+    if (!e.date) continue;
+    const k = `${e.date}T${e.time || '00:00'}`;
+    if (k >= key) continue;
+    if (!best || k > bestKey) {
+      best = e;
+      bestKey = k;
+    }
+  }
+  return best;
 }

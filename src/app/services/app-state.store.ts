@@ -12,6 +12,7 @@ import { AppData } from '../models/crew.models';
 import { APP_DATA_SCHEMA_VERSION, createEmptyAppData } from '../data/empty-app-data';
 import { ToastService } from './toast.service';
 import { normalizeAppData } from './app-data-normalizer';
+import { normalizeFuelLibrary } from '../models/fuel.models';
 import { SectionLockService } from './section-lock.service';
 import {
   AppSection,
@@ -255,6 +256,46 @@ export class AppStateStore {
       const saved = await this.writeElectronData({
         ...disk,
         outputSettings: memory.outputSettings,
+        seedVersion: APP_DATA_SCHEMA_VERSION,
+      });
+      if (!saved) return;
+    } else {
+      writeLocalStorage(
+        STORAGE_KEY,
+        JSON.stringify({ ...memory, seedVersion: APP_DATA_SCHEMA_VERSION }),
+      );
+    }
+    this.afterPersist(notify, savedMessage);
+  }
+
+  /**
+   * Save FUEL column-display presets immediately — shared list, not tied to the FUEL edit lock
+   * (view-only users may still save/load layouts).
+   */
+  async persistFuelDisplayPresets(
+    notify: PersistNotify = 'silent',
+    savedMessage?: string,
+  ): Promise<void> {
+    const electron = window.electronAPI;
+    if (electron && !this.electronBootstrapComplete) {
+      if (notify !== 'silent') {
+        this.toast.showError('Database is not ready — complete setup first');
+      }
+      return;
+    }
+
+    const memory = this.data();
+    if (electron) {
+      const loaded = await electron.readData();
+      const disk = normalizeAppData(loaded ?? createEmptyAppData());
+      const diskFuel = normalizeFuelLibrary(disk.fuelLibrary);
+      const memFuel = normalizeFuelLibrary(memory.fuelLibrary);
+      const saved = await this.writeElectronData({
+        ...disk,
+        fuelLibrary: {
+          ...diskFuel,
+          displayPresets: memFuel.displayPresets,
+        },
         seedVersion: APP_DATA_SCHEMA_VERSION,
       });
       if (!saved) return;

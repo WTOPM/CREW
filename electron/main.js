@@ -553,7 +553,16 @@ function readLocalPrefs() {
   try {
     const raw = fs.readFileSync(getLocalPrefsPath(), 'utf-8');
     const parsed = JSON.parse(raw);
-    return { minimizeToTray: !!parsed.minimizeToTray };
+    return {
+      minimizeToTray: !!parsed.minimizeToTray,
+      fuelVisibleColumns: Array.isArray(parsed.fuelVisibleColumns)
+        ? parsed.fuelVisibleColumns.filter((c) => typeof c === 'string')
+        : undefined,
+      fuelHoursAsHm: parsed.fuelHoursAsHm === true,
+      fuelDisplayPresets: Array.isArray(parsed.fuelDisplayPresets)
+        ? parsed.fuelDisplayPresets
+        : undefined,
+    };
   } catch {
     return { minimizeToTray: false };
   }
@@ -1698,6 +1707,15 @@ ipcMain.handle('set-local-prefs', (_event, patch) => {
       mainWindow.show();
       mainWindow.focus();
     }
+  }
+  if (Array.isArray(patch?.fuelVisibleColumns)) {
+    next.fuelVisibleColumns = patch.fuelVisibleColumns.filter((c) => typeof c === 'string');
+  }
+  if (typeof patch?.fuelHoursAsHm === 'boolean') {
+    next.fuelHoursAsHm = patch.fuelHoursAsHm;
+  }
+  if (Array.isArray(patch?.fuelDisplayPresets)) {
+    next.fuelDisplayPresets = patch.fuelDisplayPresets;
   }
   writeLocalPrefs(next);
   return next;

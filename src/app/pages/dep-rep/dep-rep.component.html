@@ -1,4 +1,18 @@
-<div class="page dep-rep-page">
+<div
+  class="page dep-rep-page"
+  [class.dep-rep-page--busy]="busy()"
+  [attr.aria-busy]="busy() ? 'true' : null"
+>
+  @if (busy()) {
+    <div class="dep-rep-busy-overlay" role="alertdialog" aria-modal="true" aria-live="assertive">
+      <div class="dep-rep-busy-card">
+        <div class="dep-rep-busy-spinner" aria-hidden="true"></div>
+        <strong class="dep-rep-busy-title">{{ busyLabel() || 'Working…' }}</strong>
+        <span class="dep-rep-busy-text">Please wait — the page is locked until this finishes.</span>
+      </div>
+    </div>
+  }
+
   <header class="dep-rep-header">
     <div class="dep-rep-header__text">
       <a routerLink="/dg" class="back-link">DG</a>
