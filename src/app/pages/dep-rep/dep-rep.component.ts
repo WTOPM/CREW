@@ -185,7 +185,8 @@ export class DepRepComponent {
   }
 
   protected async pickExcel(): Promise<void> {
-    const path = await window.electronAPI?.pickExcelFile();
+    const current = this.pathDraft().trim() || this.library().sourcePath.trim();
+    const path = await window.electronAPI?.pickExcelFile(current || undefined);
     if (!path) return;
     this.pathDraft.set(path);
     this.depRepStore.setSourcePath(path);

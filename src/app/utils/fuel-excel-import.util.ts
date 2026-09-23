@@ -3,12 +3,14 @@ import {
   classifyFuelEvent,
   createEmptyFuelLogEvent,
   type FuelLogEvent,
+  type FuelMasterSummary,
 } from '../models/fuel.models';
 
 export interface FuelExcelImportResult {
   events: FuelLogEvent[];
   sheetName: string;
   warnings: string[];
+  masterSummary: FuelMasterSummary | null;
 }
 
 /** Parse FO-VPC / SHAPOLI workbook (MASTER A–R + CENG machinery). */
@@ -30,7 +32,8 @@ export async function importFuelLogFromExcelBytes(
 
   const events: FuelLogEvent[] = [];
   const warnings: string[] = [];
-  // MASTER data starts at row 5 (rows 1–4 are headers). S1–AC4 summary ignored.
+  const masterSummary = readMasterSummaryBlock(master);
+  // MASTER data starts at row 5 (rows 1–4 are headers + S1–AC4 summary).
   for (let r = 5; r <= master.rowCount; r++) {
     const row = master.getRow(r);
     const place = cellText(row.getCell(1));
@@ -98,7 +101,7 @@ export async function importFuelLogFromExcelBytes(
     );
   }
 
-  return { events, sheetName: master.name.trim(), warnings };
+  return { events, sheetName: master.name.trim(), warnings, masterSummary };
 }
 
 /**
@@ -439,4 +442,72 @@ function resolveCell(cell: ExcelJS.Cell): unknown {
     if (o.text) return o.text;
   }
   return v;
+}
+
+/** MASTER S1:AC4 — same grid as Excel (merged MT + Updated + note). */
+function readMasterSummaryBlock(ws: ExcelJS.Worksheet): FuelMasterSummary | null {
+  const heading = cellDisplay(ws.getRow(1).getCell(19)) || 'AUX';
+  const aeMetricHeaders = [20, 21, 22, 23]
+    .map((c) => cellDisplay(ws.getRow(1).getCell(c)))
+    .map((h, i) => h || ['KW', 'RH', 'KG', 'MT'][i]!);
+  const tankHeaders = [24, 25, 26, 27, 28, 29]
+    .map((c) => cellDisplay(ws.getRow(1).getCell(c)))
+    .filter(Boolean);
+
+  const aeRows = [2, 3, 4]
+    .map((r) => {
+      const row = ws.getRow(r);
+      return {
+        label: cellDisplay(row.getCell(19)),
+        kw: cellDisplay(row.getCell(20)),
+        rh: cellDisplay(row.getCell(21)),
+        kg: cellDisplay(row.getCell(22)),
+      };
+    })
+    .filter((r) => r.label);
+
+  // W2:W4 merged — read master cell once
+  const mt = cellDisplay(mergedMasterCell(ws, 2, 23));
+  const tankValues = [24, 25, 26, 27, 28, 29].map((c) => cellDisplay(ws.getRow(2).getCell(c)));
+  // X3:AC3 / X4:AC4 merged banners
+  const tankStatus = cellDisplay(mergedMasterCell(ws, 3, 24));
+  const tankNote = cellDisplay(mergedMasterCell(ws, 4, 24));
+
+  if (!aeRows.length && !tankHeaders.length) return null;
+  return {
+    heading,
+    aeMetricHeaders,
+    tankHeaders,
+    aeRows,
+    mt,
+    tankValues: tankValues.slice(0, tankHeaders.length),
+    tankStatus,
+    tankNote,
+  };
+}
+
+/** Prefer the merge master so shared banners / MT read once. */
+function mergedMasterCell(ws: ExcelJS.Worksheet, row: number, col: number): ExcelJS.Cell {
+  const cell = ws.getRow(row).getCell(col);
+  if (cell.isMerged && cell.master) return cell.master;
+  return cell;
+}
+
+/** Display text for summary cells (numbers, dates, formula results). */
+function cellDisplay(cell: ExcelJS.Cell): string {
+  const v = resolveCell(cell);
+  if (v == null || v === '') return '';
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    if (v.getFullYear() < 1970) return '';
+    const d = String(v.getDate()).padStart(2, '0');
+    const m = String(v.getMonth() + 1).padStart(2, '0');
+    return `${d}.${m}.${v.getFullYear()}`;
+  }
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    // Match Excel FO-VPC locale display (comma decimals).
+    if (Number.isInteger(v)) return String(v);
+    const rounded = Math.round(v * 10000) / 10000;
+    return String(rounded).replace('.', ',');
+  }
+  return String(v).replace(/\s+/g, ' ').trim();
 }

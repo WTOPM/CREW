@@ -32,6 +32,7 @@ import {
   type ShipStores03TextPlacement,
 } from './ship-stores-03-field-positions';
 import { PdfOverlayService } from './pdf-overlay.service';
+import { resolveShipStoresIsArrival } from '../utils/ship-stores-html-pdf.util';
 
 const SHIP_STORES_03_TEMPLATE_URL = '/ship-stores-03-empty.pdf';
 
@@ -55,8 +56,8 @@ export class PdfShipStores03Service {
   }
 
   fileName(data: AppData): string {
-    const { ship, crewArr } = data;
-    const voyageDate = voyageDateByArrivalFlag(ship, crewArr.isArrival);
+    const { ship } = data;
+    const voyageDate = voyageDateByArrivalFlag(ship, resolveShipStoresIsArrival(data));
     return shipStores03PdfFileName(ship.name, voyageDate);
   }
 
@@ -99,8 +100,8 @@ export class PdfShipStores03Service {
     data: AppData,
     placeOfStorage: string,
   ): void {
-    const { ship, crewArr, ports } = data;
-    const isArrival = crewArr.isArrival;
+    const { ship, ports } = data;
+    const isArrival = resolveShipStoresIsArrival(data);
     const portsRoute = formatShipStores03PortsRoute(
       ship.lastPortOfCall,
       ship.nextPortOfCall,

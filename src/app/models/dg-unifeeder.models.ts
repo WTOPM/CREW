@@ -5,7 +5,41 @@ import { normalizeUnifeederSubRisk } from '../utils/dg-unifeeder-sub-risk.util';
 import { unifeederInventoryDisplayTotalKg } from '../utils/dg-unifeeder-weight.util';
 import { normalizeDgDualWeightFields, dgLineActiveWeightKg } from '../utils/dg-weight-tonnage.util';
 
-export type DgUnifeederRowField = keyof Omit<DgUnifeederRow, 'id' | 'status' | 'sourceManifestId'>;
+/** Fields that can be dismissed when manifesto differs from DG Reference. */
+export type UnifeederRefCompareField =
+  | 'packingGroup'
+  | 'dgClass'
+  | 'subRisk'
+  | 'fire'
+  | 'spillage';
+
+export type UnifeederReferenceKeepManifest = Partial<Record<UnifeederRefCompareField, string>>;
+
+const UNIFEEDER_REF_COMPARE_FIELDS: readonly UnifeederRefCompareField[] = [
+  'packingGroup',
+  'dgClass',
+  'subRisk',
+  'fire',
+  'spillage',
+];
+
+function sanitizeUnifeederReferenceKeepManifest(
+  raw: unknown,
+): UnifeederReferenceKeepManifest | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const source = raw as Record<string, unknown>;
+  const out: UnifeederReferenceKeepManifest = {};
+  for (const field of UNIFEEDER_REF_COMPARE_FIELDS) {
+    const value = String(source[field] ?? '').trim();
+    if (value) out[field] = value;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+export type DgUnifeederRowField = keyof Omit<
+  DgUnifeederRow,
+  'id' | 'status' | 'sourceManifestId' | 'referenceKeepManifest'
+>;
 
 /** One flat DG line in the DP WORLD manifest table. */
 export interface DgUnifeederRow {
@@ -36,6 +70,12 @@ export interface DgUnifeederRow {
   spillageSchedule: string;
   status: DgContainerStatus;
   sourceManifestId: string;
+  /**
+   * Per-field DG Reference suggestions the user declined (Keep manifesto).
+   * Value is the reference text that was declined so the highlight stays off
+   * until the reference suggestion changes.
+   */
+  referenceKeepManifest?: UnifeederReferenceKeepManifest;
 }
 
 export interface DgUnifeederManifestDocument {
@@ -131,6 +171,7 @@ export function createDgUnifeederRow(
     spillageSchedule: (partial?.spillageSchedule ?? '').trim(),
     status,
     sourceManifestId: (partial?.sourceManifestId ?? '').trim(),
+    referenceKeepManifest: sanitizeUnifeederReferenceKeepManifest(partial?.referenceKeepManifest),
   });
 }
 

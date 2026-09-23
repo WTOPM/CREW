@@ -12,8 +12,11 @@ import {
 describe('dep-rep helpers', () => {
   it('builds sheet names and mid draft', () => {
     expect(depRepSheetName('138', 'LVRIX')).toBe('138 LVRIX');
-    expect(depRepMidDraftMetres('9.3', '9.4')).toBe('9.4');
+    expect(depRepMidDraftMetres('9.3', '9.4')).toBe('9.35');
     expect(depRepMidDraftMetres('9.2', '9.4')).toBe('9.3');
+    expect(depRepMidDraftMetres('9.25', '9.35')).toBe('9.3');
+    expect(depRepMidDraftMetres('9.3', '')).toBe('9.3');
+    expect(depRepMidDraftMetres('', '')).toBe('');
   });
 
   it('parses TOTAL CARGO with unit suffixes', () => {

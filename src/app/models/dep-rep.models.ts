@@ -92,12 +92,28 @@ export function depRepSheetName(voyage: string, polCode: string): string {
   return `${voy} ${pol}`;
 }
 
-/** Mid draft = (fore + aft) / 2, one decimal. */
+/** Mid draft = (fore + aft) / 2. Keeps hundredths when needed (e.g. 9.3/9.4 → 9.35). */
 export function depRepMidDraftMetres(draftFore: string, draftAft: string): string {
-  const fore = Number(String(draftFore).trim().replace(',', '.'));
-  const aft = Number(String(draftAft).trim().replace(',', '.'));
-  if (!Number.isFinite(fore) && !Number.isFinite(aft)) return '';
-  if (!Number.isFinite(fore)) return (Math.round(aft * 10) / 10).toFixed(1);
-  if (!Number.isFinite(aft)) return (Math.round(fore * 10) / 10).toFixed(1);
-  return (Math.round(((fore + aft) / 2) * 10) / 10).toFixed(1);
+  const fore = parseDepRepDraftMetres(draftFore);
+  const aft = parseDepRepDraftMetres(draftAft);
+  if (fore == null && aft == null) return '';
+  if (fore == null) return formatDepRepMidDraft(aft!);
+  if (aft == null) return formatDepRepMidDraft(fore);
+  return formatDepRepMidDraft((fore + aft) / 2);
+}
+
+function parseDepRepDraftMetres(raw: string): number | null {
+  const s = String(raw ?? '').trim().replace(',', '.');
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatDepRepMidDraft(metres: number): string {
+  const hundredths = Math.round(metres * 100) / 100;
+  // Clean tenths stay as one decimal (9.30 → 9.3); halves keep two (9.35).
+  if (Math.abs(hundredths * 10 - Math.round(hundredths * 10)) < 1e-9) {
+    return (Math.round(hundredths * 10) / 10).toFixed(1);
+  }
+  return hundredths.toFixed(2);
 }

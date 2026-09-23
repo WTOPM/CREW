@@ -6,6 +6,10 @@ import {
 } from './dg-un-number-autofill.util';
 import { lookupUnNumberReference } from './dg-un-number.util';
 import { coalesceUnifeederContainerMeta } from './dg-unifeeder-merge.util';
+import {
+  appendUnifeederReferenceMismatchWarning,
+  countUnifeederReferenceMismatches,
+} from './dg-unifeeder-reference-mismatch.util';
 
 /** Reference-backed cargo text fields parsed from a CMA manifest row. */
 export interface CmaManifestParsedCargo {
@@ -39,7 +43,14 @@ export function applyCmaCargoReferenceOrManifest(
   return { cargo: manifest, filledFromManifest: true };
 }
 
-/** Use DG Reference when UN is known; otherwise keep parsed DP WORLD / legacy row fields. */
+/** Prefer non-empty manifest text; fall back to DG Reference autofill. */
+function preferManifest(manifest: string | undefined, autofill: string | undefined): string {
+  const fromPdf = String(manifest ?? '').trim();
+  if (fromPdf) return fromPdf;
+  return String(autofill ?? '').trim();
+}
+
+/** Use DG Reference to fill gaps; keep parsed DP WORLD / legacy row fields when present. */
 export function applyUnifeederReferenceOrManifest(row: UnifeederImportRowPartial): {
   row: UnifeederImportRowPartial;
   filledFromManifest: boolean;
@@ -49,16 +60,18 @@ export function applyUnifeederReferenceOrManifest(row: UnifeederImportRowPartial
     return { row, filledFromManifest: true };
   }
 
+  // Manifest wins for shipment-specific fields (PG often differs from the first
+  // IMDG variant stored under a single UN — e.g. UN 3288 can be I / II / III).
   return {
     row: {
       ...row,
       unNo: autofill.unNo ?? row.unNo,
-      dgClass: autofill.dgClass ?? row.dgClass,
-      goodsDescription: autofill.goodsDescription ?? row.goodsDescription,
-      packingGroup: autofill.packingGroup ?? row.packingGroup,
-      subRisk: autofill.subRisk ?? row.subRisk,
-      fire: autofill.fire ?? row.fire,
-      spillage: autofill.spillage ?? row.spillage,
+      dgClass: preferManifest(row.dgClass, autofill.dgClass),
+      goodsDescription: preferManifest(row.goodsDescription, autofill.goodsDescription),
+      packingGroup: preferManifest(row.packingGroup, autofill.packingGroup),
+      subRisk: preferManifest(row.subRisk, autofill.subRisk),
+      fire: preferManifest(row.fire, autofill.fire),
+      spillage: preferManifest(row.spillage, autofill.spillage),
     },
     filledFromManifest: false,
   };
@@ -84,7 +97,9 @@ export function finalizeUnifeederImportRows(
     return next;
   });
   appendManifestFilledUnWarning(warnings, manifestFilled);
-  return { rows: coalesceUnifeederContainerMeta(merged), warnings };
+  const coalesced = coalesceUnifeederContainerMeta(merged);
+  appendUnifeederReferenceMismatchWarning(warnings, countUnifeederReferenceMismatches(coalesced));
+  return { rows: coalesced, warnings };
 }
 
 /** @internal For tests — fields taken from reference on manual UN entry. */

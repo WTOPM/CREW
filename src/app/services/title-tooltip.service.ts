@@ -86,6 +86,11 @@ export class TitleTooltipService {
         return null;
       }
       if (el.matches('input, textarea, select')) {
+        // Text fields may carry their own tip (e.g. Shift+F3 case cycle).
+        if (this.isTipTextField(el)) {
+          const tip = el.getAttribute('title')?.trim() || el.dataset['appTip']?.trim();
+          if (tip) return el;
+        }
         el = el.parentElement;
         continue;
       }
@@ -97,6 +102,15 @@ export class TitleTooltipService {
       el = el.parentElement;
     }
     return null;
+  }
+
+  private isTipTextField(el: HTMLElement): boolean {
+    if (el instanceof HTMLTextAreaElement) return true;
+    if (!(el instanceof HTMLInputElement)) return false;
+    const type = (el.type || 'text').toLowerCase();
+    return !['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(
+      type,
+    );
   }
 
   private readTip(el: HTMLElement): string {

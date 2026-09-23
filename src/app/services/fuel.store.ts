@@ -6,6 +6,7 @@ import {
   type FuelDisplayPreset,
   type FuelEventKind,
   type FuelLogEvent,
+  type FuelMasterSummary,
   type FuelViewPrefs,
 } from '../models/fuel.models';
 import { AppStateStore } from './app-state.store';
@@ -20,6 +21,7 @@ export class FuelStore {
     sourcePath: string;
     sourceFileName: string;
     sheetName: string;
+    masterSummary?: FuelMasterSummary | null;
   }): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
@@ -34,6 +36,7 @@ export class FuelStore {
           importedAt: new Date().toISOString(),
           view: prev.view,
           displayPresets: prev.displayPresets,
+          masterSummary: partial.masterSummary ?? null,
         }),
       };
     });
@@ -106,7 +109,7 @@ export class FuelStore {
         fuelLibrary: normalizeFuelLibrary({ ...prev, events }),
       };
     });
-    void this.state.persist('saved');
+    void this.state.persist('debounced');
   }
 
   updateEvent(id: string, partial: Partial<FuelLogEvent>): void {
@@ -120,7 +123,7 @@ export class FuelStore {
         fuelLibrary: normalizeFuelLibrary({ ...prev, events }),
       };
     });
-    void this.state.persist('saved');
+    void this.state.persist('debounced');
   }
 
   removeEvent(id: string): void {
@@ -134,7 +137,7 @@ export class FuelStore {
         }),
       };
     });
-    void this.state.persist('saved');
+    void this.state.persist('debounced');
   }
 
   clearEvents(): void {
@@ -147,10 +150,26 @@ export class FuelStore {
           events: [],
           importedAt: '',
           sheetName: '',
+          masterSummary: null,
         }),
       };
     });
     void this.state.persist('silent');
+  }
+
+  /** Replace events in place (e.g. discard unsaved edits back to a baseline). */
+  replaceEvents(events: FuelLogEvent[]): void {
+    this.data.update((d) => {
+      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      return {
+        ...d,
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          events: events.map((e) => createEmptyFuelLogEvent(e)),
+        }),
+      };
+    });
+    void this.state.persist('saved');
   }
 
   findDisplayPresetByName(name: string): FuelDisplayPreset | undefined {

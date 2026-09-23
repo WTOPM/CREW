@@ -4551,6 +4551,57 @@ th {
   padding-inline: 0.08rem;
 }
 
+.dg-cell-input--ref-mismatch,
+.dg-cell-input--ref-mismatch:hover,
+.dg-cell-input--ref-mismatch:focus,
+.dg-cell-input--ref-mismatch.dg-cell-input--readonly,
+.dg-cell-input--ref-mismatch.dg-cell-input--readonly:hover,
+.dg-cell-input--ref-mismatch.dg-cell-input--readonly:focus,
+.dg-unifeeder-table .dg-cell-input--ref-mismatch,
+.dg-unifeeder-table .dg-cell-input--ref-mismatch:hover,
+.dg-unifeeder-table .dg-cell-input--ref-mismatch:focus,
+.dg-unifeeder-row--container-focus > td.uf-cargo .dg-cell-input--ref-mismatch,
+.dg-unifeeder-row--line-hovered > td.uf-cargo .dg-cell-input--ref-mismatch,
+.dg-unifeeder-row--consolidated > td.uf-cargo .dg-cell-input--ref-mismatch {
+  cursor: pointer;
+  border: 2px solid #ea580c;
+  background: #ffedd5;
+  color: #9a3412;
+  font-weight: 800;
+  box-shadow:
+    inset 3px 0 0 #c2410c,
+    0 0 0 1px rgb(234 88 12 / 25%);
+  animation: dg-ref-mismatch-pulse 1.6s ease-in-out infinite;
+}
+
+.dg-cell-input--ref-mismatch:focus {
+  outline: 2px solid rgb(234 88 12 / 55%);
+  outline-offset: 1px;
+}
+
+@keyframes dg-ref-mismatch-pulse {
+  0%,
+  100% {
+    background: #ffedd5;
+    box-shadow:
+      inset 3px 0 0 #c2410c,
+      0 0 0 1px rgb(234 88 12 / 25%);
+  }
+  50% {
+    background: #fdba74;
+    box-shadow:
+      inset 3px 0 0 #9a3412,
+      0 0 0 2px rgb(234 88 12 / 40%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dg-cell-input--ref-mismatch,
+  .dg-unifeeder-table .dg-cell-input--ref-mismatch {
+    animation: none;
+  }
+}
+
 .dg-cell-input--weight {
   text-align: center;
   font-weight: 600;

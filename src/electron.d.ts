@@ -89,7 +89,7 @@ declare global {
       setLocalPrefs: (patch: Partial<ElectronLocalPrefs>) => Promise<ElectronLocalPrefs>;
       onAppRestoredFromTray: (callback: () => void) => () => void;
       pickPdfFile: () => Promise<string | null>;
-      pickExcelFile: () => Promise<string | null>;
+      pickExcelFile: (defaultPath?: string) => Promise<string | null>;
       readFileBase64: (
         filePath: string,
       ) => Promise<{ ok: boolean; base64?: string; error?: string }>;

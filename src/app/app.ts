@@ -11,6 +11,7 @@ import { DocumentSettingsStore } from './services/document-settings.store';
 import { FolderAccessService } from './services/folder-access.service';
 import { ToastService } from './services/toast.service';
 import { TitleTooltipService } from './services/title-tooltip.service';
+import { TextCaseHotkeyService } from './services/text-case-hotkey.service';
 import { DgPageArchiveService } from './services/dg-page-archive.service';
 import { ReeferPageArchiveService } from './services/reefer-page-archive.service';
 import { AppSnapshotArchiveService } from './services/app-snapshot-archive.service';
@@ -59,6 +60,7 @@ export class App implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly titleTooltips = inject(TitleTooltipService);
+  private readonly textCaseHotkeys = inject(TextCaseHotkeyService);
   private readonly dgPageArchive = inject(DgPageArchiveService);
   private readonly reeferPageArchive = inject(ReeferPageArchiveService);
   private readonly appSnapshotArchive = inject(AppSnapshotArchiveService);
@@ -155,6 +157,7 @@ export class App implements OnInit {
     }
 
     this.titleTooltips.install();
+    this.textCaseHotkeys.install();
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e) => {
@@ -358,6 +361,10 @@ export class App implements OnInit {
     const folderSection = outputFolderSectionFromRoute(url);
     if (folderSection) {
       this.folderAccess.setSection(folderSection);
+    }
+    // Flush coalesced edits before leaving; then pull peers' section from disk.
+    if (this.hasElectron) {
+      await this.appState.flushPersist('silent');
     }
     if (section && this.hasElectron && !this.shouldSkipSectionReload(section)) {
       await this.appState.reloadSectionFromDisk(section);

@@ -109,6 +109,23 @@ function overlayCellValues(
   return overlay?.cellValues;
 }
 
+/**
+ * Arrival/Departure for Ship Stores PDFs.
+ * Uses Form 01/02 `_ssMode` when set; never `crewArr` (that tracks the Crew List tab
+ * and was incorrectly marking Store 03 as Departure after opening a Departure list).
+ */
+export function resolveShipStoresIsArrival(data: AppData): boolean {
+  const modeOf = (cv: Record<string, string> | undefined): boolean | null => {
+    if (!cv || !Object.prototype.hasOwnProperty.call(cv, '_ssMode')) return null;
+    return cv['_ssMode'] !== 'departure';
+  };
+  return (
+    modeOf(overlayCellValues(data, 'shipStores')) ??
+    modeOf(overlayCellValues(data, 'shipStores02')) ??
+    true
+  );
+}
+
 function buildForm01Data(data: AppData, formatForPdf: boolean): ShipStoresForm01HtmlForm {
   const form = normalizeShipStoresForm(data.shipStoresForm);
   const { ship } = data;

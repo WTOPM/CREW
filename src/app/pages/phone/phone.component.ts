@@ -72,7 +72,8 @@ export class PhoneComponent {
   protected async pickExcel(): Promise<void> {
     const electron = window.electronAPI;
     if (!electron?.pickExcelFile) return;
-    const path = await electron.pickExcelFile();
+    const current = this.pathDraft().trim() || this.library().sourcePath.trim();
+    const path = await electron.pickExcelFile(current || undefined);
     if (!path) return;
     this.pathDraft.set(path);
     this.phoneStore.setSourcePath(path);

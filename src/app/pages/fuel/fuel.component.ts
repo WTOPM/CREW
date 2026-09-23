@@ -5,6 +5,7 @@ import {
   DestroyRef,
   effect,
   ElementRef,
+  HostListener,
   inject,
   linkedSignal,
   signal,
@@ -33,6 +34,7 @@ import {
   type FuelLogEvent,
 } from '../../models/fuel.models';
 import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { FuelStore } from '../../services/fuel.store';
 import { SectionLockService } from '../../services/section-lock.service';
 import { StorageService } from '../../services/storage.service';
@@ -136,6 +138,7 @@ export class FuelComponent {
   private readonly toast = inject(ToastService);
   private readonly localPrefs = inject(ElectronLocalPrefsService);
   private readonly sectionLock = inject(SectionLockService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly tableWrapRef = viewChild<ElementRef<HTMLElement>>('tableWrap');
@@ -150,10 +153,15 @@ export class FuelComponent {
   protected readonly showAddModal = signal(false);
   protected readonly showDisplaySaveModal = signal(false);
   protected readonly showDisplayLoadModal = signal(false);
+  protected readonly showMasterSummaryModal = signal(false);
   protected readonly eventsMenuOpen = signal(false);
   protected readonly columnsMenuOpen = signal(false);
   /** Viewport coords for fixed Events/Columns menus (avoids overflow clipping). */
   protected readonly menuAnchor = signal<{ top: number; left: number; width: number } | null>(null);
+  /** Long-press on column header to hide. */
+  protected readonly colPressId = signal<FuelColumnId | null>(null);
+  /** Long-press on Kind badge to hide that event type. */
+  protected readonly kindPressId = signal<FuelEventKind | null>(null);
   protected readonly pathDraft = linkedSignal(() => this.library().sourcePath);
   protected readonly kindLabels = FUEL_EVENT_KIND_LABELS;
   protected readonly allKinds = ALL_KINDS;
@@ -169,6 +177,10 @@ export class FuelComponent {
 
   private hScrollSyncing = false;
   private hScrollRo: ResizeObserver | null = null;
+  /** Events as last loaded / saved / discarded — Discard restores this. */
+  private fileBaseline: FuelLogEvent[] = [];
+  private colPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private kindPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly fuelUi = this.localPrefs.fuelUi;
   protected readonly hoursAsHm = computed(() => this.fuelUi().hoursAsHm);
@@ -212,7 +224,15 @@ export class FuelComponent {
       if (legacy.length) this.fuelStore.importDisplayPresetsIfEmpty(legacy);
     });
 
-    afterNextRender(() => this.bindHScrollObservers());
+    afterNextRender(() => {
+      this.bindHScrollObservers();
+      this.captureFileBaseline();
+    });
+
+    this.destroyRef.onDestroy(() => {
+      this.clearColPressTimer();
+      this.clearKindPressTimer();
+    });
 
     effect(() => {
       // Remeasure when columns / rows change.
@@ -309,6 +329,127 @@ export class FuelComponent {
     else set.add(id);
     const next = FUEL_COLUMNS.map((c) => c.id).filter((c) => set.has(c));
     await this.localPrefs.setFuelVisibleColumns(next.length ? next : [...FUEL_DEFAULT_VISIBLE_COLUMNS]);
+  }
+
+  protected syncTitle(): string {
+    if (this.viewOnly()) return 'View only — cannot write the Excel file';
+    if (!this.canWriteExcel) return 'Save to file needs the desktop app';
+    if (!this.dirty()) return 'No unsaved edits — nothing to write';
+    return 'Hover: Write (green) saves to Excel · Discard (red) restores last load/save';
+  }
+
+  protected async confirmWriteToFile(ev?: Event): Promise<void> {
+    ev?.stopPropagation();
+    if (this.busy() || !this.dirty() || !this.canWriteExcel || this.viewOnly()) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Write to Excel file?',
+      message:
+        'Save your unsaved fuel-log edits into the Excel file on disk?\n\n' +
+        'This overwrites the matching rows in the workbook.',
+      confirmLabel: 'Write',
+      cancelLabel: 'Keep editing',
+    });
+    if (!ok) return;
+    await this.saveToFile();
+  }
+
+  protected async confirmDiscardEdits(ev?: Event): Promise<void> {
+    ev?.stopPropagation();
+    if (this.busy() || !this.dirty() || this.viewOnly()) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Discard unsaved edits?',
+      message:
+        'Revert the fuel log to how it was when the file was last opened, updated, or written?\n\n' +
+        'All unsaved changes will be lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    this.fuelStore.replaceEvents(structuredClone(this.fileBaseline) as FuelLogEvent[]);
+    this.dirty.set(false);
+    this.editMode.set(false);
+    this.toast.show('Edits discarded — restored last file state', 'success');
+  }
+
+  protected onColHeadPointerDown(col: FuelColumnDef, ev: PointerEvent): void {
+    if (ev.button !== 0) return;
+    this.clearKindPressTimer();
+    this.kindPressId.set(null);
+    this.clearColPressTimer();
+    this.colPressId.set(col.id);
+    this.colPressTimer = setTimeout(() => {
+      this.colPressTimer = null;
+      this.colPressId.set(null);
+      void this.hideColumnByHold(col);
+    }, 550);
+  }
+
+  protected onColHeadPointerUp(): void {
+    this.clearColPressTimer();
+    this.colPressId.set(null);
+  }
+
+  private clearColPressTimer(): void {
+    if (this.colPressTimer != null) {
+      clearTimeout(this.colPressTimer);
+      this.colPressTimer = null;
+    }
+  }
+
+  private async hideColumnByHold(col: FuelColumnDef): Promise<void> {
+    const visible = this.fuelUi().visibleColumns;
+    if (visible.length <= 1) {
+      this.toast.showError('Keep at least one column visible');
+      return;
+    }
+    if (!visible.includes(col.id)) return;
+    const next = visible.filter((id) => id !== col.id);
+    await this.localPrefs.setFuelVisibleColumns(next);
+    this.toast.show(`Hidden “${col.label}” — restore via Columns`, 'success');
+  }
+
+  protected onKindBadgePointerDown(kind: FuelEventKind, ev: PointerEvent): void {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.clearColPressTimer();
+    this.colPressId.set(null);
+    this.clearKindPressTimer();
+    this.kindPressId.set(kind);
+    this.kindPressTimer = setTimeout(() => {
+      this.kindPressTimer = null;
+      this.kindPressId.set(null);
+      this.hideKindByHold(kind);
+    }, 550);
+  }
+
+  protected onKindBadgePointerUp(ev?: Event): void {
+    ev?.stopPropagation();
+    this.clearKindPressTimer();
+    this.kindPressId.set(null);
+  }
+
+  private clearKindPressTimer(): void {
+    if (this.kindPressTimer != null) {
+      clearTimeout(this.kindPressTimer);
+      this.kindPressTimer = null;
+    }
+  }
+
+  private hideKindByHold(kind: FuelEventKind): void {
+    const visible = this.library().view.visibleKinds;
+    if (!visible.includes(kind)) return;
+    if (visible.length <= 1) {
+      this.toast.showError('Keep at least one event type visible');
+      return;
+    }
+    this.fuelStore.setVisibleKinds(visible.filter((k) => k !== kind));
+    this.toast.show(`Hidden “${this.kindLabels[kind]}” — restore via Events`, 'success');
+  }
+
+  private captureFileBaseline(): void {
+    this.fileBaseline = structuredClone(this.library().events) as FuelLogEvent[];
   }
 
   protected async selectAllColumns(): Promise<void> {
@@ -458,7 +599,8 @@ export class FuelComponent {
   protected async pickExcel(): Promise<void> {
     const electron = window.electronAPI;
     if (electron?.pickExcelFile) {
-      const path = await electron.pickExcelFile();
+      const current = this.pathDraft().trim() || this.library().sourcePath.trim();
+      const path = await electron.pickExcelFile(current || undefined);
       if (!path) return;
       this.pathDraft.set(path);
       this.fuelStore.setSourcePath(path);
@@ -516,6 +658,7 @@ export class FuelComponent {
         return;
       }
       this.dirty.set(false);
+      this.captureFileBaseline();
       this.toast.show('Saved to Excel file', 'success');
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Save failed');
@@ -534,7 +677,7 @@ export class FuelComponent {
     try {
       const res = await api.readFileBase64(path);
       if (!res.ok || !res.base64) {
-        this.toast.showError(res.error || 'Could not read Excel');
+        this.toast.showError(res.error || `Could not read Excel:\n${path}`);
         return;
       }
       await this.applyImport(base64ToBytes(res.base64), path, path.split(/[/\\]/).pop() || 'fuel.xlsx');
@@ -565,9 +708,11 @@ export class FuelComponent {
         sourcePath,
         sourceFileName: fileName,
         sheetName: result.sheetName,
+        masterSummary: result.masterSummary,
       });
       this.dirty.set(false);
       this.editMode.set(false);
+      this.captureFileBaseline();
       const warn = result.warnings.length ? ` (${result.warnings.length} row warnings)` : '';
       this.toast.show(`Imported ${result.events.length} events${warn}`, 'success');
     } catch (err) {
@@ -583,6 +728,7 @@ export class FuelComponent {
     this.fuelStore.clearEvents();
     this.dirty.set(false);
     this.editMode.set(false);
+    this.captureFileBaseline();
     this.toast.show('Fuel events cleared', 'success');
   }
 
@@ -652,6 +798,13 @@ export class FuelComponent {
     this.eventsMenuOpen.set(false);
     this.columnsMenuOpen.set(false);
     this.menuAnchor.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.showMasterSummaryModal()) {
+      this.showMasterSummaryModal.set(false);
+    }
   }
 }
 

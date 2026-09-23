@@ -79,7 +79,7 @@ export class NetworkForceQuitService {
       // Flush whatever this session is allowed to write (skip if view-only).
       // Does not wipe peers’ already-saved data — cooperative merge / lock guard.
       this.etaStore.flushPersist('silent');
-      await this.state.persist('silent');
+      await this.state.flushPersist('silent');
       await this.sectionLock.releaseCurrent();
     } catch {
       /* still quit */

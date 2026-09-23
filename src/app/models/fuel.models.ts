@@ -119,7 +119,7 @@ export interface FuelColumnDef {
 
 /**
  * Full Fuel Log column set (MASTER A–R + CENG machinery).
- * MASTER S1–AC4 summary block and other sheets are intentionally omitted.
+ * MASTER S1–AC4 summary is imported separately for a read-only compare modal.
  */
 export const FUEL_COLUMNS: FuelColumnDef[] = [
   { id: 'date', label: 'Date', tip: 'Event date from the fuel log (local ship date).', type: 'date', field: 'date' },
@@ -614,6 +614,35 @@ export interface FuelLibrarySettings {
   view: FuelViewPrefs;
   /** Named column layouts — shared across PCs via the data folder. */
   displayPresets: FuelDisplayPreset[];
+  /** MASTER S1–AC4 snapshot (AUX / tanks) for read-only compare. */
+  masterSummary: FuelMasterSummary | null;
+}
+
+/** One AE line from MASTER S–V (KW / RH / KG). MT is a shared merged cell. */
+export interface FuelMasterSummaryAeRow {
+  label: string;
+  kw: string;
+  rh: string;
+  kg: string;
+}
+
+/**
+ * Read-only MASTER header block S1:AC4 — same layout as Excel:
+ * AE rows × KW/RH/KG, merged MT, tank values, merged Updated + note.
+ */
+export interface FuelMasterSummary {
+  heading: string;
+  aeMetricHeaders: string[];
+  tankHeaders: string[];
+  aeRows: FuelMasterSummaryAeRow[];
+  /** Merged W2:W4 */
+  mt: string;
+  /** X2:AC2 per tank */
+  tankValues: string[];
+  /** Merged X3:AC3 (e.g. Updated) */
+  tankStatus: string;
+  /** Merged X4:AC4 (e.g. 13.09.2026 - HAMBURG) */
+  tankNote: string;
 }
 
 export function createDefaultFuelViewPrefs(): FuelViewPrefs {
@@ -643,6 +672,7 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
     events: [],
     view: createDefaultFuelViewPrefs(),
     displayPresets: [],
+    masterSummary: null,
   };
 }
 
@@ -726,6 +756,75 @@ export function normalizeFuelLibrary(
       limitCount: normalizeLimitCount(viewRaw?.limitCount),
     },
     displayPresets: normalizeFuelDisplayPresets(raw?.displayPresets),
+    masterSummary: normalizeFuelMasterSummary(raw?.masterSummary),
+  };
+}
+
+export function normalizeFuelMasterSummary(raw: unknown): FuelMasterSummary | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const source = raw as Partial<FuelMasterSummary> & {
+    tanks?: { label?: string; value?: string; status?: string; updatedAt?: string }[];
+  };
+
+  // New shape
+  const aeRows: FuelMasterSummaryAeRow[] = [];
+  const aeRaw = Array.isArray(source.aeRows) ? source.aeRows : [];
+  for (const item of aeRaw) {
+    if (!item || typeof item !== 'object') continue;
+    const r = item as Partial<FuelMasterSummaryAeRow> & { mt?: string };
+    const label = String(r.label ?? '').trim();
+    if (!label) continue;
+    aeRows.push({
+      label,
+      kw: String(r.kw ?? '').trim(),
+      rh: String(r.rh ?? '').trim(),
+      kg: String(r.kg ?? '').trim(),
+    });
+  }
+
+  let tankHeaders = Array.isArray(source.tankHeaders)
+    ? source.tankHeaders.map((h) => String(h ?? '').trim()).filter(Boolean)
+    : [];
+  let tankValues = Array.isArray(source.tankValues)
+    ? source.tankValues.map((v) => String(v ?? '').trim())
+    : [];
+  let tankStatus = String(source.tankStatus ?? '').trim();
+  let tankNote = String(source.tankNote ?? '').trim();
+  let mt = String(source.mt ?? '').trim();
+
+  // Legacy shape (per-tank status/date) → fold into merged fields
+  if ((!tankHeaders.length || !tankValues.length) && Array.isArray(source.tanks)) {
+    tankHeaders = [];
+    tankValues = [];
+    for (const t of source.tanks) {
+      if (!t || typeof t !== 'object') continue;
+      const label = String(t.label ?? '').trim();
+      if (!label) continue;
+      tankHeaders.push(label);
+      tankValues.push(String(t.value ?? '').trim());
+      if (!tankStatus) tankStatus = String(t.status ?? '').trim();
+      if (!tankNote) tankNote = String(t.updatedAt ?? '').trim();
+    }
+  }
+  if (!mt && aeRaw.length) {
+    const first = aeRaw[0] as { mt?: string } | undefined;
+    mt = String(first?.mt ?? '').trim();
+  }
+
+  const aeMetricHeaders = Array.isArray(source.aeMetricHeaders)
+    ? source.aeMetricHeaders.map((h) => String(h ?? '').trim()).filter(Boolean)
+    : ['KW', 'RH', 'KG', 'MT'];
+
+  if (!aeRows.length && !tankHeaders.length) return null;
+  return {
+    heading: String(source.heading ?? '').trim() || 'AUX',
+    aeMetricHeaders: aeMetricHeaders.length ? aeMetricHeaders : ['KW', 'RH', 'KG', 'MT'],
+    tankHeaders,
+    aeRows,
+    mt,
+    tankValues,
+    tankStatus,
+    tankNote,
   };
 }
 

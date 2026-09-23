@@ -24,7 +24,20 @@ import { readLocalStorage, writeLocalStorage } from '../utils/browser-storage.ut
 
 const STORAGE_KEY = 'crew-app-data';
 
+/** Coalesce multi‑MB network writes while typing / toggling filters. */
+const PERSIST_DEBOUNCE_MS = 1400;
+
 export type PersistNotify = 'silent' | 'saved' | 'debounced';
+
+function notifyRank(n: PersistNotify): number {
+  if (n === 'saved') return 2;
+  if (n === 'debounced') return 1;
+  return 0;
+}
+
+function maxNotify(a: PersistNotify, b: PersistNotify): PersistNotify {
+  return notifyRank(a) >= notifyRank(b) ? a : b;
+}
 
 export type AppInitResult = 'loaded' | 'missing' | 'error';
 
@@ -76,6 +89,14 @@ export class AppStateStore {
   /** Set when a modal form auto-saves silently; cleared after Saved toast on close. */
   private formSessionDirty = false;
 
+  /** Disk write coalesce — memory updates stay instant; network write waits for idle. */
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private persistDirty = false;
+  private pendingNotify: PersistNotify = 'silent';
+  private pendingSavedMessage: string | undefined;
+  private persistInFlight: Promise<void> | null = null;
+  private persistQueuedAgain = false;
+
   async init(): Promise<AppInitResult> {
     const electron = window.electronAPI;
     if (electron) {
@@ -86,7 +107,7 @@ export class AppStateStore {
           this.data.set(normalized);
           this.electronBootstrapComplete = true;
           if ((loaded.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
-            await this.persist('silent');
+            await this.flushPersist('silent');
           }
           return 'loaded';
         }
@@ -106,15 +127,15 @@ export class AppStateStore {
         const normalized = normalizeAppData(parsed);
         this.data.set(normalized);
         if ((parsed.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
-          await this.persist('silent');
+          await this.flushPersist('silent');
         }
       } catch {
         this.data.set(createEmptyAppData());
-        await this.persist('silent');
+        await this.flushPersist('silent');
       }
     } else {
       this.data.set(createEmptyAppData());
-      await this.persist('silent');
+      await this.flushPersist('silent');
     }
     return 'loaded';
   }
@@ -128,7 +149,7 @@ export class AppStateStore {
       return false;
     }
     this.data.set(createEmptyAppData());
-    await this.persist('silent');
+    await this.flushPersist('silent');
     this.electronBootstrapComplete = true;
     return true;
   }
@@ -161,7 +182,7 @@ export class AppStateStore {
       const normalized = normalizeAppData(loaded);
       this.data.set(normalized);
       if ((loaded.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
-        await this.persist('silent');
+        await this.flushPersist('silent');
       }
       this.electronBootstrapComplete = true;
       return true;
@@ -196,7 +217,70 @@ export class AppStateStore {
     this.data.set(merged);
   }
 
+  /**
+   * Schedule a coalesced disk write. Memory is already updated by the caller —
+   * this only hits the network/shared folder after ~1.4s idle (or flushPersist).
+   */
   async persist(notify: PersistNotify = 'debounced', savedMessage?: string): Promise<void> {
+    this.queuePersist(notify, savedMessage);
+    this.scheduleDebouncedPersist();
+  }
+
+  /** Write any pending changes now (navigation, quit, bootstrap). */
+  async flushPersist(notify?: PersistNotify, savedMessage?: string): Promise<void> {
+    if (notify != null) this.queuePersist(notify, savedMessage);
+    if (this.persistTimer != null) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    if (!this.persistDirty && !this.persistInFlight) return;
+    await this.runPersistCycle();
+  }
+
+  private queuePersist(notify: PersistNotify, savedMessage?: string): void {
+    this.persistDirty = true;
+    this.pendingNotify = maxNotify(this.pendingNotify, notify);
+    if (savedMessage) this.pendingSavedMessage = savedMessage;
+  }
+
+  private scheduleDebouncedPersist(): void {
+    if (this.persistTimer != null) clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      void this.runPersistCycle();
+    }, PERSIST_DEBOUNCE_MS);
+  }
+
+  private async runPersistCycle(): Promise<void> {
+    if (this.persistInFlight) {
+      this.persistQueuedAgain = true;
+      await this.persistInFlight;
+      return;
+    }
+    if (!this.persistDirty) return;
+
+    this.persistDirty = false;
+    const notify = this.pendingNotify;
+    const savedMessage = this.pendingSavedMessage;
+    this.pendingNotify = 'silent';
+    this.pendingSavedMessage = undefined;
+
+    this.persistInFlight = this.writePersistNow(notify, savedMessage);
+    try {
+      await this.persistInFlight;
+    } finally {
+      this.persistInFlight = null;
+    }
+
+    if (this.persistQueuedAgain || this.persistDirty) {
+      this.persistQueuedAgain = false;
+      if (this.persistDirty) {
+        await this.runPersistCycle();
+      }
+    }
+  }
+
+  private async writePersistNow(notify: PersistNotify, savedMessage?: string): Promise<void> {
     if (!this.sectionLock.canPersist()) {
       if (notify !== 'silent') {
         this.toast.show(
@@ -249,6 +333,9 @@ export class AppStateStore {
       return;
     }
 
+    // Flush coalesced AppData first so we don't clobber a pending section write.
+    await this.flushPersist('silent');
+
     const memory = this.data();
     if (electron) {
       const loaded = await electron.readData();
@@ -284,6 +371,8 @@ export class AppStateStore {
       return;
     }
 
+    await this.flushPersist('silent');
+
     const memory = this.data();
     if (electron) {
       const loaded = await electron.readData();
@@ -308,7 +397,7 @@ export class AppStateStore {
     this.afterPersist(notify, savedMessage);
   }
 
-  /** Save ship/voyage fields immediately — edited on Home, stored under Settings in the slice map. */
+  /** Save ship/voyage fields — Home edits; merge onto disk so other sections stay intact. */
   async persistShip(notify: PersistNotify = 'silent', savedMessage?: string): Promise<void> {
     if (!this.sectionLock.canPersist()) {
       if (notify !== 'silent') {
@@ -327,6 +416,16 @@ export class AppStateStore {
       }
       return;
     }
+
+    // Typing draft/callsign etc.: coalesce with the main persist queue (ship is in memory).
+    // Explicit 'saved' still forces an immediate ship merge write.
+    if (notify !== 'saved') {
+      this.queuePersist(notify === 'silent' ? 'debounced' : notify, savedMessage);
+      this.scheduleDebouncedPersist();
+      return;
+    }
+
+    await this.flushPersist('silent');
 
     const memory = this.data();
     if (electron) {

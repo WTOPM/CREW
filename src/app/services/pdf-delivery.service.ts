@@ -140,12 +140,14 @@ export class PdfDeliveryService {
   }
 
   private async confirmOverwrite(fileName: string, location: string): Promise<boolean> {
-    return this.confirmDialog.confirm({
-      title: 'Overwrite file',
-      message: `A file named "${fileName}" already exists in "${location}".\n\nOverwrite it?`,
-      confirmLabel: 'Overwrite',
-      variant: 'danger',
-    });
+    return (
+      (await this.confirmDialog.confirm({
+        title: 'Overwrite file',
+        message: `A file named "${fileName}" already exists in "${location}".\n\nOverwrite it?`,
+        confirmLabel: 'Overwrite',
+        variant: 'danger',
+      })) === true
+    );
   }
 
   private downloadNamed(bytes: Uint8Array, fileName: string): void {

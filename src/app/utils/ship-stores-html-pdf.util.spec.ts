@@ -1,6 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyAppData } from '../data/empty-app-data';
-import { buildShipStoresHtmlPdfSnapshot } from './ship-stores-html-pdf.util';
+import {
+  buildShipStoresHtmlPdfSnapshot,
+  resolveShipStoresIsArrival,
+} from './ship-stores-html-pdf.util';
+
+describe('resolveShipStoresIsArrival', () => {
+  it('defaults to arrival and ignores crewArr departure tab', () => {
+    const data = createEmptyAppData();
+    data.crewArr.isArrival = false;
+    expect(resolveShipStoresIsArrival(data)).toBe(true);
+  });
+
+  it('follows Form 01 / 02 _ssMode when set', () => {
+    const data = createEmptyAppData();
+    data.crewArr.isArrival = true;
+    data.documentOverlay.shipStores.cellValues = { _ssMode: 'departure' };
+    expect(resolveShipStoresIsArrival(data)).toBe(false);
+
+    data.documentOverlay.shipStores.cellValues = { _ssMode: 'arrival' };
+    data.documentOverlay.shipStores02.cellValues = { _ssMode: 'departure' };
+    expect(resolveShipStoresIsArrival(data)).toBe(true);
+  });
+});
 
 describe('buildShipStoresHtmlPdfSnapshot', () => {
   it('builds form 01 HTML structure with arrival and formatted articles', () => {

@@ -667,9 +667,14 @@
                     <input
                       class="dg-cell-input dg-cell-input--mono"
                       [class.dg-cell-input--readonly]="!line.editable"
+                      [class.dg-cell-input--ref-mismatch]="
+                        hasUnifeederRefMismatch(line, 'packingGroup')
+                      "
+                      [attr.title]="unifeederRefMismatchTitle(line, 'packingGroup') || null"
                       [ngModel]="line.packingGroup"
                       [readonly]="!line.editable"
                       [tabindex]="line.editable ? 0 : -1"
+                      (click)="onUnifeederRefMismatchClick($event, line, 'packingGroup')"
                       (ngModelChange)="onUnifeederDisplayRowChange(line, 'packingGroup', $event)"
                     />
                   </span>
@@ -734,9 +739,12 @@
                     <input
                       class="dg-cell-input dg-cell-input--mono"
                       [class.dg-cell-input--readonly]="!line.editable"
+                      [class.dg-cell-input--ref-mismatch]="hasUnifeederRefMismatch(line, 'dgClass')"
+                      [attr.title]="unifeederRefMismatchTitle(line, 'dgClass') || null"
                       [ngModel]="line.dgClass"
                       [readonly]="!line.editable"
                       [tabindex]="line.editable ? 0 : -1"
+                      (click)="onUnifeederRefMismatchClick($event, line, 'dgClass')"
                       (ngModelChange)="onUnifeederDisplayRowChange(line, 'dgClass', $event)"
                     />
                   </span>
@@ -745,9 +753,12 @@
                   <input
                     class="dg-cell-input dg-cell-input--mono"
                     [class.dg-cell-input--readonly]="!line.editable"
+                    [class.dg-cell-input--ref-mismatch]="hasUnifeederRefMismatch(line, 'subRisk')"
+                    [attr.title]="unifeederRefMismatchTitle(line, 'subRisk') || null"
                     [ngModel]="line.subRisk"
                     [readonly]="!line.editable"
                     [tabindex]="line.editable ? 0 : -1"
+                    (click)="onUnifeederRefMismatchClick($event, line, 'subRisk')"
                     (ngModelChange)="onUnifeederDisplayRowChange(line, 'subRisk', $event)"
                   />
                 </td>
@@ -756,9 +767,12 @@
                     <input
                       class="dg-cell-input dg-cell-input--mono"
                       [class.dg-cell-input--readonly]="!line.editable"
+                      [class.dg-cell-input--ref-mismatch]="hasUnifeederRefMismatch(line, 'fire')"
+                      [attr.title]="unifeederRefMismatchTitle(line, 'fire') || null"
                       [ngModel]="line.fire"
                       [readonly]="!line.editable"
                       [tabindex]="line.editable ? 0 : -1"
+                      (click)="onUnifeederRefMismatchClick($event, line, 'fire')"
                       (ngModelChange)="onUnifeederDisplayRowChange(line, 'fire', $event)"
                     />
                   </span>
@@ -768,9 +782,12 @@
                     <input
                       class="dg-cell-input dg-cell-input--mono"
                       [class.dg-cell-input--readonly]="!line.editable"
+                      [class.dg-cell-input--ref-mismatch]="hasUnifeederRefMismatch(line, 'spillage')"
+                      [attr.title]="unifeederRefMismatchTitle(line, 'spillage') || null"
                       [ngModel]="line.spillage"
                       [readonly]="!line.editable"
                       [tabindex]="line.editable ? 0 : -1"
+                      (click)="onUnifeederRefMismatchClick($event, line, 'spillage')"
                       (ngModelChange)="onUnifeederDisplayRowChange(line, 'spillage', $event)"
                     />
                   </span>

@@ -10,6 +10,7 @@ import type { DgUnifeederExportContext } from '../../models/dg-manifest-export.m
 import { StorageService } from '../../services/storage.service';
 import { DgManifestStore } from '../../services/dg-manifest.store';
 import { ToastService } from '../../services/toast.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { commitDgDualWeightEdit } from '../../utils/dg-weight-tonnage.util';
 import { formatDisplayDate } from '../../utils/date.util';
 import { PortSelectComponent } from '../port-select/port-select.component';
@@ -60,10 +61,17 @@ import {
   mfagSpillagePageRefFromEmsCode,
 } from '../../utils/dg-mfag-schedule.util';
 import {
-  unifeederAutofillFromUnNumber,
   unNumberHasDigits,
 } from '../../utils/dg-un-number-autofill.util';
 import { normalizeUnNumber } from '../../utils/dg-un-number.util';
+import { applyUnifeederReferenceOrManifest } from '../../utils/dg-import-un-reference.util';
+import {
+  findIdenticalUnifeederReferenceMismatches,
+  getUnifeederReferenceMismatch,
+  unifeederRefCompareFieldLabel,
+  type UnifeederRefCompareField,
+  type UnifeederReferenceMismatch,
+} from '../../utils/dg-unifeeder-reference-mismatch.util';
 import { dgFlashPointTone } from '../../utils/dg-flash-point-display.util';
 import { DgRowSelection } from '../../utils/dg-row-selection.util';
 
@@ -95,6 +103,7 @@ export class DgUnifeederInventoryComponent {
   private readonly unifeederExcel = inject(DgUnifeederExcelService);
   private readonly unifeederPdf = inject(DgUnifeederPdfService);
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly unifeederFileRef = viewChild<ElementRef<HTMLInputElement>>('unifeederExcelFile');
 
   protected readonly ports = this.storage.ports;
@@ -736,9 +745,168 @@ export class DgUnifeederInventoryComponent {
     const raw = input.value;
     if (!unNumberHasDigits(raw)) return;
 
-    const autofill = unifeederAutofillFromUnNumber(raw);
-    const patch = autofill ?? { unNo: normalizeUnNumber(raw) };
-    this.dg.updateUnifeederRow(this.unifeederPrimaryRowId(row), patch);
+    const primaryId = this.unifeederPrimaryRowId(row);
+    const current = this.unifeederLibrary().onboard.find((r) => r.id === primaryId);
+    if (!current) return;
+
+    const { row: next } = applyUnifeederReferenceOrManifest({
+      size: current.size,
+      stow: current.stow,
+      containerNo: current.containerNo,
+      loadPort: current.loadPort,
+      dischargePort: current.dischargePort,
+      unNo: raw,
+      packingGroup: current.packingGroup,
+      weightKg: current.weightKg,
+      lq: current.lq,
+      flashPoint: current.flashPoint,
+      marinePollutant: current.marinePollutant,
+      goodsDescription: current.goodsDescription,
+      dgClass: current.dgClass,
+      subRisk: current.subRisk,
+      fire: current.fire,
+      spillage: current.spillage,
+    });
+
+    const unChanged =
+      normalizeUnNumber(raw) !== normalizeUnNumber(current.unNo);
+    this.dg.updateUnifeederRow(primaryId, {
+      unNo: next.unNo ?? normalizeUnNumber(raw),
+      dgClass: next.dgClass ?? current.dgClass,
+      goodsDescription: next.goodsDescription ?? current.goodsDescription,
+      packingGroup: next.packingGroup ?? current.packingGroup,
+      subRisk: next.subRisk ?? current.subRisk,
+      fire: next.fire ?? current.fire,
+      spillage: next.spillage ?? current.spillage,
+      ...(unChanged ? { referenceKeepManifest: undefined } : {}),
+    });
+  }
+
+  protected hasUnifeederRefMismatch(
+    row: DgUnifeederRowDisplay,
+    field: UnifeederRefCompareField,
+  ): boolean {
+    return !!this.resolveUnifeederRefMismatch(row, field);
+  }
+
+  protected unifeederRefMismatchTitle(
+    row: DgUnifeederRowDisplay,
+    field: UnifeederRefCompareField,
+  ): string {
+    const mismatch = this.resolveUnifeederRefMismatch(row, field);
+    if (!mismatch) return '';
+    const label = unifeederRefCompareFieldLabel(field);
+    return `${label}: manifesto “${mismatch.currentValue}” ≠ DG Reference “${mismatch.referenceValue}” — click to review`;
+  }
+
+  protected async onUnifeederRefMismatchClick(
+    event: MouseEvent,
+    row: DgUnifeederRowDisplay,
+    field: UnifeederRefCompareField,
+  ): Promise<void> {
+    const mismatch = this.resolveUnifeederRefMismatch(row, field);
+    if (!mismatch) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const identical = findIdenticalUnifeederReferenceMismatches(
+      this.unifeederLibrary().onboard,
+      mismatch,
+    );
+    const label = unifeederRefCompareFieldLabel(field);
+    const result = await this.confirmDialog.confirm({
+      title: `${label} differs from DG Reference`,
+      message: [
+        `Manifesto (kept): ${mismatch.currentValue}`,
+        `DG Reference: ${mismatch.referenceValue}`,
+        '',
+        'Keep the manifesto value, or replace with DG Reference.',
+      ].join('\n'),
+      cancelLabel: 'Keep manifesto',
+      confirmLabel: 'Use DG Reference',
+      altLabel: identical.length > 1 ? `Fix all (${identical.length})` : undefined,
+    });
+
+    if (result === false) {
+      this.dismissUnifeederRefMismatch(row, mismatch);
+      return;
+    }
+    if (result === 'alt') {
+      this.applyUnifeederRefMismatch(identical, mismatch);
+      this.toast.show(
+        `Updated ${identical.length} ${label.toLowerCase()} values from DG Reference`,
+        'success',
+      );
+      return;
+    }
+    this.applyUnifeederRefMismatch(
+      this.sourceRowsForDisplay(row).filter((r) => !!getUnifeederReferenceMismatch(r, field)),
+      mismatch,
+    );
+  }
+
+  private resolveUnifeederRefMismatch(
+    row: DgUnifeederRowDisplay,
+    field: UnifeederRefCompareField,
+  ): UnifeederReferenceMismatch | null {
+    for (const source of this.sourceRowsForDisplay(row)) {
+      const mismatch = getUnifeederReferenceMismatch(source, field);
+      if (mismatch) return mismatch;
+    }
+    return getUnifeederReferenceMismatch(row, field);
+  }
+
+  private sourceRowsForDisplay(row: DgUnifeederRowDisplay): DgUnifeederRow[] {
+    const byId = new Map(this.unifeederLibrary().onboard.map((r) => [r.id, r]));
+    return row.sourceRowIds.map((id) => byId.get(id)).filter((r): r is DgUnifeederRow => !!r);
+  }
+
+  private dismissUnifeederRefMismatch(
+    row: DgUnifeederRowDisplay,
+    mismatch: UnifeederReferenceMismatch,
+  ): void {
+    const targets = this.sourceRowsForDisplay(row).filter(
+      (r) => !!getUnifeederReferenceMismatch(r, mismatch.field),
+    );
+    if (!targets.length) return;
+    this.dg.updateUnifeederRows(
+      targets.map((r) => ({
+        id: r.id,
+        partial: {
+          referenceKeepManifest: {
+            ...r.referenceKeepManifest,
+            [mismatch.field]: mismatch.referenceValue,
+          },
+        },
+      })),
+    );
+  }
+
+  private applyUnifeederRefMismatch(
+    rows: readonly DgUnifeederRow[],
+    mismatch: UnifeederReferenceMismatch,
+  ): void {
+    if (!rows.length) return;
+    this.dg.updateUnifeederRows(
+      rows.map((r) => {
+        const keep = { ...(r.referenceKeepManifest ?? {}) };
+        delete keep[mismatch.field];
+        const patch: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>> = {
+          [mismatch.field]: mismatch.referenceValue,
+          referenceKeepManifest: Object.keys(keep).length ? keep : undefined,
+        };
+        if (mismatch.field === 'fire') {
+          const pageRef = mfagFirePageRefFromEmsCode(mismatch.referenceValue);
+          if (pageRef) patch.fireSchedule = pageRef;
+        }
+        if (mismatch.field === 'spillage') {
+          const pageRef = mfagSpillagePageRefFromEmsCode(mismatch.referenceValue);
+          if (pageRef) patch.spillageSchedule = pageRef;
+        }
+        return { id: r.id, partial: patch };
+      }),
+    );
   }
 
   private buildUnifeederExportContext(): DgUnifeederExportContext {

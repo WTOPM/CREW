@@ -158,11 +158,13 @@ function getDefaultDataDir() {
 function writeDataPathConfig(dataDir) {
   const dir = String(dataDir || '').trim();
   if (!dir) throw new Error('Empty data directory');
+  invalidateDataFileCache();
   fs.writeFileSync(getDataPathConfigFile(), `${dir}\n`, 'utf-8');
 }
 
 function removeDataPathConfig() {
   const cfg = getDataPathConfigFile();
+  invalidateDataFileCache();
   if (fs.existsSync(cfg)) {
     fs.unlinkSync(cfg);
   }
@@ -278,11 +280,69 @@ function ensureDataDir() {
   }
 }
 
+/**
+ * In-memory snapshot of crew-data.json.
+ * Avoids re-reading a multi‑MB file from a network share when mtime/size unchanged
+ * (typical after our own write, or rapid save coalescing). Not a second thread —
+ * I/O latency is the bottleneck, not CPU.
+ */
+let dataFileCache = {
+  filePath: null,
+  mtimeMs: 0,
+  size: 0,
+  data: null,
+};
+
+function invalidateDataFileCache() {
+  dataFileCache = { filePath: null, mtimeMs: 0, size: 0, data: null };
+}
+
+function dataFileFingerprint(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  const st = fs.statSync(filePath);
+  return { mtimeMs: st.mtimeMs, size: st.size };
+}
+
+function readDataFileCached() {
+  ensureDataDir();
+  const filePath = getDataFilePath();
+  if (!fs.existsSync(filePath)) {
+    invalidateDataFileCache();
+    return null;
+  }
+  const fp = dataFileFingerprint(filePath);
+  if (
+    fp &&
+    dataFileCache.filePath === filePath &&
+    dataFileCache.data != null &&
+    dataFileCache.mtimeMs === fp.mtimeMs &&
+    dataFileCache.size === fp.size
+  ) {
+    return dataFileCache.data;
+  }
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  dataFileCache = {
+    filePath,
+    mtimeMs: fp.mtimeMs,
+    size: fp.size,
+    data: parsed,
+  };
+  return parsed;
+}
+
 function writeDataFile(data) {
   const filePath = getDataFilePath();
   const tmp = `${filePath}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
+  // Compact JSON — shared/network folders: pretty-print made multi‑MB saves much slower.
+  fs.writeFileSync(tmp, JSON.stringify(data), 'utf-8');
   fs.renameSync(tmp, filePath);
+  const fp = dataFileFingerprint(filePath);
+  dataFileCache = {
+    filePath,
+    mtimeMs: fp ? fp.mtimeMs : 0,
+    size: fp ? fp.size : 0,
+    data,
+  };
 }
 
 /** Per-computer JSON backups keyed by the active shared data folder path. */
@@ -377,8 +437,8 @@ function createPreWriteBackup(source) {
   const previousPath = path.join(dir, BACKUP_PRE_WRITE_PREVIOUS);
   const meta = readPreWriteMeta(dir);
   const now = Date.now();
-  // Typing (ETA etc.) can save many times per second — don't copy multi‑MB file every time.
-  const minIntervalMs = 30_000;
+  // Typing can save often — don't copy multi‑MB file every time (90s on network shares).
+  const minIntervalMs = 90_000;
   if (
     meta.hourKey === hourKey &&
     typeof meta.lastCopyAt === 'number' &&
@@ -452,7 +512,7 @@ function guardShrinkBeforeWrite(data) {
   const filePath = getDataFilePath();
   if (!fs.existsSync(filePath)) return;
   const oldStat = fs.statSync(filePath);
-  const newJson = JSON.stringify(data, null, 2);
+  const newJson = JSON.stringify(data);
   const newSize = Buffer.byteLength(newJson, 'utf-8');
   if (oldStat.size > 8192 && newSize < oldStat.size * 0.15) {
     createMachineJsonBackup('blocked-shrink');
@@ -808,15 +868,16 @@ ipcMain.handle('capture-html-form-pdf', async (_event, relativeUrl, snapshot, ca
 });
 
 ipcMain.handle('read-data', () => {
-  ensureDataDir();
   const filePath = getDataFilePath();
-  if (!fs.existsSync(filePath)) {
-    logDataPathDiagnostics('read-data: missing crew-data.json');
-    return null;
-  }
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const data = readDataFileCached();
+    if (data == null) {
+      logDataPathDiagnostics('read-data: missing crew-data.json');
+      return null;
+    }
+    return data;
   } catch (err) {
+    invalidateDataFileCache();
     const msg = err instanceof Error ? err.message : String(err);
     logDataPathDiagnostics(`read-data: parse error (${msg})`);
     throw new Error(`Cannot read data file (${filePath}): ${msg}`);
@@ -1200,41 +1261,143 @@ ipcMain.handle('pick-pdf-file', async () => {
   return filePaths[0];
 });
 
-ipcMain.handle('pick-excel-file', async () => {
+ipcMain.handle('pick-excel-file', async (_event, defaultPath) => {
   const win = BrowserWindow.getFocusedWindow();
-  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+  const opts = {
     title: 'Select Excel file',
     filters: [{ name: 'Excel', extensions: ['xlsx', 'xlsm'] }],
     properties: ['openFile'],
-  });
+  };
+  const hint = String(defaultPath || '').trim();
+  if (hint) {
+    // Open the dialog in the folder of the last known file (critical for network shares).
+    try {
+      if (fs.existsSync(hint)) {
+        opts.defaultPath = hint;
+      } else {
+        const dir = path.dirname(hint);
+        if (dir && dir !== '.' && fs.existsSync(dir)) opts.defaultPath = dir;
+        else opts.defaultPath = hint;
+      }
+    } catch {
+      opts.defaultPath = hint;
+    }
+  }
+  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, opts);
   if (canceled || !filePaths?.[0]) return null;
   return filePaths[0];
 });
 
-ipcMain.handle('read-file-base64', (_event, filePath) => {
+function normalizeFsPath(filePath) {
+  const raw = String(filePath || '').trim();
+  if (!raw) return '';
   try {
-    const p = String(filePath || '').trim();
-    if (!p) return { ok: false, error: 'Empty path' };
-    if (!fs.existsSync(p)) return { ok: false, error: 'File not found' };
-    const base64 = fs.readFileSync(p).toString('base64');
-    return { ok: true, base64 };
-  } catch (err) {
-    return { ok: false, error: err?.message || 'Could not read file' };
+    return path.normalize(raw);
+  } catch {
+    return raw;
   }
+}
+
+function isUncPath(p) {
+  return p.startsWith('\\\\') || p.startsWith('//');
+}
+
+function fsRetryCount(p) {
+  if (isUncPath(p)) return 3;
+  // Mapped drives (Z:\) often look local but drop after sleep/VPN.
+  if (/^[A-Za-z]:[\\/]/.test(p)) return 2;
+  return 1;
+}
+
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatFsReadError(p, errMsg) {
+  const base = errMsg || 'Could not read file';
+  if (isUncPath(p)) {
+    return `${base} — network share may be offline. Reconnect or use Browse.`;
+  }
+  if (/^[A-Za-z]:[\\/]/.test(p)) {
+    return `${base} — if this is a mapped network drive, reconnect it or use Browse.`;
+  }
+  return base;
+}
+
+ipcMain.handle('read-file-base64', async (_event, filePath) => {
+  const p = normalizeFsPath(filePath);
+  if (!p) return { ok: false, error: 'Empty path' };
+
+  const attempts = fsRetryCount(p);
+  let lastError = 'Could not read file';
+  for (let i = 0; i < attempts; i++) {
+    try {
+      if (!fs.existsSync(p)) {
+        lastError = 'File not found';
+        if (i < attempts - 1) {
+          await sleepMs(350 * (i + 1));
+          continue;
+        }
+        return { ok: false, error: formatFsReadError(p, lastError) };
+      }
+      const base64 = fs.readFileSync(p).toString('base64');
+      return { ok: true, base64 };
+    } catch (err) {
+      lastError = err?.message || 'Could not read file';
+      const code = err?.code || '';
+      const retryable =
+        code === 'ENOENT' ||
+        code === 'EACCES' ||
+        code === 'EPERM' ||
+        code === 'UNKNOWN' ||
+        code === 'EBUSY';
+      if (retryable && i < attempts - 1) {
+        await sleepMs(350 * (i + 1));
+        continue;
+      }
+      return { ok: false, error: formatFsReadError(p, lastError) };
+    }
+  }
+  return { ok: false, error: formatFsReadError(p, lastError) };
 });
 
-ipcMain.handle('write-file-base64', (_event, filePath, base64) => {
-  try {
-    const p = String(filePath || '').trim();
-    if (!p) return { ok: false, error: 'Empty path' };
-    if (!path.isAbsolute(p)) return { ok: false, error: 'Path must be absolute' };
-    const dir = path.dirname(p);
-    if (!fs.existsSync(dir)) return { ok: false, error: 'Folder not found' };
-    fs.writeFileSync(p, Buffer.from(String(base64 || ''), 'base64'));
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err?.message || 'Could not write file' };
+ipcMain.handle('write-file-base64', async (_event, filePath, base64) => {
+  const p = normalizeFsPath(filePath);
+  if (!p) return { ok: false, error: 'Empty path' };
+  if (!path.isAbsolute(p)) return { ok: false, error: 'Path must be absolute' };
+
+  const attempts = fsRetryCount(p);
+  let lastError = 'Could not write file';
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const dir = path.dirname(p);
+      if (!fs.existsSync(dir)) {
+        lastError = 'Folder not found';
+        if (i < attempts - 1) {
+          await sleepMs(350 * (i + 1));
+          continue;
+        }
+        return { ok: false, error: formatFsReadError(p, lastError) };
+      }
+      fs.writeFileSync(p, Buffer.from(String(base64 || ''), 'base64'));
+      return { ok: true };
+    } catch (err) {
+      lastError = err?.message || 'Could not write file';
+      const code = err?.code || '';
+      const retryable =
+        code === 'ENOENT' ||
+        code === 'EACCES' ||
+        code === 'EPERM' ||
+        code === 'UNKNOWN' ||
+        code === 'EBUSY';
+      if (retryable && i < attempts - 1) {
+        await sleepMs(350 * (i + 1));
+        continue;
+      }
+      return { ok: false, error: formatFsReadError(p, lastError) };
+    }
   }
+  return { ok: false, error: formatFsReadError(p, lastError) };
 });
 
 /**

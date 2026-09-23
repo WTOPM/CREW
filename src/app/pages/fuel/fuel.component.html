@@ -65,15 +65,80 @@
             {{ busy() ? 'Loading…' : library().events.length ? 'Update from file' : 'Upload' }}
           </button>
         </span>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          (click)="saveToFile()"
-          [disabled]="busy() || !dirty() || !canWriteExcel || viewOnly()"
-          title="Write in-memory edits back to the Excel file"
+        <div
+          class="fuel-sync"
+          [class.fuel-sync--dirty]="dirty() && !viewOnly() && canWriteExcel"
+          [class.fuel-sync--idle]="!dirty() || viewOnly() || !canWriteExcel"
+          [class.fuel-sync--busy]="busy()"
+          [attr.title]="syncTitle()"
         >
-          Save to file
-        </button>
+          <div class="fuel-sync__face">
+            <span class="fuel-sync__icon" aria-hidden="true">
+              @if (dirty() && !viewOnly() && canWriteExcel) {
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+                  />
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path
+                    fill="currentColor"
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"
+                    opacity="0.35"
+                  />
+                  <path
+                    fill="currentColor"
+                    d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+                  />
+                </svg>
+              }
+            </span>
+            <span class="fuel-sync__text">
+              <span class="fuel-sync__label">
+                @if (viewOnly()) {
+                  Save to file
+                } @else if (!canWriteExcel) {
+                  Save to file
+                } @else if (dirty()) {
+                  Unsaved edits
+                } @else {
+                  Save to file
+                }
+              </span>
+              <span class="fuel-sync__sub">
+                @if (viewOnly()) {
+                  view only
+                } @else if (!canWriteExcel) {
+                  desktop only
+                } @else if (dirty()) {
+                  hover · Write / Discard
+                } @else {
+                  no changes
+                }
+              </span>
+            </span>
+          </div>
+          <div class="fuel-sync__split" [attr.aria-hidden]="!(dirty() && !viewOnly() && canWriteExcel)">
+            <button
+              type="button"
+              class="fuel-sync__write"
+              (click)="confirmWriteToFile($event)"
+              [disabled]="busy() || !dirty() || !canWriteExcel || viewOnly()"
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              class="fuel-sync__discard"
+              (click)="confirmDiscardEdits($event)"
+              [disabled]="busy() || !dirty() || viewOnly()"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
         <button
           type="button"
           class="btn btn-secondary fuel-clear-btn"
@@ -91,6 +156,15 @@
     <div class="fuel-filters-head">
       <h2 class="fuel-section-title">Fuel log</h2>
       <div class="fuel-filter-presets">
+        <button
+          type="button"
+          class="fuel-chip fuel-chip--summary section-readonly-allow"
+          [disabled]="!library().masterSummary"
+          title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
+          (click)="showMasterSummaryModal.set(true)"
+        >
+          S1–AC4
+        </button>
         <div class="fuel-dropdown" (click)="$event.stopPropagation()">
           <button
             type="button"
@@ -443,11 +517,24 @@
               <tr>
                 @for (col of visibleColumnDefs(); track col.id) {
                   <th
+                    class="fuel-col-head"
                     [class.num]="col.numeric"
-                    [class]="toneClass(col)"
-                    [title]="col.tip"
+                    [class.fuel-col--me]="col.tone === 'me'"
+                    [class.fuel-col--ae]="col.tone === 'ae'"
+                    [class.fuel-col--ae1]="col.tone === 'ae1'"
+                    [class.fuel-col--ae2]="col.tone === 'ae2'"
+                    [class.fuel-col--ae3]="col.tone === 'ae3'"
+                    [class.fuel-col--boiler]="col.tone === 'boiler'"
+                    [class.fuel-col-head--pressing]="colPressId() === col.id"
+                    [title]="col.tip + ' · Hold to hide column'"
+                    (pointerdown)="onColHeadPointerDown(col, $event)"
+                    (pointerup)="onColHeadPointerUp()"
+                    (pointerleave)="onColHeadPointerUp()"
+                    (pointercancel)="onColHeadPointerUp()"
+                    (contextmenu)="$event.preventDefault()"
                   >
-                    {{ col.label }}
+                    <span class="fuel-col-head__label">{{ col.label }}</span>
+                    <span class="fuel-col-head__hold" aria-hidden="true"></span>
                   </th>
                 }
               </tr>
@@ -457,17 +544,28 @@
                 <tr [attr.data-kind]="e.kind">
                   @for (col of visibleColumnDefs(); track col.id) {
                     <td [class.num]="col.numeric" [class]="toneClass(col)">
-                      @if (editMode() && !viewOnly()) {
+                      @if (col.id === 'kind') {
+                        <span
+                          class="fuel-kind-badge"
+                          [class.fuel-kind-badge--pressing]="kindPressId() === e.kind"
+                          [attr.data-kind]="e.kind"
+                          title="Hold to hide this event type"
+                          (pointerdown)="onKindBadgePointerDown(e.kind, $event)"
+                          (pointerup)="onKindBadgePointerUp($event)"
+                          (pointerleave)="onKindBadgePointerUp()"
+                          (pointercancel)="onKindBadgePointerUp()"
+                          (contextmenu)="$event.preventDefault()"
+                        >
+                          <span class="fuel-kind-badge__label">{{ kindLabels[e.kind] }}</span>
+                          <span class="fuel-kind-badge__hold" aria-hidden="true"></span>
+                        </span>
+                      } @else if (editMode() && !viewOnly()) {
                         @if (col.id === 'date') {
                           <app-date-picker
                             size="sm"
                             [value]="e.date"
                             (valueChange)="onCellDate(e.id, $event)"
                           />
-                        } @else if (col.id === 'kind') {
-                          <span class="fuel-kind-badge" [attr.data-kind]="e.kind">{{
-                            kindLabels[e.kind]
-                          }}</span>
                         } @else {
                           <input
                             class="fuel-cell-input"
@@ -475,10 +573,6 @@
                             (change)="onEditCommit(e, col, $any($event.target).value)"
                           />
                         }
-                      } @else if (col.id === 'kind') {
-                        <span class="fuel-kind-badge" [attr.data-kind]="e.kind">{{
-                          kindLabels[e.kind]
-                        }}</span>
                       } @else {
                         <button
                           type="button"
@@ -536,3 +630,95 @@
   (closeSave)="showDisplaySaveModal.set(false)"
   (closeLoad)="showDisplayLoadModal.set(false)"
 />
+
+@if (showMasterSummaryModal() && library().masterSummary; as summary) {
+  <div class="modal-backdrop fuel-summary-backdrop" (click)="showMasterSummaryModal.set(false)">
+    <div
+      class="modal fuel-summary-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="fuel-summary-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="fuel-summary-modal__head">
+        <div class="fuel-summary-modal__intro">
+          <h3 id="fuel-summary-title">MASTER S1–AC4</h3>
+          <p>As in Excel — compare and close</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          (click)="showMasterSummaryModal.set(false)"
+        >
+          Close
+        </button>
+      </header>
+
+      <div class="fuel-summary-modal__body">
+        <div class="fuel-summary-table-wrap">
+          <table class="fuel-summary-grid">
+            <thead>
+              <tr>
+                <th class="fuel-summary-grid__aux">{{ summary.heading || 'AUX' }}</th>
+                @for (h of summary.aeMetricHeaders; track $index) {
+                  <th
+                    class="fuel-summary-grid__metric"
+                    [class.fuel-summary-grid__metric--mt]="h === 'MT'"
+                  >
+                    {{ h }}
+                  </th>
+                }
+                @for (h of summary.tankHeaders; track h) {
+                  <th class="fuel-summary-grid__tank" [attr.data-tank]="h">{{ h }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of summary.aeRows; track row.label; let i = $index) {
+                <tr>
+                  <th scope="row">{{ row.label }}</th>
+                  <td>{{ row.kw || '' }}</td>
+                  <td>{{ row.rh || '' }}</td>
+                  <td>{{ row.kg || '' }}</td>
+                  @if (i === 0) {
+                    <td
+                      class="fuel-summary-grid__mt"
+                      [attr.rowspan]="summary.aeRows.length"
+                    >
+                      {{ summary.mt || '' }}
+                    </td>
+                  }
+                  @if (i === 0) {
+                    @for (val of summary.tankValues; track $index) {
+                      <td class="fuel-summary-grid__tank-val">{{ val || '' }}</td>
+                    }
+                  } @else if (i === 1) {
+                    <td
+                      class="fuel-summary-grid__banner fuel-summary-grid__banner--status"
+                      [attr.colspan]="summary.tankHeaders.length"
+                    >
+                      {{ summary.tankStatus || '' }}
+                    </td>
+                  } @else if (i === 2) {
+                    <td
+                      class="fuel-summary-grid__banner fuel-summary-grid__banner--note"
+                      [attr.colspan]="summary.tankHeaders.length"
+                    >
+                      {{ summary.tankNote || '' }}
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer class="fuel-summary-modal__foot">
+        <button type="button" class="btn btn-primary" (click)="showMasterSummaryModal.set(false)">
+          Close
+        </button>
+      </footer>
+    </div>
+  </div>
+}

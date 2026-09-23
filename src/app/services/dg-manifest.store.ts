@@ -31,6 +31,7 @@ import {
   type DgUnifeederLibrarySettings,
   type DgUnifeederRow,
 } from '../models/dg-unifeeder.models';
+import { normalizeUnNumber } from '../utils/dg-un-number.util';
 import {
   cmaContainersToUnifeederRows,
   unifeederRowsToCmaContainers,
@@ -407,9 +408,63 @@ export class DgManifestStore {
           ...lib,
           unifeeder: {
             ...lib.unifeeder,
-            onboard: lib.unifeeder.onboard.map((row) =>
-              row.id === rowId ? createDgUnifeederRow({ ...row, ...resolved, id: row.id }) : row,
-            ),
+            onboard: lib.unifeeder.onboard.map((row) => {
+              if (row.id !== rowId) return row;
+              const next: typeof resolved & { id: string } = { ...row, ...resolved, id: row.id };
+              if (
+                'unNo' in resolved &&
+                normalizeUnNumber(resolved.unNo ?? '') !== normalizeUnNumber(row.unNo)
+              ) {
+                next.referenceKeepManifest = undefined;
+              }
+              return createDgUnifeederRow(next);
+            }),
+          },
+        },
+      };
+    });
+    void this.state.persist('silent');
+  }
+
+  /** Apply the same patch to many Unifeeder rows (e.g. Fix all identical DG Reference mismatches). */
+  updateUnifeederRows(
+    updates: ReadonlyArray<{
+      id: string;
+      partial: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>>;
+    }>,
+  ): void {
+    if (!updates.length) return;
+    const byId = new Map(updates.map((u) => [u.id, u.partial]));
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: {
+            ...lib.unifeeder,
+            onboard: lib.unifeeder.onboard.map((row) => {
+              const partial = byId.get(row.id);
+              if (!partial) return row;
+              const resolved: typeof partial = { ...partial };
+              if ('loadPort' in partial) {
+                resolved.loadPort = resolveUnifeederRowPort(partial.loadPort ?? '', d.ports);
+              }
+              if ('dischargePort' in partial) {
+                resolved.dischargePort = resolveUnifeederRowPort(
+                  partial.dischargePort ?? '',
+                  d.ports,
+                );
+              }
+              const next = { ...row, ...resolved, id: row.id };
+              if (
+                'unNo' in resolved &&
+                normalizeUnNumber(resolved.unNo ?? '') !== normalizeUnNumber(row.unNo)
+              ) {
+                next.referenceKeepManifest = undefined;
+              }
+              return createDgUnifeederRow(next);
+            }),
           },
         },
       };

@@ -11,6 +11,9 @@ export type DgUnifeederSortColumn = Exclude<
   | 'goodsDescription'
   | 'fireSchedule'
   | 'spillageSchedule'
+  | 'referenceKeepManifest'
+  | 'grossWeightKg'
+  | 'netWeightKg'
 >;
 
 export type DgUnifeederSortDirection = 'asc' | 'desc';

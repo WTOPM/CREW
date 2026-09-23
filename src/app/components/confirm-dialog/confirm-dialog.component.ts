@@ -41,10 +41,15 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
             </div>
           </header>
 
-          <footer class="dg-archive-modal__foot">
+          <footer class="dg-archive-modal__foot confirm-dialog__foot">
             <button type="button" class="btn btn-secondary" (click)="cancel()">
               {{ d.cancelLabel }}
             </button>
+            @if (d.altLabel) {
+              <button type="button" class="btn btn-secondary" (click)="acceptAlt()">
+                {{ d.altLabel }}
+              </button>
+            }
             <button
               type="button"
               class="btn"
@@ -87,6 +92,11 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
       white-space: pre-line;
     }
 
+    .confirm-dialog__foot {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
     .confirm-dialog--danger .dg-archive-modal__head {
       background: linear-gradient(135deg, #fef2f2 0%, #f8fafc 55%, #fff 100%);
     }
@@ -113,6 +123,10 @@ export class ConfirmDialogComponent {
 
   protected accept(): void {
     this.confirmDialog.accept();
+  }
+
+  protected acceptAlt(): void {
+    this.confirmDialog.acceptAlt();
   }
 
   protected cancel(): void {
