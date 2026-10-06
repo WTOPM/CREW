@@ -1,8 +1,9 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EtaArchiveModalsComponent } from '../../components/eta-archive-modals/eta-archive-modals.component';
+import { EtaWaypointsModalComponent } from '../../components/eta-waypoints-modal/eta-waypoints-modal.component';
 import { EtaSpeedKnInputDirective } from '../../directives/eta-speed-kn-input.directive';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
@@ -36,7 +37,30 @@ import {
   scenarioShortLabel,
   scenarioTooltip,
 } from '../../utils/eta-calculator.util';
+import {
+  decimalToEtaGpsDmsDraft,
+  emptyEtaGpsDmsDraft,
+  formatEtaGpsShort,
+  isEtaGpsDmsPartComplete,
+  isValidEtaGpsCoords,
+  padEtaGpsDmsPart,
+  sanitizeEtaGpsDmsPart,
+  stepEtaGpsDmsPart,
+  toggleEtaGpsLatHemi,
+  toggleEtaGpsLonHemi,
+  tryBuildEtaGpsCoordsFromDms,
+  type EtaGpsCoords,
+  type EtaGpsDmsDraft,
+} from '../../utils/eta-gps.util';
 import { etaUtcOffsetHoursForPort } from '../../utils/timezone-browser.util';
+
+/** Which route endpoint the GPS pin / sticky panel refers to. */
+type EtaGpsTarget =
+  | { key: 'fromPort'; label: string }
+  | { key: 'toPort'; label: string }
+  | { key: `leg:${string}`; legId: string; label: string };
+
+type EtaGpsDmsFieldIdx = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 @Component({
   selector: 'app-eta',
@@ -48,6 +72,7 @@ import { etaUtcOffsetHoursForPort } from '../../utils/timezone-browser.util';
     DatePickerComponent,
     TimeInputComponent,
     EtaArchiveModalsComponent,
+    EtaWaypointsModalComponent,
     EtaSpeedKnInputDirective,
   ],
   templateUrl: './eta.component.html',
@@ -57,6 +82,7 @@ export class EtaComponent implements OnDestroy {
   private readonly storage = inject(StorageService);
   private readonly etaStore = inject(EtaStore);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly ports = this.storage.ports;
   protected readonly etaLibrary = this.storage.etaLibrary;
@@ -64,35 +90,73 @@ export class EtaComponent implements OnDestroy {
   protected readonly calculation = computed(() => calculateEta(this.draft()));
   protected readonly showSaveModal = signal(false);
   protected readonly showLoadModal = signal(false);
+  protected readonly showWaypointsModal = signal(false);
   private readonly utcOffsetEdit = signal<{
     field: 'departureUtcOffsetHours' | 'arrivalUtcOffsetHours';
     text: string;
   } | null>(null);
   private readonly legSpeedEdit = signal<{ legId: string; text: string } | null>(null);
 
+  /** Sticky GPS card state (in-app toast fallback, or pin highlight while Electron float is open). */
+  protected readonly gpsPanel = signal<{
+    target: EtaGpsTarget;
+    lat: EtaGpsDmsDraft;
+    lon: EtaGpsDmsDraft;
+    dirty: boolean;
+  } | null>(null);
+
+  /** True in Electron — GPS edits happen in a separate always-on-top window. */
+  protected readonly gpsFloatMode = signal(false);
+
+  /** Browser-only: false when tab unfocused — GPS fields become read-only. */
+  protected readonly gpsWindowActive = signal(true);
+
+  private readonly unsubGpsFloat: Array<() => void> = [];
+
   protected readonly etaTips = ETA_FIELD_TOOLTIPS;
 
+  constructor() {
+    const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
+    this.gpsFloatMode.set(!!api?.openGpsFloat);
+
+    if (api?.onGpsFloatClosed) {
+      this.unsubGpsFloat.push(
+        api.onGpsFloatClosed((payload) => {
+          this.applyGpsFloatClosed(payload);
+          this.gpsPanel.set(null);
+        }),
+      );
+    }
+
+    if (!this.gpsFloatMode()) {
+      this.unsubGpsFloat.push(this.bindBrowserGpsActive() ?? (() => undefined));
+    }
+
+    this.destroyRef.onDestroy(() => {
+      for (const unsub of this.unsubGpsFloat) unsub();
+      if (this.gpsFloatMode()) void window.electronAPI?.closeGpsFloat?.();
+    });
+  }
+
   ngOnDestroy(): void {
+    this.commitGpsPanel();
     this.etaStore.flushPersist('silent');
   }
 
   protected setFromPort(value: string): void {
     const port = this.ports().find((p) => p.name === value);
     const hours = etaUtcOffsetHoursForPort(port, this.draft().departureDate);
-    this.etaStore.updateDraft({
-      fromPort: value,
-      ...(hours != null ? { departureUtcOffsetHours: hours } : {}),
-    });
+    this.etaStore.setFromPort(
+      value,
+      hours != null ? { departureUtcOffsetHours: hours } : undefined,
+    );
     if (hours != null) this.utcOffsetEdit.set(null);
   }
 
   protected setToPort(value: string): void {
     const port = this.ports().find((p) => p.name === value);
     const hours = etaUtcOffsetHoursForPort(port, this.draft().arrivalDate);
-    this.etaStore.updateDraft({
-      toPort: value,
-      ...(hours != null ? { arrivalUtcOffsetHours: hours } : {}),
-    });
+    this.etaStore.setToPort(value, hours != null ? { arrivalUtcOffsetHours: hours } : undefined);
     if (hours != null) this.utcOffsetEdit.set(null);
   }
 
@@ -288,7 +352,370 @@ export class EtaComponent implements OnDestroy {
   }
 
   protected onLegToLabel(legId: string, value: string): void {
-    this.etaStore.updateLeg(legId, { toLabel: value });
+    this.etaStore.setLegToLabel(legId, value);
+  }
+
+  protected legFromGpsTarget(legIndex: number): EtaGpsTarget {
+    const draft = this.draft();
+    const calc = this.calculation().legs[legIndex];
+    if (legIndex <= 0) {
+      return {
+        key: 'fromPort',
+        label: calc?.fromLabel?.trim() || draft.fromPort.trim() || 'Departure',
+      };
+    }
+    const prev = draft.legs[legIndex - 1]!;
+    return {
+      key: `leg:${prev.id}`,
+      legId: prev.id,
+      label: calc?.fromLabel?.trim() || prev.toLabel.trim() || `Waypoint ${legIndex}`,
+    };
+  }
+
+  protected legToGpsTarget(legIndex: number): EtaGpsTarget {
+    const draft = this.draft();
+    const calc = this.calculation().legs[legIndex];
+    const leg = draft.legs[legIndex]!;
+    if (this.isLastLeg(legIndex)) {
+      return {
+        key: 'toPort',
+        label: calc?.toLabel?.trim() || draft.toPort.trim() || 'Arrival',
+      };
+    }
+    return {
+      key: `leg:${leg.id}`,
+      legId: leg.id,
+      label: calc?.toLabel?.trim() || leg.toLabel.trim() || `Waypoint ${legIndex + 1}`,
+    };
+  }
+
+  protected gpsForTarget(target: EtaGpsTarget): EtaGpsCoords | null {
+    const draft = this.draft();
+    let local: EtaGpsCoords | null = null;
+    if (target.key === 'fromPort') local = draft.fromGps;
+    else if (target.key === 'toPort') local = draft.toGps;
+    else {
+      const leg = draft.legs.find((l) => l.id === target.legId);
+      local = leg?.toGps ?? null;
+    }
+    if (isValidEtaGpsCoords(local)) return local;
+    return this.etaStore.lookupWaypointGps(target.label);
+  }
+
+  protected hasGps(target: EtaGpsTarget): boolean {
+    return isValidEtaGpsCoords(this.gpsForTarget(target));
+  }
+
+  protected isGpsPanelOpen(target: EtaGpsTarget): boolean {
+    return this.gpsPanel()?.target.key === target.key;
+  }
+
+  protected toggleGpsPanel(target: EtaGpsTarget, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    const open = this.gpsPanel();
+    if (open?.target.key === target.key) {
+      this.dismissGpsPanel();
+      return;
+    }
+    if (!this.commitGpsPanel()) return;
+    const coords = this.gpsForTarget(target);
+    const lat = decimalToEtaGpsDmsDraft(coords?.lat, 'lat');
+    const lon = decimalToEtaGpsDmsDraft(coords?.lon, 'lon');
+    this.gpsPanel.set({ target, lat, lon, dirty: false });
+
+    if (this.gpsFloatMode()) {
+      void this.openGpsFloatWindow(target, lat, lon);
+      return;
+    }
+
+    queueMicrotask(() => {
+      if (this.gpsWindowActive()) this.focusGpsField(0);
+    });
+  }
+
+  protected dismissGpsPanel(): void {
+    // In-app toast: Done commits. Electron float: Done is handled inside the float window.
+    if (!this.gpsFloatMode()) {
+      if (!this.commitGpsPanel()) return;
+    }
+    this.gpsPanel.set(null);
+    if (this.gpsFloatMode()) void window.electronAPI?.closeGpsFloat?.();
+  }
+
+  protected onGpsDmsPart(
+    axis: 'lat' | 'lon',
+    part: 'deg' | 'min' | 'sec',
+    raw: string,
+  ): void {
+    if (this.gpsFloatMode() || !this.gpsWindowActive()) return;
+    const open = this.gpsPanel();
+    if (!open) return;
+    const cleaned = sanitizeEtaGpsDmsPart(raw, part, axis);
+    const next = { ...open[axis], [part]: cleaned };
+    this.gpsPanel.set({ ...open, [axis]: next, dirty: true });
+    if (this.isGpsDmsPartComplete(cleaned, part, axis)) {
+      const idx = this.gpsDmsFieldIdx(axis, part);
+      queueMicrotask(() => this.focusGpsField(((idx + 1) % 8) as EtaGpsDmsFieldIdx));
+    }
+  }
+
+  /** Select whole value on focus so typing replaces padded 00 / 000. */
+  protected onGpsDmsFocus(event: FocusEvent): void {
+    if (this.gpsFloatMode() || !this.gpsWindowActive()) return;
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    queueMicrotask(() => {
+      if (document.activeElement === input) input.select();
+    });
+  }
+
+  protected toggleGpsHemi(axis: 'lat' | 'lon', event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (this.gpsFloatMode() || !this.gpsWindowActive()) return;
+    const open = this.gpsPanel();
+    if (!open) return;
+    const hemi =
+      axis === 'lat' ? toggleEtaGpsLatHemi(open.lat.hemi) : toggleEtaGpsLonHemi(open.lon.hemi);
+    this.gpsPanel.set({
+      ...open,
+      [axis]: { ...open[axis], hemi },
+      dirty: true,
+    });
+  }
+
+  protected onGpsPanelBlur(axis: 'lat' | 'lon', part: 'deg' | 'min' | 'sec'): void {
+    if (this.gpsFloatMode()) return;
+    const open = this.gpsPanel();
+    if (!open) return;
+    const padded = {
+      ...open[axis],
+      [part]: padEtaGpsDmsPart(open[axis][part], part, axis),
+    };
+    // Pad for display only — persist on Done.
+    this.gpsPanel.set({ ...open, [axis]: padded, dirty: true });
+  }
+
+  protected clearGpsPanel(): void {
+    if (this.gpsFloatMode() || !this.gpsWindowActive()) return;
+    const open = this.gpsPanel();
+    if (!open) return;
+    this.writeGps(open.target, null);
+    this.gpsPanel.set({
+      ...open,
+      lat: emptyEtaGpsDmsDraft('lat'),
+      lon: emptyEtaGpsDmsDraft('lon'),
+      dirty: false,
+    });
+  }
+
+  protected gpsPanelSummary(): string {
+    const open = this.gpsPanel();
+    if (!open) return '';
+    const built = tryBuildEtaGpsCoordsFromDms(open.lat, open.lon);
+    return built ? formatEtaGpsShort(built) : 'Degrees · minutes.decimal ′';
+  }
+
+  /** Tab cycles the 8 DMS controls; ↑/↓ step values (and N/E). */
+  protected onGpsDmsKeydown(event: KeyboardEvent): void {
+    if (!this.gpsWindowActive()) {
+      event.preventDefault();
+      return;
+    }
+    const el = (event.target as HTMLElement | null)?.closest('[data-gps-idx]') as HTMLElement | null;
+    if (!el) return;
+    const idx = Number(el.getAttribute('data-gps-idx'));
+    if (!Number.isInteger(idx) || idx < 0 || idx > 7) return;
+
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const next = (idx + (event.shiftKey ? 7 : 1)) % 8;
+      this.focusGpsField(next as EtaGpsDmsFieldIdx);
+      return;
+    }
+
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.stepGpsField(idx as EtaGpsDmsFieldIdx, event.key === 'ArrowUp' ? 1 : -1);
+    }
+  }
+
+  private focusGpsField(idx: EtaGpsDmsFieldIdx): void {
+    const node = document.querySelector(`[data-gps-idx="${idx}"]`) as HTMLElement | null;
+    node?.focus();
+    if (node instanceof HTMLInputElement) {
+      queueMicrotask(() => {
+        if (document.activeElement === node) node.select();
+      });
+    }
+  }
+
+  private gpsDmsFieldIdx(axis: 'lat' | 'lon', part: 'deg' | 'min' | 'sec'): EtaGpsDmsFieldIdx {
+    if (axis === 'lat') {
+      if (part === 'deg') return 0;
+      if (part === 'min') return 1;
+      return 2;
+    }
+    if (part === 'deg') return 4;
+    if (part === 'min') return 5;
+    return 6;
+  }
+
+  /** Field is full enough to auto-advance (minutes never — allow typing .xx). */
+  private isGpsDmsPartComplete(
+    value: string,
+    part: 'deg' | 'min' | 'sec',
+    axis: 'lat' | 'lon',
+  ): boolean {
+    return isEtaGpsDmsPartComplete(value, part, axis);
+  }
+
+  private stepGpsField(idx: EtaGpsDmsFieldIdx, delta: number): void {
+    if (!this.gpsWindowActive()) return;
+    const open = this.gpsPanel();
+    if (!open) return;
+
+    if (idx === 3) {
+      this.gpsPanel.set({
+        ...open,
+        lat: { ...open.lat, hemi: toggleEtaGpsLatHemi(open.lat.hemi) },
+        dirty: true,
+      });
+      return;
+    }
+    if (idx === 7) {
+      this.gpsPanel.set({
+        ...open,
+        lon: { ...open.lon, hemi: toggleEtaGpsLonHemi(open.lon.hemi) },
+        dirty: true,
+      });
+      return;
+    }
+
+    const map: Record<number, { axis: 'lat' | 'lon'; part: 'deg' | 'min' | 'sec' }> = {
+      0: { axis: 'lat', part: 'deg' },
+      1: { axis: 'lat', part: 'min' },
+      2: { axis: 'lat', part: 'sec' },
+      4: { axis: 'lon', part: 'deg' },
+      5: { axis: 'lon', part: 'min' },
+      6: { axis: 'lon', part: 'sec' },
+    };
+    const field = map[idx];
+    if (!field) return;
+    const nextAxis = stepEtaGpsDmsPart(open[field.axis], field.part, field.axis, delta);
+    this.gpsPanel.set({ ...open, [field.axis]: nextAxis, dirty: true });
+  }
+
+  /** @returns false when dirty fields are invalid (caller should keep the panel open). */
+  private commitGpsPanel(): boolean {
+    const open = this.gpsPanel();
+    if (!open || !open.dirty) return true;
+    const built = tryBuildEtaGpsCoordsFromDms(open.lat, open.lon);
+    if (built) {
+      this.writeGps(open.target, built);
+      this.gpsPanel.set({ ...open, dirty: false });
+      return true;
+    }
+    const latEmpty = !open.lat.deg.trim() && !open.lat.min.trim() && !open.lat.sec.trim();
+    const lonEmpty = !open.lon.deg.trim() && !open.lon.min.trim() && !open.lon.sec.trim();
+    if (!latEmpty || !lonEmpty) {
+      this.toast.showError('Invalid GPS (lat ±90, lon ±180; minutes 0–59; .xx 00–99)');
+      return false;
+    }
+    return true;
+  }
+
+  private writeGps(target: EtaGpsTarget, coords: EtaGpsCoords | null): void {
+    const name = target.label.trim();
+    if (name) {
+      this.etaStore.setWaypointGps(name, coords);
+      return;
+    }
+    // Unnamed point — write only on this target.
+    if (target.key === 'fromPort') {
+      this.etaStore.updateDraft({ fromGps: coords });
+      return;
+    }
+    if (target.key === 'toPort') {
+      this.etaStore.updateDraft({ toGps: coords });
+      return;
+    }
+    this.etaStore.updateLeg(target.legId, { toGps: coords });
+  }
+
+  private async openGpsFloatWindow(
+    target: EtaGpsTarget,
+    lat: EtaGpsDmsDraft,
+    lon: EtaGpsDmsDraft,
+  ): Promise<void> {
+    const api = window.electronAPI;
+    if (!api?.openGpsFloat) return;
+    await api.openGpsFloat({
+      targetKey: target.key,
+      legId: 'legId' in target ? target.legId : undefined,
+      label: target.label,
+      lat,
+      lon,
+    });
+  }
+
+  private applyGpsFloatClosed(payload: unknown): void {
+    if (!payload || typeof payload !== 'object') return;
+    const p = payload as {
+      save?: boolean;
+      clear?: boolean;
+      targetKey?: string;
+      lat?: { deg: string; min: string; sec: string; hemi: string };
+      lon?: { deg: string; min: string; sec: string; hemi: string };
+    };
+    if (!p.save) return;
+
+    const open = this.gpsPanel();
+    if (!open) return;
+    if (p.targetKey && open.target.key !== p.targetKey) return;
+
+    if (p.clear) {
+      this.writeGps(open.target, null);
+      return;
+    }
+
+    if (!p.lat || !p.lon) return;
+    const lat: EtaGpsDmsDraft = {
+      deg: p.lat.deg,
+      min: p.lat.min,
+      sec: p.lat.sec,
+      hemi: p.lat.hemi === 'S' ? 'S' : 'N',
+    };
+    const lon: EtaGpsDmsDraft = {
+      deg: p.lon.deg,
+      min: p.lon.min,
+      sec: p.lon.sec,
+      hemi: p.lon.hemi === 'W' ? 'W' : 'E',
+    };
+    const built = tryBuildEtaGpsCoordsFromDms(lat, lon);
+    if (built) {
+      this.writeGps(open.target, built);
+      return;
+    }
+    this.toast.showError('Invalid GPS (lat ±90, lon ±180; minutes 0–59; .xx 00–99)');
+  }
+
+  private bindBrowserGpsActive(): (() => void) | null {
+    const sync = () => {
+      const active = document.visibilityState === 'visible' && document.hasFocus();
+      this.gpsWindowActive.set(active);
+      if (!active && this.gpsPanel()) this.commitGpsPanel();
+    };
+    window.addEventListener('focus', sync);
+    window.addEventListener('blur', sync);
+    document.addEventListener('visibilitychange', sync);
+    sync();
+    return () => {
+      window.removeEventListener('focus', sync);
+      window.removeEventListener('blur', sync);
+      document.removeEventListener('visibilitychange', sync);
+    };
   }
 
   protected isLastLeg(index: number): boolean {

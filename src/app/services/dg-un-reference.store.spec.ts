@@ -68,11 +68,10 @@ describe('DgUnReferenceStore', () => {
       },
     }));
 
-    const imported = new Map([
-      ['2222', entry('2222')],
-      ['3333', entry('3333')],
-    ]);
-    store.applyImport(imported, 'replace', { fileName: 'imdg.pdf', amendment: 'Amendment 42-24' });
+    store.applyImport([entry('2222'), entry('3333')], 'replace', {
+      fileName: 'imdg.pdf',
+      amendment: 'Amendment 42-24',
+    });
 
     const library = state.data().dgUnReference;
     expect(library.origin).toBe('custom');
@@ -82,19 +81,37 @@ describe('DgUnReferenceStore', () => {
     expect(library.entries[0].fire).toBe('F-E');
   });
 
-  it('merge mode corrects matches but keeps entries the import omits', () => {
+  it('keeps packing-group variants of the same UN on replace', () => {
+    store.applyImport(
+      [
+        entry('3288', { packingGroup: 'I', description: 'TOXIC SOLID, INORGANIC, N.O.S.' }),
+        entry('3288', { packingGroup: 'II', description: 'TOXIC SOLID, INORGANIC, N.O.S.' }),
+        entry('3288', { packingGroup: 'III', description: 'TOXIC SOLID, INORGANIC, N.O.S.' }),
+      ],
+      'replace',
+      { fileName: 'imdg.pdf', amendment: '' },
+    );
+
+    expect(state.data().dgUnReference.entries).toHaveLength(3);
+    expect(lookupUnNumberReference('3288', { packingGroup: 'III' })?.packingGroup).toBe('III');
+  });
+
+  it('merge mode corrects the same UN+PG+PSN variant but keeps other rows', () => {
     state.data.update((d) => ({
       ...d,
       dgUnReference: {
         origin: 'custom',
-        entries: [row('1111'), row('2222')],
+        entries: [
+          row('1111'),
+          row('2222', { description: 'SUBSTANCE 2222', packingGroup: 'II' }),
+        ],
         fileName: '',
         amendment: '',
         updatedAt: '',
       },
     }));
 
-    store.applyImport(new Map([['2222', entry('2222')]]), 'merge', {
+    store.applyImport([entry('2222', { description: 'SUBSTANCE 2222', packingGroup: 'II' })], 'merge', {
       fileName: 'imdg.pdf',
       amendment: '',
     });
@@ -105,32 +122,38 @@ describe('DgUnReferenceStore', () => {
     expect(entries.find((e) => e.unNo === '2222')?.fire).toBe('F-E');
   });
 
-  it('addOnly mode adds missing UN numbers and never edits existing ones', () => {
+  it('addOnly mode adds missing list rows and never edits existing ones', () => {
     state.data.update((d) => ({
       ...d,
       dgUnReference: {
         origin: 'custom',
-        entries: [row('2222')],
+        entries: [row('2222', { description: 'SUBSTANCE 2222', packingGroup: 'II' })],
         fileName: '',
         amendment: '',
         updatedAt: '',
       },
     }));
 
-    const imported = new Map([
-      ['2222', entry('2222')],
-      ['3333', entry('3333')],
-    ]);
-    store.applyImport(imported, 'addOnly', { fileName: 'imdg.pdf', amendment: '' });
+    store.applyImport(
+      [
+        entry('2222', { description: 'SUBSTANCE 2222', packingGroup: 'II' }),
+        entry('3333'),
+      ],
+      'addOnly',
+      {
+        fileName: 'imdg.pdf',
+        amendment: '',
+      },
+    );
 
     const entries = state.data().dgUnReference.entries;
     expect(entries.map((e) => e.unNo)).toEqual(['2222', '3333']);
-    expect(entries.find((e) => e.unNo === '2222')?.description).toBe('OLD 2222');
+    expect(entries.find((e) => e.unNo === '2222')?.fire).toBe('F-A');
   });
 
   it('importing over the bundled list starts from the bundled entries', () => {
     const bundledCount = getBundledUnNumberRows().length;
-    store.applyImport(new Map([['9999', entry('9999')]]), 'merge', {
+    store.applyImport([entry('9999')], 'merge', {
       fileName: 'imdg.pdf',
       amendment: '',
     });
@@ -157,8 +180,8 @@ describe('DgUnReferenceStore', () => {
 
   it('keeps the pure lookup helpers on the imported list', () => {
     store.applyImport(
-      new Map([['1203', entry('1203', { description: 'RENAMED PETROL', fire: 'F-Z' })]]),
-      'merge',
+      [entry('1203', { description: 'RENAMED PETROL', fire: 'F-Z', packingGroup: 'II' })],
+      'replace',
       { fileName: 'imdg.pdf', amendment: '' },
     );
     TestBed.tick();

@@ -1,8 +1,16 @@
 import type { DgCargoLine } from '../models/dg-manifest.models';
 import type { DgUnifeederRow } from '../models/dg-unifeeder.models';
 import { applyMfagSchedulesToUnifeederRow } from './dg-mfag-schedule.util';
-import { normalizeUnifeederSubRisk } from './dg-unifeeder-sub-risk.util';
-import { lookupUnNumberReference, normalizeUnNumber } from './dg-un-number.util';
+import {
+  isClass2DivisionMisfiledAsSubRisk,
+  normalizeUnifeederSubRisk,
+} from './dg-unifeeder-sub-risk.util';
+import {
+  lookupUnNumberReference,
+  matchUnNumberReference,
+  normalizeUnNumber,
+  type UnNumberLookupHints,
+} from './dg-un-number.util';
 
 function refField(value: string | undefined): string {
   const v = String(value ?? '').trim();
@@ -13,11 +21,27 @@ export function unNumberHasDigits(raw: string | undefined | null): boolean {
   return /\d/.test(String(raw ?? ''));
 }
 
+function hintsFromPartial(partial: {
+  packingGroup?: string;
+  goodsDescription?: string;
+  properShippingName?: string;
+  dgClass?: string;
+}): UnNumberLookupHints {
+  return {
+    packingGroup: partial.packingGroup,
+    description: partial.goodsDescription ?? partial.properShippingName,
+    dgClass: partial.dgClass,
+  };
+}
+
 /** CMA cargo line fields available from the UN number reference. */
-export function cmaCargoAutofillFromUnNumber(raw: string): Partial<Omit<DgCargoLine, 'id'>> | null {
+export function cmaCargoAutofillFromUnNumber(
+  raw: string,
+  hints: UnNumberLookupHints = {},
+): Partial<Omit<DgCargoLine, 'id'>> | null {
   if (!unNumberHasDigits(raw)) return null;
 
-  const entry = lookupUnNumberReference(raw);
+  const entry = lookupUnNumberReference(raw, hints);
   if (!entry) return null;
 
   const patch: Partial<Omit<DgCargoLine, 'id'>> = {
@@ -34,12 +58,16 @@ export type UnifeederAutofillPatch = Partial<
   Omit<DgUnifeederRow, 'id' | 'status' | 'sourceManifestId'>
 >;
 
-/** DP WORLD row fields available from the UN number reference. */
-export function unifeederAutofillFromUnNumber(raw: string): UnifeederAutofillPatch | null {
+/** DP WORLD row fields from the matching IMDG list variant (PG + description). */
+export function unifeederAutofillFromUnNumber(
+  raw: string,
+  hints: UnNumberLookupHints = {},
+): UnifeederAutofillPatch | null {
   if (!unNumberHasDigits(raw)) return null;
 
-  const entry = lookupUnNumberReference(raw);
-  if (!entry) return null;
+  const match = matchUnNumberReference(raw, hints);
+  if (!match) return null;
+  const entry = match.row;
 
   const patch: UnifeederAutofillPatch = {
     unNo: normalizeUnNumber(raw),
@@ -47,7 +75,11 @@ export function unifeederAutofillFromUnNumber(raw: string): UnifeederAutofillPat
   const dgClass = refField(entry.dgClass);
   const goodsDescription = refField(entry.description);
   const packingGroup = refField(entry.packingGroup);
-  const subRisk = normalizeUnifeederSubRisk(refField(entry.subRisk));
+  const subRiskRaw = normalizeUnifeederSubRisk(refField(entry.subRisk));
+  // Class 2: reference stores the division (2.1/2.2/2.3) under subRisk while
+  // dgClass is only "2". Manifest Class already has 2.1/2.2 — do not copy
+  // that division into the Sub Risk column.
+  const subRisk = isClass2DivisionMisfiledAsSubRisk(dgClass, subRiskRaw) ? '' : subRiskRaw;
   const fire = refField(entry.fire);
   const spillage = refField(entry.spillage);
   if (dgClass) patch.dgClass = dgClass;
@@ -58,4 +90,11 @@ export function unifeederAutofillFromUnNumber(raw: string): UnifeederAutofillPat
   if (spillage) patch.spillage = spillage;
 
   return applyMfagSchedulesToUnifeederRow(patch);
+}
+
+/** Autofill using the manifesto row's own PG / description as variant hints. */
+export function unifeederAutofillFromManifestRow(
+  row: Pick<DgUnifeederRow, 'unNo' | 'packingGroup' | 'goodsDescription' | 'dgClass'>,
+): UnifeederAutofillPatch | null {
+  return unifeederAutofillFromUnNumber(row.unNo, hintsFromPartial(row));
 }

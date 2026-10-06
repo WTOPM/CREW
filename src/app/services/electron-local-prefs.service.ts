@@ -68,6 +68,8 @@ export class ElectronLocalPrefsService {
       const prefs = await window.electronAPI!.setLocalPrefs({
         fuelVisibleColumns: next.visibleColumns,
         fuelHoursAsHm: next.hoursAsHm,
+        fuelShowUtc: next.showUtc,
+        fuelUtcOffsetHours: next.utcOffsetHours,
         // Clear legacy shared-looking field so it is not re-imported forever.
         fuelDisplayPresets: [],
       });
@@ -89,6 +91,8 @@ export class ElectronLocalPrefsService {
       normalizeFuelLocalUiPrefs({
         visibleColumns: next.fuelVisibleColumns as FuelColumnId[] | undefined,
         hoursAsHm: next.fuelHoursAsHm,
+        showUtc: next.fuelShowUtc,
+        utcOffsetHours: next.fuelUtcOffsetHours,
       }),
     );
     const legacy = normalizeFuelDisplayPresets(next.fuelDisplayPresets);

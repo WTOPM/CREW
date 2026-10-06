@@ -1,11 +1,13 @@
 import type { DgCargoLine } from '../models/dg-manifest.models';
 import type { UnifeederImportRowPartial } from './dg-unifeeder-pdf.util';
+import { preferManifestGoodsDescription } from './dg-goods-description.util';
 import {
   cmaCargoAutofillFromUnNumber,
   unifeederAutofillFromUnNumber,
 } from './dg-un-number-autofill.util';
 import { lookupUnNumberReference } from './dg-un-number.util';
 import { coalesceUnifeederContainerMeta } from './dg-unifeeder-merge.util';
+import { normalizeUnifeederSubRisk } from './dg-unifeeder-sub-risk.util';
 import {
   appendUnifeederReferenceMismatchWarning,
   countUnifeederReferenceMismatches,
@@ -55,21 +57,28 @@ export function applyUnifeederReferenceOrManifest(row: UnifeederImportRowPartial
   row: UnifeederImportRowPartial;
   filledFromManifest: boolean;
 } {
-  const autofill = unifeederAutofillFromUnNumber(row.unNo);
+  const autofill = unifeederAutofillFromUnNumber(row.unNo, {
+    packingGroup: row.packingGroup,
+    description: row.goodsDescription,
+    dgClass: row.dgClass,
+  });
   if (!autofill) {
     return { row, filledFromManifest: true };
   }
 
-  // Manifest wins for shipment-specific fields (PG often differs from the first
-  // IMDG variant stored under a single UN — e.g. UN 3288 can be I / II / III).
+  // Manifest wins for shipment-specific fields. Autofill uses the matching
+  // IMDG variant (same UN + packing group / description) only to fill gaps.
   return {
     row: {
       ...row,
       unNo: autofill.unNo ?? row.unNo,
       dgClass: preferManifest(row.dgClass, autofill.dgClass),
-      goodsDescription: preferManifest(row.goodsDescription, autofill.goodsDescription),
+      goodsDescription: preferManifestGoodsDescription(
+        row.goodsDescription,
+        autofill.goodsDescription,
+      ),
       packingGroup: preferManifest(row.packingGroup, autofill.packingGroup),
-      subRisk: preferManifest(row.subRisk, autofill.subRisk),
+      subRisk: preferManifest(normalizeUnifeederSubRisk(row.subRisk), autofill.subRisk),
       fire: preferManifest(row.fire, autofill.fire),
       spillage: preferManifest(row.spillage, autofill.spillage),
     },

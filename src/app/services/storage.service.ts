@@ -50,6 +50,7 @@ export class StorageService {
   readonly narcoticListForm = computed(() => this.data().narcoticListForm);
   readonly dgLibrary = computed(() => this.data().dgLibrary);
   readonly dgUnReference = computed(() => this.data().dgUnReference);
+  readonly dgEmsReference = computed(() => this.data().dgEmsReference);
   readonly reeferLibrary = computed(() => this.data().reeferLibrary);
   readonly etaLibrary = computed(() => this.data().etaLibrary);
   readonly fuelLibrary = computed(() => this.data().fuelLibrary);
@@ -171,6 +172,7 @@ export class StorageService {
         ...merged,
         dgLibrary: d.dgLibrary,
         dgUnReference: d.dgUnReference,
+        dgEmsReference: d.dgEmsReference,
         reeferLibrary: d.reeferLibrary,
         appSnapshots: d.appSnapshots,
         dgPageArchives: d.dgPageArchives,
@@ -190,6 +192,7 @@ export class StorageService {
         ...(raw as Partial<AppData>),
         dgLibrary: empty.dgLibrary,
         dgUnReference: empty.dgUnReference,
+        dgEmsReference: empty.dgEmsReference,
         reeferLibrary: empty.reeferLibrary,
         appSnapshots: [],
         dgPageArchives: [],

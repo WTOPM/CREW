@@ -4,16 +4,18 @@
 // reissued every two years, so the user can import chapter 3.2 from the official PDF;
 // the result is persisted with AppData and survives app updates.
 //
-// The lookup helpers in `dg-un-number.util` read a module signal, which this store keeps
-// in sync with AppData — so tooltips and DG autofill immediately use the imported list.
+// Entries are full Dangerous Goods List rows — the same UN may appear several times
+// with different packing groups / proper shipping names.
 
 import { Injectable, computed, effect, inject } from '@angular/core';
 import { createDefaultDgUnReference } from '../models/dg-un-reference.models';
 import {
+  compareUnNumberReferenceRows,
   getBundledUnNumberRows,
   setUnNumberReferenceOverride,
   type UnNumberReferenceRow,
 } from '../utils/dg-un-number.util';
+import { unNumberReferenceVariantKey } from '../utils/dg-un-reference-variant.util';
 import type { ImdgChapter32Entry } from '../utils/dg-imdg-chapter32-pdf.util';
 import { AppStateStore } from './app-state.store';
 import { ToastService } from './toast.service';
@@ -22,11 +24,11 @@ import { ToastService } from './toast.service';
  * How an import is folded into the existing reference.
  * - `replace` — the reference becomes exactly what the PDF says (extra entries dropped).
  * - `merge` — add new entries and correct changed ones, but keep entries the PDF omits.
- * - `addOnly` — add missing UN numbers, leave every existing entry untouched.
+ * - `addOnly` — add missing list rows, leave every existing entry untouched.
  */
 export type DgUnReferenceApplyMode = 'replace' | 'merge' | 'addOnly';
 
-function toRow(entry: ImdgChapter32Entry): UnNumberReferenceRow {
+export function toUnNumberReferenceRow(entry: ImdgChapter32Entry): UnNumberReferenceRow {
   return {
     unNo: entry.unNo,
     description: entry.description,
@@ -40,7 +42,13 @@ function toRow(entry: ImdgChapter32Entry): UnNumberReferenceRow {
 }
 
 function sortRows(rows: readonly UnNumberReferenceRow[]): UnNumberReferenceRow[] {
-  return [...rows].sort((a, b) => a.unNo.localeCompare(b.unNo, undefined, { numeric: true }));
+  return [...rows].sort(compareUnNumberReferenceRows);
+}
+
+function indexByVariant(rows: readonly UnNumberReferenceRow[]): Map<string, UnNumberReferenceRow> {
+  const map = new Map<string, UnNumberReferenceRow>();
+  for (const row of rows) map.set(unNumberReferenceVariantKey(row), row);
+  return map;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -68,37 +76,40 @@ export class DgUnReferenceStore {
 
   /** Fold a parsed chapter 3.2 list into the reference and persist it. */
   applyImport(
-    entries: ReadonlyMap<string, ImdgChapter32Entry>,
+    entries: readonly ImdgChapter32Entry[],
     mode: DgUnReferenceApplyMode,
     meta: { fileName: string; amendment: string },
   ): void {
-    const current = new Map(this.rows().map((row) => [row.unNo, row] as const));
+    const imported = entries.map(toUnNumberReferenceRow);
+    const current = indexByVariant(this.rows());
     let next: Map<string, UnNumberReferenceRow>;
 
     if (mode === 'replace') {
-      next = new Map([...entries].map(([unNo, entry]) => [unNo, toRow(entry)]));
+      next = indexByVariant(imported);
     } else if (mode === 'merge') {
       next = new Map(current);
-      for (const [unNo, entry] of entries) next.set(unNo, toRow(entry));
+      for (const row of imported) next.set(unNumberReferenceVariantKey(row), row);
     } else {
       next = new Map(current);
-      for (const [unNo, entry] of entries) {
-        if (!next.has(unNo)) next.set(unNo, toRow(entry));
+      for (const row of imported) {
+        const key = unNumberReferenceVariantKey(row);
+        if (!next.has(key)) next.set(key, row);
       }
     }
 
+    const sorted = sortRows([...next.values()]);
     this.data.update((d) => ({
       ...d,
       dgUnReference: {
         origin: 'custom',
-        entries: sortRows([...next.values()]),
+        entries: sorted,
         fileName: meta.fileName,
         amendment: meta.amendment,
         updatedAt: new Date().toISOString(),
       },
     }));
     void this.state.persist('silent');
-    this.toast.show(`UN reference updated — ${next.size} entries`, 'success');
+    this.toast.show(`UN reference updated — ${sorted.length} list entries`, 'success');
   }
 
   /** Drop every entry so the next import starts from a clean list. */
@@ -122,7 +133,7 @@ export class DgUnReferenceStore {
     this.data.update((d) => ({ ...d, dgUnReference: createDefaultDgUnReference() }));
     void this.state.persist('silent');
     this.toast.show(
-      `Restored the built-in UN reference — ${getBundledUnNumberRows().length} entries`,
+      `Restored the built-in UN reference — ${getBundledUnNumberRows().length} list entries`,
       'success',
     );
   }

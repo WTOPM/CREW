@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Tray, Menu, nativeImage, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -619,6 +619,11 @@ function readLocalPrefs() {
         ? parsed.fuelVisibleColumns.filter((c) => typeof c === 'string')
         : undefined,
       fuelHoursAsHm: parsed.fuelHoursAsHm === true,
+      fuelShowUtc: parsed.fuelShowUtc === true,
+      fuelUtcOffsetHours:
+        typeof parsed.fuelUtcOffsetHours === 'number' && Number.isFinite(parsed.fuelUtcOffsetHours)
+          ? parsed.fuelUtcOffsetHours
+          : undefined,
       fuelDisplayPresets: Array.isArray(parsed.fuelDisplayPresets)
         ? parsed.fuelDisplayPresets
         : undefined,
@@ -639,6 +644,10 @@ let tray = null;
 let appIsQuitting = false;
 let quitBackupDone = false;
 let minimizeToTrayEnabled = false;
+/** Independent always-on-top GPS editor (not parented to main). */
+let gpsFloatWindow = null;
+let gpsFloatOwnerWebContentsId = null;
+let gpsFloatPendingInit = null;
 
 function getTrayIcon() {
   const iconPath = path.join(__dirname, 'icon.ico');
@@ -701,6 +710,7 @@ function hideMainWindowToTray(backupTag) {
     console.error('Tray backup failed', err);
   }
   mainWindow.hide();
+  notifyMainWindowActive(mainWindow);
 }
 
 function showMainWindowFromTray() {
@@ -714,8 +724,15 @@ function showMainWindowFromTray() {
   }
 }
 
+function notifyMainWindowActive(win = mainWindow) {
+  if (!win || win.isDestroyed()) return;
+  const active = win.isVisible() && !win.isMinimized() && win.isFocused();
+  win.webContents.send('app-window-active', active);
+}
+
 function attachTrayWindowHandlers(win) {
   win.on('minimize', (event) => {
+    notifyMainWindowActive(win);
     if (!minimizeToTrayEnabled) return;
     event.preventDefault();
     hideMainWindowToTray('on-tray');
@@ -726,6 +743,12 @@ function attachTrayWindowHandlers(win) {
     event.preventDefault();
     hideMainWindowToTray('on-close');
   });
+
+  win.on('restore', () => notifyMainWindowActive(win));
+  win.on('show', () => notifyMainWindowActive(win));
+  win.on('hide', () => notifyMainWindowActive(win));
+  win.on('focus', () => notifyMainWindowActive(win));
+  win.on('blur', () => notifyMainWindowActive(win));
 }
 
 function createWindow() {
@@ -1576,6 +1599,140 @@ ipcMain.handle('write-dep-rep-sheet', async (_event, filePath, payload) => {
 });
 
 /**
+ * Delete one DEP REP worksheet (COM). Cannot delete the last sheet in the workbook.
+ * Returns the new leftmost sheet name after deletion.
+ */
+ipcMain.handle('delete-dep-rep-sheet', async (_event, filePath, sheetName) => {
+  const { spawnSync } = require('child_process');
+  try {
+    const p = String(filePath || '').trim();
+    const name = String(sheetName || '').trim();
+    if (!p) return { ok: false, error: 'Empty path' };
+    if (!path.isAbsolute(p)) return { ok: false, error: 'Path must be absolute' };
+    if (!fs.existsSync(p)) return { ok: false, error: 'File not found' };
+    if (!name) return { ok: false, error: 'Sheet name is empty' };
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crew-dep-rep-del-'));
+    const scriptPath = path.join(tmpDir, 'delete-dep-rep.ps1');
+    fs.writeFileSync(
+      scriptPath,
+      [
+        'param([string]$WorkbookPath, [string]$SheetName)',
+        "$ErrorActionPreference = 'Stop'",
+        '$excel = $null',
+        '$wb = $null',
+        'try {',
+        '  $excel = New-Object -ComObject Excel.Application',
+        '  $excel.Visible = $false',
+        '  $excel.DisplayAlerts = $false',
+        '  $excel.ScreenUpdating = $false',
+        '  $wb = $excel.Workbooks.Open($WorkbookPath, 0, $false)',
+        '  $count = @($wb.Worksheets).Count',
+        '  if ($count -le 1) {',
+        "    Write-Output ((@{ ok = $false; error = 'Cannot delete the last sheet in the workbook' } | ConvertTo-Json -Compress))",
+        '    exit 1',
+        '  }',
+        '  $target = $null',
+        '  foreach ($s in @($wb.Worksheets)) {',
+        '    if ($s.Name -eq $SheetName) { $target = $s; break }',
+        '  }',
+        '  if ($null -eq $target) {',
+        "    Write-Output ((@{ ok = $false; error = ('Sheet not found: ' + $SheetName) } | ConvertTo-Json -Compress))",
+        '    exit 1',
+        '  }',
+        '  $target.Delete() | Out-Null',
+        '  $latest = [string]$wb.Worksheets.Item(1).Name',
+        '  $wb.Save() | Out-Null',
+        '  $wb.Close($false) | Out-Null',
+        '  $wb = $null',
+        "  Write-Output ((@{ ok = $true; deleted = $SheetName; latestSheetName = $latest } | ConvertTo-Json -Compress))",
+        '} catch {',
+        "  $msg = $_.Exception.Message",
+        '  if ($msg -match \'locked|in use|Sharing|Permission\') {',
+        "    $msg = 'Close DEP REP.xlsx in Excel, then try again. ' + $msg",
+        '  }',
+        "  Write-Output ((@{ ok = $false; error = $msg } | ConvertTo-Json -Compress))",
+        '  exit 1',
+        '} finally {',
+        '  if ($null -ne $wb) { try { $wb.Close($false) | Out-Null } catch {} }',
+        '  if ($null -ne $excel) {',
+        '    try { $excel.Quit() | Out-Null } catch {}',
+        '    try { [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) } catch {}',
+        '  }',
+        '  [GC]::Collect()',
+        '}',
+      ].join('\r\n'),
+      'utf8',
+    );
+
+    const result = spawnSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        scriptPath,
+        '-WorkbookPath',
+        p,
+        '-SheetName',
+        name,
+      ],
+      { encoding: 'utf8', windowsHide: true, timeout: 120000 },
+    );
+
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* ignore tmp cleanup */
+    }
+
+    const stdout = String(result.stdout || '').trim();
+    const stderr = String(result.stderr || '').trim();
+    let parsed = null;
+    if (stdout) {
+      try {
+        const lines = stdout.split(/\r?\n/).filter(Boolean);
+        parsed = JSON.parse(lines[lines.length - 1]);
+      } catch {
+        parsed = null;
+      }
+    }
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.ok) {
+        return {
+          ok: true,
+          deleted: String(parsed.deleted || name),
+          latestSheetName: String(parsed.latestSheetName || ''),
+        };
+      }
+      return { ok: false, error: String(parsed.error || 'Excel delete failed') };
+    }
+    if (result.error) {
+      return {
+        ok: false,
+        error:
+          result.error.code === 'ENOENT'
+            ? 'PowerShell not found — Excel COM delete requires Windows'
+            : result.error.message || 'Could not run Excel delete',
+      };
+    }
+    if (result.status !== 0) {
+      return {
+        ok: false,
+        error:
+          stderr ||
+          stdout ||
+          'Excel delete failed (is Microsoft Excel installed? Close the file if it is open).',
+      };
+    }
+    return { ok: false, error: stderr || 'Excel delete returned no result' };
+  } catch (err) {
+    return { ok: false, error: err?.message || 'Could not delete DEP REP sheet' };
+  }
+});
+
+/**
  * Export one DEP REP sheet to PDF via Excel ExportAsFixedFormat (same as Print → PDF).
  * Uses the sheet's print area / page setup — no custom layout.
  */
@@ -1851,11 +2008,171 @@ ipcMain.handle('read-force-quit', () => readForceQuitSignal());
 ipcMain.handle('quit-app', () => {
   appIsQuitting = true;
   destroyTray();
+  destroyGpsFloatWindow();
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.destroy();
   }
   app.quit();
   return { ok: true };
+});
+
+function positionGpsFloatWindow(win) {
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const area = display.workArea;
+  const bounds = win.getBounds();
+  const x = Math.round(area.x + area.width - bounds.width - 24);
+  const y = Math.round(area.y + area.height - bounds.height - 24);
+  win.setPosition(x, y, false);
+}
+
+function applyGpsFloatAlwaysOnTop(win) {
+  if (!win || win.isDestroyed()) return;
+  // Highest practical level on Windows so the panel stays above other apps.
+  try {
+    win.setAlwaysOnTop(true, 'screen-saver', 1);
+  } catch {
+    win.setAlwaysOnTop(true, 'screen-saver');
+  }
+  try {
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  } catch {
+    /* macOS / older Electron */
+  }
+  if (process.platform === 'win32') {
+    try {
+      win.moveTop();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function destroyGpsFloatWindow() {
+  if (!gpsFloatWindow || gpsFloatWindow.isDestroyed()) {
+    gpsFloatWindow = null;
+    gpsFloatPendingInit = null;
+    return;
+  }
+  const win = gpsFloatWindow;
+  gpsFloatWindow = null;
+  gpsFloatPendingInit = null;
+  win.destroy();
+}
+
+function notifyGpsFloatOwner(channel, payload) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (
+    gpsFloatOwnerWebContentsId != null &&
+    mainWindow.webContents.id !== gpsFloatOwnerWebContentsId
+  ) {
+    /* still send to main renderer — only one CREW window */
+  }
+  mainWindow.webContents.send(channel, payload);
+}
+
+function openGpsFloatWindow(ownerEvent, payload) {
+  gpsFloatOwnerWebContentsId = ownerEvent.sender.id;
+  gpsFloatPendingInit = payload ?? null;
+
+  if (gpsFloatWindow && !gpsFloatWindow.isDestroyed()) {
+    gpsFloatWindow.setContentSize(390, 236);
+    applyGpsFloatAlwaysOnTop(gpsFloatWindow);
+    positionGpsFloatWindow(gpsFloatWindow);
+    gpsFloatWindow.show();
+    gpsFloatWindow.focus();
+    gpsFloatWindow.webContents.send('gps-float-init', gpsFloatPendingInit);
+    return { ok: true };
+  }
+
+  const win = new BrowserWindow({
+    width: 390,
+    height: 236,
+    useContentSize: true,
+    frame: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    show: false,
+    alwaysOnTop: true,
+  backgroundColor: '#f8fbff',
+  hasShadow: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'gps-float-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  gpsFloatWindow = win;
+  applyGpsFloatAlwaysOnTop(win);
+  positionGpsFloatWindow(win);
+
+  win.once('ready-to-show', () => {
+    if (win.isDestroyed()) return;
+    positionGpsFloatWindow(win);
+    applyGpsFloatAlwaysOnTop(win);
+    win.show();
+    win.focus();
+  });
+
+  win.on('closed', () => {
+    if (gpsFloatWindow === win) gpsFloatWindow = null;
+    gpsFloatPendingInit = null;
+  });
+
+  // Keep re-asserting topmost if another app tries to cover it while open.
+  const bump = () => applyGpsFloatAlwaysOnTop(win);
+  win.on('blur', bump);
+  win.on('show', bump);
+
+  win.loadFile(path.join(__dirname, 'gps-float.html'));
+  return { ok: true };
+}
+
+ipcMain.handle('gps-float-open', (event, payload) => openGpsFloatWindow(event, payload));
+
+ipcMain.handle('gps-float-close', () => {
+  notifyGpsFloatOwner('gps-float-closed', { save: false });
+  destroyGpsFloatWindow();
+  return { ok: true };
+});
+
+ipcMain.handle('gps-float-is-open', () => !!(gpsFloatWindow && !gpsFloatWindow.isDestroyed()));
+
+ipcMain.on('gps-float-ready', (event) => {
+  if (!gpsFloatWindow || event.sender !== gpsFloatWindow.webContents) return;
+  if (gpsFloatPendingInit) {
+    event.sender.send('gps-float-init', gpsFloatPendingInit);
+  }
+  applyGpsFloatAlwaysOnTop(gpsFloatWindow);
+  gpsFloatWindow.focus();
+});
+
+ipcMain.on('gps-float-commit', (event, payload) => {
+  if (!gpsFloatWindow || event.sender !== gpsFloatWindow.webContents) return;
+  notifyGpsFloatOwner('gps-float-commit', payload);
+});
+
+ipcMain.on('gps-float-close', (event, payload) => {
+  if (!gpsFloatWindow || event.sender !== gpsFloatWindow.webContents) return;
+  // Single event with final payload — avoids race where "closed" cleared UI before commit applied.
+  notifyGpsFloatOwner('gps-float-closed', payload ?? { save: false });
+  destroyGpsFloatWindow();
+});
+
+/** @deprecated kept for compatibility — GPS uses a separate float window now. */
+ipcMain.handle('set-window-always-on-top', (_event, enabled) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
+  if (!enabled) mainWindow.setAlwaysOnTop(false);
+  return { ok: true, enabled: false };
+});
+
+ipcMain.handle('get-window-active', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  return mainWindow.isVisible() && !mainWindow.isMinimized() && mainWindow.isFocused();
 });
 
 ipcMain.handle('get-local-prefs', () => readLocalPrefs());
@@ -1876,6 +2193,12 @@ ipcMain.handle('set-local-prefs', (_event, patch) => {
   }
   if (typeof patch?.fuelHoursAsHm === 'boolean') {
     next.fuelHoursAsHm = patch.fuelHoursAsHm;
+  }
+  if (typeof patch?.fuelShowUtc === 'boolean') {
+    next.fuelShowUtc = patch.fuelShowUtc;
+  }
+  if (typeof patch?.fuelUtcOffsetHours === 'number' && Number.isFinite(patch.fuelUtcOffsetHours)) {
+    next.fuelUtcOffsetHours = patch.fuelUtcOffsetHours;
   }
   if (Array.isArray(patch?.fuelDisplayPresets)) {
     next.fuelDisplayPresets = patch.fuelDisplayPresets;

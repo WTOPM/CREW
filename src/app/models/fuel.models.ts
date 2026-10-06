@@ -150,7 +150,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'fmMeAe',
     label: 'ME/AE FM',
-    tip: 'Main/aux fuel flowmeter counter (MASTER col F).',
+    tip: 'ME/AE flowmeter counter — entered from the meter (Excel col F). Total m³ is the delta from the previous FM.',
     type: 'num',
     field: 'fmMeAe',
     numeric: true,
@@ -158,7 +158,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'totalM3',
     label: 'Total m³',
-    tip: 'Total ME+AE consumption volume (m³).',
+    tip: 'Period volume = this FM − previous FM (Excel G = Fₙ−Fₙ₋₁). Auto when FM is set.',
     type: 'num',
     field: 'totalM3',
     numeric: true,
@@ -166,7 +166,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'totalMt',
     label: 'Total t',
-    tip: 'Total fuel consumption for the period (mt).',
+    tip: 'Total fuel consumption for the period (mt). Auto: ME + AE when either is edited.',
     type: 'num',
     field: 'totalMt',
     numeric: true,
@@ -192,7 +192,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robRmd',
     label: 'ROB RMD',
-    tip: 'ROB of ULSFO / RMD at this event (mt).',
+    tip: 'ROB of ULSFO / RMD at this event (mt). Auto: previous ROB − ME/AE assigned to RMD.',
     type: 'num',
     field: 'robRmdMt',
     numeric: true,
@@ -200,7 +200,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robB100',
     label: 'ROB B100',
-    tip: 'ROB of biofuel blend (B100) at this event (mt).',
+    tip: 'ROB of biofuel blend (B100) at this event (mt). Auto: previous ROB − ME/AE assigned to B100.',
     type: 'num',
     field: 'robB100Mt',
     numeric: true,
@@ -224,7 +224,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robDma',
     label: 'ROB DMA',
-    tip: 'ROB of DMA / MGO at this event (mt).',
+    tip: 'ROB of DMA / MGO at this event (mt). Auto: previous ROB − DMA/Boiler consumption.',
     type: 'num',
     field: 'robDmaMt',
     numeric: true,
@@ -500,6 +500,109 @@ export const FUEL_COLUMN_TIPS = Object.fromEntries(
   FUEL_COLUMNS.map((c) => [c.id, c.tip]),
 ) as Record<FuelColumnId, string>;
 
+/** ROB tanks available in Fuel Log MASTER (DMA tip covers MGO). */
+export type FuelRobTankId = 'rmd' | 'b100' | 'dma';
+
+export const FUEL_ROB_TANK_IDS: readonly FuelRobTankId[] = ['rmd', 'b100', 'dma'];
+
+export const FUEL_ROB_TANK_LABELS: Record<FuelRobTankId, string> = {
+  rmd: 'RMD',
+  b100: 'B100',
+  dma: 'DMA',
+};
+
+export const FUEL_ROB_TANK_TIPS: Record<FuelRobTankId, string> = {
+  rmd: 'ULSFO / RMD remaining on board',
+  b100: 'Biofuel blend (B100) remaining on board',
+  dma: 'DMA / MGO remaining on board',
+};
+
+export function isFuelRobTankId(raw: unknown): raw is FuelRobTankId {
+  return raw === 'rmd' || raw === 'b100' || raw === 'dma';
+}
+
+export function fuelRobField(tank: FuelRobTankId): 'robRmdMt' | 'robB100Mt' | 'robDmaMt' {
+  if (tank === 'rmd') return 'robRmdMt';
+  if (tank === 'b100') return 'robB100Mt';
+  return 'robDmaMt';
+}
+
+export function fuelRobValue(e: Pick<FuelLogEvent, 'robRmdMt' | 'robB100Mt' | 'robDmaMt'>, tank: FuelRobTankId): number | null {
+  return e[fuelRobField(tank)];
+}
+
+/** Tanks that appear in the log (any row with a non-null ROB). Falls back to all three MASTER tanks. */
+export function discoverFuelRobTanks(events: readonly FuelLogEvent[]): FuelRobTankId[] {
+  const seen = new Set<FuelRobTankId>();
+  for (const e of events) {
+    if (e.robRmdMt != null) seen.add('rmd');
+    if (e.robB100Mt != null) seen.add('b100');
+    if (e.robDmaMt != null) seen.add('dma');
+  }
+  const ordered = FUEL_ROB_TANK_IDS.filter((id) => seen.has(id));
+  return ordered.length ? [...ordered] : [...FUEL_ROB_TANK_IDS];
+}
+
+export interface FuelRobTankAssignment {
+  me: FuelRobTankId;
+  ae: FuelRobTankId;
+  boiler: FuelRobTankId;
+}
+
+function tankDropped(prev: number | null, curr: number | null, minDrop = 0.05): boolean {
+  if (prev == null || curr == null) return false;
+  return prev - curr > minDrop;
+}
+
+/**
+ * Infer debit tanks from how ROB changed on `previous` vs `beforePrevious`.
+ * Fallback: ME/AE → stocked B100 then RMD; boiler → DMA.
+ */
+export function inferDefaultRobTanks(
+  previous: FuelLogEvent | null | undefined,
+  beforePrevious?: FuelLogEvent | null,
+): FuelRobTankAssignment {
+  let me: FuelRobTankId | null = null;
+  let ae: FuelRobTankId | null = null;
+  let boiler: FuelRobTankId | null = null;
+
+  if (previous && beforePrevious) {
+    const meAmt = previous.meMt ?? 0;
+    const aeAmt = previous.aeMt ?? 0;
+    const boilerAmt = previous.boilerMt ?? 0;
+    const dropRmd = tankDropped(beforePrevious.robRmdMt, previous.robRmdMt);
+    const dropB100 = tankDropped(beforePrevious.robB100Mt, previous.robB100Mt);
+    const dropDma = tankDropped(beforePrevious.robDmaMt, previous.robDmaMt);
+
+    if (meAmt > 0 || aeAmt > 0) {
+      const main: FuelRobTankId | null = dropB100 && !dropRmd ? 'b100' : dropRmd && !dropB100 ? 'rmd' : dropB100 ? 'b100' : dropRmd ? 'rmd' : null;
+      if (main) {
+        if (meAmt > 0) me = main;
+        if (aeAmt > 0) ae = main;
+      }
+    }
+    if (boilerAmt > 0 && dropDma) boiler = 'dma';
+
+    // Prefer tanks already stored on the previous event when present
+    if (isFuelRobTankId(previous.meRobTank)) me = previous.meRobTank;
+    if (isFuelRobTankId(previous.aeRobTank)) ae = previous.aeRobTank;
+    if (isFuelRobTankId(previous.boilerRobTank)) boiler = previous.boilerRobTank;
+  }
+
+  const stockedMain = (p: FuelLogEvent | null | undefined): FuelRobTankId => {
+    if (p && (p.robB100Mt ?? 0) > 0) return 'b100';
+    if (p && (p.robRmdMt ?? 0) > 0) return 'rmd';
+    if (p?.robB100Mt != null) return 'b100';
+    return 'rmd';
+  };
+
+  return {
+    me: me ?? stockedMain(previous),
+    ae: ae ?? stockedMain(previous),
+    boiler: boiler ?? 'dma',
+  };
+}
+
 /** One row from Fuel Log MASTER (optionally enriched from CENG). */
 export interface FuelLogEvent {
   id: string;
@@ -529,6 +632,13 @@ export interface FuelLogEvent {
   bunkerRmdBioMt: number | null;
   bunkerDmaMt: number | null;
   robDmaMt: number | null;
+  /**
+   * Which ROB tank ME / AE / boiler consumption debits.
+   * Null = infer on next auto-calc from previous row / stock.
+   */
+  meRobTank: FuelRobTankId | null;
+  aeRobTank: FuelRobTankId | null;
+  boilerRobTank: FuelRobTankId | null;
   dmaConsM3: number | null;
   boilerFm: number | null;
   /** Optional machinery (from CENG when matched). */
@@ -579,6 +689,13 @@ export interface FuelLocalUiPrefs {
   visibleColumns: FuelColumnId[];
   /** Show hour fields as H:MM instead of decimal (1.1 → 1:06). */
   hoursAsHm: boolean;
+  /** Show Date/Time columns as UTC (local − utcOffsetHours). */
+  showUtc: boolean;
+  /**
+   * Ship local zone as hours ahead of UTC (e.g. 2 for UTC+2).
+   * Displayed UTC = local − this value.
+   */
+  utcOffsetHours: number;
 }
 
 /** One saved column layout (Save / Load display) — shared via data folder. */
@@ -660,6 +777,8 @@ export function createDefaultFuelLocalUiPrefs(): FuelLocalUiPrefs {
   return {
     visibleColumns: [...FUEL_DEFAULT_VISIBLE_COLUMNS],
     hoursAsHm: false,
+    showUtc: false,
+    utcOffsetHours: 0,
   };
 }
 
@@ -698,6 +817,9 @@ export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLo
       bunkerRmdBioMt: partial?.bunkerRmdBioMt ?? null,
       bunkerDmaMt: partial?.bunkerDmaMt ?? null,
       robDmaMt: partial?.robDmaMt ?? null,
+      meRobTank: partial?.meRobTank ?? null,
+      aeRobTank: partial?.aeRobTank ?? null,
+      boilerRobTank: partial?.boilerRobTank ?? null,
       dmaConsM3: partial?.dmaConsM3 ?? null,
       boilerFm: partial?.boilerFm ?? null,
       meCounterRh: partial?.meCounterRh ?? null,
@@ -849,7 +971,76 @@ export function normalizeFuelLocalUiPrefs(
   return {
     visibleColumns: cols.length ? cols : [...defaults.visibleColumns],
     hoursAsHm: raw?.hoursAsHm === true,
+    showUtc: raw?.showUtc === true,
+    utcOffsetHours: clampFuelUtcOffsetHours(raw?.utcOffsetHours),
   };
+}
+
+/** Clamp ship UTC offset hours (UTC−12 … UTC+14). */
+export function clampFuelUtcOffsetHours(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n)) return 0;
+  const rounded = Math.round(n * 2) / 2; // allow half-hours
+  return Math.min(14, Math.max(-12, rounded));
+}
+
+/** Display ship offset as +2 / −1 / ±0. */
+export function formatFuelUtcOffsetLabel(hours: number): string {
+  const h = clampFuelUtcOffsetHours(hours);
+  if (h === 0) return '±0';
+  const sign = h > 0 ? '+' : '−';
+  const abs = Math.abs(h);
+  const text = Number.isInteger(abs) ? String(abs) : String(abs);
+  return `${sign}${text}`;
+}
+
+/**
+ * Shift a fuel date+time by a signed hour delta (UTC Date math — no browser TZ).
+ * Example: local 12:00 with delta −2 → 10:00 (possibly previous day).
+ */
+export function shiftFuelDateTime(
+  date: string,
+  time: string,
+  deltaHours: number,
+): { date: string; time: string } {
+  const d = String(date ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !Number.isFinite(deltaHours) || deltaHours === 0) {
+    return { date: d, time: String(time ?? '').trim() };
+  }
+  const t = String(time ?? '').trim();
+  const m = /^(\d{1,2}):(\d{2})/.exec(t);
+  const hh = m ? Number(m[1]) : 0;
+  const mm = m ? Number(m[2]) : 0;
+  const ms =
+    Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, Number(d.slice(8, 10)), hh, mm) +
+    deltaHours * 3_600_000;
+  const out = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    date: `${out.getUTCFullYear()}-${pad(out.getUTCMonth() + 1)}-${pad(out.getUTCDate())}`,
+    time: `${pad(out.getUTCHours())}:${pad(out.getUTCMinutes())}`,
+  };
+}
+
+/**
+ * When Hrs is edited, move this event's clock so it stays consistent.
+ * - Prefer anchoring to the previous event: time = prev + newHrs
+ * - Else shift by (newHrs − oldHrs)
+ */
+export function dateTimeFromFuelHrsEdit(
+  current: Pick<FuelLogEvent, 'date' | 'time' | 'timeUsedHours'>,
+  newHrs: number | null,
+  previous: Pick<FuelLogEvent, 'date' | 'time'> | null | undefined,
+): { date: string; time: string } | null {
+  if (newHrs == null || !Number.isFinite(newHrs) || newHrs < 0) return null;
+  if (previous?.date) {
+    return shiftFuelDateTime(previous.date, previous.time || '00:00', newHrs);
+  }
+  const oldHrs = current.timeUsedHours;
+  if (oldHrs == null || !Number.isFinite(oldHrs)) return null;
+  const delta = Math.round((newHrs - oldHrs) * 10) / 10;
+  if (delta === 0) return null;
+  return shiftFuelDateTime(current.date, current.time || '00:00', delta);
 }
 
 export function normalizeFuelDisplayPresets(raw: unknown): FuelDisplayPreset[] {
@@ -912,6 +1103,9 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
     bunkerRmdBioMt: numOrNull(e.bunkerRmdBioMt),
     bunkerDmaMt: numOrNull(e.bunkerDmaMt),
     robDmaMt: numOrNull(e.robDmaMt),
+    meRobTank: isFuelRobTankId(e.meRobTank) ? e.meRobTank : null,
+    aeRobTank: isFuelRobTankId(e.aeRobTank) ? e.aeRobTank : null,
+    boilerRobTank: isFuelRobTankId(e.boilerRobTank) ? e.boilerRobTank : null,
     dmaConsM3: numOrNull(e.dmaConsM3),
     boilerFm: numOrNull(e.boilerFm),
     meCounterRh: numOrNull(e.meCounterRh),
@@ -1048,19 +1242,149 @@ export function recomputeFuelTotalMt(meMt: number | null, aeMt: number | null): 
 }
 
 /**
+ * Excel MASTER/CENG: Total m³ (G) = Fₙ − Fₙ₋₁.
+ * FM is the manual meter reading; m³ is the period delta (never negative).
+ */
+export function recomputeFuelTotalM3FromFm(
+  fmMeAe: number | null,
+  previousFm: number | null | undefined,
+): number | null {
+  if (fmMeAe == null || previousFm == null) return null;
+  const delta = Math.round((fmMeAe - previousFm) * 10) / 10;
+  return delta < 0 ? null : delta;
+}
+
+/** Round fuel mt to 1 decimal (MASTER numFmt 0.0). */
+export function roundFuelMt(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+function clampRobDebit(prev: number | null, debit: number): number | null {
+  if (prev == null) return null;
+  if (prev <= 0) return roundFuelMt(prev); // never go negative from empty / zero tank
+  return roundFuelMt(Math.max(0, prev - debit));
+}
+
+/**
+ * Project ROB after period consumption using per-field tank assignment.
+ * Debits are summed per tank; each tank is clamped at 0.
+ */
+export function projectFuelRobAfterConsumption(
+  previous: FuelLogEvent,
+  assignment: FuelRobTankAssignment,
+  amounts: { meMt: number; aeMt: number; boilerMt: number },
+): Pick<FuelLogEvent, 'robRmdMt' | 'robB100Mt' | 'robDmaMt'> {
+  const debit: Record<FuelRobTankId, number> = { rmd: 0, b100: 0, dma: 0 };
+  debit[assignment.me] += amounts.meMt > 0 ? amounts.meMt : 0;
+  debit[assignment.ae] += amounts.aeMt > 0 ? amounts.aeMt : 0;
+  debit[assignment.boiler] += amounts.boilerMt > 0 ? amounts.boilerMt : 0;
+
+  return {
+    robRmdMt: clampRobDebit(previous.robRmdMt, debit.rmd),
+    robB100Mt: clampRobDebit(previous.robB100Mt, debit.b100),
+    robDmaMt: clampRobDebit(previous.robDmaMt, debit.dma),
+  };
+}
+
+/**
+ * Resolve tank assignment for a draft: keep explicit picks, fill nulls via inferDefaultRobTanks.
+ */
+export function resolveFuelRobTankAssignment(
+  draft: FuelLogEvent,
+  previous: FuelLogEvent | null | undefined,
+  beforePrevious?: FuelLogEvent | null,
+): FuelRobTankAssignment {
+  const inferred = inferDefaultRobTanks(previous, beforePrevious);
+  return {
+    me: isFuelRobTankId(draft.meRobTank) ? draft.meRobTank : inferred.me,
+    ae: isFuelRobTankId(draft.aeRobTank) ? draft.aeRobTank : inferred.ae,
+    boiler: isFuelRobTankId(draft.boilerRobTank) ? draft.boilerRobTank : inferred.boiler,
+  };
+}
+
+/** Fields that trigger Total t + ROB rebuild when edited in the table. */
+export const FUEL_CONSUMPTION_EDIT_FIELDS = ['meMt', 'aeMt', 'boilerMt'] as const;
+export type FuelConsumptionEditField = (typeof FUEL_CONSUMPTION_EDIT_FIELDS)[number];
+
+export function isFuelConsumptionEditField(field: string): field is FuelConsumptionEditField {
+  return (FUEL_CONSUMPTION_EDIT_FIELDS as readonly string[]).includes(field);
+}
+
+/**
+ * Side effects when ME / AE / DMA consumption is edited in the table:
+ * - Total t = ME + AE
+ * - ROB tanks = previous ROB − assigned consumption (clamped ≥ 0), always
+ *   recomputed from previous even if the user cleared/changed ROB manually.
+ */
+export function applyFuelConsumptionSideEffects(
+  current: FuelLogEvent,
+  previous: FuelLogEvent | null | undefined,
+  beforePrevious: FuelLogEvent | null | undefined,
+  partial: Partial<Pick<FuelLogEvent, FuelConsumptionEditField>>,
+): FuelLogEvent {
+  let next: FuelLogEvent = { ...current, ...partial };
+  if (partial.meMt !== undefined || partial.aeMt !== undefined) {
+    next = { ...next, totalMt: recomputeFuelTotalMt(next.meMt, next.aeMt) };
+  }
+  const assignment = resolveFuelRobTankAssignment(next, previous, beforePrevious);
+  next = {
+    ...next,
+    meRobTank: assignment.me,
+    aeRobTank: assignment.ae,
+    boilerRobTank: assignment.boiler,
+  };
+  if (previous) {
+    next = {
+      ...next,
+      ...projectFuelRobAfterConsumption(previous, assignment, {
+        meMt: next.meMt ?? 0,
+        aeMt: next.aeMt ?? 0,
+        boilerMt: next.boilerMt ?? 0,
+      }),
+    };
+  }
+  return next;
+}
+
+/**
  * Apply auto-calcs when drafting a new/edited event against the chronologically previous row.
+ * - Hrs from elapsed time
+ * - totalMt = ME + AE (kept for storage; not always shown in UI)
+ * - ROB tanks = previous − assigned period consumption (clamped ≥ 0)
  */
 export function applyFuelEventAutoCalcs(
   draft: FuelLogEvent,
   previous: FuelLogEvent | null | undefined,
+  beforePrevious?: FuelLogEvent | null,
 ): FuelLogEvent {
   let next = { ...draft, kind: classifyFuelEvent(draft.rawEvent) };
   if (previous?.date && next.date) {
     const hrs = fuelElapsedHours(previous.date, previous.time, next.date, next.time);
     if (hrs != null) next = { ...next, timeUsedHours: hrs };
   }
+  const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, previous?.fmMeAe);
+  if (m3 != null) next = { ...next, totalM3: m3 };
   const total = recomputeFuelTotalMt(next.meMt, next.aeMt);
   if (total != null) next = { ...next, totalMt: total };
+
+  const assignment = resolveFuelRobTankAssignment(next, previous, beforePrevious);
+  next = {
+    ...next,
+    meRobTank: assignment.me,
+    aeRobTank: assignment.ae,
+    boilerRobTank: assignment.boiler,
+  };
+
+  if (previous) {
+    next = {
+      ...next,
+      ...projectFuelRobAfterConsumption(previous, assignment, {
+        meMt: next.meMt ?? 0,
+        aeMt: next.aeMt ?? 0,
+        boilerMt: next.boilerMt ?? 0,
+      }),
+    };
+  }
   return next;
 }
 
@@ -1234,4 +1558,13 @@ export function findPreviousFuelEvent(
     }
   }
   return best;
+}
+
+/** Event immediately before `previous` (for ROB-tank inference). */
+export function findFuelEventBeforePrevious(
+  events: readonly FuelLogEvent[],
+  previous: FuelLogEvent | null | undefined,
+): FuelLogEvent | null {
+  if (!previous?.date) return null;
+  return findPreviousFuelEvent(events, previous.date, previous.time, previous.id);
 }

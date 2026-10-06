@@ -119,11 +119,8 @@
     return POC.formatCaptainName(master);
   }
 
-  function footerMasterName(snapshot, overlayVariant) {
-    const saved =
-      overlayVariant?.footerMasterName ||
-      overlayVariant?.cellValues?.['footer-master'];
-    if (saved) return saved;
+  function footerMasterName(snapshot, _overlayVariant) {
+    // Always live from crew on the snapshot — never freeze a previous captain.
     return masterDisplayName(snapshot);
   }
 

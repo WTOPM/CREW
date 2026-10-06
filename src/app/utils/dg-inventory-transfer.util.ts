@@ -57,7 +57,10 @@ export function cmaContainersToUnifeederRows(
     const lines = container.lines.length ? container.lines : [createDgCargoLine()];
     for (const line of lines) {
       const { lq, marinePollutant } = splitMpLq(line.mpLq);
-      const unRef = lookupUnNumberReference(line.unNo);
+      const unRef = lookupUnNumberReference(line.unNo, {
+        description: line.properShippingName,
+        dgClass: line.dgClass,
+      });
       rows.push(
         createDgUnifeederRow({
           size: container.type,

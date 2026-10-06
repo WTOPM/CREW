@@ -26,20 +26,30 @@
           </label>
           <label class="fuel-event-field">
             <span class="fuel-event-field__label">Time</span>
-            <input
-              type="time"
-              class="fuel-event-field__control"
-              [ngModel]="draft().time"
-              (ngModelChange)="updateField('time', $event)"
-            />
+            <div class="fuel-event-time-row">
+              <app-time-input
+                class="fuel-event-time"
+                [value]="draft().time"
+                (valueChange)="updateField('time', $event)"
+              />
+              <button
+                type="button"
+                class="fuel-event-time-now"
+                title="Set date &amp; time to now"
+                (click)="setNow()"
+              >
+                Now
+              </button>
+            </div>
           </label>
           <label class="fuel-event-field">
             <span class="fuel-event-field__label">Hrs {{ hoursAsHm() ? '(H:MM)' : '' }}</span>
             <input
-              class="fuel-event-field__control"
-              [ngModel]="hoursDisplay()"
-              (ngModelChange)="onNum('timeUsedHours', $event)"
-              [placeholder]="hoursAsHm() ? '1:06' : '1.1'"
+              class="fuel-event-field__control fuel-event-field__control--ro"
+              [value]="hoursDisplay() || '—'"
+              readonly
+              tabindex="-1"
+              [title]="previous() ? 'Hours since previous event (auto)' : 'No previous event — hours unknown'"
             />
           </label>
         </div>
@@ -94,7 +104,7 @@
       <section class="fuel-event-section fuel-event-section--fuel">
         <div class="fuel-event-section__head">
           <h4 class="fuel-event-section__title">Fuel (mt)</h4>
-          <button type="button" class="fuel-event-recalc" (click)="recalc()" title="Recalculate hours and totals from previous event">
+          <button type="button" class="fuel-event-recalc" (click)="recalc()" title="Recalculate hours and ROB from previous event">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path
                 fill="currentColor"
@@ -104,47 +114,110 @@
             Recalculate
           </button>
         </div>
-        <div class="fuel-event-grid fuel-event-grid--4">
-          <label class="fuel-event-field">
+        <div class="fuel-event-grid fuel-event-grid--3">
+          <div class="fuel-event-field">
             <span class="fuel-event-field__label">ME t</span>
-            <input
-              class="fuel-event-field__control"
-              [ngModel]="draft().meMt ?? ''"
-              (ngModelChange)="onNum('meMt', $event)"
-              inputmode="decimal"
-              placeholder="0.0"
-            />
-          </label>
-          <label class="fuel-event-field">
+            <div class="fuel-event-mt-row">
+              <input
+                class="fuel-event-field__control"
+                [ngModel]="draft().meMt ?? ''"
+                (ngModelChange)="onNum('meMt', $event)"
+                (keydown)="onMtArrow($event, 'meMt')"
+                inputmode="decimal"
+                placeholder="0.0"
+                title="↑↓ ±0.1"
+              />
+              <div class="fuel-event-mt-steps" aria-hidden="true">
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="+0.1" (mousedown)="$event.preventDefault()" (click)="nudgeMt('meMt', 1)">▲</button>
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="−0.1" (mousedown)="$event.preventDefault()" (click)="nudgeMt('meMt', -1)">▼</button>
+              </div>
+            </div>
+            <label class="fuel-event-rob-pick">
+              <span class="fuel-event-rob-pick__label">from ROB</span>
+              <select
+                class="fuel-event-rob-pick__select"
+                [ngModel]="draft().meRobTank ?? ''"
+                (ngModelChange)="onRobTank('meRobTank', $event)"
+                [title]="draft().meRobTank ? robTankTips[draft().meRobTank!] : 'ROB tank for ME'"
+              >
+                @for (tank of robTanks(); track tank) {
+                  <option [value]="tank" [title]="robTankTips[tank]">{{ robTankLabels[tank] }}</option>
+                }
+              </select>
+            </label>
+          </div>
+          <div class="fuel-event-field">
             <span class="fuel-event-field__label">AE t</span>
-            <input
-              class="fuel-event-field__control"
-              [ngModel]="draft().aeMt ?? ''"
-              (ngModelChange)="onNum('aeMt', $event)"
-              inputmode="decimal"
-              placeholder="0.0"
-            />
-          </label>
-          <label class="fuel-event-field">
+            <div class="fuel-event-mt-row">
+              <input
+                class="fuel-event-field__control"
+                [ngModel]="draft().aeMt ?? ''"
+                (ngModelChange)="onNum('aeMt', $event)"
+                (keydown)="onMtArrow($event, 'aeMt')"
+                inputmode="decimal"
+                placeholder="0.0"
+                title="↑↓ ±0.1"
+              />
+              <div class="fuel-event-mt-steps" aria-hidden="true">
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="+0.1" (mousedown)="$event.preventDefault()" (click)="nudgeMt('aeMt', 1)">▲</button>
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="−0.1" (mousedown)="$event.preventDefault()" (click)="nudgeMt('aeMt', -1)">▼</button>
+              </div>
+            </div>
+            <label class="fuel-event-rob-pick">
+              <span class="fuel-event-rob-pick__label">from ROB</span>
+              <select
+                class="fuel-event-rob-pick__select"
+                [ngModel]="draft().aeRobTank ?? ''"
+                (ngModelChange)="onRobTank('aeRobTank', $event)"
+                [title]="draft().aeRobTank ? robTankTips[draft().aeRobTank!] : 'ROB tank for AE'"
+              >
+                @for (tank of robTanks(); track tank) {
+                  <option [value]="tank" [title]="robTankTips[tank]">{{ robTankLabels[tank] }}</option>
+                }
+              </select>
+            </label>
+          </div>
+          <div class="fuel-event-field">
             <span class="fuel-event-field__label">DMA / Boiler t</span>
-            <input
-              class="fuel-event-field__control"
-              [ngModel]="draft().boilerMt ?? ''"
-              (ngModelChange)="onNum('boilerMt', $event)"
-              inputmode="decimal"
-              placeholder="0.0"
-            />
-          </label>
-          <label class="fuel-event-field fuel-event-field--total">
-            <span class="fuel-event-field__label">Total t</span>
-            <input
-              class="fuel-event-field__control"
-              [ngModel]="draft().totalMt ?? ''"
-              (ngModelChange)="onNum('totalMt', $event)"
-              inputmode="decimal"
-              placeholder="ME + AE"
-            />
-          </label>
+            <div class="fuel-event-mt-row">
+              <input
+                class="fuel-event-field__control"
+                [ngModel]="draft().boilerMt ?? ''"
+                (ngModelChange)="onNum('boilerMt', $event)"
+                (keydown)="onMtArrow($event, 'boilerMt')"
+                inputmode="decimal"
+                placeholder="0.0"
+                title="↑↓ ±0.1"
+              />
+              <div class="fuel-event-mt-steps" aria-hidden="true">
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="+0.1" (mousedown)="$event.preventDefault()" (click)="nudgeMt('boilerMt', 1)">▲</button>
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="−0.1" (mousedown)="$event.preventDefault()" (click)="nudgeMt('boilerMt', -1)">▼</button>
+              </div>
+            </div>
+            <label class="fuel-event-rob-pick">
+              <span class="fuel-event-rob-pick__label">from ROB</span>
+              <select
+                class="fuel-event-rob-pick__select"
+                [ngModel]="draft().boilerRobTank ?? ''"
+                (ngModelChange)="onRobTank('boilerRobTank', $event)"
+                [title]="draft().boilerRobTank ? robTankTips[draft().boilerRobTank!] : 'ROB tank for DMA/Boiler'"
+              >
+                @for (tank of robTanks(); track tank) {
+                  <option [value]="tank" [title]="robTankTips[tank]">{{ robTankLabels[tank] }}</option>
+                }
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="fuel-event-rob-row" [style.grid-template-columns]="'repeat(' + robChips().length + ', minmax(0, 1fr))'">
+          @for (chip of robChips(); track chip.tank) {
+            <div class="fuel-event-field fuel-event-field--rob" [class.fuel-event-field--rob-empty]="chip.empty">
+              <span class="fuel-event-field__label">{{ chip.label }}</span>
+              <output class="fuel-event-field__control fuel-event-field__control--ro" [title]="chip.title">
+                {{ fmtRob(chip.value) }}
+              </output>
+            </div>
+          }
         </div>
       </section>
     </div>

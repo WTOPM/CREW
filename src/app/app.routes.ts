@@ -8,6 +8,7 @@ import { EtaComponent } from './pages/eta/eta.component';
 import { EtaTimezonesComponent } from './pages/eta-timezones/eta-timezones.component';
 import { DgReferenceComponent } from './pages/dg-reference/dg-reference.component';
 import { FuelComponent } from './pages/fuel/fuel.component';
+import { FuelStatsComponent } from './pages/fuel-stats/fuel-stats.component';
 import { PhoneComponent } from './pages/phone/phone.component';
 import { DepRepComponent } from './pages/dep-rep/dep-rep.component';
 export const routes: Routes = [
@@ -19,6 +20,7 @@ export const routes: Routes = [
   { path: 'eta', component: EtaComponent },
   { path: 'eta/timezones', component: EtaTimezonesComponent },
   { path: 'fuel', component: FuelComponent },
+  { path: 'fuel/stats', component: FuelStatsComponent },
   { path: 'phone', component: PhoneComponent },
   { path: 'crew-arr', component: CrewArrComponent },
   { path: 'settings', component: SettingsComponent },

@@ -15,7 +15,7 @@
         (dragover)="onSyncDragOver($event)"
         (dragleave)="onSyncDragLeave()"
         (drop)="onSyncDrop($event)"
-        title="Drop IMDG Code or DG PDF to update UN / fire / spillage reference"
+        title="Drop IMDG Code Chapter 3.2 PDF to update UN numbers"
       >
         <input
           #syncPdfInput
@@ -43,8 +43,44 @@
             />
           </svg>
           <div class="dg-ref-drop__copy">
-            <strong>Drop IMDG / DG PDF</strong>
-            <span>Update UN numbers, fire &amp; spillage schedules</span>
+            <strong class="dg-ref-drop__title">
+              Drop IMDG / DG PDF
+              <span
+                class="dg-ref-info"
+                tabindex="0"
+                aria-label="How to update DG Reference"
+                (click)="$event.stopPropagation()"
+                (keydown.enter)="$event.stopPropagation()"
+                (keydown.space)="$event.preventDefault(); $event.stopPropagation()"
+              >
+                <span class="dg-ref-info__icon" aria-hidden="true">i</span>
+                <span class="dg-ref-info__tip" role="tooltip">
+                  <strong>How to update DG Reference</strong>
+                  <span
+                    ><b>File:</b> IMDG Code PDF — Chapter 3.2 Dangerous Goods List only (≤10&nbsp;MB).
+                    Prefer a chapter extract, not the full Code.</span
+                  >
+                  <span
+                    ><b>Publication:</b> current IMDG Code amendment (page footer
+                    “IMDG Code (Amendment …)”, e.g. Amendment 42-24 / 2024 Edition).</span
+                  >
+                  <span
+                    ><b>Section:</b> Part 3 → Chapter 3.2 — Dangerous Goods List (table columns
+                    (1)…(18)).</span
+                  >
+                  <span
+                    ><b>Pages:</b> from the first page with the (1)–(18) column header row through the
+                    last UN entry. Cover / contents / “3.2.1 Structure…” intro are skipped
+                    automatically.</span
+                  >
+                  <span
+                    ><b>EmS Fire / Spillage:</b> drop those PDFs on the Fire schedule / Spillage
+                    schedule sections below (not here).</span
+                  >
+                </span>
+              </span>
+            </strong>
+            <span>Update UN numbers (Chapter 3.2 Dangerous Goods List)</span>
           </div>
         }
       </div>
@@ -138,21 +174,79 @@
         (click)="toggleSection('fire')"
       >
         <span class="dg-ref-accordion__chevron" aria-hidden="true"></span>
-        <span class="dg-ref-accordion__title">Fire schedule</span>
-        <span class="dg-ref-accordion__meta">{{ fireSchedules.length }} codes · MFAG pages</span>
+        <span class="dg-ref-accordion__title">
+          Fire schedule
+          <span
+            class="dg-ref-info"
+            tabindex="0"
+            aria-label="How to update Fire schedules"
+            (click)="$event.stopPropagation()"
+            (keydown.enter)="$event.stopPropagation()"
+            (keydown.space)="$event.preventDefault(); $event.stopPropagation()"
+          >
+            <span class="dg-ref-info__icon" aria-hidden="true">i</span>
+            <span class="dg-ref-info__tip" role="tooltip">
+              <strong>How to update Fire schedules</strong>
+              <span
+                ><b>File:</b> EmS Guide PDF — Fire schedules extract (≤10&nbsp;MB), not the full
+                IMDG Code.</span
+              >
+              <span
+                ><b>Publication:</b> IMO EmS Guide (Emergency Response Procedures for Ships Carrying
+                Dangerous Goods), current amendment.</span
+              >
+              <span
+                ><b>Section:</b> “Emergency schedules for FIRE” index + FIRE SCHEDULE Alfa…Juliet
+                (F-A…F-J).</span
+              >
+              <span
+                ><b>Pages:</b> include the index page listing F–A…F–J with book page numbers; schedule
+                body pages may follow.</span
+              >
+            </span>
+          </span>
+        </span>
+        <span class="dg-ref-accordion__meta"
+          >{{ fireSchedules().length }} codes · EmS pages@if (emsLibrary().fireFileName) {
+            · {{ emsLibrary().fireFileName }}
+          }</span
+        >
       </button>
       @if (isSectionOpen('fire')) {
         <div class="dg-ref-accordion__body">
+          <div
+            class="dg-ref-ems-drop"
+            [class.dg-ref-ems-drop--active]="emsDragOver() === 'fire'"
+            [class.dg-ref-ems-drop--busy]="emsPhase() === 'parsing' && emsBusyKind() === 'fire'"
+            (click)="pickEmsPdf('fire')"
+            (dragover)="onEmsDragOver($event, 'fire')"
+            (dragleave)="onEmsDragLeave()"
+            (drop)="onEmsDrop($event, 'fire')"
+          >
+            <input
+              #emsFirePdfInput
+              type="file"
+              accept=".pdf,application/pdf"
+              hidden
+              (change)="onEmsFileInput($event, 'fire')"
+            />
+            @if (emsPhase() === 'parsing' && emsBusyKind() === 'fire') {
+              <span>Reading EmS Fire PDF… {{ emsProgress() }}%</span>
+            } @else {
+              <strong>Drop EmS Fire PDF</strong>
+              <span>Update F-A…F-J → EmS book pages</span>
+            }
+          </div>
           <div class="dg-ref-table-wrap">
             <table class="dg-ref-table">
               <thead>
                 <tr>
                   <th scope="col">Fire schedule</th>
-                  <th scope="col">MFAG page</th>
+                  <th scope="col">EmS page</th>
                 </tr>
               </thead>
               <tbody>
-                @for (row of fireSchedules; track row.code) {
+                @for (row of fireSchedules(); track row.code) {
                   <tr>
                     <td class="dg-ref-code">{{ row.code }}</td>
                     <td class="dg-ref-page-ref">{{ row.pageRef }}</td>
@@ -161,6 +255,11 @@
               </tbody>
             </table>
           </div>
+          @if (emsLibrary().origin === 'custom' && emsLibrary().fire.length) {
+            <button type="button" class="btn-link" (click)="restoreBundledEms()">
+              Restore built-in EmS tables
+            </button>
+          }
         </div>
       }
     </section>
@@ -173,23 +272,79 @@
         (click)="toggleSection('spillage')"
       >
         <span class="dg-ref-accordion__chevron" aria-hidden="true"></span>
-        <span class="dg-ref-accordion__title">Spillage schedule</span>
+        <span class="dg-ref-accordion__title">
+          Spillage schedule
+          <span
+            class="dg-ref-info"
+            tabindex="0"
+            aria-label="How to update Spillage schedules"
+            (click)="$event.stopPropagation()"
+            (keydown.enter)="$event.stopPropagation()"
+            (keydown.space)="$event.preventDefault(); $event.stopPropagation()"
+          >
+            <span class="dg-ref-info__icon" aria-hidden="true">i</span>
+            <span class="dg-ref-info__tip" role="tooltip">
+              <strong>How to update Spillage schedules</strong>
+              <span
+                ><b>File:</b> EmS Guide PDF — Spillage schedules extract (≤10&nbsp;MB), not the full
+                IMDG Code.</span
+              >
+              <span
+                ><b>Publication:</b> IMO EmS Guide (Emergency Response Procedures for Ships Carrying
+                Dangerous Goods), current amendment.</span
+              >
+              <span
+                ><b>Section:</b> “Emergency schedules for SPILLAGE” index + SPILLAGE SCHEDULE
+                Alfa…Zulu (S-A…S-Z).</span
+              >
+              <span
+                ><b>Pages:</b> include the index page listing S–A…S–Z with book page numbers; schedule
+                body pages may follow.</span
+              >
+            </span>
+          </span>
+        </span>
         <span class="dg-ref-accordion__meta"
-          >{{ spillageSchedules.length }} codes · MFAG pages</span
+          >{{ spillageSchedules().length }} codes · EmS pages@if (emsLibrary().spillageFileName) {
+            · {{ emsLibrary().spillageFileName }}
+          }</span
         >
       </button>
       @if (isSectionOpen('spillage')) {
         <div class="dg-ref-accordion__body">
+          <div
+            class="dg-ref-ems-drop"
+            [class.dg-ref-ems-drop--active]="emsDragOver() === 'spillage'"
+            [class.dg-ref-ems-drop--busy]="emsPhase() === 'parsing' && emsBusyKind() === 'spillage'"
+            (click)="pickEmsPdf('spillage')"
+            (dragover)="onEmsDragOver($event, 'spillage')"
+            (dragleave)="onEmsDragLeave()"
+            (drop)="onEmsDrop($event, 'spillage')"
+          >
+            <input
+              #emsSpillagePdfInput
+              type="file"
+              accept=".pdf,application/pdf"
+              hidden
+              (change)="onEmsFileInput($event, 'spillage')"
+            />
+            @if (emsPhase() === 'parsing' && emsBusyKind() === 'spillage') {
+              <span>Reading EmS Spillage PDF… {{ emsProgress() }}%</span>
+            } @else {
+              <strong>Drop EmS Spillage PDF</strong>
+              <span>Update S-A…S-Z → EmS book pages</span>
+            }
+          </div>
           <div class="dg-ref-table-wrap">
             <table class="dg-ref-table">
               <thead>
                 <tr>
                   <th scope="col">Spillage schedule</th>
-                  <th scope="col">MFAG page</th>
+                  <th scope="col">EmS page</th>
                 </tr>
               </thead>
               <tbody>
-                @for (row of spillageSchedules; track row.code) {
+                @for (row of spillageSchedules(); track row.code) {
                   <tr>
                     <td class="dg-ref-code">{{ row.code }}</td>
                     <td class="dg-ref-page-ref">{{ row.pageRef }}</td>
@@ -198,6 +353,11 @@
               </tbody>
             </table>
           </div>
+          @if (emsLibrary().origin === 'custom' && emsLibrary().spillage.length) {
+            <button type="button" class="btn-link" (click)="restoreBundledEms()">
+              Restore built-in EmS tables
+            </button>
+          }
         </div>
       }
     </section>

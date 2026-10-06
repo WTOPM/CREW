@@ -80,14 +80,14 @@
   function activeCrew(data, list) {
     const isArrival = list === 'arrival';
     return (data.crew || []).filter(
-      (c) => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false),
+      (c) => !c.archived && (isArrival ? !!c.onArrivalList : !!c.onDepartureList),
     );
   }
 
   function activePax(data, list) {
     const isArrival = list === 'arrival';
     return (data.passengers || []).filter(
-      (p) => !p.archived && (isArrival ? p.onArrivalList !== false : p.onDepartureList !== false),
+      (p) => !p.archived && (isArrival ? !!p.onArrivalList : !!p.onDepartureList),
     );
   }
 
@@ -160,17 +160,20 @@
 
   function buildForm02FromAppData(appData, formatForPdf, options) {
     const ignoreOverlay = !!(options && options.ignoreOverlay);
+    const modeOverride = options && options.mode;
     const ship = appData.ship || {};
     const form = normalizeForm(appData.crewEffectForm02);
     const overlay = appData.documentOverlay?.crewEffect02;
     const cv = ignoreOverlay ? {} : overlay?.cellValues || {};
-    const isArrival = ignoreOverlay
-      ? appData.crewArr?.isArrival !== false
-      : cv._ceMode === 'departure'
-        ? false
-        : cv._ceMode === 'arrival'
-          ? true
-          : appData.crewArr?.isArrival !== false;
+    // Document A/D from editor Save (`_ceMode`); optional override while toggling in UI.
+    let isArrival;
+    if (modeOverride === 'arrival' || modeOverride === 'departure') {
+      isArrival = modeOverride === 'arrival';
+    } else if (Object.prototype.hasOwnProperty.call(cv, '_ceMode')) {
+      isArrival = cv._ceMode !== 'departure';
+    } else {
+      isArrival = appData.crewArr?.isArrival !== false;
+    }
     const list = isArrival ? 'arrival' : 'departure';
     const crewList = activeCrew(appData, list);
     const members = crewListRows(appData, form.appendPassengers, ROW_COUNT, list);
@@ -180,10 +183,18 @@
       defaultCrew.push(members[i] ? baseRowFromMember(members[i], i, form) : emptyRow());
     }
 
-    // Live crew/passenger list first; overlay cellValues (AA/Aa etc.) override after.
+    // Crew identity always live; optional NIL / goods cell tweaks may remain in overlay
+    // but name/rank/no are never pinned (see strip on normalize/save).
     const crew = [];
     for (let i = 0; i < ROW_COUNT; i++) {
-      crew.push(applyCrewRowOverrides(defaultCrew[i] || emptyRow(), i, cv));
+      const row = applyCrewRowOverrides(defaultCrew[i] || emptyRow(), i, cv);
+      // Re-assert live identity after any legacy frozen d-*-0/1/2 values.
+      if (defaultCrew[i]) {
+        row.no = defaultCrew[i].no;
+        row.familyGivenNames = defaultCrew[i].familyGivenNames;
+        row.rankOrRating = defaultCrew[i].rankOrRating;
+      }
+      crew.push(row);
     }
 
     const voyageIso = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
@@ -192,23 +203,28 @@
       arrival: isArrival,
       departure: !isArrival,
       pageNo: cv['h-pageNo'] ?? '1',
-      nameOfShip: cv['h-nameOfShip'] ?? formatPortName(ship.name),
-      portOfArrivalDeparture:
-        cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, appData.ports || []),
-      dateOfArrivalDeparture: cv['h-date'] ?? formatDisplayDate(voyageIso),
-      nationalityOfShip: cv['h-nationality'] ?? formatPortName(ship.nationality),
+      nameOfShip: formatPortName(ship.name),
+      portOfArrivalDeparture: formatPortWithCountry(ship.portOfCall, appData.ports || []),
+      dateOfArrivalDeparture: formatDisplayDate(voyageIso),
+      nationalityOfShip: formatPortName(ship.nationality),
       crew: global.CrewCrewEffectPdf.normalizeCrewEffectRowNos(crew),
-      footerDate:
-        cv['footer-date'] ??
-        formatDisplayDate(voyageIso),
-      footerMaster: cv['footer-master'] ?? formatMasterName(findMaster(crewList)),
+      footerDate: formatDisplayDate(voyageIso),
+      footerMaster: formatMasterName(findMaster(crewList)),
     };
   }
 
   function crewSignatureMembers(appData, list) {
     if (!appData) return [];
     const form = normalizeForm(appData.crewEffectForm02);
-    const mode = list || 'arrival';
+    const cv = appData.documentOverlay?.crewEffect02?.cellValues || {};
+    let mode = list;
+    if (!mode) {
+      if (Object.prototype.hasOwnProperty.call(cv, '_ceMode')) {
+        mode = cv._ceMode === 'departure' ? 'departure' : 'arrival';
+      } else {
+        mode = appData.crewArr?.isArrival !== false ? 'arrival' : 'departure';
+      }
+    }
     return crewListRows(appData, form.appendPassengers, ROW_COUNT, mode).map((m) => ({
       id: m.id,
       hasSignature: !!m.hasSignature,
@@ -218,11 +234,6 @@
 
   global.CrewCrewEffectPdf = global.CrewCrewEffectPdf || {};
   global.CrewCrewEffectPdf.buildForm02FromAppData = buildForm02FromAppData;
-  global.CrewCrewEffectPdf.crewSignatureMembers02 = (appData) => {
-    const overlay = appData?.documentOverlay?.crewEffect02;
-    const cv = overlay?.cellValues || {};
-    const isArrival = cv._ceMode === 'departure' ? false : cv._ceMode === 'arrival' ? true : true;
-    return crewSignatureMembers(appData, isArrival ? 'arrival' : 'departure');
-  };
+  global.CrewCrewEffectPdf.crewSignatureMembers02 = (appData) => crewSignatureMembers(appData);
   global.CrewCrewEffectPdf.ROW_COUNT_02 = ROW_COUNT;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -63,7 +63,7 @@ export class DgUnReferenceImportModalComponent {
         hint:
           `Adds ${replace.added}, corrects ${replace.corrected} and removes the ` +
           `${replace.removed} entries this edition no longer lists. ` +
-          `Reference ends up with ${replace.resultTotal} UN numbers.`,
+          `Reference ends up with ${replace.resultTotal} list entries.`,
         recommended: true,
       },
       {
@@ -72,15 +72,15 @@ export class DgUnReferenceImportModalComponent {
         hint:
           `Adds ${merge.added} and corrects ${merge.corrected}, but keeps the ` +
           `${merge.kept} entries missing from this PDF. ` +
-          `Reference ends up with ${merge.resultTotal} UN numbers.`,
+          `Reference ends up with ${merge.resultTotal} list entries.`,
         recommended: false,
       },
       {
         mode: 'addOnly',
         title: 'Only add what is missing',
         hint:
-          `Adds ${addOnly.added} new UN numbers and changes nothing that already exists. ` +
-          `Reference ends up with ${addOnly.resultTotal} UN numbers.`,
+          `Adds ${addOnly.added} new list rows and changes nothing that already exists. ` +
+          `Reference ends up with ${addOnly.resultTotal} list entries.`,
         recommended: false,
       },
     ];

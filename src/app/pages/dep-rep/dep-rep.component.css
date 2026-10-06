@@ -218,6 +218,10 @@
   color: #b45309;
 }
 
+.dep-rep-last--draft {
+  color: #0f766e;
+}
+
 /* ——— Main board ——— */
 .dep-rep-board {
   padding: 0;
@@ -255,23 +259,141 @@
   opacity: 0.75;
 }
 
-.dep-rep-sheet-badge {
+.dep-rep-sheet-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: 0;
+  position: relative;
+  z-index: 6;
+}
+
+.dep-rep-sheet-tab {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.2rem;
-  min-width: 9rem;
-  padding: 0.45rem 0.7rem;
-  border-radius: 10px;
+  align-items: stretch;
+  justify-content: center;
+  min-height: 2.85rem;
+  border-radius: 10px 10px 4px 4px;
   border: 1px solid #5eead4;
   background: linear-gradient(180deg, #ffffff 0%, #ccfbf1 100%);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 80%);
-  position: relative;
-  z-index: 6;
   overflow: visible;
+  position: relative;
 }
 
-.dep-rep-sheet-badge__label {
+.dep-rep-sheet-tab__main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.12rem;
+  width: 100%;
+  min-height: 2.85rem;
+  margin: 0;
+  padding: 0.4rem 1.55rem 0.4rem 0.75rem;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.dep-rep-sheet-tab__close {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.2rem;
+  z-index: 1;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dep-rep-sheet-tab__close:hover:not(:disabled) {
+  background: rgb(239 68 68 / 15%);
+  color: #b91c1c;
+}
+
+.dep-rep-sheet-tab__close:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dep-rep-sheet-tab--add {
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  padding: 0.4rem 0.55rem;
+  border-style: dashed;
+  border-color: #2dd4bf;
+  background: #f0fdfa;
+  color: #0f766e;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dep-rep-sheet-tab--add:hover:not(:disabled) {
+  background: #ccfbf1;
+  border-color: #0d9488;
+  border-style: solid;
+}
+
+.dep-rep-sheet-tab--add:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dep-rep-sheet-tab--active {
+  min-width: 9rem;
+  padding-right: 0.85rem;
+  border-color: #14b8a6;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 80%),
+    0 0 0 1px rgb(20 184 166 / 25%);
+}
+
+.dep-rep-sheet-tab:not(.dep-rep-sheet-tab--add):not(.dep-rep-sheet-tab--active) {
+  cursor: pointer;
+  opacity: 0.78;
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+  border-color: #cbd5e1;
+}
+
+.dep-rep-sheet-tab:not(.dep-rep-sheet-tab--add):not(.dep-rep-sheet-tab--active):hover {
+  opacity: 1;
+  border-color: #94a3b8;
+}
+
+.dep-rep-sheet-tab--draft,
+.dep-rep-sheet-tabs--draft .dep-rep-sheet-tab--active.dep-rep-sheet-tab--draft {
+  border-color: #fbbf24;
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.dep-rep-sheet-tab__hint {
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+.dep-rep-sheet-tab__label {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -282,12 +404,31 @@
   color: #0f766e;
 }
 
-.dep-rep-sheet-badge__name {
+.dep-rep-sheet-tab--draft .dep-rep-sheet-tab__label,
+.dep-rep-sheet-tabs--draft .dep-rep-sheet-tab__label {
+  color: #b45309;
+}
+
+.dep-rep-sheet-tab__name {
   font-size: 1.05rem;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   color: #134e4a;
   letter-spacing: 0.01em;
+  line-height: 1.15;
+}
+
+.dep-rep-sheet-tab--draft .dep-rep-sheet-tab__name,
+.dep-rep-sheet-tabs--draft .dep-rep-sheet-tab__name {
+  color: #92400e;
+}
+
+.dep-rep-sheet-tab__draft-tag {
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b45309;
 }
 
 .dep-rep-info {
@@ -570,8 +711,9 @@
 }
 
 .dep-rep-density--miss {
-  border-color: #fcd34d;
-  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+  border-color: rgb(248 113 113 / 55%);
+  background: rgb(254 226 226 / 35%);
+  box-shadow: inset 0 0 0 1px rgb(248 113 113 / 15%);
 }
 
 .dep-rep-density__head {
@@ -706,6 +848,91 @@
   letter-spacing: 0.03em;
 }
 
+.dep-rep-dg__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dep-rep-dg__action {
+  margin: 0;
+  padding: 0.22rem 0.5rem;
+  border-radius: 7px;
+  border: 1px solid #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.dep-rep-dg__action:hover:not(:disabled) {
+  background: #ffedd5;
+  border-color: #fb923c;
+}
+
+.dep-rep-dg__action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dep-rep-dg__action--plus {
+  width: 1.55rem;
+  padding: 0.18rem 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dep-rep-dg__item--edit {
+  gap: 0.4rem;
+}
+
+.dep-rep-dg__class-select {
+  flex: 0 0 5.2rem;
+  min-width: 0;
+  padding: 0.28rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid #fed7aa;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: #9a3412;
+}
+
+.dep-rep-dg__kg-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.28rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #fed7aa;
+  background: #fff;
+  font-size: 0.88rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #431407;
+}
+
+.dep-rep-dg__remove {
+  flex: 0 0 auto;
+  width: 1.45rem;
+  height: 1.45rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #c2410c;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dep-rep-dg__remove:hover {
+  background: #ffedd5;
+}
+
 .dep-rep-empty {
   margin: 0;
   padding: 0.55rem 0.15rem;
@@ -713,6 +940,83 @@
   font-size: 0.84rem;
   line-height: 1.4;
 }
+
+/* ——— Empty / missing values: soft red glass so filled vs blank is obvious ——— */
+.dep-rep-is-empty.dep-rep-field,
+.dep-rep-is-empty.dep-rep-draft,
+.dep-rep-is-empty.dep-rep-total,
+.dep-rep-is-empty.dep-rep-dg,
+.dep-rep-dg__item.dep-rep-is-empty {
+  border-color: rgb(248 113 113 / 55%);
+  background: rgb(254 226 226 / 42%);
+  box-shadow: inset 0 0 0 1px rgb(248 113 113 / 18%);
+}
+
+.dep-rep-is-empty.dep-rep-field input,
+.dep-rep-is-empty.dep-rep-total .dep-rep-total__input-wrap {
+  background: rgb(254 242 242 / 70%);
+  border-color: rgb(252 165 165 / 80%);
+  color: #9f1239;
+}
+
+.dep-rep-is-empty.dep-rep-field input::placeholder,
+.dep-rep-is-empty.dep-rep-draft input::placeholder,
+.dep-rep-is-empty.dep-rep-total input::placeholder,
+.dep-rep-dg__kg-input.dep-rep-is-empty::placeholder {
+  color: rgb(190 18 60 / 55%);
+}
+
+.dep-rep-is-empty.dep-rep-draft {
+  background: rgb(254 226 226 / 38%);
+}
+
+.dep-rep-is-empty.dep-rep-draft input {
+  color: #9f1239;
+  opacity: 0.85;
+}
+
+.dep-rep-is-empty.dep-rep-draft > span:first-child,
+.dep-rep-is-empty.dep-rep-field .dep-rep-field-label,
+.dep-rep-is-empty.dep-rep-total .dep-rep-total__label {
+  color: #be123c;
+}
+
+.dep-rep-is-empty.dep-rep-total .dep-rep-total__unit {
+  color: rgb(190 18 60 / 70%);
+}
+
+.dep-rep-is-empty.dep-rep-dg {
+  padding: 0.55rem 0.65rem 0.65rem;
+  border-radius: 10px;
+  border: 1px dashed rgb(248 113 113 / 65%);
+}
+
+.dep-rep-is-empty.dep-rep-dg .dep-rep-empty {
+  color: #be123c;
+  font-weight: 600;
+}
+
+.dep-rep-dg__class-select.dep-rep-is-empty,
+.dep-rep-dg__kg-input.dep-rep-is-empty {
+  background: rgb(254 242 242 / 75%);
+  border-color: rgb(252 165 165 / 85%);
+  color: #9f1239;
+}
+
+/* Child widgets (port / date) inherit the empty tint */
+.dep-rep-is-empty.dep-rep-field app-port-select,
+.dep-rep-is-empty.dep-rep-field app-date-picker {
+  opacity: 0.92;
+}
+
+.dep-rep-is-empty.dep-rep-field ::ng-deep .port-select,
+.dep-rep-is-empty.dep-rep-field ::ng-deep .date-picker-input,
+.dep-rep-is-empty.dep-rep-field ::ng-deep input {
+  background: rgb(254 242 242 / 70%) !important;
+  border-color: rgb(252 165 165 / 80%) !important;
+  color: #9f1239 !important;
+}
+
 
 .dep-rep-dg__list {
   list-style: none;
@@ -784,9 +1088,13 @@
     grid-template-columns: 1fr;
   }
 
-  .dep-rep-sheet-badge {
-    align-items: flex-start;
+  .dep-rep-sheet-tabs {
     width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dep-rep-sheet-tab--active {
+    flex: 1 1 auto;
   }
 
   .dep-rep-density__row {

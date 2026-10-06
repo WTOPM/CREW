@@ -44,6 +44,23 @@
     return el ? String(el.value || '').trim() : '';
   }
 
+  /** Voyage / identity always live — never restore frozen overlay text over them.
+   * Keep `_ceMode` so Arrival/Departure from Settings Save sticks. */
+  function stripLiveCellValues(cellValues) {
+    if (!cellValues || typeof cellValues !== 'object') return {};
+    const out = { ...cellValues };
+    delete out['h-nameOfShip'];
+    delete out['h-port'];
+    delete out['h-date'];
+    delete out['h-nationality'];
+    delete out['footer-date'];
+    delete out['footer-master'];
+    for (const key of Object.keys(out)) {
+      if (/^d-\d+-[012]$/i.test(key)) delete out[key];
+    }
+    return out;
+  }
+
   function setDateField(key, value) {
     const el = document.querySelector(`[data-cell-key="${key}"]`);
     if (!el) return;
@@ -61,7 +78,7 @@
   function activeCrewList(appData, mode) {
     const isArrival = mode === 'arrival';
     return (appData.crew || []).filter(
-      (c) => !c.archived && (isArrival ? c.onArrivalList !== false : c.onDepartureList !== false),
+      (c) => !c.archived && (isArrival ? !!c.onArrivalList : !!c.onDepartureList),
     );
   }
 
@@ -77,7 +94,7 @@
     setCi('footer-master', formatMasterName(findMaster(activeCrewList(appData, mode))));
   }
 
-  function setCeAd(mode) {
+  function setModeCheckboxes(mode) {
     const arrBox = document.getElementById('ced-cb-arr');
     const depBox = document.getElementById('ced-cb-dep');
     if (!arrBox || !depBox) return;
@@ -87,13 +104,25 @@
     document.querySelectorAll('.ced-ad-lbl').forEach((el) => {
       el.classList.toggle('ced-ad-lbl--active', el.dataset.ad === mode);
     });
+  }
+
+  function setCeAd(mode) {
+    const next = mode === 'departure' ? 'departure' : 'arrival';
+    setModeCheckboxes(next);
 
     const appData = global._appData;
+    if (appData && CE?.buildForm02FromAppData) {
+      // Rebuild live ship/crew/dates for the chosen list — mode is saved as `_ceMode`.
+      const form02 = CE.buildForm02FromAppData(appData, false, { mode: next });
+      applyForm02Fields(form02);
+      void crewSigModule?.onMembersChanged?.();
+      return;
+    }
     if (!appData?.ship) return;
     const ship = appData.ship;
-    const dateIso = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
+    const dateIso = next === 'arrival' ? ship.dateOfArrival : ship.dateOfDeparture;
     if (dateIso) setDateField('h-date', dateIso);
-    applyFooterFromApp(appData, mode);
+    applyFooterFromApp(appData, next);
     void crewSigModule?.onMembersChanged?.();
   }
 
@@ -120,11 +149,8 @@
     tbody.dataset['built'] = '1';
   }
 
-  function applyForm02(form02) {
+  function applyForm02Fields(form02) {
     if (!form02) return;
-    if (form02.arrival && !form02.departure) setCeAd('arrival');
-    else if (form02.departure) setCeAd('departure');
-    else setCeAd('arrival');
     setCi('h-pageNo', form02.pageNo);
     setCi('h-nameOfShip', form02.nameOfShip);
     setCi('h-port', form02.portOfArrivalDeparture);
@@ -145,6 +171,14 @@
       setCi(`d-${i}-7`, row.other || '');
       setCi(`d-${i}-8`, row.signature || '');
     }
+  }
+
+  function applyForm02(form02) {
+    if (!form02) return;
+    if (form02.arrival && !form02.departure) setModeCheckboxes('arrival');
+    else if (form02.departure) setModeCheckboxes('departure');
+    else setModeCheckboxes('arrival');
+    applyForm02Fields(form02);
   }
 
   function collectForm02() {
@@ -190,7 +224,7 @@
     if (!table || !Cells) return;
     const saved = editor.loadPositions();
     Cells.init(table);
-    const cellValues = overlayVariant?.cellValues || saved.cellValues || {};
+    const cellValues = stripLiveCellValues(overlayVariant?.cellValues || saved.cellValues || {});
     const cellStyles = overlayVariant?.cellStyles || saved.cellStyles || {};
     Cells.restoreCellValues(cellValues);
     Cells.restoreCellStyles(cellStyles);
@@ -198,7 +232,7 @@
     editor.connectCellEditor({
       collect: () => Cells.collectCellStyles(),
       collectValues: () => {
-        const values = Cells.collectCellValues();
+        const values = stripLiveCellValues(Cells.collectCellValues());
         const depOn = document.getElementById('ced-cb-dep')?.textContent === '\u2713';
         values._ceMode = depOn ? 'departure' : 'arrival';
         return values;
@@ -297,7 +331,7 @@
     applyForm02(snapshot.form02);
     const overlayVariant = snapshot.documentOverlay?.[OVERLAY_KEY];
     if (overlayVariant?.cellValues) {
-      Cells?.restoreCellValues?.(overlayVariant.cellValues);
+      Cells?.restoreCellValues?.(stripLiveCellValues(overlayVariant.cellValues));
     }
     if (overlayVariant?.cellStyles) {
       Cells?.restoreCellStyles?.(overlayVariant.cellStyles);

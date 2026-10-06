@@ -3,6 +3,7 @@ import type { DgPdfTextItem } from './dg-pdf-text.util';
 import {
   collapseImdgRows,
   ImdgChapter32ParseError,
+  imdgChapter32RowsToReferenceEntries,
   isImdgChapter32Pdf,
   parseImdgChapter32,
 } from './dg-imdg-chapter32-pdf.util';
@@ -199,6 +200,29 @@ describe('parseImdgChapter32', () => {
 
   it('rejects a PDF with no extractable text', () => {
     expect(() => parseImdgChapter32([])).toThrow(ImdgChapter32ParseError);
+  });
+});
+
+describe('imdgChapter32RowsToReferenceEntries', () => {
+  it('keeps packing-group variants of one UN number as separate entries', () => {
+    const items: DgPdfTextItem[] = [
+      ...markerRow(1),
+      item('1263', 45, 200),
+      item('PAINT', 67, 200),
+      item('3', 202, 200),
+      item('I', 271, 200),
+      item('F-E, S-E', 737, 200),
+      item('1263', 45, 260),
+      item('PAINT', 67, 260),
+      item('3', 202, 260),
+      item('II', 270, 260),
+      item('F-E, S-E', 737, 260),
+    ];
+
+    const entries = imdgChapter32RowsToReferenceEntries(parseImdgChapter32(items).rows);
+
+    expect(entries).toHaveLength(2);
+    expect(entries.map((e) => e.packingGroup)).toEqual(['I', 'II']);
   });
 });
 

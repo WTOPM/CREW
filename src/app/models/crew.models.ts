@@ -581,6 +581,8 @@ export interface AppData {
   dgLibrary: DgLibrarySettings;
   /** IMDG UN number reference — bundled baseline or a list imported from chapter 3.2. */
   dgUnReference: import('./dg-un-reference.models').DgUnReferenceLibrary;
+  /** EmS Guide fire / spillage schedule → page tables (bundled or imported PDFs). */
+  dgEmsReference: import('./dg-ems-reference.models').DgEmsReferenceLibrary;
   /** Reefer containers — monitoring log inventory. */
   reeferLibrary: import('./reefer.models').ReeferLibrarySettings;
   /** ETA voyage calculator — saved plans and working draft. */

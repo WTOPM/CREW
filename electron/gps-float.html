@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+    />
+    <title>GPS</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --blue: #2563eb;
+        --blue-deep: #1d4ed8;
+        --cell: 2.4rem;
+        --deg: 2.9rem;
+        --hemi: 2.35rem;
+        --sym: 0.85rem;
+        --gap: 0.22rem;
+        --field-h: 2.1rem;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font: 13px/1.25 'Segoe UI', system-ui, sans-serif;
+        color: var(--ink);
+        background: #f8fbff;
+        user-select: none;
+      }
+      .panel {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 55%, #f8fafc 100%);
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.65rem 0.75rem 0.55rem;
+        cursor: pointer;
+        border-bottom: 1px solid #e8eef8;
+        min-height: 0;
+      }
+      .pin {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 9px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(145deg, #60a5fa, #2563eb);
+        color: #fff;
+        box-shadow: 0 3px 8px rgb(37 99 235 / 24%);
+        flex: 0 0 auto;
+      }
+      .pin svg {
+        width: 1.05rem;
+        height: 1.05rem;
+      }
+      .titles {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.08rem;
+      }
+      .titles strong {
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        line-height: 1.1;
+      }
+      .titles span {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .hide {
+        color: #94a3b8;
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        flex: 0 0 auto;
+      }
+      .dms {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.55rem 0.7rem;
+        min-height: 0;
+      }
+      .row {
+        display: grid;
+        grid-template-columns:
+          var(--deg) var(--sym) var(--cell) var(--sym) var(--cell) var(--sym) var(--hemi);
+        align-items: center;
+        justify-content: center;
+        column-gap: var(--gap);
+        width: 100%;
+        padding: 0.28rem 0.32rem;
+        border-radius: 11px;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+      }
+      .num {
+        width: 100%;
+        height: var(--field-h);
+        border: 0;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: inset 0 0 0 1px #d5deea;
+        text-align: center;
+        font: 800 1rem/1 ui-monospace, 'Cascadia Mono', Consolas, monospace;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink);
+        outline: none;
+        padding: 0;
+      }
+      .num:focus {
+        box-shadow:
+          inset 0 0 0 1.5px #60a5fa,
+          0 0 0 2px rgb(37 99 235 / 14%);
+      }
+      .sym {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: var(--field-h);
+        color: #475569;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .hemi {
+        width: 100%;
+        height: var(--field-h);
+        border: 0;
+        border-radius: 8px;
+        background: linear-gradient(180deg, #eff6ff, #dbeafe);
+        color: var(--blue-deep);
+        font: 900 1.02rem/1 'Segoe UI', system-ui, sans-serif;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px #bfdbfe;
+      }
+      .hemi:hover {
+        background: linear-gradient(180deg, #dbeafe, #bfdbfe);
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.35rem 0.75rem 0.65rem;
+        min-height: 0;
+        flex-shrink: 0;
+      }
+      .clear,
+      .done {
+        border: 0;
+        cursor: pointer;
+        font: 700 0.8rem/1 'Segoe UI', system-ui, sans-serif;
+      }
+      .clear {
+        background: transparent;
+        color: var(--muted);
+        padding: 0.45rem 0.4rem;
+        border-radius: 8px;
+      }
+      .clear:hover {
+        color: #dc2626;
+        background: #fef2f2;
+      }
+      .done {
+        background: var(--blue);
+        color: #fff;
+        border-radius: 8px;
+        padding: 0.5rem 0.95rem;
+        box-shadow: 0 3px 8px rgb(37 99 235 / 20%);
+      }
+      .done:hover {
+        background: var(--blue-deep);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel" id="panel">
+      <div class="head" id="head" title="Left-click to hide">
+        <span class="pin" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path
+              fill="currentColor"
+              d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
+            />
+          </svg>
+        </span>
+        <span class="titles">
+          <strong id="label">GPS</strong>
+          <span id="summary">Degrees · minutes.decimal ′</span>
+        </span>
+        <span class="hide">hide</span>
+      </div>
+
+      <div class="dms" id="dms">
+        <div class="row">
+          <input class="num" data-idx="0" data-axis="lat" data-part="deg" maxlength="2" inputmode="numeric" aria-label="Latitude degrees" />
+          <span class="sym" aria-hidden="true">°</span>
+          <input class="num" data-idx="1" data-axis="lat" data-part="min" maxlength="2" inputmode="numeric" aria-label="Latitude minutes" />
+          <span class="sym" aria-hidden="true">.</span>
+          <input class="num" data-idx="2" data-axis="lat" data-part="sec" maxlength="2" inputmode="numeric" aria-label="Latitude hundredths of a minute" />
+          <span class="sym" aria-hidden="true">′</span>
+          <button type="button" class="hemi" data-idx="3" data-axis="lat" id="latHemi" title="Toggle N / S">N</button>
+        </div>
+        <div class="row">
+          <input class="num" data-idx="4" data-axis="lon" data-part="deg" maxlength="3" inputmode="numeric" aria-label="Longitude degrees" />
+          <span class="sym" aria-hidden="true">°</span>
+          <input class="num" data-idx="5" data-axis="lon" data-part="min" maxlength="2" inputmode="numeric" aria-label="Longitude minutes" />
+          <span class="sym" aria-hidden="true">.</span>
+          <input class="num" data-idx="6" data-axis="lon" data-part="sec" maxlength="2" inputmode="numeric" aria-label="Longitude hundredths of a minute" />
+          <span class="sym" aria-hidden="true">′</span>
+          <button type="button" class="hemi" data-idx="7" data-axis="lon" id="lonHemi" title="Toggle E / W">E</button>
+        </div>
+      </div>
+
+      <div class="foot">
+        <button type="button" class="clear" id="clearBtn">Clear</button>
+        <button type="button" class="done" id="doneBtn">Done</button>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        targetKey: '',
+        legId: '',
+        label: '',
+        lat: { deg: '00', min: '00', sec: '00', hemi: 'N' },
+        lon: { deg: '000', min: '00', sec: '00', hemi: 'E' },
+        dirty: false,
+      };
+
+      function pad2(n) {
+        return String(Math.trunc(Math.abs(n))).padStart(2, '0');
+      }
+      function pad3(n) {
+        return String(Math.trunc(Math.abs(n))).padStart(3, '0');
+      }
+
+      function sanitize(raw, part, axis) {
+        let s = String(raw ?? '').replace(/[^\d]/g, '');
+        if (part === 'deg') return s.slice(0, axis === 'lon' ? 3 : 2);
+        return s.slice(0, 2);
+      }
+
+      function padPart(raw, part, axis) {
+        const cleaned = sanitize(raw, part, axis);
+        const n = cleaned === '' ? 0 : Number(cleaned);
+        if (!Number.isFinite(n)) return axis === 'lon' && part === 'deg' ? '000' : '00';
+        if (part === 'deg' && axis === 'lon') return pad3(n);
+        return pad2(n);
+      }
+
+      function isComplete(value, part, axis) {
+        if (part === 'deg') return value.length >= (axis === 'lon' ? 3 : 2);
+        return value.length >= 2;
+      }
+
+      function parsePart(raw) {
+        const s = String(raw ?? '').trim();
+        if (!s) return null;
+        const n = Number(s);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      /** Mirror Angular split-DDM validation (sec = hundredths of a minute). */
+      function isValidDraft() {
+        function toDec(draft, kind) {
+          const degEmpty = !String(draft.deg).trim();
+          const minEmpty = !String(draft.min).trim();
+          const secEmpty = !String(draft.sec).trim();
+          if (degEmpty && minEmpty && secEmpty) return null;
+          const deg = parsePart(draft.deg) ?? 0;
+          const min = parsePart(draft.min) ?? 0;
+          const hundredths = parsePart(draft.sec) ?? 0;
+          if (deg < 0 || min < 0 || hundredths < 0 || min >= 60 || hundredths >= 100) return null;
+          const maxDeg = kind === 'lat' ? 90 : 180;
+          if (deg > maxDeg) return null;
+          if (deg === maxDeg && (min > 0 || hundredths > 0)) return null;
+          const abs = deg + (min + hundredths / 100) / 60;
+          const negative = kind === 'lat' ? draft.hemi === 'S' : draft.hemi === 'W';
+          return negative ? -abs : abs;
+        }
+        const lat = toDec(state.lat, 'lat');
+        const lon = toDec(state.lon, 'lon');
+        if (lat == null || lon == null) return false;
+        return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+      }
+
+      function formatSummary() {
+        const lat = state.lat;
+        const lon = state.lon;
+        return (
+          padPart(lat.deg, 'deg', 'lat') +
+          '°' +
+          padPart(lat.min, 'min', 'lat') +
+          '.' +
+          padPart(lat.sec, 'sec', 'lat') +
+          '′ ' +
+          lat.hemi +
+          ', ' +
+          padPart(lon.deg, 'deg', 'lon') +
+          '°' +
+          padPart(lon.min, 'min', 'lon') +
+          '.' +
+          padPart(lon.sec, 'sec', 'lon') +
+          '′ ' +
+          lon.hemi
+        );
+      }
+
+      function render() {
+        document.getElementById('label').textContent = state.label || 'GPS';
+        document.getElementById('summary').textContent = formatSummary();
+        document.getElementById('latHemi').textContent = state.lat.hemi;
+        document.getElementById('lonHemi').textContent = state.lon.hemi;
+        for (const el of document.querySelectorAll('.num')) {
+          const axis = el.dataset.axis;
+          const part = el.dataset.part;
+          if (document.activeElement === el) continue;
+          el.value = state[axis][part];
+        }
+      }
+
+      function focusIdx(idx) {
+        const el = document.querySelector('[data-idx="' + idx + '"]');
+        if (!el) return;
+        el.focus();
+        if (el instanceof HTMLInputElement) queueMicrotask(() => el.select());
+      }
+
+      function payload(extra) {
+        return {
+          targetKey: state.targetKey,
+          legId: state.legId || undefined,
+          lat: { ...state.lat },
+          lon: { ...state.lon },
+          dirty: state.dirty,
+          ...extra,
+        };
+      }
+
+      function closePanel(extra) {
+        if (!window.gpsFloatApi) return;
+        // Persist only when Done / Clear — never while typing (avoids CREW lag).
+        window.gpsFloatApi.close(payload(extra));
+      }
+
+      function stepPart(axis, part, delta) {
+        const maxDeg = axis === 'lat' ? 90 : 180;
+        const max = part === 'deg' ? maxDeg : part === 'min' ? 59 : 99;
+        const current = parsePart(state[axis][part]) ?? 0;
+        let next = Math.trunc(current) + delta;
+        if (next > max) next = 0;
+        if (next < 0) next = max;
+        state[axis][part] = padPart(String(next), part, axis);
+        if (part === 'deg' && next === maxDeg) {
+          state[axis].min = '00';
+          state[axis].sec = '00';
+        }
+        state.dirty = true;
+        render();
+      }
+
+      document.getElementById('head').addEventListener('click', (e) => {
+        e.preventDefault();
+        closePanel({ save: false });
+      });
+      document.getElementById('doneBtn').addEventListener('click', () => {
+        const latEmpty =
+          !String(state.lat.deg).trim() && !String(state.lat.min).trim() && !String(state.lat.sec).trim();
+        const lonEmpty =
+          !String(state.lon.deg).trim() && !String(state.lon.min).trim() && !String(state.lon.sec).trim();
+        if (!latEmpty || !lonEmpty) {
+          if (!isValidDraft()) {
+            document.getElementById('summary').textContent =
+              'Invalid GPS (min 0–59; .xx 00–99)';
+            document.getElementById('summary').style.color = '#dc2626';
+            return;
+          }
+        }
+        document.getElementById('summary').style.color = '';
+        closePanel({ save: true });
+      });
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        state.lat = { deg: '00', min: '00', sec: '00', hemi: 'N' };
+        state.lon = { deg: '000', min: '00', sec: '00', hemi: 'E' };
+        state.dirty = true;
+        render();
+        closePanel({ save: true, clear: true });
+      });
+
+      document.getElementById('dms').addEventListener('focusin', (e) => {
+        const el = e.target;
+        if (el instanceof HTMLInputElement) queueMicrotask(() => el.select());
+      });
+
+      document.getElementById('dms').addEventListener('input', (e) => {
+        const el = e.target;
+        if (!(el instanceof HTMLInputElement)) return;
+        const axis = el.dataset.axis;
+        const part = el.dataset.part;
+        const cleaned = sanitize(el.value, part, axis);
+        el.value = cleaned;
+        state[axis][part] = cleaned;
+        state.dirty = true;
+        document.getElementById('summary').textContent = formatSummary();
+        if (isComplete(cleaned, part, axis)) {
+          const idx = Number(el.dataset.idx);
+          queueMicrotask(() => focusIdx((idx + 1) % 8));
+        }
+      });
+
+      document.getElementById('dms').addEventListener(
+        'blur',
+        (e) => {
+          const el = e.target;
+          if (!(el instanceof HTMLInputElement)) return;
+          const axis = el.dataset.axis;
+          const part = el.dataset.part;
+          state[axis][part] = padPart(el.value, part, axis);
+          state.dirty = true;
+          render();
+        },
+        true,
+      );
+
+      document.getElementById('dms').addEventListener('keydown', (e) => {
+        const el = e.target.closest('[data-idx]');
+        if (!el) return;
+        const idx = Number(el.dataset.idx);
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          focusIdx((idx + (e.shiftKey ? 7 : 1)) % 8);
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closePanel({ save: false });
+          return;
+        }
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        const delta = e.key === 'ArrowUp' ? 1 : -1;
+        if (idx === 3) {
+          state.lat.hemi = state.lat.hemi === 'N' ? 'S' : 'N';
+          state.dirty = true;
+          render();
+          return;
+        }
+        if (idx === 7) {
+          state.lon.hemi = state.lon.hemi === 'E' ? 'W' : 'E';
+          state.dirty = true;
+          render();
+          return;
+        }
+        const map = {
+          0: ['lat', 'deg'],
+          1: ['lat', 'min'],
+          2: ['lat', 'sec'],
+          4: ['lon', 'deg'],
+          5: ['lon', 'min'],
+          6: ['lon', 'sec'],
+        };
+        const pair = map[idx];
+        if (!pair) return;
+        stepPart(pair[0], pair[1], delta);
+      });
+
+      document.getElementById('latHemi').addEventListener('click', () => {
+        state.lat.hemi = state.lat.hemi === 'N' ? 'S' : 'N';
+        state.dirty = true;
+        render();
+      });
+      document.getElementById('lonHemi').addEventListener('click', () => {
+        state.lon.hemi = state.lon.hemi === 'E' ? 'W' : 'E';
+        state.dirty = true;
+        render();
+      });
+
+      if (window.gpsFloatApi) {
+        window.gpsFloatApi.onInit((data) => {
+          state.targetKey = data?.targetKey || '';
+          state.legId = data?.legId || '';
+          state.label = data?.label || 'GPS';
+          state.lat = { ...(data?.lat || state.lat) };
+          state.lon = { ...(data?.lon || state.lon) };
+          state.dirty = false;
+          render();
+          queueMicrotask(() => focusIdx(0));
+        });
+        window.gpsFloatApi.ready();
+      } else {
+        render();
+      }
+    </script>
+  </body>
+</html>

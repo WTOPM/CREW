@@ -194,8 +194,13 @@ export function portsFromToText(data: AppData): string {
     .join('  /  ');
 }
 
-export function findMasterName(data: AppData, listCrew: CrewMember[]): string {
-  const roster = data.crew.length > 0 ? data.crew : listCrew;
+/**
+ * Signature / footer master for a crew-list document.
+ * Prefer the filtered list for this print (arrival or departure) so the footer
+ * matches the captain on that list — topmost exact "Master", then any *master*.
+ */
+export function findMasterName(_data: AppData, listCrew: CrewMember[]): string {
+  const roster = listCrew.length > 0 ? listCrew : _data.crew;
   const exact = roster.find((m) => m.rank.trim().toLowerCase() === 'master');
   const master = exact ?? roster.find((m) => m.rank.trim().toLowerCase().includes('master'));
   if (!master) return '';

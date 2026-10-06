@@ -110,7 +110,9 @@
         return;
       }
     }
-    cell.style.height = '0px';
+    // Measure with height:auto — collapsing to 0px can leave Chromium textareas
+    // blank after paint when a sibling (birth date|place) grew the row.
+    cell.style.height = 'auto';
     const next = Math.max(cell.scrollHeight, minRowHeightPx(tableRoot));
     cell.style.height = `${next}px`;
   }

@@ -61,6 +61,7 @@ export function pickSectionSlice(data: AppData, section: AppSection): Partial<Ap
       return {
         dgLibrary: data.dgLibrary,
         dgUnReference: data.dgUnReference,
+        dgEmsReference: data.dgEmsReference,
         dgPageArchives: data.dgPageArchives,
         depRepLibrary: data.depRepLibrary,
       };

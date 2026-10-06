@@ -32,12 +32,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('app-restored-from-tray', listener);
     return () => ipcRenderer.removeListener('app-restored-from-tray', listener);
   },
+  setWindowAlwaysOnTop: (enabled) => ipcRenderer.invoke('set-window-always-on-top', !!enabled),
+  getWindowActive: () => ipcRenderer.invoke('get-window-active'),
+  onAppWindowActive: (callback) => {
+    const listener = (_event, active) => callback(!!active);
+    ipcRenderer.on('app-window-active', listener);
+    return () => ipcRenderer.removeListener('app-window-active', listener);
+  },
+  openGpsFloat: (payload) => ipcRenderer.invoke('gps-float-open', payload),
+  closeGpsFloat: () => ipcRenderer.invoke('gps-float-close'),
+  isGpsFloatOpen: () => ipcRenderer.invoke('gps-float-is-open'),
+  onGpsFloatCommit: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('gps-float-commit', listener);
+    return () => ipcRenderer.removeListener('gps-float-commit', listener);
+  },
+  onGpsFloatClosed: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('gps-float-closed', listener);
+    return () => ipcRenderer.removeListener('gps-float-closed', listener);
+  },
   pickPdfFile: () => ipcRenderer.invoke('pick-pdf-file'),
   pickExcelFile: (defaultPath) => ipcRenderer.invoke('pick-excel-file', defaultPath ?? ''),
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
   writeFileBase64: (filePath, base64) => ipcRenderer.invoke('write-file-base64', filePath, base64),
   writeDepRepSheet: (filePath, payload) =>
     ipcRenderer.invoke('write-dep-rep-sheet', filePath, payload),
+  deleteDepRepSheet: (filePath, sheetName) =>
+    ipcRenderer.invoke('delete-dep-rep-sheet', filePath, sheetName),
   exportDepRepPdf: (filePath, sheetName) =>
     ipcRenderer.invoke('export-dep-rep-pdf', filePath, sheetName),
   pickDirectory: () => ipcRenderer.invoke('pick-directory'),

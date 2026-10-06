@@ -31,16 +31,17 @@ export function passengersToCrewRows(passengers: PassengerMember[]): CrewMember[
   }));
 }
 
-/** Crew Effect rows: arrival crew first, then passengers when enabled. */
+/** Crew Effect rows: crew for the list mode, then passengers when enabled. */
 export function crewEffectListRows(
   data: AppData,
   appendPassengers: boolean,
   maxRows: number,
+  list: 'arrival' | 'departure' = 'arrival',
 ): CrewMember[] {
-  const crew = filterActiveCrewListFromData(data, 'arrival').slice(0, maxRows);
+  const crew = filterActiveCrewListFromData(data, list).slice(0, maxRows);
   if (!appendPassengers) return crew;
   const remaining = maxRows - crew.length;
   if (remaining <= 0) return crew;
-  const passengers = filterActivePassengerListFromData(data, 'arrival');
+  const passengers = filterActivePassengerListFromData(data, list);
   return [...crew, ...passengersToCrewRows(passengers).slice(0, remaining)];
 }

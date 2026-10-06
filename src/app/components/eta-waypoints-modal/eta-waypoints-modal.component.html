@@ -1,0 +1,200 @@
+@if (open()) {
+  <div class="modal-backdrop eta-wp-backdrop">
+    <div
+      class="modal eta-wp-modal"
+      role="dialog"
+      aria-labelledby="eta-wp-title"
+      appClickOutside
+      (appClickOutside)="onClose()"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="eta-wp-modal__head">
+        <div class="eta-wp-modal__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
+            />
+          </svg>
+        </div>
+        <div class="eta-wp-modal__intro">
+          <h3 id="eta-wp-title">Saved GPS points</h3>
+          <p>Shared across all ETA voyages. Unique name and coordinates. Drag to reorder numbers.</p>
+        </div>
+      </header>
+
+      <div class="eta-wp-modal__body">
+        @if (waypoints().length === 0 && !editing()) {
+          <p class="eta-wp-empty">No saved points yet. Add one, or save GPS from a route pin (Done).</p>
+        } @else {
+          <ul class="eta-wp-list" cdkDropList (cdkDropListDropped)="onDrop($event)">
+            @for (w of waypoints(); track w.id; let i = $index) {
+              <li
+                class="eta-wp-row"
+                cdkDrag
+                [class.eta-wp-row--active]="editing()?.id === w.id"
+                (click)="startEdit(w)"
+              >
+                <span class="eta-wp-row__drag drag-handle" cdkDragHandle title="Drag to reorder" (click)="$event.stopPropagation()"
+                  >⠿</span
+                >
+                <span class="eta-wp-row__no">{{ i + 1 }}</span>
+                <span class="eta-wp-row__main">
+                  <strong>{{ w.name }}</strong>
+                  <span>{{ formatCoords(w) }}</span>
+                </span>
+                <button
+                  type="button"
+                  class="eta-wp-row__del"
+                  title="Delete"
+                  (click)="deleteWaypoint(w, $event)"
+                >
+                  ×
+                </button>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (editWorking(); as edit) {
+          <div class="eta-wp-edit">
+            <h4>{{ edit.id ? 'Edit point' : 'New point' }}</h4>
+            <label class="eta-wp-field">
+              <span>Name</span>
+              <input
+                type="text"
+                [ngModel]="edit.name"
+                (ngModelChange)="onNameChange($event)"
+                placeholder="e.g. WESER PILOT"
+                maxlength="80"
+              />
+            </label>
+
+            <div class="eta-wp-dms" (keydown)="onDmsKeydown($event)">
+              <div class="eta-wp-dms__row">
+                <input
+                  class="eta-wp-dms__num"
+                  type="text"
+                  maxlength="2"
+                  inputmode="numeric"
+                  placeholder="00"
+                  data-wp-gps-idx="0"
+                  [ngModel]="edit.lat.deg"
+                  (ngModelChange)="onDmsPart('lat', 'deg', $event)"
+                  (focus)="onDmsFocus($event)"
+                  (blur)="onDmsBlur('lat', 'deg')"
+                  aria-label="Latitude degrees"
+                />
+                <span class="eta-wp-dms__sym">°</span>
+                <input
+                  class="eta-wp-dms__num"
+                  type="text"
+                  maxlength="2"
+                  inputmode="numeric"
+                  placeholder="00"
+                  data-wp-gps-idx="1"
+                  [ngModel]="edit.lat.min"
+                  (ngModelChange)="onDmsPart('lat', 'min', $event)"
+                  (focus)="onDmsFocus($event)"
+                  (blur)="onDmsBlur('lat', 'min')"
+                  aria-label="Latitude minutes"
+                />
+                <span class="eta-wp-dms__sym">.</span>
+                <input
+                  class="eta-wp-dms__num"
+                  type="text"
+                  maxlength="2"
+                  inputmode="numeric"
+                  placeholder="00"
+                  data-wp-gps-idx="2"
+                  [ngModel]="edit.lat.sec"
+                  (ngModelChange)="onDmsPart('lat', 'sec', $event)"
+                  (focus)="onDmsFocus($event)"
+                  (blur)="onDmsBlur('lat', 'sec')"
+                  aria-label="Latitude hundredths of a minute"
+                />
+                <span class="eta-wp-dms__sym">′</span>
+                <button
+                  type="button"
+                  class="eta-wp-dms__hemi"
+                  data-wp-gps-idx="3"
+                  title="Toggle N / S (↑↓)"
+                  (click)="toggleHemi('lat')"
+                >
+                  {{ edit.lat.hemi }}
+                </button>
+              </div>
+              <div class="eta-wp-dms__row">
+                <input
+                  class="eta-wp-dms__num eta-wp-dms__num--lon"
+                  type="text"
+                  maxlength="3"
+                  inputmode="numeric"
+                  placeholder="000"
+                  data-wp-gps-idx="4"
+                  [ngModel]="edit.lon.deg"
+                  (ngModelChange)="onDmsPart('lon', 'deg', $event)"
+                  (focus)="onDmsFocus($event)"
+                  (blur)="onDmsBlur('lon', 'deg')"
+                  aria-label="Longitude degrees"
+                />
+                <span class="eta-wp-dms__sym">°</span>
+                <input
+                  class="eta-wp-dms__num"
+                  type="text"
+                  maxlength="2"
+                  inputmode="numeric"
+                  placeholder="00"
+                  data-wp-gps-idx="5"
+                  [ngModel]="edit.lon.min"
+                  (ngModelChange)="onDmsPart('lon', 'min', $event)"
+                  (focus)="onDmsFocus($event)"
+                  (blur)="onDmsBlur('lon', 'min')"
+                  aria-label="Longitude minutes"
+                />
+                <span class="eta-wp-dms__sym">.</span>
+                <input
+                  class="eta-wp-dms__num"
+                  type="text"
+                  maxlength="2"
+                  inputmode="numeric"
+                  placeholder="00"
+                  data-wp-gps-idx="6"
+                  [ngModel]="edit.lon.sec"
+                  (ngModelChange)="onDmsPart('lon', 'sec', $event)"
+                  (focus)="onDmsFocus($event)"
+                  (blur)="onDmsBlur('lon', 'sec')"
+                  aria-label="Longitude hundredths of a minute"
+                />
+                <span class="eta-wp-dms__sym">′</span>
+                <button
+                  type="button"
+                  class="eta-wp-dms__hemi"
+                  data-wp-gps-idx="7"
+                  title="Toggle E / W (↑↓)"
+                  (click)="toggleHemi('lon')"
+                >
+                  {{ edit.lon.hemi }}
+                </button>
+              </div>
+            </div>
+
+            <div class="eta-wp-edit__actions">
+              <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Cancel</button>
+              <button type="button" class="btn btn-primary" (click)="saveEdit()">Save point</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <footer class="eta-wp-modal__foot">
+        @if (!editing()) {
+          <button type="button" class="btn btn-secondary" (click)="startAdd()">Add point</button>
+        } @else {
+          <span></span>
+        }
+        <button type="button" class="btn btn-primary" (click)="onClose()">Done</button>
+      </footer>
+    </div>
+  </div>
+}

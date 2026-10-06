@@ -43,8 +43,18 @@ export class ClickOutsideDirective {
     this.mouseDownOutside = false;
   }
 
-  /** True when the event happened inside a confirm dialog overlay. */
+  /**
+   * True when the event happened in a layer that must not count as "outside"
+   * (confirm dialogs, CDK overlays like date-picker / selects).
+   * CDK portals render outside the host element DOM, so without this a calendar
+   * click would close the parent modal via appClickOutside.
+   */
   private inOverlay(target: EventTarget | null): boolean {
-    return !!(target instanceof Element && target.closest('.confirm-backdrop'));
+    if (!(target instanceof Element)) return false;
+    return !!(
+      target.closest('.confirm-backdrop') ||
+      target.closest('.cdk-overlay-container') ||
+      target.closest('.date-picker-popup')
+    );
   }
 }

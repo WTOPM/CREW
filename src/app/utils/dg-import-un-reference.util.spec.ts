@@ -57,4 +57,39 @@ describe('applyUnifeederReferenceOrManifest', () => {
     expect(next.dgClass).toBe('6.1');
     expect(next.goodsDescription.toUpperCase()).toContain('TOXIC SOLID');
   });
+
+  it('replaces packaging-note goods description with DG Reference', () => {
+    const { row: next } = applyUnifeederReferenceOrManifest(
+      row({
+        unNo: '1950',
+        dgClass: '2.1',
+        goodsDescription: 'max 1 ltr',
+      }),
+    );
+
+    expect(next.goodsDescription.toUpperCase()).toContain('AEROSOLS');
+    expect(next.goodsDescription).not.toMatch(/max 1 ltr/i);
+  });
+
+  it('does not copy Class 2 division into Sub Risk when PDF Sub Risk is empty', () => {
+    const { row: next } = applyUnifeederReferenceOrManifest(
+      row({
+        unNo: '3164',
+        dgClass: '2.2',
+        goodsDescription: 'ARTICLES, PRESSURIZED, PNEUMATIC',
+        subRisk: '',
+      }),
+    );
+    expect(next.subRisk).toBe('');
+
+    const aerosols = applyUnifeederReferenceOrManifest(
+      row({
+        unNo: '1950',
+        dgClass: '2.1',
+        goodsDescription: 'AEROSOLS',
+        subRisk: 'See SP63',
+      }),
+    ).row;
+    expect(aerosols.subRisk).toBe('');
+  });
 });

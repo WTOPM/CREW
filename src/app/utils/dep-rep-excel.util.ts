@@ -191,17 +191,14 @@ export interface DepRepSheetSnapshot {
   draftFore: string;
   totalCargo: string;
   density: string;
+  /** DG CLASS / WEIGHT from A11:B23 (empty when sheet has none). */
+  classRows: ManifestClassWeightRow[];
 }
 
-/** Read voyage data from a named sheet (if present). Does not modify the file. */
-export async function readDepRepSheetSnapshot(
-  bytes: ArrayBuffer | Uint8Array,
-  sheetName: string,
-): Promise<DepRepSheetSnapshot> {
-  const name = sheetName.trim();
-  const empty: DepRepSheetSnapshot = {
+function emptySnapshot(sheetName = ''): DepRepSheetSnapshot {
+  return {
     exists: false,
-    sheetName: name,
+    sheetName,
     polCode: '',
     podCode: '',
     voyage: '',
@@ -210,17 +207,13 @@ export async function readDepRepSheetSnapshot(
     draftFore: '',
     totalCargo: '',
     density: '',
+    classRows: [],
   };
-  if (!name) return empty;
+}
 
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(bytes as unknown as ExcelJS.Buffer);
-  const ws = findSheet(wb, name);
-  if (!ws) return empty;
-
+function readSnapshotFromWorksheet(ws: ExcelJS.Worksheet): DepRepSheetSnapshot {
   const cargoRaw = cellText(ws, 'F9') || cellText(ws, 'G9') || cellText(ws, 'H9');
   const cargo = parseCargoTons(cargoRaw);
-
   return {
     exists: true,
     sheetName: ws.name,
@@ -232,7 +225,48 @@ export async function readDepRepSheetSnapshot(
     draftFore: cellNumberString(ws, 'D8'),
     totalCargo: cargo != null ? String(cargo) : cargoRaw.replace(/\s*t\s*$/i, '').trim(),
     density: cellNumberString(ws, 'E6') || cellNumberString(ws, 'D6'),
+    classRows: readClassRowsFromWorksheet(ws),
   };
+}
+
+function readClassRowsFromWorksheet(ws: ExcelJS.Worksheet): ManifestClassWeightRow[] {
+  const rows: ManifestClassWeightRow[] = [];
+  for (let r = CLASS_START_ROW; r <= CLASS_END_ROW; r++) {
+    const dgClass = cellText(ws, `A${r}`).trim();
+    if (!dgClass) continue;
+    const kgRaw = cellText(ws, `B${r}`);
+    const kg = parseCargoTons(kgRaw);
+    rows.push({ dgClass, totalKg: kg != null ? kg : 0 });
+  }
+  return rows;
+}
+
+/** Read voyage data from a named sheet (if present). Does not modify the file. */
+export async function readDepRepSheetSnapshot(
+  bytes: ArrayBuffer | Uint8Array,
+  sheetName: string,
+): Promise<DepRepSheetSnapshot> {
+  const name = sheetName.trim();
+  if (!name) return emptySnapshot();
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(bytes as unknown as ExcelJS.Buffer);
+  const ws = findSheet(wb, name);
+  if (!ws) return emptySnapshot(name);
+  return readSnapshotFromWorksheet(ws);
+}
+
+/**
+ * Latest departure tab = leftmost worksheet (new sheets are moved to index 1 on write).
+ */
+export async function readDepRepLatestSheetSnapshot(
+  bytes: ArrayBuffer | Uint8Array,
+): Promise<DepRepSheetSnapshot> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(bytes as unknown as ExcelJS.Buffer);
+  const ws = wb.worksheets[0];
+  if (!ws) return emptySnapshot();
+  return readSnapshotFromWorksheet(ws);
 }
 
 /** Read PORT→density map from columns K/L (header + data). Read-only — never writes. */

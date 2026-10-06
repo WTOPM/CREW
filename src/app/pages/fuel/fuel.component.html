@@ -165,10 +165,20 @@
         >
           S1–AC4
         </button>
+        <a
+          routerLink="/fuel/stats"
+          class="fuel-chip fuel-chip--stats section-readonly-allow"
+          title="Statistics for the current period, events, search and Show limit"
+        >
+          Stats
+        </a>
         <div class="fuel-dropdown" (click)="$event.stopPropagation()">
           <button
             type="button"
             class="fuel-chip fuel-chip--preset"
+            [class.fuel-chip--filter-all]="eventsFilterTone() === 'all'"
+            [class.fuel-chip--filter-partial]="eventsFilterTone() === 'partial'"
+            [class.fuel-chip--filter-none]="eventsFilterTone() === 'none'"
             [class.fuel-chip--menu-open]="eventsMenuOpen()"
             (click)="toggleEventsMenu($event)"
           >
@@ -209,6 +219,85 @@
                     </button>
                   }
                 </div>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="fuel-dropdown" (click)="$event.stopPropagation()">
+          <button
+            type="button"
+            class="fuel-chip fuel-chip--preset"
+            [class.fuel-chip--filter-all]="columnsFilterTone() === 'all'"
+            [class.fuel-chip--filter-partial]="columnsFilterTone() === 'partial'"
+            [class.fuel-chip--filter-none]="columnsFilterTone() === 'none'"
+            [class.fuel-chip--menu-open]="columnsMenuOpen()"
+            (click)="toggleColumnsMenu($event)"
+          >
+            Columns · {{ visibleColumnDefs().length }}
+          </button>
+          @if (columnsMenuOpen() && menuAnchor(); as anchor) {
+            <div
+              class="fuel-menu fuel-menu--columns"
+              role="menu"
+              [style.top.px]="anchor.top"
+              [style.left.px]="anchor.left"
+              [style.width.px]="anchor.width"
+            >
+              <header class="fuel-menu__head">
+                <div class="fuel-menu__head-text">
+                  <span class="fuel-menu__title">Visible columns</span>
+                  <span class="fuel-menu__meta"
+                    >{{ visibleColumnDefs().length }} of {{ allColumns.length }}</span
+                  >
+                </div>
+                <div class="fuel-menu__actions">
+                  <button type="button" class="fuel-menu__action" (click)="selectAllColumns()">All</button>
+                </div>
+              </header>
+              <div class="fuel-menu__body">
+                @for (group of columnGroups; track group.id) {
+                  <section
+                    class="fuel-menu-group"
+                    [class.fuel-menu-group--me]="group.tone === 'me'"
+                    [class.fuel-menu-group--ae1]="group.tone === 'ae1'"
+                    [class.fuel-menu-group--ae2]="group.tone === 'ae2'"
+                    [class.fuel-menu-group--ae3]="group.tone === 'ae3'"
+                    [class.fuel-menu-group--boiler]="group.tone === 'boiler'"
+                  >
+                    <h3 class="fuel-menu-group__title">{{ group.title }}</h3>
+                    <div class="fuel-menu__grid fuel-menu__grid--cols">
+                      @for (col of group.columns; track col.id) {
+                        <button
+                          type="button"
+                          class="fuel-menu-chip"
+                          [class.fuel-menu-chip--on]="columnOn(col.id)"
+                          [class.fuel-menu-chip--me]="col.tone === 'me'"
+                          [class.fuel-menu-chip--ae]="col.tone === 'ae'"
+                          [class.fuel-menu-chip--ae1]="col.tone === 'ae1'"
+                          [class.fuel-menu-chip--ae2]="col.tone === 'ae2'"
+                          [class.fuel-menu-chip--ae3]="col.tone === 'ae3'"
+                          [class.fuel-menu-chip--boiler]="col.tone === 'boiler'"
+                          role="menuitemcheckbox"
+                          [attr.aria-checked]="columnOn(col.id)"
+                          [title]="col.tip"
+                          (click)="toggleColumn(col.id)"
+                        >
+                          <span class="fuel-menu-chip__check" aria-hidden="true">
+                            @if (columnOn(col.id)) {
+                              <svg viewBox="0 0 24 24" focusable="false">
+                                <path
+                                  fill="currentColor"
+                                  d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+                                />
+                              </svg>
+                            }
+                          </span>
+                          <span class="fuel-menu-chip__label">{{ col.label }}</span>
+                        </button>
+                      }
+                    </div>
+                  </section>
+                }
               </div>
             </div>
           }
@@ -343,79 +432,36 @@
           </span>
         </button>
 
-        <div class="fuel-dropdown" (click)="$event.stopPropagation()">
+        <div class="fuel-utc" (click)="$event.stopPropagation()">
           <button
             type="button"
-            class="fuel-chip fuel-chip--preset"
-            [class.fuel-chip--menu-open]="columnsMenuOpen()"
-            (click)="toggleColumnsMenu($event)"
+            class="fuel-mode-btn fuel-utc-btn"
+            [class.fuel-mode-btn--on]="showUtc()"
+            [class.fuel-utc-btn--on]="showUtc()"
+            [class.fuel-utc-btn--pressing]="utcPressing()"
+            [attr.aria-pressed]="showUtc()"
+            title="Click: switch Local / UTC. Hold: change zone (+1 / −1)."
+            (pointerdown)="onUtcPointerDown($event)"
+            (pointerup)="onUtcPointerUp()"
+            (pointerleave)="onUtcPointerCancel()"
+            (pointercancel)="onUtcPointerCancel()"
+            (click)="onUtcClick($event)"
           >
-            Columns · {{ visibleColumnDefs().length }}
+            <span class="fuel-utc-btn__badge" aria-hidden="true">{{ utcOffsetLabel() }}</span>
+            <span class="fuel-mode-btn__text">
+              <span class="fuel-mode-btn__label">{{ showUtc() ? 'UTC' : 'Local' }}</span>
+              <span class="fuel-mode-btn__sub">{{ showUtc() ? 'display' : 'ship time' }}</span>
+            </span>
           </button>
-          @if (columnsMenuOpen() && menuAnchor(); as anchor) {
-            <div
-              class="fuel-menu fuel-menu--columns"
-              role="menu"
-              [style.top.px]="anchor.top"
-              [style.left.px]="anchor.left"
-              [style.width.px]="anchor.width"
-            >
-              <header class="fuel-menu__head">
-                <div class="fuel-menu__head-text">
-                  <span class="fuel-menu__title">Visible columns</span>
-                  <span class="fuel-menu__meta"
-                    >{{ visibleColumnDefs().length }} of {{ allColumns.length }}</span
-                  >
-                </div>
-                <div class="fuel-menu__actions">
-                  <button type="button" class="fuel-menu__action" (click)="selectAllColumns()">All</button>
-                </div>
-              </header>
-              <div class="fuel-menu__body">
-                @for (group of columnGroups; track group.id) {
-                  <section
-                    class="fuel-menu-group"
-                    [class.fuel-menu-group--me]="group.tone === 'me'"
-                    [class.fuel-menu-group--ae1]="group.tone === 'ae1'"
-                    [class.fuel-menu-group--ae2]="group.tone === 'ae2'"
-                    [class.fuel-menu-group--ae3]="group.tone === 'ae3'"
-                    [class.fuel-menu-group--boiler]="group.tone === 'boiler'"
-                  >
-                    <h3 class="fuel-menu-group__title">{{ group.title }}</h3>
-                    <div class="fuel-menu__grid fuel-menu__grid--cols">
-                      @for (col of group.columns; track col.id) {
-                        <button
-                          type="button"
-                          class="fuel-menu-chip"
-                          [class.fuel-menu-chip--on]="columnOn(col.id)"
-                          [class.fuel-menu-chip--me]="col.tone === 'me'"
-                          [class.fuel-menu-chip--ae]="col.tone === 'ae'"
-                          [class.fuel-menu-chip--ae1]="col.tone === 'ae1'"
-                          [class.fuel-menu-chip--ae2]="col.tone === 'ae2'"
-                          [class.fuel-menu-chip--ae3]="col.tone === 'ae3'"
-                          [class.fuel-menu-chip--boiler]="col.tone === 'boiler'"
-                          role="menuitemcheckbox"
-                          [attr.aria-checked]="columnOn(col.id)"
-                          [title]="col.tip"
-                          (click)="toggleColumn(col.id)"
-                        >
-                          <span class="fuel-menu-chip__check" aria-hidden="true">
-                            @if (columnOn(col.id)) {
-                              <svg viewBox="0 0 24 24" focusable="false">
-                                <path
-                                  fill="currentColor"
-                                  d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
-                                />
-                              </svg>
-                            }
-                          </span>
-                          <span class="fuel-menu-chip__label">{{ col.label }}</span>
-                        </button>
-                      }
-                    </div>
-                  </section>
-                }
-              </div>
+          @if (utcOffsetMenuOpen()) {
+            <div class="fuel-utc-pop" role="dialog" aria-label="UTC offset">
+              <button type="button" class="fuel-utc-pop__step" (click)="nudgeUtcOffset(-1)" title="−1 hour">
+                −
+              </button>
+              <span class="fuel-utc-pop__value">{{ utcOffsetLabel() }}</span>
+              <button type="button" class="fuel-utc-pop__step" (click)="nudgeUtcOffset(1)" title="+1 hour">
+                +
+              </button>
             </div>
           }
         </div>
@@ -569,8 +615,12 @@
                         } @else {
                           <input
                             class="fuel-cell-input"
+                            [class.fuel-cell-input--auto]="isAutoCalcCol(col)"
                             [value]="editValue(e, col)"
+                            [title]="isAutoCalcCol(col) ? (col.tip + ' · Auto from consumption (↑↓ ±0.1)') : (col.tip + (col.numeric || col.type === 'time' ? ' · ↑↓ ±0.1 · Enter to leave' : ' · Enter to leave'))"
+                            (input)="onEditLive(e, col, $event)"
                             (change)="onEditCommit(e, col, $any($event.target).value)"
+                            (keydown)="onCellKeydown(e, col, $event)"
                           />
                         }
                       } @else {

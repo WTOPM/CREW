@@ -3,7 +3,7 @@
   [class.date-picker--sm]="size() === 'sm'"
   [class.date-picker--lg]="size() === 'lg'"
 >
-  <div class="date-picker-row">
+  <div class="date-picker-row" cdkOverlayOrigin #origin="cdkOverlayOrigin">
     <input
       #field
       class="date-picker-input"
@@ -44,8 +44,26 @@
     </button>
   </div>
 
-  @if (open()) {
-    <div class="date-picker-popup" role="dialog" aria-label="Choose date" [ngStyle]="popupStyle()">
+  <ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="origin"
+    [cdkConnectedOverlayOpen]="open()"
+    [cdkConnectedOverlayPositions]="overlayPositions"
+    [cdkConnectedOverlayPush]="true"
+    [cdkConnectedOverlayViewportMargin]="8"
+    [cdkConnectedOverlayWidth]="popupWidth()"
+    [cdkConnectedOverlayPanelClass]="'date-picker-overlay-panel'"
+    (overlayOutsideClick)="close()"
+    (detach)="onOverlayDetach()"
+  >
+    <div
+      class="date-picker-popup"
+      [class.date-picker-popup--sm]="size() === 'sm'"
+      [class.date-picker-popup--lg]="size() === 'lg'"
+      role="dialog"
+      aria-label="Choose date"
+      (click)="$event.stopPropagation()"
+    >
       <div class="cal-head">
         <button type="button" class="cal-nav" (click)="prevMonth()" aria-label="Previous month">
           ‹
@@ -81,5 +99,5 @@
         </button>
       </div>
     </div>
-  }
+  </ng-template>
 </div>

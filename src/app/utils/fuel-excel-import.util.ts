@@ -13,7 +13,7 @@ export interface FuelExcelImportResult {
   masterSummary: FuelMasterSummary | null;
 }
 
-/** Parse FO-VPC / SHAPOLI workbook (MASTER A–R + CENG machinery). */
+/** Parse FO-VPC / SHAPOLI workbook (CENG spine + MASTER-only bunker / summary). */
 export async function importFuelLogFromExcelBytes(
   bytes: ArrayBuffer | Uint8Array,
 ): Promise<FuelExcelImportResult> {
@@ -26,14 +26,207 @@ export async function importFuelLogFromExcelBytes(
     throw new Error('Sheet "Fuel Log MASTER" not found');
   }
 
-  const ceng = wb.worksheets.find((s) => /fuel\s*log\s*ceng/i.test(s.name));
-  // Prefer CENG (kept up to date). VPC DRIVERS intentionally ignored.
-  const cengIndex = ceng ? indexCengRows(ceng) : emptyMachIndex();
-
-  const events: FuelLogEvent[] = [];
+  // Prefer CENG / CE LOG / ENGINE LOG as the event spine (kept more complete).
+  // MASTER supplies bunker + S1–AC4 and fills blank shared cells when CENG is empty.
+  const ceng = findCengWorksheet(wb);
   const warnings: string[] = [];
+  if (!ceng) {
+    warnings.push(
+      'Sheet "Fuel Log CENG" / "CE LOG" / "ENGINE LOG" not found — using MASTER only (SHAPOLI / ME / AE counters skipped)',
+    );
+  }
   const masterSummary = readMasterSummaryBlock(master);
-  // MASTER data starts at row 5 (rows 1–4 are headers + S1–AC4 summary).
+  const masterIndex = indexMasterRows(master);
+
+  const events: FuelLogEvent[] =
+    ceng != null
+      ? importFromCengSpine(ceng, masterIndex, warnings)
+      : importFromMasterOnly(master, warnings);
+
+  // Append MASTER rows that have no matching CENG event (rare, but keep bunkers).
+  if (ceng) {
+    appendMasterOnlyRows(events, masterIndex, warnings);
+  }
+
+  return { events, sheetName: (ceng ?? master).name.trim(), warnings, masterSummary };
+}
+
+interface MasterFuelRow {
+  sourceRow: number;
+  place: string;
+  rawEvent: string;
+  date: string;
+  time: string;
+  timeUsedHours: number | null;
+  fmMeAe: number | null;
+  totalM3: number | null;
+  totalMt: number | null;
+  meMt: number | null;
+  aeMt: number | null;
+  robRmdMt: number | null;
+  robB100Mt: number | null;
+  bunkerRmdBioMt: number | null;
+  bunkerDmaMt: number | null;
+  robDmaMt: number | null;
+  boilerMt: number | null;
+  dmaConsM3: number | null;
+  boilerFm: number | null;
+}
+
+interface MasterIndex {
+  byFull: Map<string, MasterFuelRow>;
+  byDateTime: Map<string, MasterFuelRow>;
+  rows: MasterFuelRow[];
+  /** Keys consumed by CENG merge — leftover MASTER rows are appended. */
+  used: Set<string>;
+}
+
+function emptyMasterIndex(): MasterIndex {
+  return { byFull: new Map(), byDateTime: new Map(), rows: [], used: new Set() };
+}
+
+function masterKey(date: string, time: string, place: string, rawEvent: string): string {
+  return `${date}|${time}|${place}|${rawEvent}`;
+}
+
+function indexMasterRows(ws: ExcelJS.Worksheet): MasterIndex {
+  const index = emptyMasterIndex();
+  for (let r = 5; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    const place = cellText(row.getCell(1));
+    const rawEvent = cellText(row.getCell(2));
+    if (!place && !rawEvent) continue;
+    const date = cellDateIso(row.getCell(3));
+    const time = cellTimeHm(row.getCell(4));
+    if (!date || !time) continue;
+
+    const fmMeAe = cellNum1(row.getCell(6));
+    const trustPeriodFormulas = fmMeAe != null;
+    const entry: MasterFuelRow = {
+      sourceRow: r,
+      place,
+      rawEvent,
+      date,
+      time,
+      timeUsedHours: cellNum1(row.getCell(5)),
+      fmMeAe,
+      totalM3: periodNum(row.getCell(7), trustPeriodFormulas),
+      totalMt: periodNum(row.getCell(8), trustPeriodFormulas),
+      meMt: periodNum(row.getCell(9), trustPeriodFormulas),
+      aeMt: periodNum(row.getCell(10), trustPeriodFormulas),
+      robRmdMt: cellNum1(row.getCell(11)),
+      robB100Mt: robNum(row.getCell(12), trustPeriodFormulas),
+      bunkerRmdBioMt: cellNum1(row.getCell(13)),
+      bunkerDmaMt: cellNum1(row.getCell(14)),
+      robDmaMt: robNum(row.getCell(15), trustPeriodFormulas),
+      boilerMt: periodNum(row.getCell(16), trustPeriodFormulas),
+      dmaConsM3: periodNum(row.getCell(17), trustPeriodFormulas),
+      boilerFm: cellNum1(row.getCell(18)),
+    };
+    index.rows.push(entry);
+    index.byFull.set(masterKey(date, time, place, rawEvent), entry);
+    const dt = `${date}|${time}`;
+    if (!index.byDateTime.has(dt)) index.byDateTime.set(dt, entry);
+  }
+  return index;
+}
+
+function lookupMaster(index: MasterIndex, date: string, time: string, place: string, rawEvent: string): MasterFuelRow | undefined {
+  return (
+    index.byFull.get(masterKey(date, time, place, rawEvent)) ??
+    index.byDateTime.get(`${date}|${time}`)
+  );
+}
+
+/** Prefer non-null CENG value; fall back to MASTER for blank shared cells. */
+function preferCeng<T>(cengVal: T | null, masterVal: T | null | undefined): T | null {
+  return cengVal != null ? cengVal : (masterVal ?? null);
+}
+
+function importFromCengSpine(
+  ceng: ExcelJS.Worksheet,
+  masterIndex: MasterIndex,
+  warnings: string[],
+): FuelLogEvent[] {
+  const events: FuelLogEvent[] = [];
+  for (let r = 3; r <= ceng.rowCount; r++) {
+    const row = ceng.getRow(r);
+    const place = cellText(row.getCell(1));
+    const rawEvent = cellText(row.getCell(2));
+    if (!place && !rawEvent) continue;
+
+    const date = cellDateIso(row.getCell(3));
+    const time = cellTimeHm(row.getCell(4));
+    if (!date) {
+      warnings.push(`CENG row ${r}: skipped (no date)`);
+      continue;
+    }
+    if (!time) {
+      warnings.push(`CENG row ${r}: skipped incomplete (no time) — ${place} / ${rawEvent}`);
+      continue;
+    }
+
+    const m = lookupMaster(masterIndex, date, time, place, rawEvent);
+    if (m) masterIndex.used.add(masterKey(m.date, m.time, m.place, m.rawEvent));
+
+    const fmMeAe = preferCeng(cellNum1(row.getCell(6)), m?.fmMeAe);
+    const trustPeriodFormulas = fmMeAe != null;
+
+    events.push(
+      createEmptyFuelLogEvent({
+        id: `fuel-${date}-${time.replace(':', '')}-c${r}`,
+        place: place || m?.place || '',
+        rawEvent: rawEvent || m?.rawEvent || '',
+        kind: classifyFuelEvent(rawEvent || m?.rawEvent || ''),
+        date,
+        time,
+        timeUsedHours: preferCeng(cellNum1(row.getCell(5)), m?.timeUsedHours),
+        fmMeAe,
+        totalM3: preferCeng(periodNum(row.getCell(7), trustPeriodFormulas), m?.totalM3),
+        totalMt: preferCeng(periodNum(row.getCell(8), trustPeriodFormulas), m?.totalMt),
+        meMt: preferCeng(periodNum(row.getCell(9), trustPeriodFormulas), m?.meMt),
+        aeMt: preferCeng(periodNum(row.getCell(10), trustPeriodFormulas), m?.aeMt),
+        robRmdMt: preferCeng(cellNum1(row.getCell(11)), m?.robRmdMt),
+        robB100Mt: preferCeng(robNum(row.getCell(12), trustPeriodFormulas), m?.robB100Mt),
+        // MASTER-only: bunker + DMA total cons / boiler FM
+        bunkerRmdBioMt: m?.bunkerRmdBioMt ?? null,
+        bunkerDmaMt: m?.bunkerDmaMt ?? null,
+        robDmaMt: preferCeng(robNum(row.getCell(13), trustPeriodFormulas), m?.robDmaMt),
+        boilerMt: preferCeng(periodNum(row.getCell(36), trustPeriodFormulas), m?.boilerMt),
+        dmaConsM3: m?.dmaConsM3 ?? null,
+        boilerFm: m?.boilerFm ?? null,
+        meCounterRh: cellNum1(row.getCell(14)),
+        meShapoliRev: cellNum1(row.getCell(15)),
+        meShapoliKwh: cellNum1(row.getCell(16)),
+        meHours: cellNum1(row.getCell(17)),
+        meRpm: cellNum1(row.getCell(18)),
+        meKw: cellNum1(row.getCell(19)),
+        ae1CounterRh: cellNum1(row.getCell(20)),
+        ae1KwAvg: cellNum1(row.getCell(21)),
+        ae1Hours: cellNum1(row.getCell(22)),
+        ae1Kw: cellNum1(row.getCell(23)),
+        ae2CounterRh: cellNum1(row.getCell(24)),
+        ae2KwAvg: cellNum1(row.getCell(25)),
+        ae2Hours: cellNum1(row.getCell(26)),
+        ae2Kw: cellNum1(row.getCell(27)),
+        ae3CounterRh: cellNum1(row.getCell(28)),
+        ae3KwAvg: cellNum1(row.getCell(29)),
+        ae3Hours: cellNum1(row.getCell(30)),
+        ae3Kw: cellNum1(row.getCell(31)),
+        boilerCounterRh: cellNum1(row.getCell(32)),
+        boilerHours: cellNum1(row.getCell(33)),
+        boilerFmCeng: cellNum1(row.getCell(34)),
+        boilerConsM3: periodNum(row.getCell(35), trustPeriodFormulas),
+        boilerConsMt: periodNum(row.getCell(36), trustPeriodFormulas),
+        sourceRow: m?.sourceRow ?? 0,
+      }),
+    );
+  }
+  return events;
+}
+
+function importFromMasterOnly(master: ExcelJS.Worksheet, warnings: string[]): FuelLogEvent[] {
+  const events: FuelLogEvent[] = [];
   for (let r = 5; r <= master.rowCount; r++) {
     const row = master.getRow(r);
     const place = cellText(row.getCell(1));
@@ -46,9 +239,14 @@ export async function importFuelLogFromExcelBytes(
       warnings.push(`Row ${r}: skipped (no date)`);
       continue;
     }
+    if (!time) {
+      warnings.push(`Row ${r}: skipped incomplete (no time) — ${place} / ${rawEvent}`);
+      continue;
+    }
 
     const kind = classifyFuelEvent(rawEvent);
-    const mach = lookupMach(cengIndex, date, time, place, rawEvent);
+    const fmMeAe = cellNum1(row.getCell(6));
+    const trustPeriodFormulas = fmMeAe != null;
 
     events.push(
       createEmptyFuelLogEvent({
@@ -58,50 +256,66 @@ export async function importFuelLogFromExcelBytes(
         kind,
         date,
         time,
-        // Excel Fuel Log uses numFmt 0.0 for hours + mt
         timeUsedHours: cellNum1(row.getCell(5)),
-        fmMeAe: cellNum1(row.getCell(6)),
-        totalM3: cellNum1(row.getCell(7)),
-        totalMt: cellNum1(row.getCell(8)),
-        meMt: cellNum1(row.getCell(9)),
-        aeMt: cellNum1(row.getCell(10)),
+        fmMeAe,
+        totalM3: periodNum(row.getCell(7), trustPeriodFormulas),
+        totalMt: periodNum(row.getCell(8), trustPeriodFormulas),
+        meMt: periodNum(row.getCell(9), trustPeriodFormulas),
+        aeMt: periodNum(row.getCell(10), trustPeriodFormulas),
         robRmdMt: cellNum1(row.getCell(11)),
-        robB100Mt: cellNum1(row.getCell(12)),
+        robB100Mt: robNum(row.getCell(12), trustPeriodFormulas),
         bunkerRmdBioMt: cellNum1(row.getCell(13)),
         bunkerDmaMt: cellNum1(row.getCell(14)),
-        robDmaMt: cellNum1(row.getCell(15)),
-        boilerMt: cellNum1(row.getCell(16)),
-        dmaConsM3: cellNum1(row.getCell(17)),
+        robDmaMt: robNum(row.getCell(15), trustPeriodFormulas),
+        boilerMt: periodNum(row.getCell(16), trustPeriodFormulas),
+        dmaConsM3: periodNum(row.getCell(17), trustPeriodFormulas),
         boilerFm: cellNum1(row.getCell(18)),
-        meCounterRh: mach?.meCounterRh ?? null,
-        meShapoliRev: mach?.meShapoliRev ?? null,
-        meShapoliKwh: mach?.meShapoliKwh ?? null,
-        meHours: mach?.meHours ?? null,
-        meRpm: mach?.meRpm ?? null,
-        meKw: mach?.meKw ?? null,
-        ae1CounterRh: mach?.ae1CounterRh ?? null,
-        ae1KwAvg: mach?.ae1KwAvg ?? null,
-        ae1Hours: mach?.ae1Hours ?? null,
-        ae1Kw: mach?.ae1Kw ?? null,
-        ae2CounterRh: mach?.ae2CounterRh ?? null,
-        ae2KwAvg: mach?.ae2KwAvg ?? null,
-        ae2Hours: mach?.ae2Hours ?? null,
-        ae2Kw: mach?.ae2Kw ?? null,
-        ae3CounterRh: mach?.ae3CounterRh ?? null,
-        ae3KwAvg: mach?.ae3KwAvg ?? null,
-        ae3Hours: mach?.ae3Hours ?? null,
-        ae3Kw: mach?.ae3Kw ?? null,
-        boilerCounterRh: mach?.boilerCounterRh ?? null,
-        boilerHours: mach?.boilerHours ?? null,
-        boilerFmCeng: mach?.boilerFmCeng ?? null,
-        boilerConsM3: mach?.boilerConsM3 ?? null,
-        boilerConsMt: mach?.boilerConsMt ?? null,
         sourceRow: r,
       }),
     );
   }
+  return events;
+}
 
-  return { events, sheetName: master.name.trim(), warnings, masterSummary };
+function appendMasterOnlyRows(
+  events: FuelLogEvent[],
+  masterIndex: MasterIndex,
+  warnings: string[],
+): void {
+  for (const m of masterIndex.rows) {
+    const key = masterKey(m.date, m.time, m.place, m.rawEvent);
+    if (masterIndex.used.has(key)) continue;
+    // Also skip if date|time already present from CENG (matched via byDateTime).
+    if (events.some((e) => e.date === m.date && e.time === m.time)) continue;
+    warnings.push(
+      `MASTER row ${m.sourceRow}: no CENG match — imported from MASTER only (${m.place} / ${m.rawEvent})`,
+    );
+    events.push(
+      createEmptyFuelLogEvent({
+        id: `fuel-${m.date}-${m.time.replace(':', '')}-m${m.sourceRow}`,
+        place: m.place,
+        rawEvent: m.rawEvent,
+        kind: classifyFuelEvent(m.rawEvent),
+        date: m.date,
+        time: m.time,
+        timeUsedHours: m.timeUsedHours,
+        fmMeAe: m.fmMeAe,
+        totalM3: m.totalM3,
+        totalMt: m.totalMt,
+        meMt: m.meMt,
+        aeMt: m.aeMt,
+        robRmdMt: m.robRmdMt,
+        robB100Mt: m.robB100Mt,
+        bunkerRmdBioMt: m.bunkerRmdBioMt,
+        bunkerDmaMt: m.bunkerDmaMt,
+        robDmaMt: m.robDmaMt,
+        boilerMt: m.boilerMt,
+        dmaConsM3: m.dmaConsM3,
+        boilerFm: m.boilerFm,
+        sourceRow: m.sourceRow,
+      }),
+    );
+  }
 }
 
 /**
@@ -120,7 +334,12 @@ export async function writeFuelLogToExcelBytes(
   if (!master) {
     throw new Error('Sheet "Fuel Log MASTER" not found');
   }
-  const ceng = wb.worksheets.find((s) => /fuel\s*log\s*ceng/i.test(s.name));
+  const ceng = findCengWorksheet(wb);
+
+  // ExcelJS throws on write when shared-formula masters are overwritten while
+  // clones remain. Flatten to cached results before we patch cells.
+  flattenSharedFormulas(master, 1, 18);
+  if (ceng) flattenSharedFormulas(ceng, 1, 36);
 
   let nextMasterRow = 5;
   for (let r = 5; r <= master.rowCount; r++) {
@@ -145,104 +364,14 @@ export async function writeFuelLogToExcelBytes(
   return new Uint8Array(out as ArrayBuffer);
 }
 
-interface MachExtras {
-  meCounterRh: number | null;
-  meShapoliRev: number | null;
-  meShapoliKwh: number | null;
-  meHours: number | null;
-  meRpm: number | null;
-  meKw: number | null;
-  ae1CounterRh: number | null;
-  ae1KwAvg: number | null;
-  ae1Hours: number | null;
-  ae1Kw: number | null;
-  ae2CounterRh: number | null;
-  ae2KwAvg: number | null;
-  ae2Hours: number | null;
-  ae2Kw: number | null;
-  ae3CounterRh: number | null;
-  ae3KwAvg: number | null;
-  ae3Hours: number | null;
-  ae3Kw: number | null;
-  boilerCounterRh: number | null;
-  boilerHours: number | null;
-  boilerFmCeng: number | null;
-  boilerConsM3: number | null;
-  boilerConsMt: number | null;
-}
-
-interface MachIndex {
-  byFull: Map<string, MachExtras>;
-  byDateTime: Map<string, MachExtras>;
-}
-
-function emptyMachIndex(): MachIndex {
-  return { byFull: new Map(), byDateTime: new Map() };
-}
-
-function putMach(
-  index: MachIndex,
-  date: string,
-  time: string,
-  place: string,
-  rawEvent: string,
-  extras: MachExtras,
-): void {
-  index.byFull.set(`${date}|${time}|${place}|${rawEvent}`, extras);
-  const dt = `${date}|${time}`;
-  if (!index.byDateTime.has(dt)) index.byDateTime.set(dt, extras);
-}
-
-function lookupMach(
-  index: MachIndex,
-  date: string,
-  time: string,
-  place: string,
-  rawEvent: string,
-): MachExtras | undefined {
+/** Match "Fuel Log CENG", FO-VPC "CE LOG" / "ENGINE LOG", or bare "CENG". */
+function findCengWorksheet(wb: ExcelJS.Workbook): ExcelJS.Worksheet | undefined {
   return (
-    index.byFull.get(`${date}|${time}|${place}|${rawEvent}`) ??
-    index.byDateTime.get(`${date}|${time}`)
+    wb.worksheets.find((s) => /fuel\s*log\s*ceng/i.test(s.name)) ??
+    wb.worksheets.find((s) => /\bce\s*log\b/i.test(s.name)) ??
+    wb.worksheets.find((s) => /\bengine\s*log\b/i.test(s.name)) ??
+    wb.worksheets.find((s) => /^ceng$/i.test(s.name.trim()))
   );
-}
-
-/** Fuel Log CENG — ME/AE/Boiler counters + hrs/kW. */
-function indexCengRows(ws: ExcelJS.Worksheet): MachIndex {
-  const index = emptyMachIndex();
-  for (let r = 3; r <= ws.rowCount; r++) {
-    const row = ws.getRow(r);
-    const place = cellText(row.getCell(1));
-    const rawEvent = cellText(row.getCell(2));
-    const date = cellDateIso(row.getCell(3));
-    const time = cellTimeHm(row.getCell(4));
-    if (!date || (!place && !rawEvent)) continue;
-    putMach(index, date, time, place, rawEvent, {
-      meCounterRh: cellNum1(row.getCell(14)),
-      meShapoliRev: cellNum1(row.getCell(15)),
-      meShapoliKwh: cellNum1(row.getCell(16)),
-      meHours: cellNum1(row.getCell(17)),
-      meRpm: cellNum1(row.getCell(18)),
-      meKw: cellNum1(row.getCell(19)),
-      ae1CounterRh: cellNum1(row.getCell(20)),
-      ae1KwAvg: cellNum1(row.getCell(21)),
-      ae1Hours: cellNum1(row.getCell(22)),
-      ae1Kw: cellNum1(row.getCell(23)),
-      ae2CounterRh: cellNum1(row.getCell(24)),
-      ae2KwAvg: cellNum1(row.getCell(25)),
-      ae2Hours: cellNum1(row.getCell(26)),
-      ae2Kw: cellNum1(row.getCell(27)),
-      ae3CounterRh: cellNum1(row.getCell(28)),
-      ae3KwAvg: cellNum1(row.getCell(29)),
-      ae3Hours: cellNum1(row.getCell(30)),
-      ae3Kw: cellNum1(row.getCell(31)),
-      boilerCounterRh: cellNum1(row.getCell(32)),
-      boilerHours: cellNum1(row.getCell(33)),
-      boilerFmCeng: cellNum1(row.getCell(34)),
-      boilerConsM3: cellNum1(row.getCell(35)),
-      boilerConsMt: cellNum1(row.getCell(36)),
-    });
-  }
-  return index;
 }
 
 function writeMasterRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent): void {
@@ -329,28 +458,28 @@ function mirrorCengRow(ws: ExcelJS.Worksheet, masterRow: number): number {
   return guess;
 }
 
-function setText(cell: ExcelJS.Cell, value: string): void {
-  cell.value = value.trim() || null;
+function setText(cell: ExcelJS.Cell, value: string | null | undefined): void {
+  cell.value = String(value ?? '').trim() || null;
 }
 
 function setNum(cell: ExcelJS.Cell, value: number | null): void {
   if (value == null || !Number.isFinite(value)) {
     // Keep existing formula cells when clearing would wipe auto-calcs.
-    if (cell.formula || (cell.value && typeof cell.value === 'object' && 'formula' in (cell.value as object))) {
-      return;
-    }
+    // Do NOT read cell.formula — ExcelJS shared-formula getter calls slideFormula
+    // and throws when the master formula string is missing.
+    if (cellHasFormula(cell)) return;
     cell.value = null;
     return;
   }
   cell.value = value;
 }
 
-function setDate(cell: ExcelJS.Cell, iso: string): void {
+function setDate(cell: ExcelJS.Cell, iso: string | null | undefined): void {
   if (!iso) {
     cell.value = null;
     return;
   }
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) {
     cell.value = iso;
     return;
@@ -359,12 +488,12 @@ function setDate(cell: ExcelJS.Cell, iso: string): void {
   cell.numFmt = 'dd.mm.yyyy';
 }
 
-function setTime(cell: ExcelJS.Cell, hm: string): void {
+function setTime(cell: ExcelJS.Cell, hm: string | null | undefined): void {
   if (!hm) {
     cell.value = null;
     return;
   }
-  const m = hm.match(/^(\d{1,2}):(\d{2})$/);
+  const m = String(hm).match(/^(\d{1,2}):(\d{2})$/);
   if (!m) {
     cell.value = hm;
     return;
@@ -378,6 +507,7 @@ function cellText(cell: ExcelJS.Cell): string {
   const v = resolveCell(cell);
   if (v == null) return '';
   if (v instanceof Date) return '';
+  if (typeof v === 'object') return '';
   return String(v).replace(/\s+/g, ' ').trim();
 }
 
@@ -388,19 +518,72 @@ function cellNum1(cell: ExcelJS.Cell): number | null {
   let n: number;
   if (typeof v === 'number') n = v;
   else if (v instanceof Date) return null;
+  else if (typeof v === 'object') return null;
   else n = Number(String(v).replace(',', '.'));
   if (!Number.isFinite(n)) return null;
   return Math.round(n * 10) / 10;
 }
 
+/** Period consumption — drop negatives / stale Excel delta caches. */
+function periodNum(cell: ExcelJS.Cell, trustFormulas: boolean): number | null {
+  if (!trustFormulas && cellHasFormula(cell)) return null;
+  const n = cellNum1(cell);
+  if (n == null) return null;
+  // Broken Fₙ−Fₙ₋₁ when FM blank → large negatives in the xlsx cache.
+  if (n < 0) return null;
+  return n;
+}
+
+/** ROB from shared formulas blow up when period deltas are stale. */
+function robNum(cell: ExcelJS.Cell, trustFormulas: boolean): number | null {
+  if (!trustFormulas && cellHasFormula(cell)) return null;
+  const n = cellNum1(cell);
+  if (n == null) return null;
+  if (n < 0) return null;
+  return n;
+}
+
+function cellHasFormula(cell: ExcelJS.Cell): boolean {
+  const v = cell?.value;
+  if (v == null || typeof v !== 'object' || v instanceof Date) return false;
+  const o = v as { formula?: string; sharedFormula?: string };
+  return o.formula != null || o.sharedFormula != null;
+}
+
+/**
+ * Replace formula / sharedFormula cells with their cached results so ExcelJS can
+ * serialize after we overwrite individual cells (avoids "Shared Formula master
+ * must exist" and slideFormula `.replace` crashes).
+ */
+function flattenSharedFormulas(ws: ExcelJS.Worksheet, colFrom: number, colTo: number): void {
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    for (let c = colFrom; c <= colTo; c++) {
+      const cell = row.getCell(c);
+      if (!cellHasFormula(cell)) continue;
+      const v = cell.value as { result?: unknown };
+      const result = v?.result;
+      if (typeof result === 'number' && Number.isFinite(result)) {
+        cell.value = result;
+      } else if (typeof result === 'string' || typeof result === 'boolean') {
+        cell.value = result;
+      } else if (result instanceof Date && !Number.isNaN(result.getTime())) {
+        cell.value = result;
+      } else {
+        cell.value = null;
+      }
+    }
+  });
+}
+
 function cellDateIso(cell: ExcelJS.Cell): string {
   const v = resolveCell(cell);
+  // Excel serials / ExcelJS Dates are timezone-naive → read as UTC.
+  if (typeof v === 'number' && Number.isFinite(v) && v >= 1) {
+    const d = excelSerialToUtcDate(v);
+    return formatUtcYmd(d);
+  }
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
-    const y = v.getFullYear();
-    const m = String(v.getMonth() + 1).padStart(2, '0');
-    const d = String(v.getDate()).padStart(2, '0');
-    if (y < 1970) return '';
-    return `${y}-${m}-${d}`;
+    return formatUtcYmd(v);
   }
   const s = String(v ?? '').trim();
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -409,15 +592,36 @@ function cellDateIso(cell: ExcelJS.Cell): string {
 
 function cellTimeHm(cell: ExcelJS.Cell): string {
   const v = resolveCell(cell);
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    const frac = v >= 1 ? v % 1 : v;
+    const totalMinutes = Math.round(frac * 24 * 60) % (24 * 60);
+    const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    const mm = String(totalMinutes % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
-    const hh = String(v.getHours()).padStart(2, '0');
-    const mm = String(v.getMinutes()).padStart(2, '0');
+    const hh = String(v.getUTCHours()).padStart(2, '0');
+    const mm = String(v.getUTCMinutes()).padStart(2, '0');
     return `${hh}:${mm}`;
   }
   const s = String(v ?? '').trim();
   const m = s.match(/^(\d{1,2}):(\d{2})/);
   if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
   return '';
+}
+
+/** Excel day 0 = 1899-12-30 (ExcelJS convention). */
+function excelSerialToUtcDate(serial: number): Date {
+  const whole = Math.floor(serial);
+  return new Date(Date.UTC(1899, 11, 30) + whole * 86400000);
+}
+
+function formatUtcYmd(d: Date): string {
+  const y = d.getUTCFullYear();
+  if (y < 1970) return '';
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function resolveCell(cell: ExcelJS.Cell): unknown {
@@ -432,6 +636,8 @@ function resolveCell(cell: ExcelJS.Cell): unknown {
       sharedFormula?: string;
       error?: string;
     };
+    // Bare Excel error cells (#VALUE! / #ЗНАЧ!)
+    if (typeof o.error === 'string') return null;
     if (o.result !== undefined) {
       if (o.result && typeof o.result === 'object' && 'error' in (o.result as object)) {
         return null;
@@ -440,6 +646,8 @@ function resolveCell(cell: ExcelJS.Cell): unknown {
     }
     if (o.richText) return o.richText.map((t) => t.text).join('');
     if (o.text) return o.text;
+    // Formula / sharedFormula with no cached result — do not String() the object.
+    if (o.formula != null || o.sharedFormula != null) return null;
   }
   return v;
 }

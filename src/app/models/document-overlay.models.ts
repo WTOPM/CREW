@@ -373,7 +373,6 @@ const CREW_LIST_VARIANT_FIELD_NAMES = [
   'cellStyles',
   'cellValues',
   'footerSignatureDate',
-  'footerMasterName',
   'tableRowCount',
 ] as const satisfies readonly (keyof CrewListVariantSettings)[];
 
@@ -498,6 +497,8 @@ export function normalizeCrewListDocumentPrefs(
     } else {
       delete variant.tableRowCount;
     }
+    // Master signature is always derived from the printed list — drop frozen names.
+    delete variant.footerMasterName;
     byType[id] = variant;
   }
 

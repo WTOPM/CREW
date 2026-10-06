@@ -24,6 +24,7 @@ import { createDefaultCrewMoneyListForm } from '../models/crew-money-list.models
 import { createDefaultNarcoticListForm } from '../models/narcotic-list.models';
 import { createDefaultDgLibrary } from '../models/dg-manifest.models';
 import { createDefaultDgUnReference } from '../models/dg-un-reference.models';
+import { createDefaultDgEmsReference } from '../models/dg-ems-reference.models';
 import { createDefaultReeferLibrary } from '../models/reefer.models';
 import { createDefaultEtaLibrary } from '../models/eta.models';
 import { createDefaultFuelLibrary } from '../models/fuel.models';
@@ -65,6 +66,7 @@ export function createEmptyAppData(): AppData {
     narcoticListForm: createDefaultNarcoticListForm(),
     dgLibrary: createDefaultDgLibrary(),
     dgUnReference: createDefaultDgUnReference(),
+    dgEmsReference: createDefaultDgEmsReference(),
     reeferLibrary: createDefaultReeferLibrary(),
     etaLibrary: createDefaultEtaLibrary(),
     fuelLibrary: createDefaultFuelLibrary(),

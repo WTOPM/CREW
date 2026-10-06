@@ -1,7 +1,6 @@
 import { Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { MFAG_FIRE_SCHEDULE_REFS, MFAG_SPILLAGE_SCHEDULE_REFS } from '../../data/dg-mfag-reference';
 import { DgClassTooltipDirective } from '../../directives/dg-class-tooltip.directive';
 import { DgUnReferenceImportModalComponent } from '../../components/dg-un-reference-import-modal/dg-un-reference-import-modal.component';
 import {
@@ -14,13 +13,20 @@ import {
 } from '../../utils/dg-un-number.util';
 import { extractDgPdfTextItems } from '../../utils/dg-pdf-text.util';
 import {
-  collapseImdgRows,
   ImdgChapter32ParseError,
   IMDG_REFERENCE_MAX_FILE_BYTES,
   IMDG_REFERENCE_MAX_FILE_MB,
+  imdgChapter32RowsToReferenceEntries,
   parseImdgChapter32,
   type ImdgChapter32Entry,
 } from '../../utils/dg-imdg-chapter32-pdf.util';
+import {
+  EMS_SCHEDULE_MAX_FILE_BYTES,
+  EMS_SCHEDULE_MAX_FILE_MB,
+  EmsScheduleParseError,
+  parseEmsSchedulePdf,
+  type EmsScheduleKind,
+} from '../../utils/dg-ems-schedule-pdf.util';
 import {
   diffImdgReference,
   type DgUnReferenceImportReport,
@@ -29,6 +35,7 @@ import {
   DgUnReferenceStore,
   type DgUnReferenceApplyMode,
 } from '../../services/dg-un-reference.store';
+import { DgEmsReferenceStore } from '../../services/dg-ems-reference.store';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 
@@ -48,12 +55,16 @@ const PROGRESS_REPAINT_EVERY = 5;
 export class DgReferenceComponent {
   private readonly storage = inject(StorageService);
   private readonly unReference = inject(DgUnReferenceStore);
+  private readonly emsReference = inject(DgEmsReferenceStore);
   private readonly toast = inject(ToastService);
 
   private readonly syncPdfInput = viewChild<ElementRef<HTMLInputElement>>('syncPdfInput');
-
-  protected readonly fireSchedules = MFAG_FIRE_SCHEDULE_REFS;
-  protected readonly spillageSchedules = MFAG_SPILLAGE_SCHEDULE_REFS;
+  private readonly emsFirePdfInput = viewChild<ElementRef<HTMLInputElement>>('emsFirePdfInput');
+  private readonly emsSpillagePdfInput =
+    viewChild<ElementRef<HTMLInputElement>>('emsSpillagePdfInput');
+  protected readonly fireSchedules = this.emsReference.fireRows;
+  protected readonly spillageSchedules = this.emsReference.spillageRows;
+  protected readonly emsLibrary = this.emsReference.library;
   protected readonly formatMeta = formatUnNumberMeta;
 
   /** Reactive so the page refreshes the moment an imported IMDG list is applied. */
@@ -64,6 +75,12 @@ export class DgReferenceComponent {
 
   protected readonly referenceLibrary = this.storage.dgUnReference;
   protected readonly bundledCount = getBundledUnNumberRows().length;
+
+  protected readonly emsDragOver = signal<EmsScheduleKind | null>(null);
+  protected readonly emsPhase = signal<SyncPhase>('idle');
+  protected readonly emsProgress = signal(0);
+  protected readonly emsBusyKind = signal<EmsScheduleKind | null>(null);
+  private emsRunId = 0;
 
   protected readonly unSearch = signal('');
   protected readonly unClassFilter = signal<string | null>(null);
@@ -80,7 +97,7 @@ export class DgReferenceComponent {
   /** Parsed report awaiting the user's decision in the modal. */
   protected readonly importReport = signal<DgUnReferenceImportReport | null>(null);
   protected readonly confirmClear = signal(false);
-  private pendingEntries: ReadonlyMap<string, ImdgChapter32Entry> | null = null;
+  private pendingEntries: readonly ImdgChapter32Entry[] | null = null;
 
   private syncRunId = 0;
 
@@ -245,6 +262,107 @@ export class DgReferenceComponent {
     this.unReference.restoreBundled();
   }
 
+  protected restoreBundledEms(): void {
+    this.emsReference.restoreBundled();
+  }
+
+  protected pickEmsPdf(kind: EmsScheduleKind): void {
+    if (this.emsPhase() === 'parsing') return;
+    const input = kind === 'fire' ? this.emsFirePdfInput() : this.emsSpillagePdfInput();
+    input?.nativeElement.click();
+  }
+
+  protected onEmsDragOver(event: DragEvent, kind: EmsScheduleKind): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.emsDragOver.set(kind);
+  }
+
+  protected onEmsDragLeave(): void {
+    this.emsDragOver.set(null);
+  }
+
+  protected onEmsDrop(event: DragEvent, kind: EmsScheduleKind): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.emsDragOver.set(null);
+    const files = event.dataTransfer?.files;
+    if (files?.length) void this.beginEmsImport(Array.from(files), kind);
+  }
+
+  protected onEmsFileInput(event: Event, kind: EmsScheduleKind): void {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    input.value = '';
+    if (files?.length) void this.beginEmsImport(Array.from(files), kind);
+  }
+
+  private async beginEmsImport(files: readonly File[], expectedKind: EmsScheduleKind): Promise<void> {
+    const pdfs = files.filter(
+      (file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'),
+    );
+    if (!pdfs.length) {
+      this.toast.showError('Drop an EmS Guide FIRE or SPILLAGE schedules PDF.');
+      return;
+    }
+    const file = pdfs[0]!;
+    if (file.size > EMS_SCHEDULE_MAX_FILE_BYTES) {
+      this.toast.showError(
+        `“${file.name}” is too large (limit ${EMS_SCHEDULE_MAX_FILE_MB} MB). Use the EmS schedule extract only.`,
+      );
+      return;
+    }
+
+    const runId = ++this.emsRunId;
+    this.emsPhase.set('parsing');
+    this.emsBusyKind.set(expectedKind);
+    this.emsProgress.set(0);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      if (runId !== this.emsRunId) return;
+      const items = await extractDgPdfTextItems(new Uint8Array(buffer), async (page, total) => {
+        if (runId !== this.emsRunId) return;
+        this.emsProgress.set(Math.round((page / total) * 100));
+        if (page % PROGRESS_REPAINT_EVERY === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      });
+      if (runId !== this.emsRunId) return;
+
+      const parsed = parseEmsSchedulePdf(items);
+      if (parsed.kind !== expectedKind) {
+        this.toast.showError(
+          parsed.kind === 'fire'
+            ? 'This PDF is EmS FIRE schedules — drop it on the Fire schedule section.'
+            : 'This PDF is EmS SPILLAGE schedules — drop it on the Spillage schedule section.',
+        );
+        this.emsPhase.set('idle');
+        this.emsBusyKind.set(null);
+        return;
+      }
+
+      this.emsReference.applyImport(parsed.kind, parsed.rows, { fileName: file.name });
+      if (parsed.warnings.length) {
+        this.toast.showError(parsed.warnings[0]!);
+      }
+      this.emsPhase.set('idle');
+      this.emsBusyKind.set(null);
+      this.emsProgress.set(0);
+    } catch (error) {
+      if (runId !== this.emsRunId) return;
+      this.emsPhase.set('idle');
+      this.emsBusyKind.set(null);
+      this.emsProgress.set(0);
+      if (error instanceof EmsScheduleParseError) {
+        this.toast.showError(error.message);
+        return;
+      }
+      const detail = error instanceof Error ? error.message : 'unknown error';
+      this.toast.showError(`Could not read EmS PDF (${detail}).`);
+    }
+  }
+
   /**
    * Read a dropped IMDG PDF and parse the Chapter 3.2 Dangerous Goods List.
    * Nothing is saved here — the diff is handed to the modal so the user decides.
@@ -310,29 +428,53 @@ export class DgReferenceComponent {
       if (runId !== this.syncRunId) return;
 
       this.syncStage.set('Matching Dangerous Goods List');
-      const parsed = parseImdgChapter32(items);
-      const entries = collapseImdgRows(parsed.rows);
-      if (runId !== this.syncRunId) return;
+      try {
+        const parsed = parseImdgChapter32(items);
+        const entries = imdgChapter32RowsToReferenceEntries(parsed.rows);
+        if (runId !== this.syncRunId) return;
 
-      this.syncProgress.set(100);
-      this.syncStage.set('');
-      this.pendingEntries = entries;
-      this.importReport.set({
-        fileName: file.name,
-        amendment: parsed.amendment,
-        tablePages: parsed.tablePages.length,
-        skippedLeadingPages: parsed.skippedLeadingPages,
-        totalPages: parsed.totalPages,
-        rowCount: parsed.rows.length,
-        diff: diffImdgReference(entries, this.allUnRows()),
-      });
-      this.syncPhase.set('idle');
+        this.syncProgress.set(100);
+        this.syncStage.set('');
+        this.pendingEntries = entries;
+        this.importReport.set({
+          fileName: file.name,
+          amendment: parsed.amendment,
+          tablePages: parsed.tablePages.length,
+          skippedLeadingPages: parsed.skippedLeadingPages,
+          totalPages: parsed.totalPages,
+          rowCount: parsed.rows.length,
+          diff: diffImdgReference(entries, this.allUnRows()),
+        });
+        this.syncPhase.set('idle');
+        return;
+      } catch (chapterError) {
+        if (!(chapterError instanceof ImdgChapter32ParseError)) throw chapterError;
+        // EmS Fire/Spillage PDFs often land here — route them instead of a Chapter 3.2 error.
+        try {
+          const ems = parseEmsSchedulePdf(items);
+          if (runId !== this.syncRunId) return;
+          this.emsReference.applyImport(ems.kind, ems.rows, { fileName: file.name });
+          this.expandedSections.update((sections) => {
+            const next = new Set(sections);
+            next.add(ems.kind);
+            return next;
+          });
+          this.syncPhase.set('idle');
+          this.syncProgress.set(0);
+          this.syncStage.set('');
+          this.syncFiles.set([]);
+          this.syncMessage.set('');
+          return;
+        } catch {
+          this.failSync(
+            `${chapterError.message} For EmS Fire / Spillage schedules, drop the PDF on those sections below.`,
+            [file.name],
+          );
+          return;
+        }
+      }
     } catch (error) {
       if (runId !== this.syncRunId) return;
-      if (error instanceof ImdgChapter32ParseError) {
-        this.failSync(error.message, [file.name]);
-        return;
-      }
       const detail = error instanceof Error ? error.message : 'unknown error';
       this.failSync(
         `Could not read this PDF (${detail}). Make sure it has a text layer, then try again.`,

@@ -388,6 +388,7 @@ export class DocumentCatalogService {
       narcoticListForm: this.storage.narcoticListForm(),
       dgLibrary: this.storage.dgLibrary(),
       dgUnReference: this.storage.dgUnReference(),
+      dgEmsReference: this.storage.dgEmsReference(),
       reeferLibrary: this.storage.reeferLibrary(),
       etaLibrary: this.storage.etaLibrary(),
       fuelLibrary: this.storage.fuelLibrary(),

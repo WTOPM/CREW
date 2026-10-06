@@ -1,4 +1,4 @@
-const MAX_ROWS = 18; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-list-form-07.paths.ts
+const MAX_ROWS = 20; // keep in sync with CREW_LIST_FORM_07_MAX_ROWS in crew-list-form-07.paths.ts
 
 function resolveTargetRowCount(savedCount, currentCount, maxRows) {
   if (window.HtmlFormCrewListKit?.resolveTargetRowCount) {
@@ -1065,7 +1065,9 @@ function resolveTargetRowCount(savedCount, currentCount, maxRows) {
       }
 
       const prev = appData.documentOverlay.crewList.byType[CREW_FORM_07_TYPE] || {};
-      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
+      const prevWithoutFooterDate = window.HtmlFormEditorOverlay?.stripLiveFields
+        ? HtmlFormEditorOverlay.stripLiveFields(prev)
+        : (({ footerSignatureDate: _d, footerMasterName: _m, ...rest }) => rest)(prev);
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
@@ -1436,8 +1438,15 @@ function resolveTargetRowCount(savedCount, currentCount, maxRows) {
 
         let master = null;
         if (crewList.length > 0) {
-          master = crewList.find(c => c.rank && c.rank.toLowerCase().includes('master')) || crewList[0];
-          defaultMasterName = master ? CrewNameFormat.formatCrewListName(master) : '';
+          if (window.HtmlFormListMode?.pickMasterName) {
+            defaultMasterName = HtmlFormListMode.pickMasterName(crewList);
+          } else {
+            master =
+              crewList.find((c) => c.rank && c.rank.trim().toLowerCase() === 'master') ||
+              crewList.find((c) => c.rank && c.rank.toLowerCase().includes('master')) ||
+              crewList[0];
+            defaultMasterName = master ? CrewNameFormat.formatCrewListName(master) : '';
+          }
         }
 
         crewList.forEach(c => {

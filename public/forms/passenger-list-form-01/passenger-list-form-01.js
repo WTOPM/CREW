@@ -679,7 +679,9 @@ const tbody = document.getElementById('tbody');
       }
 
       const prev = appData.documentOverlay[OVERLAY_KEY] || {};
-      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
+      const prevWithoutFooterDate = window.HtmlFormEditorOverlay?.stripLiveFields
+        ? HtmlFormEditorOverlay.stripLiveFields(prev)
+        : (({ footerSignatureDate: _d, footerMasterName: _m, ...rest }) => rest)(prev);
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
@@ -1011,13 +1013,22 @@ const tbody = document.getElementById('tbody');
               );
         }
 
-        const masterSource = snapshot?.allCrew || appData.crew || [];
-        let master = null;
+        const masterSource = snapshot?.allCrew
+          ? snapshot.allCrew
+          : window.HtmlFormListMode
+            ? HtmlFormListMode.filterCrew(appData, isArrival ? 'arrival' : 'departure')
+            : (appData.crew || []).filter(
+                (c) => !c.archived && (isArrival ? !!c.onArrivalList : !!c.onDepartureList),
+              );
         if (Array.isArray(masterSource) && masterSource.length > 0) {
-          master =
-            masterSource.find((c) => c.rank && c.rank.trim().toLowerCase() === 'master') ||
-            masterSource.find((c) => c.rank && c.rank.toLowerCase().includes('master'));
-          defaultMasterName = master ? CrewNameFormat.formatCrewListName(master, { upper: true }) : '';
+          if (window.HtmlFormListMode?.pickMasterName) {
+            defaultMasterName = HtmlFormListMode.pickMasterName(masterSource, { upper: true });
+          } else {
+            const master =
+              masterSource.find((c) => c.rank && c.rank.trim().toLowerCase() === 'master') ||
+              masterSource.find((c) => c.rank && c.rank.toLowerCase().includes('master'));
+            defaultMasterName = master ? CrewNameFormat.formatCrewListName(master, { upper: true }) : '';
+          }
         }
 
         passengerList.forEach((p) => {

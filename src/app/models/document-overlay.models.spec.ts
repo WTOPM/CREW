@@ -117,4 +117,35 @@ describe('normalizeAppData Form 05 overlay', () => {
       height: '20mm',
     });
   });
+
+  it('drops frozen footerMasterName from crew list variants', () => {
+    const data = normalizeAppData({
+      documentOverlay: {
+        crewList: {
+          listType: 'type1Passport',
+          byType: {
+            type1Passport: {
+              useStamp: false,
+              useSignature: false,
+              footerMasterName: 'OLD CAPTAIN',
+            },
+          },
+        },
+        portOfCall: {
+          useStamp: false,
+          useSignature: false,
+          footerMasterName: 'OLD CAPTAIN',
+        },
+        pax: {
+          useStamp: false,
+          useSignature: false,
+          footerMasterName: 'OLD CAPTAIN',
+        },
+      },
+    } as never);
+
+    expect(data.documentOverlay.crewList.byType.type1Passport?.footerMasterName).toBeUndefined();
+    expect(data.documentOverlay.portOfCall.footerMasterName).toBeUndefined();
+    expect(data.documentOverlay.pax.footerMasterName).toBeUndefined();
+  });
 });

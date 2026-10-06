@@ -6,6 +6,7 @@ import {
   lookupDepRepDensity,
   parseCargoTons,
   readDepRepDensityTable,
+  readDepRepLatestSheetSnapshot,
   readDepRepSheetSnapshot,
 } from './dep-rep-excel.util';
 
@@ -118,6 +119,8 @@ describe('readDepRepSheetSnapshot', () => {
     ws.getCell('D8').value = 9.3;
     ws.getCell('F9').value = 14719;
     ws.getCell('E6').value = 1;
+    ws.getCell('A11').value = '3';
+    ws.getCell('B11').value = 1200;
     const buf = (await wb.xlsx.writeBuffer()) as ArrayBuffer;
 
     const snap = await readDepRepSheetSnapshot(buf, '138 LVRIX');
@@ -129,6 +132,22 @@ describe('readDepRepSheetSnapshot', () => {
     expect(snap.draftAft).toBe('9.4');
     expect(snap.draftFore).toBe('9.3');
     expect(snap.density).toBe('1');
+    expect(snap.classRows).toEqual([{ dgClass: '3', totalKg: 1200 }]);
+  });
+
+  it('loads the leftmost worksheet as latest', async () => {
+    const wb = new ExcelJS.Workbook();
+    const latest = wb.addWorksheet('101 FIHEL');
+    latest.getCell('B2').value = 'FIHEL';
+    latest.getCell('F2').value = '101';
+    latest.getCell('F9').value = 50;
+    wb.addWorksheet('100 DEHAM');
+    const buf = (await wb.xlsx.writeBuffer()) as ArrayBuffer;
+    const snap = await readDepRepLatestSheetSnapshot(buf);
+    expect(snap.exists).toBe(true);
+    expect(snap.sheetName).toBe('101 FIHEL');
+    expect(snap.voyage).toBe('101');
+    expect(snap.totalCargo).toBe('50');
   });
 });
 

@@ -8,6 +8,14 @@
       <a routerLink="/eta/timezones" class="btn btn-secondary btn-sm eta-tz-link" title="Browse world timezones">
         World timezones
       </a>
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        title="Shared GPS waypoints catalog"
+        (click)="showWaypointsModal.set(true)"
+      >
+        GPS points
+      </button>
       <button type="button" class="btn btn-secondary" [title]="etaTips.newPlan" (click)="newPlan()">New</button>
       <button
         type="button"
@@ -262,21 +270,69 @@
                 <tr>
                   <td class="eta-col-no">{{ i + 1 }}</td>
                   <td class="eta-col-from">
-                    <span class="eta-route-end">{{ calculation().legs[i]?.fromLabel || '—' }}</span>
+                    @let fromGps = legFromGpsTarget(i);
+                    <div class="eta-route-cell">
+                      <span class="eta-route-end">{{ calculation().legs[i]?.fromLabel || '—' }}</span>
+                      @if (i === 0) {
+                        <button
+                          type="button"
+                          class="eta-gps-pin"
+                          [class.eta-gps-pin--set]="hasGps(fromGps)"
+                          [class.eta-gps-pin--open]="isGpsPanelOpen(fromGps)"
+                          [title]="hasGps(fromGps) ? 'View / edit GPS (departure)' : 'Add GPS for departure (FROM)'"
+                          (click)="toggleGpsPanel(fromGps, $event)"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path
+                              fill="currentColor"
+                              d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
+                            />
+                          </svg>
+                        </button>
+                      }
+                    </div>
                   </td>
                   <td class="eta-col-to">
-                    @if (isLastLeg(i)) {
-                      <span class="eta-route-end eta-route-end--port">{{ calculation().legs[i]?.toLabel || '—' }}</span>
-                    } @else {
-                      <input
-                        type="text"
-                        class="eta-input eta-input--route"
-                        [title]="etaTips.legWaypoint"
-                        [ngModel]="leg.toLabel"
-                        (ngModelChange)="onLegToLabel(leg.id, $event)"
-                        placeholder="Intermediate point"
-                      />
-                    }
+                    @let toGps = legToGpsTarget(i);
+                    <div class="eta-route-cell">
+                      @if (isLastLeg(i)) {
+                        <span class="eta-route-end eta-route-end--port">{{
+                          calculation().legs[i]?.toLabel || '—'
+                        }}</span>
+                      } @else {
+                        <input
+                          type="text"
+                          class="eta-input eta-input--route"
+                          [title]="etaTips.legWaypoint"
+                          [ngModel]="leg.toLabel"
+                          (ngModelChange)="onLegToLabel(leg.id, $event)"
+                          placeholder="Intermediate point"
+                        />
+                      }
+                      <button
+                        type="button"
+                        class="eta-gps-pin"
+                        [class.eta-gps-pin--set]="hasGps(toGps)"
+                        [class.eta-gps-pin--open]="isGpsPanelOpen(toGps)"
+                        [title]="
+                          hasGps(toGps)
+                            ? isLastLeg(i)
+                              ? 'View / edit GPS (arrival)'
+                              : 'View / edit GPS (waypoint)'
+                            : isLastLeg(i)
+                              ? 'Add GPS for arrival (TO)'
+                              : 'Add GPS for this waypoint (TO)'
+                        "
+                        (click)="toggleGpsPanel(toGps, $event)"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path
+                            fill="currentColor"
+                            d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                   <td class="eta-col-nm" [title]="etaTips.legDistance">
                     <input
@@ -458,3 +514,167 @@
   (closeSave)="showSaveModal.set(false)"
   (closeLoad)="showLoadModal.set(false)"
 />
+
+<app-eta-waypoints-modal [open]="showWaypointsModal()" (close)="showWaypointsModal.set(false)" />
+
+@if (gpsPanel(); as gps) {
+  @if (!gpsFloatMode()) {
+  <div
+    class="eta-gps-toast"
+    [class.eta-gps-toast--locked]="!gpsWindowActive()"
+    role="dialog"
+    aria-label="GPS coordinates"
+  >
+    <div class="eta-gps-toast__inner">
+      <button type="button" class="eta-gps-toast__head" tabindex="-1" (click)="dismissGpsPanel()" title="Hide">
+        <span class="eta-gps-toast__pin" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
+            />
+          </svg>
+        </span>
+        <span class="eta-gps-toast__titles">
+          <strong>{{ gps.target.label }}</strong>
+          <span>{{ gpsPanelSummary() }}</span>
+        </span>
+        <span class="eta-gps-toast__hint">hide</span>
+      </button>
+
+      <div class="eta-gps-dms" (keydown)="onGpsDmsKeydown($event)">
+        <div class="eta-gps-dms__row">
+          <input
+            class="eta-gps-dms__num eta-gps-dms__num--deg"
+            type="text"
+            inputmode="numeric"
+            maxlength="2"
+            placeholder="00"
+            data-gps-idx="0"
+            [ngModel]="gps.lat.deg"
+            (ngModelChange)="onGpsDmsPart('lat', 'deg', $event)"
+            (focus)="onGpsDmsFocus($event)"
+            (blur)="onGpsPanelBlur('lat', 'deg')"
+            [readonly]="!gpsWindowActive()"
+            aria-label="Latitude degrees"
+          />
+          <span class="eta-gps-dms__sym" aria-hidden="true">°</span>
+          <input
+            class="eta-gps-dms__num"
+            type="text"
+            inputmode="numeric"
+            maxlength="2"
+            placeholder="00"
+            data-gps-idx="1"
+            [ngModel]="gps.lat.min"
+            (ngModelChange)="onGpsDmsPart('lat', 'min', $event)"
+            (focus)="onGpsDmsFocus($event)"
+            (blur)="onGpsPanelBlur('lat', 'min')"
+            [readonly]="!gpsWindowActive()"
+            aria-label="Latitude minutes"
+          />
+          <span class="eta-gps-dms__sym" aria-hidden="true">.</span>
+          <input
+            class="eta-gps-dms__num"
+            type="text"
+            inputmode="numeric"
+            maxlength="2"
+            placeholder="00"
+            data-gps-idx="2"
+            [ngModel]="gps.lat.sec"
+            (ngModelChange)="onGpsDmsPart('lat', 'sec', $event)"
+            (focus)="onGpsDmsFocus($event)"
+            (blur)="onGpsPanelBlur('lat', 'sec')"
+            [readonly]="!gpsWindowActive()"
+            aria-label="Latitude hundredths of a minute"
+          />
+          <span class="eta-gps-dms__sym" aria-hidden="true">′</span>
+          <button
+            type="button"
+            class="eta-gps-dms__hemi"
+            data-gps-idx="3"
+            title="Toggle N / S (↑↓)"
+            [disabled]="!gpsWindowActive()"
+            (click)="toggleGpsHemi('lat', $event)"
+          >
+            {{ gps.lat.hemi }}
+          </button>
+        </div>
+
+        <div class="eta-gps-dms__row">
+          <input
+            class="eta-gps-dms__num eta-gps-dms__num--deg-lon"
+            type="text"
+            inputmode="numeric"
+            maxlength="3"
+            placeholder="000"
+            data-gps-idx="4"
+            [ngModel]="gps.lon.deg"
+            (ngModelChange)="onGpsDmsPart('lon', 'deg', $event)"
+            (focus)="onGpsDmsFocus($event)"
+            (blur)="onGpsPanelBlur('lon', 'deg')"
+            [readonly]="!gpsWindowActive()"
+            aria-label="Longitude degrees"
+          />
+          <span class="eta-gps-dms__sym" aria-hidden="true">°</span>
+          <input
+            class="eta-gps-dms__num"
+            type="text"
+            inputmode="numeric"
+            maxlength="2"
+            placeholder="00"
+            data-gps-idx="5"
+            [ngModel]="gps.lon.min"
+            (ngModelChange)="onGpsDmsPart('lon', 'min', $event)"
+            (focus)="onGpsDmsFocus($event)"
+            (blur)="onGpsPanelBlur('lon', 'min')"
+            [readonly]="!gpsWindowActive()"
+            aria-label="Longitude minutes"
+          />
+          <span class="eta-gps-dms__sym" aria-hidden="true">.</span>
+          <input
+            class="eta-gps-dms__num"
+            type="text"
+            inputmode="numeric"
+            maxlength="2"
+            placeholder="00"
+            data-gps-idx="6"
+            [ngModel]="gps.lon.sec"
+            (ngModelChange)="onGpsDmsPart('lon', 'sec', $event)"
+            (focus)="onGpsDmsFocus($event)"
+            (blur)="onGpsPanelBlur('lon', 'sec')"
+            [readonly]="!gpsWindowActive()"
+            aria-label="Longitude hundredths of a minute"
+          />
+          <span class="eta-gps-dms__sym" aria-hidden="true">′</span>
+          <button
+            type="button"
+            class="eta-gps-dms__hemi"
+            data-gps-idx="7"
+            title="Toggle E / W (↑↓)"
+            [disabled]="!gpsWindowActive()"
+            (click)="toggleGpsHemi('lon', $event)"
+          >
+            {{ gps.lon.hemi }}
+          </button>
+        </div>
+      </div>
+
+      <div class="eta-gps-toast__foot">
+        <button
+          type="button"
+          class="eta-gps-toast__clear"
+          tabindex="-1"
+          [disabled]="!gpsWindowActive()"
+          (click)="clearGpsPanel()"
+        >
+          Clear
+        </button>
+        <button type="button" class="eta-gps-toast__done" tabindex="-1" (click)="dismissGpsPanel()">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+}

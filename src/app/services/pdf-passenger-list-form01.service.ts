@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { AppData } from '../models/crew.models';
+import { AppData, filterActiveCrewListFromData } from '../models/crew.models';
 import { PassengerMember } from '../models/passenger.models';
 import { passengerListForm01EditorUrl } from '../models/passenger-list-form-01.paths';
 import { passengersToCrewRows } from '../utils/passenger-pdf.util';
@@ -31,7 +31,7 @@ export class PdfPassengerListForm01Service {
     isArrival: boolean,
   ): Promise<Uint8Array> {
     const mode = isArrival ? 'arrival' : 'departure';
-    const snapshot = this.buildSnapshot(data, passengers);
+    const snapshot = this.buildSnapshot(data, passengers, isArrival);
     const url = passengerListForm01EditorUrl({
       mode,
       pdfExport: '1',
@@ -52,8 +52,11 @@ export class PdfPassengerListForm01Service {
     return passengerListPdfFileName(ship.name, ship.portOfCall, voyageDate, isArrival);
   }
 
-  private buildSnapshot(data: AppData, passengers: PassengerMember[]) {
+  private buildSnapshot(data: AppData, passengers: PassengerMember[], isArrival: boolean) {
     const rows = passengersToCrewRows(passengers);
+    const list = isArrival ? 'arrival' : 'departure';
+    // Footer master must match this document's A/D crew list (not the other list's captain).
+    const crewForMaster = filterActiveCrewListFromData(data, list);
     return {
       ship: data.ship,
       ports: data.ports.map((p) => ({ name: p.name, country: p.country })),
@@ -66,7 +69,7 @@ export class PdfPassengerListForm01Service {
         placeOfBirth: c.placeOfBirth,
         passport: c.passport,
       })),
-      allCrew: data.crew.map((c) => ({
+      allCrew: crewForMaster.map((c) => ({
         familyName: c.familyName,
         givenNames: c.givenNames,
         rank: c.rank,

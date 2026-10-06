@@ -37,6 +37,10 @@ export interface ElectronLocalPrefs {
   fuelVisibleColumns?: string[];
   /** Show FUEL hour fields as H:MM instead of decimal. */
   fuelHoursAsHm?: boolean;
+  /** Show FUEL date/time as UTC (local − fuelUtcOffsetHours). */
+  fuelShowUtc?: boolean;
+  /** Ship local = UTC+N (hours). */
+  fuelUtcOffsetHours?: number;
   /**
    * @deprecated Migrated into shared fuelLibrary.displayPresets.
    * Still read once for migration, then cleared.
@@ -88,6 +92,42 @@ declare global {
       getLocalPrefs: () => Promise<ElectronLocalPrefs>;
       setLocalPrefs: (patch: Partial<ElectronLocalPrefs>) => Promise<ElectronLocalPrefs>;
       onAppRestoredFromTray: (callback: () => void) => () => void;
+      /** Float the main window above other apps (legacy; GPS uses openGpsFloat). */
+      setWindowAlwaysOnTop: (enabled: boolean) => Promise<{ ok: boolean; enabled?: boolean }>;
+      getWindowActive: () => Promise<boolean>;
+      onAppWindowActive: (callback: (active: boolean) => void) => () => void;
+      openGpsFloat: (payload: {
+        targetKey: string;
+        legId?: string;
+        label: string;
+        lat: { deg: string; min: string; sec: string; hemi: string };
+        lon: { deg: string; min: string; sec: string; hemi: string };
+      }) => Promise<{ ok: boolean }>;
+      closeGpsFloat: () => Promise<{ ok: boolean }>;
+      isGpsFloatOpen: () => Promise<boolean>;
+      onGpsFloatCommit: (
+        callback: (payload: {
+          targetKey: string;
+          legId?: string;
+          lat: { deg: string; min: string; sec: string; hemi: string };
+          lon: { deg: string; min: string; sec: string; hemi: string };
+          dirty?: boolean;
+          clear?: boolean;
+        }) => void,
+      ) => () => void;
+      onGpsFloatClosed: (
+        callback: (
+          payload: {
+            save?: boolean;
+            clear?: boolean;
+            targetKey?: string;
+            legId?: string;
+            lat?: { deg: string; min: string; sec: string; hemi: string };
+            lon?: { deg: string; min: string; sec: string; hemi: string };
+            dirty?: boolean;
+          } | null,
+        ) => void,
+      ) => () => void;
       pickPdfFile: () => Promise<string | null>;
       pickExcelFile: (defaultPath?: string) => Promise<string | null>;
       readFileBase64: (
@@ -114,6 +154,11 @@ declare global {
           }>;
         },
       ) => Promise<{ ok: boolean; created?: boolean; sheetName?: string; error?: string }>;
+      /** Delete one DEP REP worksheet; returns the new leftmost sheet name when any remain. */
+      deleteDepRepSheet: (
+        filePath: string,
+        sheetName: string,
+      ) => Promise<{ ok: boolean; deleted?: string; latestSheetName?: string; error?: string }>;
       /** Excel ExportAsFixedFormat for a DEP REP sheet → PDF base64 (print layout as in Excel). */
       exportDepRepPdf: (
         filePath: string,

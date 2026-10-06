@@ -1,0 +1,117 @@
+@if (dialog(); as d) {
+  <div class="modal-backdrop confirm-backdrop" (click)="cancel()">
+    <div
+      class="modal dg-archive-modal confirm-dialog"
+      [class.confirm-dialog--danger]="d.variant === 'danger'"
+      [class.confirm-dialog--compare]="!!d.comparison"
+      role="alertdialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="'confirm-dialog-title'"
+      [attr.aria-describedby]="'confirm-dialog-message'"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="dg-archive-modal__head">
+        <div
+          class="dg-archive-modal__icon confirm-dialog__icon"
+          [class.confirm-dialog__icon--danger]="d.variant === 'danger'"
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 24 24" focusable="false">
+            @if (d.variant === 'danger') {
+              <path
+                fill="currentColor"
+                d="M12 2 1 21h22L12 2zm0 4.2L19.5 19H4.5L12 6.2zM11 10v5h2v-5h-2zm0 7v2h2v-2h-2z"
+              />
+            } @else {
+              <path
+                fill="currentColor"
+                d="M11 17h2v-6h-2v6zm1-8a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5zM12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"
+              />
+            }
+          </svg>
+        </div>
+        <div class="dg-archive-modal__intro">
+          <h3 id="confirm-dialog-title">{{ d.title }}</h3>
+          @if (!d.comparison) {
+            <p id="confirm-dialog-message" class="confirm-dialog__message">{{ d.message }}</p>
+          }
+        </div>
+      </header>
+
+      @if (d.comparison; as cmp) {
+        <div class="confirm-dialog__compare" id="confirm-dialog-message">
+          <div class="confirm-dialog__side confirm-dialog__side--manifest">
+            <span class="confirm-dialog__side-label">{{ cmp.leftLabel }}</span>
+            <strong class="confirm-dialog__side-value">{{ cmp.leftValue }}</strong>
+          </div>
+          <div class="confirm-dialog__vs" aria-hidden="true">≠</div>
+          <div class="confirm-dialog__side confirm-dialog__side--reference">
+            <span class="confirm-dialog__side-label">{{ cmp.rightLabel }}</span>
+            <strong class="confirm-dialog__side-value">{{ cmp.rightValue }}</strong>
+          </div>
+        </div>
+        @if (d.message.trim()) {
+          <p class="confirm-dialog__hint">{{ d.message }}</p>
+        }
+      }
+
+      <footer class="dg-archive-modal__foot confirm-dialog__foot">
+        @if (d.comparison) {
+          <div class="confirm-dialog__action-cols">
+            <div class="confirm-dialog__action-col">
+              <span class="confirm-dialog__action-col-label">MANIFEST</span>
+              <button type="button" class="btn btn-secondary" (click)="cancel()">
+                {{ d.cancelLabel }}
+              </button>
+              @if (d.alt2Label) {
+                <button type="button" class="btn btn-secondary" (click)="acceptAlt2()">
+                  {{ d.alt2Label }}
+                </button>
+              }
+            </div>
+            <div class="confirm-dialog__action-col">
+              <span class="confirm-dialog__action-col-label">DG REFERENCE</span>
+              <button
+                type="button"
+                class="btn"
+                [class.btn-primary]="d.variant !== 'danger'"
+                [class.btn-danger]="d.variant === 'danger'"
+                (click)="accept()"
+              >
+                {{ d.confirmLabel }}
+              </button>
+              @if (d.altLabel) {
+                <button type="button" class="btn btn-secondary" (click)="acceptAlt()">
+                  {{ d.altLabel }}
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <button type="button" class="btn btn-secondary" (click)="cancel()">
+            {{ d.cancelLabel }}
+          </button>
+          @if (d.altLabel) {
+            <button type="button" class="btn btn-secondary" (click)="acceptAlt()">
+              {{ d.altLabel }}
+            </button>
+          }
+          @if (d.alt2Label) {
+            <button type="button" class="btn btn-secondary" (click)="acceptAlt2()">
+              {{ d.alt2Label }}
+            </button>
+          }
+          <button
+            type="button"
+            class="btn"
+            [class.btn-primary]="d.variant !== 'danger'"
+            [class.btn-danger]="d.variant === 'danger'"
+            (click)="accept()"
+          >
+            {{ d.confirmLabel }}
+          </button>
+        }
+      </footer>
+    </div>
+  </div>
+}

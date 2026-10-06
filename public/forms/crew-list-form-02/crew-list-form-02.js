@@ -672,7 +672,9 @@ const tbody = document.getElementById('tbody');
       }
 
       const prev = appData.documentOverlay.crewList.byType[CREW_FORM_02_TYPE] || {};
-      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
+      const prevWithoutFooterDate = window.HtmlFormEditorOverlay?.stripLiveFields
+        ? HtmlFormEditorOverlay.stripLiveFields(prev)
+        : (({ footerSignatureDate: _d, footerMasterName: _m, ...rest }) => rest)(prev);
       const stampBox = overlayCssBox(window._currentPositions.stamp, cssBoxFromVariant(prev.stampBox));
       const signatureBox = overlayCssBox(window._currentPositions.sig, cssBoxFromVariant(prev.signatureBox));
 
@@ -1003,8 +1005,15 @@ const tbody = document.getElementById('tbody');
 
         let master = null;
         if (crewList.length > 0) {
-          master = crewList.find(c => c.rank && c.rank.toLowerCase().includes('master')) || crewList[0];
-          defaultMasterName = master ? CrewNameFormat.formatCrewListName(master, { upper: true }) : '';
+          if (window.HtmlFormListMode?.pickMasterName) {
+            defaultMasterName = HtmlFormListMode.pickMasterName(crewList, { upper: true });
+          } else {
+            master =
+              crewList.find((c) => c.rank && c.rank.trim().toLowerCase() === 'master') ||
+              crewList.find((c) => c.rank && c.rank.toLowerCase().includes('master')) ||
+              crewList[0];
+            defaultMasterName = master ? CrewNameFormat.formatCrewListName(master, { upper: true }) : '';
+          }
         }
 
         crewList.forEach(c => {

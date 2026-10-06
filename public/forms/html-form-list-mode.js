@@ -195,14 +195,14 @@
       );
     }
 
-    if (o.updateFooterMaster !== false) {
-      const masterName = pickMasterName(members, { upper: !!o.masterNameUpper });
-      const locked = o.appData?.documentOverlay
-        ? findFooterMasterOverride(o.appData, o.overlayPath)
-        : '';
-      if (!locked && global.HtmlFormFooterFields?.setMasterName) {
-        global.HtmlFormFooterFields.setMasterName(masterName);
-      }
+    if (o.updateFooterMaster !== false && global.HtmlFormFooterFields?.setMasterName) {
+      // Always refresh from the crew list for this A/D mode (topmost Master).
+      // Pax forms still sign with the captain from arrival/departure crew — not passengers.
+      const masterMembers =
+        o.kind === 'pax' ? filterCrew(o.appData, mode) : members;
+      global.HtmlFormFooterFields.setMasterName(
+        pickMasterName(masterMembers, { upper: !!o.masterNameUpper }),
+      );
     }
 
     if (typeof o.restoreStyles === 'function') o.restoreStyles();
@@ -217,18 +217,6 @@
     if (typeof o.afterFill === 'function') o.afterFill(members);
 
     return members;
-  }
-
-  function findFooterMasterOverride(appData, overlayPath) {
-    if (!overlayPath) return '';
-    // overlayPath like ['crewList','byType','type1Passport'] or ['pax']
-    let cur = appData.documentOverlay;
-    for (const key of overlayPath) {
-      if (!cur || typeof cur !== 'object') return '';
-      cur = cur[key];
-    }
-    const name = cur?.footerMasterName;
-    return typeof name === 'string' ? name.trim() : '';
   }
 
   /**

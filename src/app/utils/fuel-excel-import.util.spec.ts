@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { importFuelLogFromExcelBytes } from './fuel-excel-import.util';
+import { importFuelLogFromExcelBytes, writeFuelLogToExcelBytes } from './fuel-excel-import.util';
 import ExcelJS from 'exceljs';
+import { createEmptyFuelLogEvent } from '../models/fuel.models';
 
 describe('importFuelLogFromExcelBytes', () => {
   it('reads MASTER rows and classifies kinds', async () => {
@@ -132,5 +133,236 @@ describe('importFuelLogFromExcelBytes', () => {
     expect(result.events[0].ae2Kw).toBe(420);
     expect(result.events[0].ae3Kw).toBe(9600);
     expect(result.events[0].ae1Hours).toBe(1.4);
+  });
+
+  it('reads machinery from FO-VPC sheet named ENGINE LOG', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    master.getCell('A5').value = 'Sea';
+    master.getCell('B5').value = 'BOSP';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D5').value = '08:00';
+
+    const ceng = wb.addWorksheet('ENGINE LOG');
+    ceng.getCell('A3').value = 'Sea';
+    ceng.getCell('B3').value = 'BOSP';
+    ceng.getCell('C3').value = new Date(Date.UTC(2026, 8, 1));
+    ceng.getCell('D3').value = '08:00';
+    ceng.getCell('N3').value = 80000;
+    ceng.getCell('O3').value = 123456;
+    ceng.getCell('P3').value = 7890;
+    ceng.getCell('W3').value = 420;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].meCounterRh).toBe(80000);
+    expect(result.events[0].meShapoliRev).toBe(123456);
+    expect(result.events[0].meShapoliKwh).toBe(7890);
+    expect(result.events[0].ae1Kw).toBe(420);
+    expect(result.warnings.some((w) => /ENGINE LOG|CENG|CE LOG/i.test(w))).toBe(false);
+  });
+
+  it('reads machinery from FO-VPC sheet named CE LOG', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    master.getCell('A5').value = 'Sea';
+    master.getCell('B5').value = 'BOSP';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D5').value = '08:00';
+
+    const ceng = wb.addWorksheet('CE LOG');
+    ceng.getCell('A3').value = 'Sea';
+    ceng.getCell('B3').value = 'BOSP';
+    ceng.getCell('C3').value = new Date(Date.UTC(2026, 8, 1));
+    ceng.getCell('D3').value = '08:00';
+    ceng.getCell('N3').value = 80000;
+    ceng.getCell('O3').value = 123456;
+    ceng.getCell('P3').value = 7890;
+    ceng.getCell('W3').value = 420;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].meCounterRh).toBe(80000);
+    expect(result.events[0].meShapoliRev).toBe(123456);
+    expect(result.events[0].meShapoliKwh).toBe(7890);
+    expect(result.events[0].ae1Kw).toBe(420);
+    expect(result.warnings.some((w) => /CE LOG|CENG/i.test(w))).toBe(false);
+  });
+
+  it('parses Excel serial date/time as UTC clock', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    // 2026-09-01 + 06:00 as serial (Excel day 0 = 1899-12-30)
+    const day = Math.round((Date.UTC(2026, 8, 1) - Date.UTC(1899, 11, 30)) / 86400000);
+    master.getCell('A5').value = 'Sea';
+    master.getCell('B5').value = 'BOSP';
+    master.getCell('C5').value = day;
+    master.getCell('D5').value = 0.25; // 06:00
+
+    const ceng = wb.addWorksheet('CE LOG');
+    ceng.getCell('A3').value = 'Sea';
+    ceng.getCell('B3').value = 'BOSP';
+    ceng.getCell('C3').value = day;
+    ceng.getCell('D3').value = 0.25;
+    ceng.getCell('N3').value = 42;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    expect(result.events[0].date).toBe('2026-09-01');
+    expect(result.events[0].time).toBe('06:00');
+    expect(result.events[0].meCounterRh).toBe(42);
+  });
+
+  it('skips incomplete rows and drops stale negative formula caches', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    // Complete prior row
+    master.getCell('A5').value = 'Kopenhagen';
+    master.getCell('B5').value = 'FEW';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 8, 27));
+    master.getCell('D5').value = '10:30';
+    master.getCell('F5').value = 4343.7;
+    master.getCell('G5').value = 0.5;
+    master.getCell('L5').value = 259.1;
+
+    // Noon with time but no FM — Excel often caches Fₙ−Fₙ₋₁ as −FM_prev
+    master.getCell('A6').value = 'Kopenhagen';
+    master.getCell('B6').value = 'Noon';
+    master.getCell('C6').value = new Date(Date.UTC(2026, 8, 27));
+    master.getCell('D6').value = '12:00';
+    master.getCell('G6').value = { formula: 'F6-F5', result: -4343.7 };
+    master.getCell('H6').value = { formula: 'H5', result: -3822.5 };
+    master.getCell('L6').value = { formula: 'L5', result: 4081.55 };
+    master.getCell('O6').value = { formula: 'O5', result: 130.6 };
+
+    // Draft SBE without time — must be skipped
+    master.getCell('A7').value = 'Kopenhagen';
+    master.getCell('B7').value = 'SBE';
+    master.getCell('C7').value = new Date(Date.UTC(2026, 8, 27));
+    master.getCell('L7').value = { formula: 'L6', result: 4081.55 };
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    expect(result.events).toHaveLength(2);
+    expect(result.events[1].rawEvent).toBe('Noon');
+    expect(result.events[1].fmMeAe).toBeNull();
+    expect(result.events[1].totalM3).toBeNull();
+    expect(result.events[1].totalMt).toBeNull();
+    expect(result.events[1].robB100Mt).toBeNull();
+    expect(result.events[1].robDmaMt).toBeNull();
+    expect(result.warnings.some((w) => /no time/i.test(w))).toBe(true);
+  });
+  it('prefers CENG fuel values over MASTER when both exist; MASTER supplies bunker only', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    master.getCell('A5').value = 'Sea';
+    master.getCell('B5').value = 'BOSP';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D5').value = '08:00';
+    master.getCell('F5').value = 100; // stale MASTER FM
+    master.getCell('G5').value = 1.0;
+    master.getCell('M5').value = 12.5; // bunker RMD/BIO — MASTER-only
+    master.getCell('N5').value = 3.2; // bunker DMA
+
+    const ceng = wb.addWorksheet('ENGINE LOG');
+    ceng.getCell('A3').value = 'Sea';
+    ceng.getCell('B3').value = 'BOSP';
+    ceng.getCell('C3').value = new Date(Date.UTC(2026, 8, 1));
+    ceng.getCell('D3').value = '08:00';
+    ceng.getCell('F3').value = 110; // authoritative CENG FM
+    ceng.getCell('G3').value = 1.5;
+    ceng.getCell('N3').value = 90000;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].fmMeAe).toBe(110);
+    expect(result.events[0].totalM3).toBe(1.5);
+    expect(result.events[0].bunkerRmdBioMt).toBe(12.5);
+    expect(result.events[0].bunkerDmaMt).toBe(3.2);
+    expect(result.events[0].meCounterRh).toBe(90000);
+  });
+
+  it('imports CENG-only rows that MASTER does not have', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    master.getCell('A5').value = 'Sea';
+    master.getCell('B5').value = 'BOSP';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D5').value = '08:00';
+    master.getCell('F5').value = 100;
+
+    const ceng = wb.addWorksheet('ENGINE LOG');
+    ceng.getCell('A3').value = 'Sea';
+    ceng.getCell('B3').value = 'BOSP';
+    ceng.getCell('C3').value = new Date(Date.UTC(2026, 8, 1));
+    ceng.getCell('D3').value = '08:00';
+    ceng.getCell('F3').value = 100;
+    ceng.getCell('A4').value = 'Sea';
+    ceng.getCell('B4').value = 'Noon';
+    ceng.getCell('C4').value = new Date(Date.UTC(2026, 8, 1));
+    ceng.getCell('D4').value = '12:00';
+    ceng.getCell('F4').value = 105;
+    ceng.getCell('G4').value = 5;
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    expect(result.events).toHaveLength(2);
+    expect(result.events.map((e) => e.rawEvent)).toEqual(['BOSP', 'Noon']);
+    expect(result.events[1].fmMeAe).toBe(105);
+  });
+});
+
+describe('writeFuelLogToExcelBytes', () => {
+  it('writes over shared-formula columns without crashing', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Fuel Log MASTER');
+    for (let r = 1; r <= 8; r++) ws.addRow([]);
+
+    ws.getCell('A5').value = 'Sea';
+    ws.getCell('B5').value = 'BOSP';
+    ws.getCell('C5').value = new Date(Date.UTC(2026, 9, 1));
+    ws.getCell('D5').value = '08:00';
+    ws.getCell('P5').value = { formula: '10', result: 0.4 };
+
+    // Shared formula clone (ExcelJS style) — accessing cell.formula used to throw.
+    ws.getCell('A6').value = 'Sea';
+    ws.getCell('B6').value = 'Noon';
+    ws.getCell('C6').value = new Date(Date.UTC(2026, 9, 1));
+    ws.getCell('D6').value = '12:00';
+    ws.getCell('P6').value = { sharedFormula: 'P5', result: 0.3 };
+
+    const buf = await wb.xlsx.writeBuffer();
+    const events = [
+      createEmptyFuelLogEvent({
+        id: '1',
+        place: 'Sea',
+        rawEvent: 'BOSP',
+        date: '2026-10-01',
+        time: '08:00',
+        boilerMt: null,
+        sourceRow: 5,
+      }),
+      createEmptyFuelLogEvent({
+        id: '2',
+        place: 'Sea',
+        rawEvent: 'Noon',
+        date: '2026-10-01',
+        time: '12:00',
+        boilerMt: 0.5,
+        meMt: 1,
+        aeMt: 0.2,
+        robB100Mt: 100,
+        sourceRow: 6,
+      }),
+    ];
+
+    const out = await writeFuelLogToExcelBytes(buf as ArrayBuffer, events);
+    expect(out.byteLength).toBeGreaterThan(1000);
+
+    const roundTrip = await importFuelLogFromExcelBytes(out.buffer as ArrayBuffer);
+    expect(roundTrip.events.some((e) => e.rawEvent === 'Noon' && e.boilerMt === 0.5)).toBe(true);
   });
 });

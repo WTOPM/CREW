@@ -11,8 +11,8 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { NgStyle } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CdkConnectedOverlay, CdkOverlayOrigin, type ConnectedPosition } from '@angular/cdk/overlay';
 import { formatDisplayDate, parsePastedDateToIso, adjustDisplayDateSegment, clearDisplayDateByBackspace } from '../../utils/date.util';
 import {
   EN_MONTHS,
@@ -68,7 +68,7 @@ function isoFromMask(text: string): string | null {
 
 @Component({
   selector: 'app-date-picker',
-  imports: [FormsModule, NgStyle],
+  imports: [FormsModule, CdkConnectedOverlay, CdkOverlayOrigin],
   templateUrl: './date-picker.component.html',
   styleUrl: './date-picker.component.css',
 })
@@ -81,12 +81,10 @@ export class DatePickerComponent implements OnDestroy {
 
   protected readonly weekdays = EN_WEEKDAYS;
   protected readonly copied = signal(false);
-  private readonly host = inject(ElementRef<HTMLElement>);
   private readonly toast = inject(ToastService);
   private readonly fieldRef = viewChild<ElementRef<HTMLInputElement>>('field');
 
   protected readonly open = signal(false);
-  protected readonly popupStyle = signal<Record<string, string>>({});
   protected readonly text = signal('');
   /** True while the field is being edited — pauses external text syncing. */
   private readonly focused = signal(false);
@@ -99,6 +97,16 @@ export class DatePickerComponent implements OnDestroy {
   private pastePressOrigin: { x: number; y: number } | null = null;
   private static readonly COPY_HOLD_MS = 500;
   private static readonly COPY_MOVE_TOLERANCE_PX = 6;
+  /** Prevents (detach) from fighting an intentional close. */
+  private closingOverlay = false;
+
+  /** Prefer below the field; flip above when there is no room (e.g. bottom table rows). */
+  protected readonly overlayPositions: ConnectedPosition[] = [
+    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
+    { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 6 },
+    { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -6 },
+    { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom', offsetY: -6 },
+  ];
 
   protected readonly monthTitle = computed(
     () => `${EN_MONTHS[this.viewMonth()]} ${this.viewYear()}`,
@@ -129,14 +137,6 @@ export class DatePickerComponent implements OnDestroy {
     if (this.copiedFeedbackTimer != null) clearTimeout(this.copiedFeedbackTimer);
   }
 
-  @HostListener('document:click', ['$event'])
-  protected onDocumentClick(event: MouseEvent): void {
-    if (!this.open()) return;
-    if (!this.host.nativeElement.contains(event.target as Node)) {
-      this.close();
-    }
-  }
-
   @HostListener('document:keydown.escape')
   protected onEscape(): void {
     this.close();
@@ -150,11 +150,31 @@ export class DatePickerComponent implements OnDestroy {
     }
     this.syncViewToValue();
     this.open.set(true);
-    queueMicrotask(() => this.positionPopup());
   }
 
   protected close(): void {
+    if (!this.open()) return;
+    this.closingOverlay = true;
     this.open.set(false);
+    queueMicrotask(() => {
+      this.closingOverlay = false;
+    });
+  }
+
+  protected onOverlayDetach(): void {
+    if (this.closingOverlay) return;
+    this.open.set(false);
+  }
+
+  protected popupWidth(): number {
+    switch (this.size()) {
+      case 'lg':
+        return 352;
+      case 'sm':
+        return 272;
+      default:
+        return 320;
+    }
   }
 
   protected onFocus(): void {
@@ -636,55 +656,6 @@ export class DatePickerComponent implements OnDestroy {
       this.copied.set(false);
       this.copiedFeedbackTimer = null;
     }, 550);
-  }
-
-  private popupWidth(): number {
-    switch (this.size()) {
-      case 'lg':
-        return 352;
-      case 'sm':
-        return 272;
-      default:
-        return 320;
-    }
-  }
-
-  private positionPopup(): void {
-    const row = this.host.nativeElement.querySelector('.date-picker-row');
-    if (!row) return;
-    const rect = row.getBoundingClientRect();
-    const width = this.popupWidth();
-    let left = rect.left;
-    if (left + width > window.innerWidth - 8) {
-      left = Math.max(8, rect.right - width);
-    }
-    left = Math.max(8, left);
-
-    const popup = this.host.nativeElement.querySelector('.date-picker-popup') as HTMLElement | null;
-    const height =
-      popup?.offsetHeight ??
-      (this.size() === 'lg' ? 360 : this.size() === 'sm' ? 268 : 330);
-
-    const gap = 6;
-    const margin = 8;
-    const below = window.innerHeight - rect.bottom;
-    let top: number;
-    if (below >= height + gap) {
-      top = rect.bottom + gap;
-    } else if (rect.top >= height + gap) {
-      top = rect.top - height - gap;
-    } else {
-      top = Math.max(margin, Math.min(rect.bottom + gap, window.innerHeight - height - margin));
-    }
-
-    this.popupStyle.set({
-      position: 'fixed',
-      top: `${top}px`,
-      left: `${left}px`,
-      width: `${width}px`,
-      maxHeight: `calc(100dvh - ${top + margin}px)`,
-      overflowY: 'auto',
-    });
   }
 
   private syncViewToValue(): void {

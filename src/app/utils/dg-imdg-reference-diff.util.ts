@@ -1,5 +1,6 @@
 import type { ImdgChapter32Entry } from './dg-imdg-chapter32-pdf.util';
 import { getUnNumberReferenceRows, type UnNumberReferenceRow } from './dg-un-number.util';
+import { unNumberReferenceVariantKey } from './dg-un-reference-variant.util';
 
 export interface ImdgUnChange {
   unNo: string;
@@ -9,7 +10,7 @@ export interface ImdgUnChange {
 }
 
 export interface ImdgReferenceDiff {
-  /** In the PDF but not in the app reference. */
+  /** In the PDF but not in the app reference (same UN+PG+PSN key). */
   added: { unNo: string; description: string }[];
   /** In the app reference but no longer printed in the PDF. */
   removed: { unNo: string; description: string }[];
@@ -17,7 +18,7 @@ export interface ImdgReferenceDiff {
   spillageChanges: ImdgUnChange[];
   classChanges: ImdgUnChange[];
   packingGroupChanges: ImdgUnChange[];
-  /** UN numbers present in both with no field difference. */
+  /** List rows present in both with no field difference. */
   unchanged: number;
   parsedTotal: number;
   referenceTotal: number;
@@ -51,7 +52,7 @@ export function correctionCount(diff: ImdgReferenceDiff): number {
     diff.classChanges,
     diff.packingGroupChanges,
   ]) {
-    for (const row of list) touched.add(row.unNo);
+    for (const row of list) touched.add(`${row.unNo}|${row.description}|${row.was}|${row.now}`);
   }
   return touched.size;
 }
@@ -93,15 +94,32 @@ function change(unNo: string, description: string, was: string, now: string): Im
   return { unNo, description, was: was || '—', now: now || '—' };
 }
 
+function toRow(entry: ImdgChapter32Entry): UnNumberReferenceRow {
+  return {
+    unNo: entry.unNo,
+    description: entry.description,
+    dgClass: entry.dgClass,
+    packingGroup: entry.packingGroup,
+    subRisk: entry.subRisk,
+    fire: entry.fire,
+    spillage: entry.spillage,
+    marinePollutant: entry.marinePollutant,
+  };
+}
+
 /**
- * Compare a parsed Chapter 3.2 list against the bundled UN reference so the
- * user can see what a new IMDG amendment would add, drop or correct.
+ * Compare a parsed Chapter 3.2 list against the app reference.
+ * Matching is by UN + packing group + proper shipping name (list variants).
  */
 export function diffImdgReference(
-  parsed: ReadonlyMap<string, ImdgChapter32Entry>,
+  parsed: readonly ImdgChapter32Entry[],
   reference: readonly UnNumberReferenceRow[] = getUnNumberReferenceRows(),
 ): ImdgReferenceDiff {
-  const byUn = new Map(reference.map((row) => [row.unNo, row]));
+  const byKey = new Map(reference.map((row) => [unNumberReferenceVariantKey(row), row] as const));
+  const parsedRows = parsed.map(toRow);
+  const parsedByKey = new Map(
+    parsedRows.map((row) => [unNumberReferenceVariantKey(row), row] as const),
+  );
 
   const diff: ImdgReferenceDiff = {
     added: [],
@@ -111,41 +129,43 @@ export function diffImdgReference(
     classChanges: [],
     packingGroupChanges: [],
     unchanged: 0,
-    parsedTotal: parsed.size,
-    referenceTotal: byUn.size,
+    parsedTotal: parsedRows.length,
+    referenceTotal: reference.length,
   };
 
-  for (const [unNo, entry] of parsed) {
-    const current = byUn.get(unNo);
+  for (const [key, entry] of parsedByKey) {
+    const current = byKey.get(key);
     if (!current) {
-      diff.added.push({ unNo, description: entry.description });
+      diff.added.push({ unNo: entry.unNo, description: entry.description });
       continue;
     }
 
     let touched = false;
     if ((current.fire ?? '').trim() !== entry.fire) {
-      diff.fireChanges.push(change(unNo, entry.description, current.fire, entry.fire));
+      diff.fireChanges.push(change(entry.unNo, entry.description, current.fire, entry.fire));
       touched = true;
     }
     if ((current.spillage ?? '').trim() !== entry.spillage) {
-      diff.spillageChanges.push(change(unNo, entry.description, current.spillage, entry.spillage));
+      diff.spillageChanges.push(
+        change(entry.unNo, entry.description, current.spillage, entry.spillage),
+      );
       touched = true;
     }
     if ((current.dgClass ?? '').trim() !== entry.dgClass) {
-      diff.classChanges.push(change(unNo, entry.description, current.dgClass, entry.dgClass));
+      diff.classChanges.push(change(entry.unNo, entry.description, current.dgClass, entry.dgClass));
       touched = true;
     }
     if ((current.packingGroup ?? '').trim() !== entry.packingGroup) {
       diff.packingGroupChanges.push(
-        change(unNo, entry.description, current.packingGroup, entry.packingGroup),
+        change(entry.unNo, entry.description, current.packingGroup, entry.packingGroup),
       );
       touched = true;
     }
     if (!touched) diff.unchanged++;
   }
 
-  for (const [unNo, row] of byUn) {
-    if (!parsed.has(unNo)) diff.removed.push({ unNo, description: row.description });
+  for (const [key, row] of byKey) {
+    if (!parsedByKey.has(key)) diff.removed.push({ unNo: row.unNo, description: row.description });
   }
 
   const byUnNo = (a: { unNo: string }, b: { unNo: string }) =>

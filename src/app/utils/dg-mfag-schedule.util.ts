@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import {
   MFAG_FIRE_SCHEDULE_REFS,
   MFAG_SPILLAGE_SCHEDULE_REFS,
@@ -7,27 +8,36 @@ import {
 export interface MfagScheduleEntry extends MfagScheduleRef {
   /** Short English line for hover tooltips. */
   summary: string;
-  /** Physical size / lead line in tooltip (MFAG page). */
+  /** Physical size / lead line in tooltip (EmS Guide page). */
   sizeLabel: string;
 }
 
-const FIRE_BY_CODE = new Map(MFAG_FIRE_SCHEDULE_REFS.map((row) => [row.code, row] as const));
-const SPILLAGE_BY_CODE = new Map(
-  MFAG_SPILLAGE_SCHEDULE_REFS.map((row) => [row.code, row] as const),
-);
+export interface EmsScheduleTables {
+  fire: readonly MfagScheduleRef[];
+  spillage: readonly MfagScheduleRef[];
+}
 
-const FIRE_BY_PAGE = new Map(
-  MFAG_FIRE_SCHEDULE_REFS.map((row) => [normalizeMfagPageRef(row.pageRef), row] as const),
-);
-const SPILLAGE_BY_PAGE = new Map(
-  MFAG_SPILLAGE_SCHEDULE_REFS.map((row) => [normalizeMfagPageRef(row.pageRef), row] as const),
-);
+/** null = use bundled tables. */
+const emsScheduleOverride = signal<EmsScheduleTables | null>(null);
+
+export function setEmsScheduleOverride(tables: EmsScheduleTables | null): void {
+  emsScheduleOverride.set(tables);
+}
+
+export function getActiveEmsFireSchedules(): readonly MfagScheduleRef[] {
+  return emsScheduleOverride()?.fire ?? MFAG_FIRE_SCHEDULE_REFS;
+}
+
+export function getActiveEmsSpillageSchedules(): readonly MfagScheduleRef[] {
+  return emsScheduleOverride()?.spillage ?? MFAG_SPILLAGE_SCHEDULE_REFS;
+}
 
 export function normalizeMfagEmsCode(raw: string | undefined | null): string {
   const v = String(raw ?? '')
     .trim()
     .toUpperCase()
-    .replace(/\s+/g, '');
+    .replace(/\s+/g, '')
+    .replace(/[\u2013\u2014]/g, '-');
   if (!v) return '';
   const m = v.match(/^([FS])-?([A-Z])$/);
   if (m) return `${m[1]}-${m[2]}`;
@@ -46,19 +56,41 @@ function buildEntry(kind: 'fire' | 'spillage', row: MfagScheduleRef): MfagSchedu
   return {
     ...row,
     sizeLabel: row.pageRef,
-    summary: `${label} ${row.code} — see MFAG (Medical First Aid Guide), ${row.pageRef}.`,
+    summary: `${label} ${row.code} — see EmS Guide, ${row.pageRef}.`,
   };
+}
+
+function fireByCode(): Map<string, MfagScheduleRef> {
+  return new Map(getActiveEmsFireSchedules().map((row) => [row.code, row] as const));
+}
+
+function spillageByCode(): Map<string, MfagScheduleRef> {
+  return new Map(getActiveEmsSpillageSchedules().map((row) => [row.code, row] as const));
+}
+
+function fireByPage(): Map<string, MfagScheduleRef> {
+  return new Map(
+    getActiveEmsFireSchedules().map((row) => [normalizeMfagPageRef(row.pageRef), row] as const),
+  );
+}
+
+function spillageByPage(): Map<string, MfagScheduleRef> {
+  return new Map(
+    getActiveEmsSpillageSchedules().map(
+      (row) => [normalizeMfagPageRef(row.pageRef), row] as const,
+    ),
+  );
 }
 
 export function lookupMfagFireSchedule(raw: string | undefined | null): MfagScheduleEntry | null {
   const code = normalizeMfagEmsCode(raw);
   if (code.startsWith('F-')) {
-    const row = FIRE_BY_CODE.get(code);
+    const row = fireByCode().get(code);
     return row ? buildEntry('fire', row) : null;
   }
   const page = normalizeMfagPageRef(raw);
   if (!page) return null;
-  const row = FIRE_BY_PAGE.get(page);
+  const row = fireByPage().get(page);
   return row ? buildEntry('fire', row) : null;
 }
 
@@ -67,23 +99,23 @@ export function lookupMfagSpillageSchedule(
 ): MfagScheduleEntry | null {
   const code = normalizeMfagEmsCode(raw);
   if (code.startsWith('S-')) {
-    const row = SPILLAGE_BY_CODE.get(code);
+    const row = spillageByCode().get(code);
     return row ? buildEntry('spillage', row) : null;
   }
   const page = normalizeMfagPageRef(raw);
   if (!page) return null;
-  const row = SPILLAGE_BY_PAGE.get(page);
+  const row = spillageByPage().get(page);
   return row ? buildEntry('spillage', row) : null;
 }
 
 export function mfagFirePageRefFromEmsCode(raw: string | undefined | null): string {
   const code = normalizeMfagEmsCode(raw);
-  return FIRE_BY_CODE.get(code)?.pageRef ?? '';
+  return fireByCode().get(code)?.pageRef ?? '';
 }
 
 export function mfagSpillagePageRefFromEmsCode(raw: string | undefined | null): string {
   const code = normalizeMfagEmsCode(raw);
-  return SPILLAGE_BY_CODE.get(code)?.pageRef ?? '';
+  return spillageByCode().get(code)?.pageRef ?? '';
 }
 
 export function applyMfagSchedulesToUnifeederRow<

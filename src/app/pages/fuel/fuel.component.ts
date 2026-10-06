@@ -24,9 +24,16 @@ import {
   FUEL_LIMIT_OPTIONS,
   classifyFuelEvent,
   filterFuelEvents,
+  findFuelEventBeforePrevious,
+  findPreviousFuelEvent,
   formatFuelHoursHm,
+  formatFuelUtcOffsetLabel,
+  applyFuelConsumptionSideEffects,
+  recomputeFuelTotalM3FromFm,
+  dateTimeFromFuelHrsEdit,
+  fuelElapsedHours,
   parseFuelHoursInput,
-  recomputeFuelTotalMt,
+  shiftFuelDateTime,
   type FuelColumnDef,
   type FuelColumnId,
   type FuelDisplayEvent,
@@ -184,6 +191,13 @@ export class FuelComponent {
 
   protected readonly fuelUi = this.localPrefs.fuelUi;
   protected readonly hoursAsHm = computed(() => this.fuelUi().hoursAsHm);
+  protected readonly showUtc = computed(() => this.fuelUi().showUtc);
+  protected readonly utcOffsetHours = computed(() => this.fuelUi().utcOffsetHours);
+  protected readonly utcOffsetLabel = computed(() => formatFuelUtcOffsetLabel(this.utcOffsetHours()));
+  protected readonly utcOffsetMenuOpen = signal(false);
+  protected readonly utcPressing = signal(false);
+  private utcPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private utcLongPressHandled = false;
   protected readonly viewOnly = computed(
     () => this.sectionLock.readOnly() || !!this.sectionLock.displacedBy(),
   );
@@ -218,6 +232,21 @@ export class FuelComponent {
     return `${n} event types`;
   });
 
+  /** Filter chip color: all = green, partial = yellow, none = red. */
+  protected readonly eventsFilterTone = computed((): 'all' | 'partial' | 'none' => {
+    const n = this.library().view.visibleKinds.length;
+    if (n <= 0) return 'none';
+    if (n >= ALL_KINDS.length) return 'all';
+    return 'partial';
+  });
+
+  protected readonly columnsFilterTone = computed((): 'all' | 'partial' | 'none' => {
+    const n = this.fuelUi().visibleColumns.length;
+    if (n <= 0) return 'none';
+    if (n >= FUEL_COLUMNS.length) return 'all';
+    return 'partial';
+  });
+
   constructor() {
     void this.localPrefs.load().then(() => {
       const legacy = this.localPrefs.takeLegacyFuelDisplayPresets();
@@ -232,6 +261,7 @@ export class FuelComponent {
     this.destroyRef.onDestroy(() => {
       this.clearColPressTimer();
       this.clearKindPressTimer();
+      this.clearUtcPressTimer();
     });
 
     effect(() => {
@@ -524,6 +554,67 @@ export class FuelComponent {
     await this.localPrefs.setFuelHoursAsHm(enabled);
   }
 
+  protected onUtcPointerDown(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    this.clearUtcPressTimer();
+    this.utcLongPressHandled = false;
+    this.utcPressing.set(true);
+    this.utcPressTimer = setTimeout(() => {
+      this.utcPressTimer = null;
+      this.utcPressing.set(false);
+      this.utcLongPressHandled = true;
+      this.utcOffsetMenuOpen.set(true);
+    }, 450);
+  }
+
+  protected onUtcPointerUp(): void {
+    this.clearUtcPressTimer();
+    this.utcPressing.set(false);
+  }
+
+  protected onUtcPointerCancel(): void {
+    this.clearUtcPressTimer();
+    this.utcPressing.set(false);
+  }
+
+  protected onUtcClick(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.utcLongPressHandled) {
+      this.utcLongPressHandled = false;
+      return;
+    }
+    if (this.utcOffsetMenuOpen()) {
+      this.utcOffsetMenuOpen.set(false);
+      return;
+    }
+    void this.localPrefs.setFuelUi({ showUtc: !this.showUtc() });
+  }
+
+  protected async nudgeUtcOffset(delta: number): Promise<void> {
+    const next = this.utcOffsetHours() + delta;
+    await this.localPrefs.setFuelUi({ utcOffsetHours: next });
+  }
+
+  private clearUtcPressTimer(): void {
+    if (this.utcPressTimer != null) {
+      clearTimeout(this.utcPressTimer);
+      this.utcPressTimer = null;
+    }
+  }
+
+  /** Date/time as currently shown (local or UTC). */
+  private displayDateTime(e: Pick<FuelLogEvent, 'date' | 'time'>): { date: string; time: string } {
+    if (!this.showUtc()) return { date: e.date, time: e.time };
+    return shiftFuelDateTime(e.date, e.time, -this.utcOffsetHours());
+  }
+
+  /** Convert a value typed in the current display zone back to stored local. */
+  private toStoredDateTime(date: string, time: string): { date: string; time: string } {
+    if (!this.showUtc()) return { date, time };
+    return shiftFuelDateTime(date, time, this.utcOffsetHours());
+  }
+
   protected setEditMode(enabled: boolean): void {
     if (enabled && this.viewOnly()) {
       this.toast.showError('Someone else is editing FUEL — view only');
@@ -555,11 +646,63 @@ export class FuelComponent {
     if (!this.editMode() || this.viewOnly()) return;
     const current = this.library().events.find((e) => e.id === id);
     if (!current) return;
-    let next = { ...current, ...partial };
-    if (partial.rawEvent != null) next.kind = classifyFuelEvent(partial.rawEvent);
-    if (partial.meMt !== undefined || partial.aeMt !== undefined) {
-      next.totalMt = recomputeFuelTotalMt(next.meMt, next.aeMt);
+
+    const consumptionPatch: Partial<Pick<FuelLogEvent, 'meMt' | 'aeMt' | 'boilerMt'>> = {};
+    if (partial.meMt !== undefined) consumptionPatch.meMt = partial.meMt;
+    if (partial.aeMt !== undefined) consumptionPatch.aeMt = partial.aeMt;
+    if (partial.boilerMt !== undefined) consumptionPatch.boilerMt = partial.boilerMt;
+
+    const date = partial.date ?? current.date;
+    const time = partial.time ?? current.time;
+    const prev = findPreviousFuelEvent(this.library().events, date, time, current.id);
+
+    let next: FuelLogEvent;
+    if (Object.keys(consumptionPatch).length > 0) {
+      const before = findFuelEventBeforePrevious(this.library().events, prev);
+      const { meMt: _me, aeMt: _ae, boilerMt: _boiler, ...rest } = partial;
+      next = {
+        ...applyFuelConsumptionSideEffects(current, prev, before, consumptionPatch),
+        ...rest,
+      };
+    } else {
+      next = { ...current, ...partial };
     }
+
+    // Excel: Total m³ = Fₙ − Fₙ₋₁ when FM is entered from the meter.
+    if (partial.fmMeAe !== undefined) {
+      const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, prev?.fmMeAe);
+      if (m3 != null) next = { ...next, totalM3: m3 };
+      else if (partial.fmMeAe === null) next = { ...next, totalM3: null };
+    }
+
+    // Hrs edit moves the clock (±0.1 h = 6 min). Do not touch date/time if caller set them.
+    if (
+      partial.timeUsedHours !== undefined &&
+      partial.date === undefined &&
+      partial.time === undefined
+    ) {
+      const clock = dateTimeFromFuelHrsEdit(current, partial.timeUsedHours, prev);
+      if (clock) next = { ...next, date: clock.date, time: clock.time };
+    }
+
+    // Time/date edit → Hrs = elapsed from the new chronological previous.
+    if (
+      (partial.date !== undefined || partial.time !== undefined) &&
+      partial.timeUsedHours === undefined
+    ) {
+      const prevAfter = findPreviousFuelEvent(
+        this.library().events,
+        next.date,
+        next.time,
+        current.id,
+      );
+      const hrs = prevAfter
+        ? fuelElapsedHours(prevAfter.date, prevAfter.time, next.date, next.time)
+        : null;
+      next = { ...next, timeUsedHours: hrs };
+    }
+
+    if (partial.rawEvent != null) next.kind = classifyFuelEvent(partial.rawEvent);
     this.fuelStore.updateEvent(id, next);
     this.dirty.set(true);
   }
@@ -580,6 +723,109 @@ export class FuelComponent {
     }
     if (n == null) return;
     this.patchEvent(id, { [field]: Math.round(n * 10) / 10 } as Partial<FuelLogEvent>);
+  }
+
+  /** ↑/↓ ±0.1; Enter blurs. Hrs↔Time stay linked. */
+  protected onCellKeydown(e: FuelDisplayEvent, col: FuelColumnDef, event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      (event.target as HTMLInputElement).blur();
+      return;
+    }
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    const dir = event.key === 'ArrowUp' ? 1 : -1;
+
+    // Time: ±6 min, Hrs recalculates via patchEvent reverse link.
+    if (col.id === 'time' || col.type === 'time') {
+      event.preventDefault();
+      const shown = this.displayDateTime(e);
+      const nudged = shiftFuelDateTime(shown.date, shown.time || '00:00', dir * 0.1);
+      const stored = this.toStoredDateTime(nudged.date, nudged.time);
+      this.patchEvent(e.id, { date: stored.date, time: stored.time });
+      const input = event.target as HTMLInputElement;
+      queueMicrotask(() => {
+        const updated = this.library().events.find((x) => x.id === e.id);
+        if (!updated) return;
+        input.value = this.displayDateTime(updated).time;
+      });
+      return;
+    }
+
+    if (!col.field || (col.type !== 'num' && col.type !== 'kw' && col.type !== 'hours')) return;
+    event.preventDefault();
+    const field = col.field;
+
+    if (field === 'timeUsedHours') {
+      // Step the stored event hours (not the rolled display sum) so Time moves ±6 min.
+      const stored = this.library().events.find((x) => x.id === e.id);
+      const base =
+        typeof stored?.timeUsedHours === 'number' && Number.isFinite(stored.timeUsedHours)
+          ? stored.timeUsedHours
+          : typeof e.timeUsedHours === 'number' && Number.isFinite(e.timeUsedHours)
+            ? e.timeUsedHours
+            : 0;
+      const nextHrs = Math.max(0, Math.round((base + dir * 0.1) * 10) / 10);
+      this.patchEvent(e.id, { timeUsedHours: nextHrs });
+      const input = event.target as HTMLInputElement;
+      queueMicrotask(() => {
+        const updated = this.library().events.find((x) => x.id === e.id);
+        const hrs = updated?.timeUsedHours ?? nextHrs;
+        input.value = this.hoursAsHm() ? formatFuelHoursHm(hrs) : String(hrs);
+      });
+      return;
+    }
+
+    const cur = e[field];
+    const base = typeof cur === 'number' && Number.isFinite(cur) ? cur : 0;
+    const next = Math.max(0, Math.round((base + dir * 0.1) * 10) / 10);
+    this.patchEvent(e.id, { [field]: next } as Partial<FuelLogEvent>);
+    const input = event.target as HTMLInputElement;
+    queueMicrotask(() => {
+      input.value =
+        col.type === 'hours' && this.hoursAsHm() ? formatFuelHoursHm(next) : String(next);
+    });
+  }
+
+  /** Live commit while typing when the value is complete/parseable. */
+  protected onEditLive(e: FuelDisplayEvent, col: FuelColumnDef, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const raw = input.value;
+    if (!this.canLiveCommit(col, raw)) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    this.onEditCommit(e, col, raw);
+    queueMicrotask(() => {
+      if (document.activeElement !== input) return;
+      if (col.id === 'time' || col.type === 'time' || col.type === 'hours') {
+        const updated = this.library().events.find((x) => x.id === e.id);
+        if (updated) input.value = this.editValue({ ...e, ...updated }, col);
+      }
+      if (start != null) {
+        const len = input.value.length;
+        input.setSelectionRange(Math.min(start, len), Math.min(end ?? start, len));
+      }
+    });
+  }
+
+  private canLiveCommit(col: FuelColumnDef, raw: string): boolean {
+    const s = String(raw ?? '').trim();
+    if (!s) return false;
+    if (col.type === 'time' || col.id === 'time') return /^\d{1,2}:\d{2}$/.test(s);
+    if (col.type === 'hours' || col.type === 'num' || col.type === 'kw') {
+      return parseFuelHoursInput(s) != null;
+    }
+    return true;
+  }
+
+  /** Derived columns (Excel formulas / side-effects) — yellow highlight. */
+  protected isAutoCalcCol(col: FuelColumnDef): boolean {
+    return (
+      col.id === 'totalM3' ||
+      col.id === 'totalMt' ||
+      col.id === 'robRmd' ||
+      col.id === 'robB100' ||
+      col.id === 'robDma'
+    );
   }
 
   protected async onPathSegmentPress(seg: FuelPathSegment, event: MouseEvent): Promise<void> {
@@ -734,7 +980,14 @@ export class FuelComponent {
 
   protected cellText(e: FuelDisplayEvent, col: FuelColumnDef): string {
     if (col.id === 'kind') return this.kindLabels[e.kind];
-    if (col.id === 'date') return this.formatDate(e.date);
+    if (col.id === 'date') {
+      const { date } = this.displayDateTime(e);
+      return this.formatDate(date);
+    }
+    if (col.id === 'time') {
+      const { time } = this.displayDateTime(e);
+      return time || '—';
+    }
     if (!col.field) return '—';
     const v = e[col.field];
     if (v == null || v === '') return '—';
@@ -746,7 +999,8 @@ export class FuelComponent {
   }
 
   protected editValue(e: FuelDisplayEvent, col: FuelColumnDef): string {
-    if (col.id === 'date') return e.date;
+    if (col.id === 'date') return this.displayDateTime(e).date;
+    if (col.id === 'time') return this.displayDateTime(e).time;
     if (!col.field) return '';
     const v = e[col.field];
     if (v == null) return '';
@@ -757,10 +1011,18 @@ export class FuelComponent {
 
   protected onEditCommit(e: FuelDisplayEvent, col: FuelColumnDef, raw: string): void {
     if (col.id === 'date') {
-      this.onCellDate(e.id, raw);
+      const shown = this.displayDateTime(e);
+      const stored = this.toStoredDateTime(raw, shown.time);
+      this.patchEvent(e.id, { date: stored.date, time: stored.time });
       return;
     }
-    if (col.id === 'time' || col.id === 'place' || col.id === 'rawEvent') {
+    if (col.id === 'time') {
+      const shown = this.displayDateTime(e);
+      const stored = this.toStoredDateTime(shown.date, raw);
+      this.patchEvent(e.id, { date: stored.date, time: stored.time });
+      return;
+    }
+    if (col.id === 'place' || col.id === 'rawEvent') {
       this.onCellText(e.id, col.id, raw);
       return;
     }
@@ -798,6 +1060,7 @@ export class FuelComponent {
     this.eventsMenuOpen.set(false);
     this.columnsMenuOpen.set(false);
     this.menuAnchor.set(null);
+    this.utcOffsetMenuOpen.set(false);
   }
 
   @HostListener('document:keydown.escape')

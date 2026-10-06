@@ -728,9 +728,14 @@
                     rows="1"
                     class="dg-cell-input dg-cell-input--name"
                     [class.dg-cell-input--readonly]="!line.editable"
+                    [class.dg-cell-input--ref-mismatch]="
+                      hasUnifeederRefMismatch(line, 'goodsDescription')
+                    "
+                    [attr.title]="unifeederRefMismatchTitle(line, 'goodsDescription') || null"
                     [ngModel]="line.goodsDescription"
                     [readonly]="!line.editable"
                     [tabindex]="line.editable ? 0 : -1"
+                    (click)="onUnifeederRefMismatchClick($event, line, 'goodsDescription')"
                     (ngModelChange)="onUnifeederDisplayRowChange(line, 'goodsDescription', $event)"
                   ></textarea>
                 </td>

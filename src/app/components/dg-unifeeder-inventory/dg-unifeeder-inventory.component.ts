@@ -66,6 +66,7 @@ import {
 import { normalizeUnNumber } from '../../utils/dg-un-number.util';
 import { applyUnifeederReferenceOrManifest } from '../../utils/dg-import-un-reference.util';
 import {
+  applyUnifeederReferenceValue,
   findIdenticalUnifeederReferenceMismatches,
   getUnifeederReferenceMismatch,
   unifeederRefCompareFieldLabel,
@@ -349,6 +350,49 @@ export class DgUnifeederInventoryComponent {
       if (pageRef) patch.spillageSchedule = pageRef;
     }
     this.dg.updateUnifeederRow(rowId, patch);
+
+    // Packing group / description choose the IMDG list variant — refill empty
+    // EmS / class gaps from the newly matched row without overwriting manifesto text.
+    if (field === 'packingGroup' || field === 'goodsDescription') {
+      this.rematchUnifeederRowFromReference(rowId, field === 'packingGroup');
+    }
+  }
+
+  private rematchUnifeederRowFromReference(rowId: string, clearKeepOnPgChange: boolean): void {
+    const current = this.unifeederLibrary().onboard.find((r) => r.id === rowId);
+    if (!current || !unNumberHasDigits(current.unNo)) return;
+
+    const { row: next } = applyUnifeederReferenceOrManifest({
+      size: current.size,
+      stow: current.stow,
+      containerNo: current.containerNo,
+      loadPort: current.loadPort,
+      dischargePort: current.dischargePort,
+      unNo: current.unNo,
+      packingGroup: current.packingGroup,
+      weightKg: current.weightKg,
+      lq: current.lq,
+      flashPoint: current.flashPoint,
+      marinePollutant: current.marinePollutant,
+      goodsDescription: current.goodsDescription,
+      dgClass: current.dgClass,
+      subRisk: current.subRisk,
+      fire: current.fire,
+      spillage: current.spillage,
+    });
+
+    this.dg.updateUnifeederRow(rowId, {
+      dgClass: next.dgClass ?? current.dgClass,
+      subRisk: next.subRisk ?? current.subRisk,
+      fire: next.fire ?? current.fire,
+      spillage: next.spillage ?? current.spillage,
+      fireSchedule:
+        mfagFirePageRefFromEmsCode(next.fire ?? current.fire) || current.fireSchedule,
+      spillageSchedule:
+        mfagSpillagePageRefFromEmsCode(next.spillage ?? current.spillage) ||
+        current.spillageSchedule,
+      ...(clearKeepOnPgChange ? { referenceKeepManifest: undefined } : {}),
+    });
   }
 
   protected unifeederPrimaryRowId(row: DgUnifeederRowDisplay): string {
@@ -796,7 +840,7 @@ export class DgUnifeederInventoryComponent {
     const mismatch = this.resolveUnifeederRefMismatch(row, field);
     if (!mismatch) return '';
     const label = unifeederRefCompareFieldLabel(field);
-    return `${label}: manifesto “${mismatch.currentValue}” ≠ DG Reference “${mismatch.referenceValue}” — click to review`;
+    return `${label}: MANIFEST “${mismatch.currentValue}” ≠ DG Reference “${mismatch.referenceValue}” — click to review`;
   }
 
   protected async onUnifeederRefMismatchClick(
@@ -815,21 +859,34 @@ export class DgUnifeederInventoryComponent {
       mismatch,
     );
     const label = unifeederRefCompareFieldLabel(field);
+    const multi = identical.length > 1;
     const result = await this.confirmDialog.confirm({
       title: `${label} differs from DG Reference`,
-      message: [
-        `Manifesto (kept): ${mismatch.currentValue}`,
-        `DG Reference: ${mismatch.referenceValue}`,
-        '',
-        'Keep the manifesto value, or replace with DG Reference.',
-      ].join('\n'),
-      cancelLabel: 'Keep manifesto',
+      message: multi
+        ? `Same difference on ${identical.length} lines. Choose MANIFEST or DG Reference for this row or for all.`
+        : 'Choose which value to keep for this field.',
+      comparison: {
+        leftLabel: 'MANIFEST',
+        leftValue: mismatch.currentValue,
+        rightLabel: 'DG REFERENCE',
+        rightValue: mismatch.referenceValue,
+      },
+      cancelLabel: 'Keep MANIFEST',
       confirmLabel: 'Use DG Reference',
-      altLabel: identical.length > 1 ? `Fix all (${identical.length})` : undefined,
+      alt2Label: multi ? `Fix all MANIFEST (${identical.length})` : undefined,
+      altLabel: multi ? `Fix all Reference (${identical.length})` : undefined,
     });
 
     if (result === false) {
       this.dismissUnifeederRefMismatch(row, mismatch);
+      return;
+    }
+    if (result === 'alt2') {
+      this.dismissUnifeederRefMismatchRows(identical, mismatch);
+      this.toast.show(
+        `Kept MANIFEST ${label.toLowerCase()} on ${identical.length} lines`,
+        'success',
+      );
       return;
     }
     if (result === 'alt') {
@@ -869,9 +926,16 @@ export class DgUnifeederInventoryComponent {
     const targets = this.sourceRowsForDisplay(row).filter(
       (r) => !!getUnifeederReferenceMismatch(r, mismatch.field),
     );
-    if (!targets.length) return;
+    this.dismissUnifeederRefMismatchRows(targets, mismatch);
+  }
+
+  private dismissUnifeederRefMismatchRows(
+    rows: readonly DgUnifeederRow[],
+    mismatch: UnifeederReferenceMismatch,
+  ): void {
+    if (!rows.length) return;
     this.dg.updateUnifeederRows(
-      targets.map((r) => ({
+      rows.map((r) => ({
         id: r.id,
         partial: {
           referenceKeepManifest: {
@@ -888,20 +952,21 @@ export class DgUnifeederInventoryComponent {
     mismatch: UnifeederReferenceMismatch,
   ): void {
     if (!rows.length) return;
+    const applied = applyUnifeederReferenceValue(mismatch.field, mismatch.referenceValue);
     this.dg.updateUnifeederRows(
       rows.map((r) => {
         const keep = { ...(r.referenceKeepManifest ?? {}) };
         delete keep[mismatch.field];
         const patch: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>> = {
-          [mismatch.field]: mismatch.referenceValue,
+          [mismatch.field]: applied,
           referenceKeepManifest: Object.keys(keep).length ? keep : undefined,
         };
         if (mismatch.field === 'fire') {
-          const pageRef = mfagFirePageRefFromEmsCode(mismatch.referenceValue);
+          const pageRef = mfagFirePageRefFromEmsCode(applied);
           if (pageRef) patch.fireSchedule = pageRef;
         }
         if (mismatch.field === 'spillage') {
-          const pageRef = mfagSpillagePageRefFromEmsCode(mismatch.referenceValue);
+          const pageRef = mfagSpillagePageRefFromEmsCode(applied);
           if (pageRef) patch.spillageSchedule = pageRef;
         }
         return { id: r.id, partial: patch };

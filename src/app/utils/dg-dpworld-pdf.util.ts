@@ -3,6 +3,7 @@ import {
   type DgWeightTonnageOptions,
 } from '../models/dg-weight-tonnage.models';
 import type { DgPdfTextItem } from './dg-pdf-text.util';
+import { pickBestGoodsDescription } from './dg-goods-description.util';
 import type { UnifeederImportHeader, UnifeederImportRowPartial } from './dg-unifeeder-pdf.util';
 import { dualWeightFromImport } from './dg-weight-tonnage.util';
 
@@ -295,15 +296,13 @@ function findAllDataRowYs(pageItems: readonly DgPdfTextItem[], imoY: number): nu
 
 function pickGoodsDescription(pageItems: readonly DgPdfTextItem[], dataY: number): string {
   const properY = dataY + DP_DATA.properName;
-  let best = '';
+  const candidates: { str: string; x: number }[] = [];
   for (const it of pageItems) {
     if (!nearY(it, properY, 5)) continue;
     if (it.x < 100 || it.x > 520) continue;
-    const value = it.str.trim();
-    if (value.length < 4 || /^Proper ship/i.test(value)) continue;
-    if (value.length > best.length) best = value;
+    candidates.push({ str: it.str, x: it.x });
   }
-  return best;
+  return pickBestGoodsDescription(candidates);
 }
 
 function pickRowWeight(

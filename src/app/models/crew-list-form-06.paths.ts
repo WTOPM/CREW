@@ -1,5 +1,5 @@
 /** Form 06 - CREW LIST [SBK][PI][E][P][J] — static HTML editor (`public/forms/crew-list-form-06/`). */
-export const CREW_LIST_FORM_06_MAX_ROWS = 18;
+export const CREW_LIST_FORM_06_MAX_ROWS = 20;
 
 export const CREW_LIST_FORM_06_BASE_PATH = '/forms/crew-list-form-06/';
 

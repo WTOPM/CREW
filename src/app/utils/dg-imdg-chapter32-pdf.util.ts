@@ -399,7 +399,29 @@ export interface ImdgChapter32Entry {
   variants: number;
 }
 
-/** Collapse list rows to one entry per UN number, keeping the first printed variant. */
+/** Keep every Chapter 3.2 list row (same UN may appear with different PG / PSN). */
+export function imdgChapter32RowsToReferenceEntries(
+  rows: readonly ImdgChapter32Row[],
+): ImdgChapter32Entry[] {
+  return rows.map((row) => ({
+    unNo: row.unNo,
+    description: row.description,
+    // Keep the printed class/division (1.1D, 2.1, 6.1) — not the collapsed base class.
+    dgClass: row.dgClass || row.dgClassBase,
+    packingGroup: row.packingGroup,
+    subRisk: row.subRisk,
+    fire: row.fire,
+    spillage: row.spillage,
+    marinePollutant: row.marinePollutant,
+    variants: 1,
+  }));
+}
+
+/**
+ * @deprecated Prefer {@link imdgChapter32RowsToReferenceEntries} — IMDG prints
+ * multiple rows per UN (packing group / description variants).
+ * Collapse list rows to one entry per UN number, keeping the first printed variant.
+ */
 export function collapseImdgRows(
   rows: readonly ImdgChapter32Row[],
 ): Map<string, ImdgChapter32Entry> {

@@ -71,7 +71,13 @@ import {
   createDefaultDgUnReference,
   type DgUnReferenceLibrary,
 } from '../models/dg-un-reference.models';
+import {
+  createDefaultDgEmsReference,
+  type DgEmsReferenceLibrary,
+} from '../models/dg-ems-reference.models';
+import type { MfagScheduleRef } from '../data/dg-mfag-reference';
 import { normalizeUnNumber, type UnNumberReferenceRow } from '../utils/dg-un-number.util';
+import { unNumberReferenceVariantKey } from '../utils/dg-un-reference-variant.util';
 import { normalizeReeferLibrary } from '../models/reefer.models';
 import { normalizeEtaLibrary } from '../models/eta.models';
 import { normalizeFuelLibrary } from '../models/fuel.models';
@@ -179,6 +185,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     ship,
   );
   const dgUnReference = normalizeDgUnReference(raw.dgUnReference);
+  const dgEmsReference = normalizeDgEmsReference(raw.dgEmsReference);
   const reeferLibrary = normalizeReeferLibrary(raw.reeferLibrary, ports, ship);
   const etaLibrary = normalizeEtaLibrary(raw.etaLibrary);
   const fuelLibrary = normalizeFuelLibrary(raw.fuelLibrary);
@@ -223,6 +230,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     narcoticListForm,
     dgLibrary,
     dgUnReference,
+    dgEmsReference,
     reeferLibrary,
     etaLibrary,
     fuelLibrary,
@@ -266,6 +274,7 @@ function coerceAppSnapshotEntry(raw: unknown): AppSnapshotEntry | null {
   const empty = {
     dgLibrary: undefined,
     dgUnReference: undefined,
+    dgEmsReference: undefined,
     reeferLibrary: undefined,
     appSnapshots: [] as AppSnapshotEntry[],
     dgPageArchives: [] as DgPageSnapshot[],
@@ -375,7 +384,7 @@ function normalizeCustomDocuments(raw: unknown): CustomDocument[] {
 
 /**
  * Normalize the saved IMDG UN reference. Anything unreadable falls back to the
- * bundled baseline; an imported list is kept exactly as saved (deduped by UN number)
+ * bundled baseline; an imported list is kept as saved (deduped by UN+PG+PSN)
  * so a user who wiped entries on purpose does not get the baseline injected again.
  */
 function normalizeDgUnReference(raw: unknown): DgUnReferenceLibrary {
@@ -385,13 +394,13 @@ function normalizeDgUnReference(raw: unknown): DgUnReferenceLibrary {
   const source = raw as Partial<DgUnReferenceLibrary>;
   if (source.origin !== 'custom' || !Array.isArray(source.entries)) return base;
 
-  const byUn = new Map<string, UnNumberReferenceRow>();
+  const byKey = new Map<string, UnNumberReferenceRow>();
   for (const item of source.entries) {
     if (!item || typeof item !== 'object') continue;
     const row = item as Partial<UnNumberReferenceRow>;
     const unNo = normalizeUnNumber(row.unNo);
     if (!/^\d{4}$/.test(unNo) || unNo === '0000') continue;
-    byUn.set(unNo, {
+    const next: UnNumberReferenceRow = {
       unNo,
       description: String(row.description ?? '').trim(),
       dgClass: String(row.dgClass ?? '').trim(),
@@ -400,16 +409,53 @@ function normalizeDgUnReference(raw: unknown): DgUnReferenceLibrary {
       fire: String(row.fire ?? '').trim(),
       spillage: String(row.spillage ?? '').trim(),
       marinePollutant: row.marinePollutant === true,
-    });
+    };
+    if (!next.description) continue;
+    byKey.set(unNumberReferenceVariantKey(next), next);
   }
 
   return {
     origin: 'custom',
-    entries: [...byUn.values()].sort((a, b) =>
+    entries: [...byKey.values()].sort((a, b) =>
       a.unNo.localeCompare(b.unNo, undefined, { numeric: true }),
     ),
     fileName: String(source.fileName ?? '').trim(),
     amendment: String(source.amendment ?? '').trim(),
+    updatedAt: String(source.updatedAt ?? '').trim(),
+  };
+}
+
+function normalizeEmsScheduleRows(raw: unknown): MfagScheduleRef[] {
+  if (!Array.isArray(raw)) return [];
+  const byCode = new Map<string, MfagScheduleRef>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Partial<MfagScheduleRef>;
+    const code = String(row.code ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/[\u2013\u2014]/g, '-');
+    const pageRef = String(row.pageRef ?? '').trim();
+    if (!/^[FS]-[A-Z]$/.test(code) || !pageRef) continue;
+    byCode.set(code, { code, pageRef });
+  }
+  return [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code));
+}
+
+function normalizeDgEmsReference(raw: unknown): DgEmsReferenceLibrary {
+  const base = createDefaultDgEmsReference();
+  if (!raw || typeof raw !== 'object') return base;
+  const source = raw as Partial<DgEmsReferenceLibrary>;
+  if (source.origin !== 'custom') return base;
+  const fire = normalizeEmsScheduleRows(source.fire);
+  const spillage = normalizeEmsScheduleRows(source.spillage);
+  if (!fire.length && !spillage.length) return base;
+  return {
+    origin: 'custom',
+    fire,
+    spillage,
+    fireFileName: String(source.fireFileName ?? '').trim(),
+    spillageFileName: String(source.spillageFileName ?? '').trim(),
     updatedAt: String(source.updatedAt ?? '').trim(),
   };
 }
@@ -733,9 +779,7 @@ function normalizePortOfCallHtmlFormPrefs(
   if (typeof raw?.footerSignatureDate === 'string') {
     out.footerSignatureDate = raw.footerSignatureDate;
   }
-  if (typeof raw?.footerMasterName === 'string') {
-    out.footerMasterName = raw.footerMasterName;
-  }
+  // footerMasterName is live from crew — never persist a frozen captain.
   if (
     raw?.dateDisplayFormat === 'dot' ||
     raw?.dateDisplayFormat === 'shortMonth' ||
@@ -786,9 +830,7 @@ function normalizePaxHtmlFormPrefs(
   if (typeof raw?.footerSignatureDate === 'string') {
     out.footerSignatureDate = raw.footerSignatureDate;
   }
-  if (typeof raw?.footerMasterName === 'string') {
-    out.footerMasterName = raw.footerMasterName;
-  }
+  // footerMasterName is live from crew — never persist a frozen captain.
   if (isCrewListForm05CssBox(raw?.stampBox)) {
     out.stampBox = raw.stampBox;
   }
@@ -825,7 +867,34 @@ function normalizeCrewEffectHtmlFormPrefs(
     out.cellStyles = raw.cellStyles;
   }
   if (raw?.cellValues && typeof raw.cellValues === 'object') {
-    out.cellValues = raw.cellValues;
+    out.cellValues = stripCrewEffectLiveCellValues(raw.cellValues);
+  }
+  return out;
+}
+
+/**
+ * Drop frozen voyage / identity cells from Crew Effect overlays.
+ * Ship, port, dates, master, and crew name/rank always come from live app data.
+ * Keep `_ceMode` — Arrival/Departure is a document setting (like Ship Stores `_ssMode`).
+ */
+function stripCrewEffectLiveCellValues(
+  cellValues: Record<string, unknown>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, val] of Object.entries(cellValues)) {
+    // Form 01/02 identity cols: no / name / rank (and form 01 equivalent leading cols).
+    if (/^d-\d+-[012]$/i.test(key)) continue;
+    if (
+      key === 'h-nameOfShip' ||
+      key === 'h-port' ||
+      key === 'h-date' ||
+      key === 'h-nationality' ||
+      key === 'footer-date' ||
+      key === 'footer-master'
+    ) {
+      continue;
+    }
+    if (typeof val === 'string') out[key] = val;
   }
   return out;
 }

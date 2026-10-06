@@ -122,10 +122,13 @@ function buildForm02Data(data: AppData): CrewEffectForm02HtmlForm {
   const form = normalizeCrewEffectForm02(data.crewEffectForm02);
   const { ship, crewArr, ports } = data;
   const cv = overlayCellValues(data) ?? {};
-  const isArrival =
-    cv['_ceMode'] === 'departure' ? false : cv['_ceMode'] === 'arrival' ? true : crewArr.isArrival;
+  // Document A/D from editor Save (`_ceMode`); else follow Home crew list.
+  // Voyage fields below stay live for that mode — never frozen overlay text.
+  const isArrival = Object.prototype.hasOwnProperty.call(cv, '_ceMode')
+    ? cv['_ceMode'] !== 'departure'
+    : crewArr.isArrival;
   const list = isArrival ? 'arrival' : 'departure';
-  const members = crewEffectListRows(data, form.appendPassengers, CREW_EFFECT_FORM_02_ROW_COUNT);
+  const members = crewEffectListRows(data, form.appendPassengers, CREW_EFFECT_FORM_02_ROW_COUNT, list);
   const crewList = filterActiveCrewListFromData(data, list);
   const master = findMaster(crewList);
   const voyageIso = isArrival ? ship.dateOfArrival : ship.dateOfDeparture;
@@ -148,14 +151,14 @@ function buildForm02Data(data: AppData): CrewEffectForm02HtmlForm {
     arrival: isArrival,
     departure: !isArrival,
     pageNo: cv['h-pageNo'] ?? '1',
-    nameOfShip: cv['h-nameOfShip'] ?? formatPortCallPortName(ship.name),
-    portOfArrivalDeparture:
-      cv['h-port'] ?? formatPortWithCountry(ship.portOfCall, ports),
-    dateOfArrivalDeparture: cv['h-date'] ?? formatDisplayDate(voyageIso),
-    nationalityOfShip: cv['h-nationality'] ?? formatPortCallPortName(ship.nationality),
+    // Voyage header + footer always live from ship / current list.
+    nameOfShip: formatPortCallPortName(ship.name),
+    portOfArrivalDeparture: formatPortWithCountry(ship.portOfCall, ports),
+    dateOfArrivalDeparture: formatDisplayDate(voyageIso),
+    nationalityOfShip: formatPortCallPortName(ship.nationality),
     crew,
-    footerDate: cv['footer-date'] ?? formatDisplayDate(voyageIso),
-    footerMaster: cv['footer-master'] ?? (master ? formatCaptainName(master) : ''),
+    footerDate: formatDisplayDate(voyageIso),
+    footerMaster: master ? formatCaptainName(master) : '',
   };
 }
 

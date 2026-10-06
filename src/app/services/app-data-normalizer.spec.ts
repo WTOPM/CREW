@@ -269,6 +269,35 @@ describe('rescueOrphanCrew / rescueOrphanPassengers', () => {
     expect(overlay.cellValues).toEqual({ 'h-pageNo': '1' });
   });
 
+  it('strips frozen voyage/identity cells from Crew Effect 02 overlay', () => {
+    const data = normalizeAppData({
+      seedVersion: APP_DATA_SCHEMA_VERSION,
+      documentOverlay: {
+        crewEffect02: {
+          useStamp: false,
+          useSignature: false,
+          cellValues: {
+            'h-pageNo': '2',
+            'h-port': 'OLD PORT, XX',
+            'h-date': '01.01.2020',
+            'h-nameOfShip': 'OLD SHIP',
+            'h-nationality': 'OLD',
+            'footer-date': '01.01.2020',
+            'footer-master': 'OLD MASTER',
+            _ceMode: 'departure',
+            'd-0-1': 'FROZEN NAME',
+            'd-0-3': 'NIL',
+          },
+        },
+      } as never,
+    });
+    expect(data.documentOverlay.crewEffect02.cellValues).toEqual({
+      'h-pageNo': '2',
+      'd-0-3': 'NIL',
+      _ceMode: 'departure',
+    });
+  });
+
   it('preserves Port of Call HTML overlay CSS boxes (01 + 02)', () => {
     const stampBox = { left: '112mm', top: '228mm', width: '70mm', height: '27mm' };
     const signatureBox = { left: '112mm', top: '256mm', width: '55mm', height: '12mm' };

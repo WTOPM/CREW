@@ -481,7 +481,7 @@ body {
   font-size: 5.8pt;
   border: none;
   flex: 0 0 auto;
-  --crew-row-h: 4.6mm;
+  --crew-row-h: 5.75mm;
 }
 
 .crew-tbl th,

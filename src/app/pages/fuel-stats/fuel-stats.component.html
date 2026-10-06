@@ -1,0 +1,198 @@
+<div class="page fuel-stats-page" (click)="closeUtcMenu()">
+  <header class="page-header fuel-stats-header">
+    <div class="fuel-stats-header__title">
+      <a routerLink="/fuel" class="back-link">Fuel</a>
+      <h1>Fuel statistics</h1>
+      <p class="fuel-stats-header__meta">{{ scopeLabel() }}</p>
+    </div>
+  </header>
+
+  <section class="card fuel-stats-scope" aria-label="Active filters">
+    <div class="fuel-stats-scope__grid">
+      <div class="fuel-stats-scope__item">
+        <span class="fuel-stats-scope__label">Period</span>
+        <strong>
+          @if (library().view.dateFrom || library().view.dateTo) {
+            {{ library().view.dateFrom || '…' }} → {{ library().view.dateTo || '…' }}
+          } @else {
+            All dates
+          }
+        </strong>
+      </div>
+      <div class="fuel-stats-scope__item">
+        <span class="fuel-stats-scope__label">Events</span>
+        <strong>{{ selectedKindsLabel() }}</strong>
+      </div>
+      <div class="fuel-stats-scope__item">
+        <span class="fuel-stats-scope__label">Show</span>
+        <strong>{{ limitLabel() }}</strong>
+      </div>
+      <div class="fuel-stats-scope__item">
+        <span class="fuel-stats-scope__label">Search</span>
+        <strong>{{ library().view.search.trim() || '—' }}</strong>
+      </div>
+    </div>
+    <div class="fuel-stats-scope__actions">
+      <div class="fuel-stats-utc" (click)="$event.stopPropagation()">
+        <button
+          type="button"
+          class="fuel-stats-utc-btn"
+          [class.fuel-stats-utc-btn--on]="showUtc()"
+          [class.fuel-stats-utc-btn--pressing]="utcPressing()"
+          title="Click: switch Local / UTC. Hold: change zone (+1 / −1)."
+          (pointerdown)="onUtcPointerDown($event)"
+          (pointerup)="onUtcPointerUp()"
+          (pointerleave)="onUtcPointerCancel()"
+          (pointercancel)="onUtcPointerCancel()"
+          (click)="onUtcClick($event)"
+        >
+          <span>{{ showUtc() ? 'UTC' : 'Local' }}</span>
+          <span class="fuel-stats-utc-btn__off">{{ utcOffsetLabel() }}</span>
+        </button>
+        @if (utcOffsetMenuOpen()) {
+          <div class="fuel-stats-utc-pop" role="dialog" aria-label="UTC offset">
+            <button type="button" class="fuel-stats-utc-pop__step" (click)="nudgeUtcOffset(-1)">−</button>
+            <span class="fuel-stats-utc-pop__value">{{ utcOffsetLabel() }}</span>
+            <button type="button" class="fuel-stats-utc-pop__step" (click)="nudgeUtcOffset(1)">+</button>
+          </div>
+        }
+      </div>
+      <a routerLink="/fuel" class="btn btn-secondary btn-sm">Change filters on Fuel</a>
+    </div>
+  </section>
+
+  @if (summary().rowCount === 0) {
+    <section class="card fuel-stats-empty">
+      <h2>No rows in scope</h2>
+      <p>Open Fuel, adjust Events / dates / Show / search, then come back here.</p>
+      <a routerLink="/fuel" class="btn btn-primary">Back to Fuel</a>
+    </section>
+  } @else {
+    <section class="card fuel-stats-kpis" aria-label="Totals">
+      <h2 class="fuel-stats-section-title">Totals</h2>
+      <div class="fuel-stats-kpi-grid">
+        <article class="fuel-stats-kpi">
+          <span class="fuel-stats-kpi__label">Rows</span>
+          <strong class="fuel-stats-kpi__value">{{ summary().rowCount }}</strong>
+          <span class="fuel-stats-kpi__hint"
+            >{{ summary().sourceEventCount }} source events
+            @if (summary().sourceEventCount !== summary().rowCount) {
+              (incl. rolled-up)
+            }
+          </span>
+        </article>
+        <article class="fuel-stats-kpi">
+          <span class="fuel-stats-kpi__label">From → To</span>
+          <strong class="fuel-stats-kpi__value fuel-stats-kpi__value--sm">
+            {{ rangeLabel() }}
+          </strong>
+        </article>
+        <article class="fuel-stats-kpi">
+          <span class="fuel-stats-kpi__label">Time used</span>
+          <strong class="fuel-stats-kpi__value">{{ fmtHours(summary().hours) }}</strong>
+        </article>
+        <article class="fuel-stats-kpi fuel-stats-kpi--accent">
+          <span class="fuel-stats-kpi__label">Total fuel</span>
+          <strong class="fuel-stats-kpi__value">{{ fmtMt(summary().totalMt) }} <small>mt</small></strong>
+          <span class="fuel-stats-kpi__hint">
+            ME {{ fmtMt(summary().meMt) }} · AE {{ fmtMt(summary().aeMt) }} · Blr
+            {{ fmtMt(summary().boilerMt) }}
+          </span>
+        </article>
+        <article class="fuel-stats-kpi">
+          <span class="fuel-stats-kpi__label">Rate</span>
+          <strong class="fuel-stats-kpi__value">
+            @if (summary().rateMtPerDay != null) {
+              {{ summary().rateMtPerDay | number: '1.0-1' }} <small>mt/day</small>
+            } @else {
+              —
+            }
+          </strong>
+          <span class="fuel-stats-kpi__hint">
+            @if (summary().rateMtPerHour != null) {
+              {{ summary().rateMtPerHour | number: '1.0-2' }} mt/h
+            } @else {
+              Needs hours + total mt
+            }
+          </span>
+        </article>
+        <article class="fuel-stats-kpi">
+          <span class="fuel-stats-kpi__label">Bunker received</span>
+          <strong class="fuel-stats-kpi__value"
+            >{{ bunkerTotalLabel() }} <small>mt</small></strong
+          >
+          <span class="fuel-stats-kpi__hint">
+            RMD/bio {{ fmtMt(summary().bunkerRmdBioMt) }} · DMA
+            {{ fmtMt(summary().bunkerDmaMt) }}
+          </span>
+        </article>
+      </div>
+    </section>
+
+    <section class="card fuel-stats-block" aria-label="Machinery hours">
+      <h2 class="fuel-stats-section-title">Machinery hours</h2>
+      <div class="fuel-stats-kv-grid">
+        <div class="fuel-stats-kv">
+          <span>ME</span>
+          <strong>{{ fmtHours(summary().meHours) }}</strong>
+        </div>
+        <div class="fuel-stats-kv">
+          <span>AE (1–3)</span>
+          <strong>{{ fmtHours(summary().aeHours) }}</strong>
+        </div>
+        <div class="fuel-stats-kv">
+          <span>Boiler</span>
+          <strong>{{ fmtHours(summary().boilerHours) }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="card fuel-stats-block" aria-label="ROB endpoints">
+      <h2 class="fuel-stats-section-title">ROB (first → last row)</h2>
+      <div class="fuel-stats-rob">
+        <div class="fuel-stats-rob__col">
+          <h3>First</h3>
+          <p>RMD {{ fmtMt(summary().firstRob?.robRmdMt) }} mt</p>
+          <p>B100 {{ fmtMt(summary().firstRob?.robB100Mt) }} mt</p>
+          <p>DMA {{ fmtMt(summary().firstRob?.robDmaMt) }} mt</p>
+        </div>
+        <div class="fuel-stats-rob__col">
+          <h3>Last</h3>
+          <p>RMD {{ fmtMt(summary().lastRob?.robRmdMt) }} mt</p>
+          <p>B100 {{ fmtMt(summary().lastRob?.robB100Mt) }} mt</p>
+          <p>DMA {{ fmtMt(summary().lastRob?.robDmaMt) }} mt</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card fuel-stats-block" aria-label="By event type">
+      <h2 class="fuel-stats-section-title">By event type</h2>
+      <div class="fuel-stats-table-wrap">
+        <table class="fuel-stats-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th class="num">Count</th>
+              <th class="num">Hours</th>
+              <th class="num">Total mt</th>
+              <th class="num">ME mt</th>
+              <th class="num">AE mt</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (k of summary().byKind; track k.kind) {
+              <tr>
+                <td>{{ k.label }}</td>
+                <td class="num">{{ k.count }}</td>
+                <td class="num">{{ k.hours == null ? '—' : (k.hours | number: '1.0-1') }}</td>
+                <td class="num">{{ k.totalMt == null ? '—' : (k.totalMt | number: '1.0-1') }}</td>
+                <td class="num">{{ k.meMt == null ? '—' : (k.meMt | number: '1.0-1') }}</td>
+                <td class="num">{{ k.aeMt == null ? '—' : (k.aeMt | number: '1.0-1') }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</div>

@@ -1,3 +1,6 @@
+/* Angular CDK overlay (date-picker calendar portals above scrollable tables). */
+@import '@angular/cdk/overlay-prebuilt.css';
+
 :root {
   --bg: #f1f5f9;
   --surface: #ffffff;
@@ -4696,4 +4699,200 @@ html.html-form-excel-embed body {
 
 html.html-form-excel-embed app-root {
   visibility: hidden;
+}
+
+/* ======== Date picker calendar (CDK overlay portal — outside component encapsulation) ======== */
+.cdk-overlay-container .date-picker-overlay-panel {
+  z-index: 1200 !important;
+}
+
+.date-picker-popup {
+  min-width: 20rem;
+  padding: 0.85rem;
+  border: 1px solid #93c5fd;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 18%);
+  box-sizing: border-box;
+  max-height: min(24rem, calc(100dvh - 16px));
+  overflow-y: auto;
+}
+
+.date-picker-popup--sm {
+  min-width: 0;
+  padding: 0.55rem 0.6rem;
+  border-radius: 8px;
+}
+
+.date-picker-popup--lg {
+  min-width: 22rem;
+  padding: 1rem;
+}
+
+.date-picker-popup .cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.date-picker-popup--sm .cal-head {
+  margin-bottom: 0.4rem;
+}
+
+.date-picker-popup .cal-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #0f172a;
+  text-align: center;
+  flex: 1;
+}
+
+.date-picker-popup--sm .cal-title {
+  font-size: 0.875rem;
+}
+
+.date-picker-popup--lg .cal-title {
+  font-size: 1.1rem;
+}
+
+.date-picker-popup .cal-nav {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.date-picker-popup--sm .cal-nav {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 1.1rem;
+  border-radius: 6px;
+}
+
+.date-picker-popup .cal-nav:hover {
+  background: var(--accent-soft);
+}
+
+.date-picker-popup .cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.2rem;
+  margin-bottom: 0.35rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.date-picker-popup--sm .cal-weekdays {
+  font-size: 0.65rem;
+  margin-bottom: 0.25rem;
+  gap: 0.12rem;
+}
+
+.date-picker-popup--lg .cal-weekdays {
+  font-size: 0.78rem;
+}
+
+.date-picker-popup .cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.2rem;
+}
+
+.date-picker-popup--sm .cal-grid {
+  gap: 0.12rem;
+}
+
+.date-picker-popup .cal-day {
+  min-height: 2rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #0f172a;
+}
+
+.date-picker-popup--sm .cal-day {
+  min-height: 1.5rem;
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+.date-picker-popup .cal-day:hover {
+  background: #e0f2fe;
+}
+
+.date-picker-popup .cal-day--outside {
+  color: #94a3b8;
+}
+
+.date-picker-popup .cal-day--today {
+  box-shadow: inset 0 0 0 1.5px #38bdf8;
+}
+
+.date-picker-popup .cal-day--selected {
+  background: #0284c7;
+  color: #fff;
+  font-weight: 700;
+}
+
+.date-picker-popup .cal-day--selected:hover {
+  background: #0369a1;
+}
+
+.date-picker-popup .cal-foot {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.date-picker-popup--sm .cal-foot {
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+}
+
+.date-picker-popup .cal-foot-btn {
+  flex: 1;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.date-picker-popup--sm .cal-foot-btn {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+.date-picker-popup .cal-foot-btn:hover {
+  background: #bae6fd;
+}
+
+.date-picker-popup .cal-foot-btn--muted {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+.date-picker-popup .cal-foot-btn--muted:hover {
+  background: #f1f5f9;
 }

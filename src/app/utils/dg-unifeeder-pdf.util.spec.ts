@@ -156,6 +156,37 @@ describe('parseUnifeederDangerousCargoManifest page-break orphan header', () => 
     expect(rows.every((r) => r.stow === '110188')).toBe(true);
     expect(rows.some((r) => r.unNo === '1139')).toBe(true);
     expect(rows.some((r) => r.unNo === '1950' && r.weightKg === '121.68')).toBe(true);
+    const aerosols = rows.find((r) => r.unNo === '1950');
+    expect(aerosols?.goodsDescription).toBe('AEROSOLS');
+  });
+
+  it('prefers Proper ship. name over Technical name packaging note', () => {
+    const items: DgPdfTextItem[] = [
+      item('Dangerous Cargo Manifest', 40, 40, 1),
+      item('12.069,00', 150, 173, 1),
+      item('S-U', 150, 251, 1),
+      item('F-D', 150, 286, 1),
+      item('--', 150, 372, 1),
+      item('1950', 150, 469, 1),
+      item('NO', 184, 469, 1),
+      item('AEROSOLS', 164, 466, 1),
+      item('max 1 ltr', 172, 466, 1),
+      item('0,0', 195, 466, 1),
+      item('SP / / /', 208, 466, 1),
+      item('2.1', 150, 514, 1),
+      item('MRKU 506620-0', 98, 505, 1),
+      item('45GP', 98, 532, 1),
+      item('IMO Information', 122, 532, 1),
+      item('Proper ship. name:', 163, 532, 1),
+      item('Technical name:', 172, 532, 1),
+      item('180884', 98, 313, 1),
+      item('Stowage position', 98, 375, 1),
+    ];
+
+    const result = parseUnifeederDangerousCargoManifest(items, {});
+    const row = result.rows.find((r) => r.unNo === '1950');
+    expect(row?.goodsDescription).toBe('AEROSOLS');
+    expect(row?.goodsDescription).not.toMatch(/max 1 ltr/i);
   });
 });
 

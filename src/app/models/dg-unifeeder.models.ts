@@ -11,7 +11,8 @@ export type UnifeederRefCompareField =
   | 'dgClass'
   | 'subRisk'
   | 'fire'
-  | 'spillage';
+  | 'spillage'
+  | 'goodsDescription';
 
 export type UnifeederReferenceKeepManifest = Partial<Record<UnifeederRefCompareField, string>>;
 
@@ -21,6 +22,7 @@ const UNIFEEDER_REF_COMPARE_FIELDS: readonly UnifeederRefCompareField[] = [
   'subRisk',
   'fire',
   'spillage',
+  'goodsDescription',
 ];
 
 function sanitizeUnifeederReferenceKeepManifest(

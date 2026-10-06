@@ -161,10 +161,10 @@
 
     return {
       pageNo: cv['h-pageNo'] ?? '1',
-      nameOfShip: cv['h-nameOfShip'] ?? formatPortName(ship.name),
-      nationalityOfShip: cv['h-nationality'] ?? formatPortName(ship.nationality),
+      nameOfShip: formatPortName(ship.name),
+      nationalityOfShip: formatPortName(ship.nationality),
       crew: global.CrewCrewEffectPdf.normalizeCrewEffectRowNos(crew),
-      footerMaster: cv['footer-master'] ?? formatMasterName(findMaster(crewList)),
+      footerMaster: formatMasterName(findMaster(crewList)),
     };
   }
 

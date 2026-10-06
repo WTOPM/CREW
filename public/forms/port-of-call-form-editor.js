@@ -293,7 +293,9 @@
         cssBoxFromVariant(prev.signatureBox),
         defaultSig,
       );
-      const { footerSignatureDate: _omitFooterDate, ...prevWithoutFooterDate } = prev;
+      const prevWithoutFooterDate = global.HtmlFormEditorOverlay?.stripLiveFields
+        ? global.HtmlFormEditorOverlay.stripLiveFields(prev)
+        : (({ footerSignatureDate: _d, footerMasterName: _m, ...rest }) => rest)(prev);
       appData.documentOverlay[overlayKey] = {
         ...prevWithoutFooterDate,
         useStamp: !!global._currentPositions.stamp.visible,
@@ -306,9 +308,6 @@
           : global._currentPositions.cellValues || {},
         dateDisplayFormat: global.HtmlFormDateFormat?.getActive?.() || global._currentPositions.dateDisplayFormat || 'dot',
         rowsPerPage: global._currentPositions.rowsPerPage ?? global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
-        ...(global.HtmlFormFooterFields?.getMasterName?.()?.trim()
-          ? { footerMasterName: global.HtmlFormFooterFields.getMasterName().trim() }
-          : {}),
       };
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       global._appData = appData;

@@ -1,5 +1,6 @@
 import type { DgPdfTextItem } from './dg-pdf-text.util';
 import { parseDgWeightKg } from '../models/dg-manifest.models';
+import { pickBestGoodsDescription } from './dg-goods-description.util';
 import { normalizeUnifeederSubRisk } from './dg-unifeeder-sub-risk.util';
 import {
   parseUnifeederGrandTotalSummary,
@@ -206,18 +207,13 @@ function pickNear(
 }
 
 function pickNameNear(items: readonly DgPdfTextItem[], anchorX: number, targetY: number): string {
-  let best = '';
+  const candidates: { str: string; x: number }[] = [];
   for (const it of items) {
     if (!nearY(it, targetY, 4)) continue;
     if (it.x < anchorX - 5 || it.x > anchorX + 95) continue;
-    const value = it.str.trim();
-    if (value.length < 4) continue;
-    if (/^\d{4}$/.test(value)) continue;
-    if (/^(YES|NO|0,0|\/ \/ \/)$/.test(value)) continue;
-    if (/^Proper ship\. name:$/i.test(value)) continue;
-    if (value.length > best.length) best = value;
+    candidates.push({ str: it.str, x: it.x });
   }
-  return best;
+  return pickBestGoodsDescription(candidates);
 }
 
 function normalizePackingGroup(raw: string): string {

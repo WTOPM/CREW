@@ -3,19 +3,25 @@ import type {
   UnifeederRefCompareField,
   UnifeederReferenceKeepManifest,
 } from '../models/dg-unifeeder.models';
-import { unifeederAutofillFromUnNumber } from './dg-un-number-autofill.util';
+import { unifeederAutofillFromManifestRow } from './dg-un-number-autofill.util';
 import { normalizeDgPackingGroupKey } from './dg-packing-group.util';
+import {
+  listUnNumberVariantPackingGroups,
+  scoreUnDescriptionMatch,
+} from './dg-un-reference-variant.util';
+import { listUnNumberReferenceVariants, matchUnNumberReference } from './dg-un-number.util';
 import { normalizeUnifeederSubRisk } from './dg-unifeeder-sub-risk.util';
 
 export type { UnifeederRefCompareField, UnifeederReferenceKeepManifest };
 
-/** Fields compared live against DG Reference while manifesto values stay in the grid. */
+/** Fields compared live against the matched DG Reference variant. */
 export const UNIFEEDER_REF_COMPARE_FIELDS: readonly UnifeederRefCompareField[] = [
   'packingGroup',
   'dgClass',
   'subRisk',
   'fire',
   'spillage',
+  'goodsDescription',
 ];
 
 export interface UnifeederReferenceMismatch {
@@ -24,7 +30,10 @@ export interface UnifeederReferenceMismatch {
   referenceValue: string;
 }
 
-export type UnifeederRefCompareRow = Pick<DgUnifeederRow, 'unNo' | UnifeederRefCompareField> & {
+export type UnifeederRefCompareRow = Pick<
+  DgUnifeederRow,
+  'unNo' | 'goodsDescription' | UnifeederRefCompareField
+> & {
   referenceKeepManifest?: UnifeederReferenceKeepManifest;
 };
 
@@ -40,6 +49,8 @@ export function unifeederRefCompareFieldLabel(field: UnifeederRefCompareField): 
       return 'Fire';
     case 'spillage':
       return 'Spillage';
+    case 'goodsDescription':
+      return 'Goods description';
   }
 }
 
@@ -55,6 +66,9 @@ export function normalizeUnifeederRefCompareValue(
   }
   if (field === 'subRisk') {
     return normalizeUnifeederSubRisk(value).toUpperCase();
+  }
+  if (field === 'goodsDescription') {
+    return value.toUpperCase().replace(/\s+/g, ' ').trim();
   }
   return value.toUpperCase().replace(/\s+/g, '');
 }
@@ -72,28 +86,85 @@ function isDismissedForReference(
   );
 }
 
-/** Active mismatches for a row (manifesto value present and differs from DG Reference). */
+function referenceValueForField(
+  field: UnifeederRefCompareField,
+  row: UnifeederRefCompareRow,
+): string {
+  const match = matchUnNumberReference(row.unNo, {
+    packingGroup: row.packingGroup,
+    description: row.goodsDescription,
+    dgClass: row.dgClass,
+  });
+  if (!match) return '';
+
+  if (field === 'packingGroup') {
+    if (match.packingGroupMissing) {
+      const available = listUnNumberVariantPackingGroups(
+        listUnNumberReferenceVariants(row.unNo),
+      );
+      // Suggest the best-scored variant's PG; list alternates when several exist.
+      const suggested = match.row.packingGroup.trim();
+      if (available.length > 1) {
+        return suggested ? `${suggested} (allowed: ${available.join('/')})` : available.join(' / ');
+      }
+      return suggested || available[0] || '';
+    }
+    return match.row.packingGroup.trim();
+  }
+
+  if (field === 'goodsDescription') {
+    return match.row.description.trim();
+  }
+
+  const autofill = unifeederAutofillFromManifestRow(row);
+  return String(autofill?.[field] ?? '').trim();
+}
+
+/** Active mismatches for a row (manifest value present and differs from matched variant). */
 export function listUnifeederReferenceMismatches(
   row: UnifeederRefCompareRow,
 ): UnifeederReferenceMismatch[] {
-  const autofill = unifeederAutofillFromUnNumber(row.unNo);
-  if (!autofill) return [];
+  const variants = listUnNumberReferenceVariants(row.unNo);
+  if (!variants.length) return [];
+
+  const match = matchUnNumberReference(row.unNo, {
+    packingGroup: row.packingGroup,
+    description: row.goodsDescription,
+    dgClass: row.dgClass,
+  });
+  if (!match) return [];
 
   const out: UnifeederReferenceMismatch[] = [];
   for (const field of UNIFEEDER_REF_COMPARE_FIELDS) {
-    const referenceValue = String(autofill[field] ?? '').trim();
+    const referenceValue = referenceValueForField(field, row);
     const currentValue = String(row[field] ?? '').trim();
     if (!referenceValue || !currentValue) continue;
-    if (
+
+    if (field === 'goodsDescription') {
+      if (scoreUnDescriptionMatch(currentValue, match.row.description) >= 50) continue;
+    } else if (
       normalizeUnifeederRefCompareValue(field, currentValue) ===
-      normalizeUnifeederRefCompareValue(field, referenceValue)
+      normalizeUnifeederRefCompareValue(field, applyUnifeederReferenceValue(field, referenceValue))
     ) {
       continue;
     }
+
     if (isDismissedForReference(row.referenceKeepManifest, field, referenceValue)) continue;
     out.push({ field, currentValue, referenceValue });
   }
   return out;
+}
+
+/** Strip UI-only suffixes before writing a reference suggestion into the grid. */
+export function applyUnifeederReferenceValue(
+  field: UnifeederRefCompareField,
+  referenceValue: string,
+): string {
+  const raw = String(referenceValue ?? '').trim();
+  if (field !== 'packingGroup') return raw;
+  const withoutNote = raw.replace(/\s*\(allowed:[^)]*\)\s*$/i, '').trim();
+  const key = normalizeDgPackingGroupKey(withoutNote);
+  return key ?? withoutNote;
 }
 
 export function getUnifeederReferenceMismatch(

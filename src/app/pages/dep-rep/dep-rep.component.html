@@ -62,7 +62,7 @@
           class="btn btn-secondary"
           (click)="refreshFromSheet()"
           [disabled]="busy()"
-          title="Load data from the sheet named voyage + POL"
+          title="Load the latest (leftmost) sheet from DEP REP.xlsx"
         >
           {{ busy() ? '…' : 'Refresh' }}
         </button>
@@ -81,12 +81,16 @@
           (click)="writeToExcel()"
           [disabled]="busy()"
         >
-          {{ busy() ? 'Writing…' : 'Write to Excel' }}
+          {{ busy() ? 'Writing…' : writeActionLabel() }}
         </button>
       </div>
     </div>
     @if (sheetStatus()) {
-      <p class="dep-rep-last" [class.dep-rep-last--warn]="sheetStatusKind() === 'missing'">
+      <p
+        class="dep-rep-last"
+        [class.dep-rep-last--warn]="sheetStatusKind() === 'missing'"
+        [class.dep-rep-last--draft]="sheetStatusKind() === 'draft'"
+      >
         {{ sheetStatus() }}
       </p>
     } @else if (library().lastWrittenSheet) {
@@ -102,23 +106,125 @@
         <h2 class="dep-rep-board__title">Departure</h2>
         <p class="dep-rep-board__lead">Voyage · ports · sheet for Excel</p>
       </div>
-      <div class="dep-rep-sheet-badge">
-        <span class="dep-rep-sheet-badge__label">
-          Sheet
-          <span class="dep-rep-info" tabindex="0">
-            <span class="dep-rep-info__icon" aria-hidden="true">i</span>
-            <span class="dep-rep-info__tip" role="tooltip">
-              IF THIS TAB ALREADY EXISTS — UPDATE IT.
-              IF NOT — COPY THE LEFTMOST SHEET AND CREATE A NEW ONE.
-            </span>
-          </span>
-        </span>
-        <strong class="dep-rep-sheet-badge__name">{{ sheetName() || '—' }}</strong>
+      <div
+        class="dep-rep-sheet-tabs"
+        [class.dep-rep-sheet-tabs--draft]="pendingNewSheet()"
+        role="tablist"
+        aria-label="DEP REP sheets"
+      >
+        @if (!pendingNewSheet()) {
+          <button
+            type="button"
+            class="dep-rep-sheet-tab dep-rep-sheet-tab--add"
+            role="tab"
+            (click)="startNewSheet()"
+            [disabled]="busy()"
+            title="Add a new sheet tab on the left"
+          >
+            +
+          </button>
+        }
+
+        @if (newTab(); as _new) {
+          <div
+            class="dep-rep-sheet-tab"
+            [class.dep-rep-sheet-tab--active]="activeSheetTab() === 'new'"
+            [class.dep-rep-sheet-tab--draft]="activeSheetTab() === 'new'"
+          >
+            <button
+              type="button"
+              class="dep-rep-sheet-tab__main"
+              role="tab"
+              [attr.aria-selected]="activeSheetTab() === 'new'"
+              (click)="selectSheetTab('new')"
+              title="New sheet — Write creates it in Excel"
+            >
+              <span class="dep-rep-sheet-tab__label">New</span>
+              <strong class="dep-rep-sheet-tab__name">{{ newTabLabel() }}</strong>
+              @if (activeSheetTab() === 'new') {
+                <span class="dep-rep-sheet-tab__draft-tag">create</span>
+              }
+            </button>
+            <button
+              type="button"
+              class="dep-rep-sheet-tab__close"
+              [disabled]="busy()"
+              title="Close new sheet (discard)"
+              aria-label="Close new sheet"
+              (click)="closeSheetTab('new', $event)"
+            >
+              ×
+            </button>
+          </div>
+        }
+
+        @if (previousTab(); as _prev) {
+          <div
+            class="dep-rep-sheet-tab"
+            [class.dep-rep-sheet-tab--active]="activeSheetTab() === 'previous'"
+          >
+            <button
+              type="button"
+              class="dep-rep-sheet-tab__main"
+              role="tab"
+              [attr.aria-selected]="activeSheetTab() === 'previous'"
+              (click)="selectSheetTab('previous')"
+              title="Previous sheet — Write updates it in Excel"
+            >
+              <span class="dep-rep-sheet-tab__label">
+                Previous
+                <span class="dep-rep-info" tabindex="0" (click)="$event.stopPropagation()">
+                  <span class="dep-rep-info__icon" aria-hidden="true">i</span>
+                  <span class="dep-rep-info__tip" role="tooltip">
+                    LEFT TAB = NEW (CREATE). RIGHT TAB = PREVIOUS (UPDATE).
+                    AFTER CREATE, THE NEW SHEET BECOMES PREVIOUS AND + RETURNS.
+                  </span>
+                </span>
+              </span>
+              <strong class="dep-rep-sheet-tab__name">{{ previousTabLabel() }}</strong>
+              @if (activeSheetTab() === 'previous') {
+                <span class="dep-rep-sheet-tab__hint">update</span>
+              }
+            </button>
+            <button
+              type="button"
+              class="dep-rep-sheet-tab__close"
+              [disabled]="busy()"
+              title="Delete this Excel sheet and load the latest remaining"
+              aria-label="Delete Excel sheet"
+              (click)="closeSheetTab('previous', $event)"
+            >
+              ×
+            </button>
+          </div>
+        } @else if (!pendingNewSheet()) {
+          <div class="dep-rep-sheet-tab dep-rep-sheet-tab--active">
+            <div class="dep-rep-sheet-tab__main" role="tab" aria-selected="true">
+              <span class="dep-rep-sheet-tab__label">Sheet</span>
+              <strong class="dep-rep-sheet-tab__name">{{ sheetName() || '—' }}</strong>
+            </div>
+            @if (sheetName()) {
+              <button
+                type="button"
+                class="dep-rep-sheet-tab__close"
+                [disabled]="busy()"
+                title="Delete this Excel sheet and load the latest remaining"
+                aria-label="Delete Excel sheet"
+                (click)="closeSheetTab('previous', $event)"
+              >
+                ×
+              </button>
+            }
+          </div>
+        }
       </div>
     </div>
 
     <div class="dep-rep-voyage">
-      <label class="dep-rep-field dep-rep-field--voy">
+      <label
+        class="dep-rep-field dep-rep-field--voy"
+        [class.dep-rep-is-empty]="isBlank(voyageValue())"
+      >
         <span class="dep-rep-field-label">
           Voyage
           <span class="dep-rep-info" tabindex="0">
@@ -130,12 +236,15 @@
           </span>
         </span>
         <input
-          [ngModel]="ship().voyageNumber"
+          [ngModel]="voyageValue()"
           (ngModelChange)="onVoyageChange($event)"
-          placeholder="138"
+          (keydown)="onFieldEnter($event)"
         />
       </label>
-      <label class="dep-rep-field dep-rep-field--port">
+      <label
+        class="dep-rep-field dep-rep-field--port"
+        [class.dep-rep-is-empty]="isBlank(pageContext().portOfCall) || isBlank(polCode())"
+      >
         <span class="dep-rep-field-label">
           POL <em>{{ polCode() || '—' }}</em>
           <span class="dep-rep-info" tabindex="0">
@@ -152,7 +261,10 @@
           (valueChange)="onPolChange($event)"
         />
       </label>
-      <label class="dep-rep-field dep-rep-field--port">
+      <label
+        class="dep-rep-field dep-rep-field--port"
+        [class.dep-rep-is-empty]="isBlank(pageContext().nextPortOfCall) || isBlank(podCode())"
+      >
         <span class="dep-rep-field-label">
           POD <em>{{ podCode() || '—' }}</em>
           <span class="dep-rep-info" tabindex="0">
@@ -168,7 +280,10 @@
           (valueChange)="onPodChange($event)"
         />
       </label>
-      <label class="dep-rep-field dep-rep-field--date">
+      <label
+        class="dep-rep-field dep-rep-field--date"
+        [class.dep-rep-is-empty]="isBlank(pageContext().dateOfDeparture || ship().dateOfDeparture)"
+      >
         <span class="dep-rep-field-label">
           Date
           <span class="dep-rep-info" tabindex="0">
@@ -201,32 +316,41 @@
           <span class="dep-rep-panel__hint">Settings sync</span>
         </div>
         <div class="dep-rep-drafts">
-          <label class="dep-rep-draft" title="SETTINGS ↔ DEP REP ↔ EXCEL B8">
+          <label
+            class="dep-rep-draft"
+            [class.dep-rep-is-empty]="isBlank(metresFieldValue('draftAft'))"
+            title="SETTINGS ↔ DEP REP ↔ EXCEL B8"
+          >
             <span>Aft</span>
             <input
               [value]="metresFieldValue('draftAft')"
               (focus)="onMetresFocus('draftAft', $event)"
               (input)="onMetresInput('draftAft', $event)"
               (blur)="onMetresBlur('draftAft', $event)"
+              (keydown)="onFieldEnter($event)"
               inputmode="decimal"
-              placeholder="9.4"
             />
             <span class="dep-rep-draft__unit">m</span>
           </label>
-          <label class="dep-rep-draft" title="SETTINGS ↔ DEP REP ↔ EXCEL D8">
+          <label
+            class="dep-rep-draft"
+            [class.dep-rep-is-empty]="isBlank(metresFieldValue('draftFore'))"
+            title="SETTINGS ↔ DEP REP ↔ EXCEL D8"
+          >
             <span>Fore</span>
             <input
               [value]="metresFieldValue('draftFore')"
               (focus)="onMetresFocus('draftFore', $event)"
               (input)="onMetresInput('draftFore', $event)"
               (blur)="onMetresBlur('draftFore', $event)"
+              (keydown)="onFieldEnter($event)"
               inputmode="decimal"
-              placeholder="9.3"
             />
             <span class="dep-rep-draft__unit">m</span>
           </label>
           <label
             class="dep-rep-draft dep-rep-draft--mid"
+            [class.dep-rep-is-empty]="isBlank(midDraft())"
             title="CALCULATED (FORE+AFT)/2 FROM SETTINGS DRAFTS → EXCEL C8 FORMULA"
           >
             <span>Mid</span>
@@ -269,7 +393,7 @@
             >
               <option value="">{{ polCode() && !polDensity() ? 'Add for POL…' : 'Port list' }}</option>
               @for (d of densities(); track d.port) {
-                <option [value]="d.port">{{ d.port }} — {{ d.density || '—' }}</option>
+                <option [value]="d.port">{{ d.port }}</option>
               }
             </select>
             <input
@@ -277,8 +401,8 @@
               [ngModel]="densityEditValue()"
               (ngModelChange)="densityEditValue.set($event)"
               (blur)="saveDensityEdit()"
+              (keydown)="onFieldEnter($event)"
               inputmode="decimal"
-              placeholder="1.025"
               [disabled]="!densitySelectPort() && !polCode()"
             />
             <button
@@ -308,7 +432,11 @@
           <h3 class="dep-rep-panel__title">Cargo</h3>
           <span class="dep-rep-panel__hint">TOTAL → Excel F9</span>
         </div>
-        <label class="dep-rep-total" title="DEP REP ONLY ↔ EXCEL F9 (TOTAL CARGO)">
+        <label
+          class="dep-rep-total"
+          [class.dep-rep-is-empty]="isBlank(library().totalCargo)"
+          title="DEP REP ONLY ↔ EXCEL F9 (TOTAL CARGO)"
+        >
           <span class="dep-rep-total__label">
             TOTAL CARGO
             <span class="dep-rep-info" tabindex="0">
@@ -323,35 +451,87 @@
             <input
               [ngModel]="library().totalCargo"
               (ngModelChange)="onTotalCargoChange($event)"
+              (keydown)="onFieldEnter($event)"
               inputmode="decimal"
-              placeholder="14719"
             />
             <span class="dep-rep-total__unit">t</span>
           </div>
         </label>
 
-        <div class="dep-rep-dg">
+        <div class="dep-rep-dg" [class.dep-rep-is-empty]="dgEditRows().length === 0">
           <div class="dep-rep-dg__head">
             <span class="dep-rep-dg__title">
               DG classes
               <span class="dep-rep-info" tabindex="0">
                 <span class="dep-rep-info__icon" aria-hidden="true">i</span>
                 <span class="dep-rep-info__tip" role="tooltip">
-                  DG PAGE INVENTORY (CMA + UNIFEEDER) → DEP REP.
+                  ADD ROWS MANUALLY (+) OR FILL FROM DG PAGE INVENTORY.
                   WRITE → EXCEL CLASS/WEIGHT A11:B23.
                 </span>
               </span>
             </span>
-            <span class="dep-rep-dg__meta">from inventory, kg</span>
+            <div class="dep-rep-dg__actions">
+              <button
+                type="button"
+                class="dep-rep-dg__action"
+                (click)="fillDgFromInventory()"
+                [disabled]="busy()"
+                title="Replace list with class totals from DG inventory"
+              >
+                From DG
+              </button>
+              <button
+                type="button"
+                class="dep-rep-dg__action dep-rep-dg__action--plus"
+                (click)="addDgRow()"
+                [disabled]="busy()"
+                title="Add class / weight row"
+              >
+                +
+              </button>
+            </div>
           </div>
-          @if (classRows().length === 0) {
-            <p class="dep-rep-empty">No onboard DG — import a manifest on the DG page first.</p>
+          @if (dgEditRows().length === 0) {
+            <p class="dep-rep-empty">No DG rows — use + or From DG.</p>
           } @else {
             <ul class="dep-rep-dg__list">
-              @for (row of classRows(); track row.dgClass) {
-                <li class="dep-rep-dg__item" [title]="'DG INVENTORY → EXCEL CLASS ' + row.dgClass">
-                  <span class="dep-rep-dg__class">{{ row.dgClass }}</span>
-                  <span class="dep-rep-dg__kg">{{ row.totalKg }}</span>
+              @for (row of dgEditRows(); track row.id) {
+                <li
+                  class="dep-rep-dg__item dep-rep-dg__item--edit"
+                  [class.dep-rep-is-empty]="isBlank(row.dgClass) || isBlank(row.weightKg)"
+                >
+                  <select
+                    class="dep-rep-dg__class-select"
+                    [class.dep-rep-is-empty]="isBlank(row.dgClass)"
+                    [ngModel]="row.dgClass"
+                    (ngModelChange)="onDgClassChange(row.id, $event)"
+                    title="IMDG class"
+                  >
+                    <option value="">Class…</option>
+                    @for (code of dgClassOptions; track code) {
+                      <option [value]="code">{{ code }}</option>
+                    }
+                    @if (row.dgClass && !dgClassOptions.includes(row.dgClass)) {
+                      <option [value]="row.dgClass">{{ row.dgClass }}</option>
+                    }
+                  </select>
+                  <input
+                    class="dep-rep-dg__kg-input"
+                    [class.dep-rep-is-empty]="isBlank(row.weightKg)"
+                    [ngModel]="row.weightKg"
+                    (ngModelChange)="onDgWeightChange(row.id, $event)"
+                    (keydown)="onFieldEnter($event)"
+                    inputmode="decimal"
+                    title="Weight kg"
+                  />
+                  <button
+                    type="button"
+                    class="dep-rep-dg__remove"
+                    (click)="removeDgRow(row.id)"
+                    title="Remove row"
+                  >
+                    ×
+                  </button>
                 </li>
               }
             </ul>

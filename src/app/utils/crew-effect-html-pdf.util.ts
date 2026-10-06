@@ -129,12 +129,12 @@ function buildForm01Data(data: AppData): CrewEffectForm01HtmlForm {
     crew.push(row);
   }
 
-  const footerMaster = cv['footer-master'] ?? (master ? formatCaptainName(master) : '');
+  const footerMaster = master ? formatCaptainName(master) : '';
 
   return {
     pageNo: cv['h-pageNo'] ?? '1',
-    nameOfShip: cv['h-nameOfShip'] ?? formatPortCallPortName(ship.name),
-    nationalityOfShip: cv['h-nationality'] ?? formatPortCallPortName(ship.nationality),
+    nameOfShip: formatPortCallPortName(ship.name),
+    nationalityOfShip: formatPortCallPortName(ship.nationality),
     crew,
     footerMaster,
   };

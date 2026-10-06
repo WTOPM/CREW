@@ -191,6 +191,73 @@
   box-sizing: border-box;
 }
 
+.fuel-event-time-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.fuel-event-time-row app-time-input {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fuel-event-time-now {
+  flex: 0 0 auto;
+  min-height: 2.35rem;
+  padding: 0 0.7rem;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.fuel-event-time-now:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.fuel-event-time-now:focus-visible {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgb(245 158 11 / 20%);
+}
+
+.fuel-event-field app-time-input ::ng-deep .time-input {
+  min-height: 2.35rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.fuel-event-field app-time-input ::ng-deep .time-input:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgb(245 158 11 / 20%);
+}
+
 .fuel-event-field__control,
 .fuel-event-field input,
 .fuel-event-field select {
@@ -216,12 +283,128 @@
   box-shadow: 0 0 0 3px rgb(245 158 11 / 20%);
 }
 
-.fuel-event-field--total .fuel-event-field__control,
-.fuel-event-field--total input {
+.fuel-event-field__control--ro,
+output.fuel-event-field__control {
+  display: flex;
+  align-items: center;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.fuel-event-field--rob .fuel-event-field__control--ro {
   border-color: #fcd34d;
   background: #fffbeb;
-  font-weight: 700;
   color: #92400e;
+  font-weight: 750;
+}
+
+.fuel-event-rob-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 0.75rem;
+  margin-top: 0.65rem;
+}
+
+.fuel-event-rob-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  min-width: 0;
+}
+
+.fuel-event-rob-pick__label {
+  flex: 0 0 auto;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.fuel-event-rob-pick__select {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1.85rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fuel-event-rob-pick__select:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgb(245 158 11 / 20%);
+}
+
+.fuel-event-field--rob-empty .fuel-event-field__control--ro {
+  color: #94a3b8;
+  border-style: dashed;
+}
+
+.fuel-event-mt-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.fuel-event-mt-row .fuel-event-field__control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fuel-event-mt-steps {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: 1.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.fuel-event-mt-step {
+  flex: 1 1 50%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: transparent;
+  color: #92400e;
+  font-size: 0.55rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fuel-event-mt-step:last-child {
+  border-bottom: 0;
+}
+
+.fuel-event-mt-step:hover {
+  background: #fef3c7;
+}
+
+.fuel-event-mt-step:active {
+  background: #fde68a;
 }
 
 .fuel-event-custom-row {
