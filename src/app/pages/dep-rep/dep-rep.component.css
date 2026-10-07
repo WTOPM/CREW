@@ -644,6 +644,11 @@
   margin-bottom: 0.9rem;
 }
 
+.dep-rep-drafts--calc {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: -0.35rem;
+}
+
 .dep-rep-draft {
   position: relative;
   display: flex;

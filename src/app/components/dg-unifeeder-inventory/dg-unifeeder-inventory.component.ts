@@ -14,6 +14,7 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { commitDgDualWeightEdit } from '../../utils/dg-weight-tonnage.util';
 import { formatDisplayDate } from '../../utils/date.util';
 import { PortSelectComponent } from '../port-select/port-select.component';
+import { ContainerTypeSuggestComponent } from '../container-type-suggest/container-type-suggest.component';
 import { DgActIconComponent } from '../../pages/dg/dg-act-icon.component';
 import { ContainerTypeTooltipDirective } from '../../directives/container-type-tooltip.directive';
 import { DgClassTooltipDirective } from '../../directives/dg-class-tooltip.directive';
@@ -87,6 +88,7 @@ import { DgRowSelection } from '../../utils/dg-row-selection.util';
   imports: [
     FormsModule,
     PortSelectComponent,
+    ContainerTypeSuggestComponent,
     DgActIconComponent,
     ContainerTypeTooltipDirective,
     DgClassTooltipDirective,

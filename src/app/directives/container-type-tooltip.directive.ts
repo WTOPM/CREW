@@ -22,10 +22,17 @@ export class ContainerTypeTooltipDirective implements OnDestroy {
   @HostListener('mouseenter')
   onMouseEnter(): void {
     this.clearShowTimer();
+    // Drop any existing tip immediately so focus+hover never stacks two bubbles.
+    this.hide();
+    // While the Size/Type input is focused (typing / just picked), skip the tip —
+    // suggestions already cover that; hover-only tip is for at-a-glance later.
+    if (this.hostContainsFocusedInput()) return;
+
     const entry = lookupIsoContainerType(this.typeCode);
     if (!entry) return;
 
     this.showTimer = setTimeout(() => {
+      if (this.hostContainsFocusedInput()) return;
       this.hide();
       const tip = showHintTooltip(
         this.el.nativeElement,
@@ -43,18 +50,6 @@ export class ContainerTypeTooltipDirective implements OnDestroy {
     this.hide();
   }
 
-  @HostListener('focusin', ['$event'])
-  onFocusIn(event: FocusEvent): void {
-    const target = event.target as HTMLElement | null;
-    if (target?.tagName !== 'INPUT') return;
-    this.onMouseEnter();
-  }
-
-  @HostListener('focusout')
-  onFocusOut(): void {
-    this.onMouseLeave();
-  }
-
   ngOnDestroy(): void {
     this.clearShowTimer();
     this.hide();
@@ -70,5 +65,11 @@ export class ContainerTypeTooltipDirective implements OnDestroy {
       clearTimeout(this.showTimer);
       this.showTimer = null;
     }
+  }
+
+  private hostContainsFocusedInput(): boolean {
+    const root = this.el.nativeElement;
+    const active = document.activeElement;
+    return !!active && active.tagName === 'INPUT' && root.contains(active);
   }
 }

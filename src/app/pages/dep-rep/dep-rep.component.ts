@@ -16,11 +16,14 @@ import {
 import { DG_IMDG_CLASSES } from '../../utils/dg-imdg-class.util';
 import {
   buildDepRepCellUpdates,
-  readDepRepDensityTable,
-  readDepRepLatestSheetSnapshot,
+  readDepRepLatestRefreshData,
   type DepRepSheetSnapshot,
 } from '../../utils/dep-rep-excel.util';
-import { normalizeShipMetresInput } from '../../services/airdraft-field-positions';
+import {
+  airdraftHeightAboveWaterMetres,
+  normalizeShipMetresInput,
+  parseAirdraftMetres,
+} from '../../services/airdraft-field-positions';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { DepRepStore } from '../../services/dep-rep.store';
 import { DgManifestStore } from '../../services/dg-manifest.store';
@@ -163,6 +166,22 @@ export class DepRepComponent {
     const fore = local?.draftFore ?? this.ship().draftFore;
     const aft = local?.draftAft ?? this.ship().draftAft;
     return depRepMidDraftMetres(fore, aft);
+  });
+
+  /** Same as Excel H14: keel–mast − AFT (B8). */
+  protected readonly airdraftPreview = computed(() => {
+    const local = this.localShipFields();
+    const aft = local?.draftAft ?? this.ship().draftAft;
+    const n = airdraftHeightAboveWaterMetres(this.ship().heightKeelToMastTop, aft);
+    return n == null ? '' : (Math.round(n * 100) / 100).toFixed(2);
+  });
+
+  /** Same as Excel C18: moulded depth − MID (C8). */
+  protected readonly freeboardPreview = computed(() => {
+    const depth = parseAirdraftMetres(this.ship().mouldedDepth);
+    const mid = parseAirdraftMetres(this.midDraft());
+    if (depth == null || mid == null) return '';
+    return (Math.round((depth - mid) * 100) / 100).toFixed(2);
   });
 
   protected readonly pathSegments = computed(() => parseDepRepPathSegments(this.pathDraft()));
@@ -591,9 +610,16 @@ export class DepRepComponent {
         return;
       }
       const bytes = Uint8Array.from(atob(read.base64), (c) => c.charCodeAt(0));
-      await this.importDensitiesFromExcel(bytes);
-
-      const snap = await readDepRepLatestSheetSnapshot(bytes);
+      // One pass, first sheet only (SheetJS) — skips other tabs / drawings.
+      const { snapshot: snap, densities } = readDepRepLatestRefreshData(bytes);
+      if (densities.size) {
+        this.depRepStore.mergeDensities(
+          [...densities.entries()].map(([port, density]) => ({
+            port,
+            density: String(density),
+          })),
+        );
+      }
       if (!snap.exists) {
         this.sheetStatus.set('No sheets in workbook');
         this.sheetStatusKind.set('missing');
@@ -831,22 +857,6 @@ export class DepRepComponent {
   private endBusy(): void {
     this.busy.set(false);
     this.busyLabel.set('');
-  }
-
-  /** Pull PORT/DENSITY from Excel K:L into the app list (missing ports only). */
-  private async importDensitiesFromExcel(bytes: Uint8Array): Promise<void> {
-    try {
-      const table = await readDepRepDensityTable(bytes);
-      if (!table.size) return;
-      this.depRepStore.mergeDensities(
-        [...table.entries()].map(([port, density]) => ({
-          port,
-          density: String(density),
-        })),
-      );
-    } catch {
-      /* ignore import failures */
-    }
   }
 }
 

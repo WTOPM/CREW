@@ -6,6 +6,7 @@ import {
   lookupDepRepDensity,
   parseCargoTons,
   readDepRepDensityTable,
+  readDepRepLatestRefreshData,
   readDepRepLatestSheetSnapshot,
   readDepRepSheetSnapshot,
 } from './dep-rep-excel.util';
@@ -128,11 +129,27 @@ describe('readDepRepSheetSnapshot', () => {
     expect(snap.polCode).toBe('LVRIX');
     expect(snap.podCode).toBe('DEBRV');
     expect(snap.voyage).toBe('138');
+    expect(snap.departureDate).toBe('2026-09-19');
     expect(snap.totalCargo).toBe('14719');
     expect(snap.draftAft).toBe('9.4');
     expect(snap.draftFore).toBe('9.3');
     expect(snap.density).toBe('1');
     expect(snap.classRows).toEqual([{ dgClass: '3', totalKg: 1200 }]);
+  });
+
+  it('keeps calendar day for Excel serial dates (no UTC -1 day)', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('139 FIHEL');
+    ws.getCell('B2').value = 'FIHEL';
+    ws.getCell('F2').value = '139';
+    // Real Excel stores a serial; SheetJS cellDates → local midnight (UTC+ → previous UTC day).
+    const serial = Math.round(Date.UTC(2026, 8, 30) / 86400000 + 25569);
+    ws.getCell('B4').value = serial;
+    ws.getCell('B4').numFmt = 'dd.mm.yyyy';
+    ws.getCell('F9').value = 1;
+    const buf = (await wb.xlsx.writeBuffer()) as ArrayBuffer;
+    const { snapshot } = readDepRepLatestRefreshData(buf);
+    expect(snapshot.departureDate).toBe('2026-09-30');
   });
 
   it('loads the leftmost worksheet as latest', async () => {
@@ -148,6 +165,23 @@ describe('readDepRepSheetSnapshot', () => {
     expect(snap.sheetName).toBe('101 FIHEL');
     expect(snap.voyage).toBe('101');
     expect(snap.totalCargo).toBe('50');
+  });
+
+  it('refresh bundle reads latest sheet + densities in one pass', async () => {
+    const wb = new ExcelJS.Workbook();
+    const latest = wb.addWorksheet('102 DEBRV');
+    latest.getCell('B2').value = 'DEBRV';
+    latest.getCell('F2').value = '102';
+    latest.getCell('F9').value = 77;
+    latest.getCell('K7').value = 'DEBRV';
+    latest.getCell('L7').value = 1.008;
+    wb.addWorksheet('101 FIHEL');
+    const buf = (await wb.xlsx.writeBuffer()) as ArrayBuffer;
+    const { snapshot, densities } = readDepRepLatestRefreshData(buf);
+    expect(snapshot.sheetName).toBe('102 DEBRV');
+    expect(snapshot.voyage).toBe('102');
+    expect(snapshot.totalCargo).toBe('77');
+    expect(lookupDepRepDensity(densities, 'DEBRV')).toBe(1.008);
   });
 });
 

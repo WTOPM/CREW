@@ -1,0 +1,36 @@
+<div class="cts">
+  <input
+    #filterInput
+    type="text"
+    autocomplete="off"
+    spellcheck="false"
+    [class]="inputClass()"
+    [placeholder]="placeholder()"
+    [ngModel]="draft()"
+    (ngModelChange)="onDraftChange($event)"
+    (focus)="onFocus()"
+  />
+</div>
+@if (open() && suggestions().length) {
+  <ul
+    #panel
+    class="cts__list"
+    role="listbox"
+    [style.top.px]="panelPos().top"
+    [style.left.px]="panelPos().left"
+    [style.width.px]="panelPos().width"
+    [style.maxHeight.px]="panelPos().maxHeight"
+  >
+    @for (opt of suggestions(); track opt.code) {
+      <li
+        class="cts__option"
+        role="option"
+        [class.cts__option--selected]="opt.code === draft()"
+        (mousedown)="pick(opt.code, $event)"
+      >
+        <strong class="cts__code">{{ opt.code }}</strong>
+        <span class="cts__meta">{{ sizeLabel(opt.code) }}</span>
+      </li>
+    }
+  </ul>
+}

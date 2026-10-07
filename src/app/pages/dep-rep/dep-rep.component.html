@@ -310,6 +310,7 @@
               <span class="dep-rep-info__tip" role="tooltip">
                 SETTINGS ↔ DEP REP.
                 WRITE SENDS AFT→B8, FORE→D8; MID/TRIM STAY EXCEL FORMULAS.
+                AIRDRAFT = KEEL–MAST − AFT (H14). FREEBOARD = MOULDED DEPTH − MID (C18).
               </span>
             </span>
           </h3>
@@ -351,10 +352,30 @@
           <label
             class="dep-rep-draft dep-rep-draft--mid"
             [class.dep-rep-is-empty]="isBlank(midDraft())"
-            title="CALCULATED (FORE+AFT)/2 FROM SETTINGS DRAFTS → EXCEL C8 FORMULA"
+            title="CALCULATED (FORE+AFT)/2 → EXCEL C8"
           >
             <span>Mid</span>
             <input [value]="midDraft()" readonly tabindex="-1" />
+            <span class="dep-rep-draft__unit">m</span>
+          </label>
+        </div>
+        <div class="dep-rep-drafts dep-rep-drafts--calc">
+          <label
+            class="dep-rep-draft dep-rep-draft--mid"
+            [class.dep-rep-is-empty]="isBlank(airdraftPreview())"
+            title="PREVIEW = Settings keel–mast − AFT → Excel H14"
+          >
+            <span>Airdraft</span>
+            <input [value]="airdraftPreview()" readonly tabindex="-1" />
+            <span class="dep-rep-draft__unit">m</span>
+          </label>
+          <label
+            class="dep-rep-draft dep-rep-draft--mid"
+            [class.dep-rep-is-empty]="isBlank(freeboardPreview())"
+            title="PREVIEW = Settings moulded depth − MID → Excel C18 (freeboard)"
+          >
+            <span>Freeboard</span>
+            <input [value]="freeboardPreview()" readonly tabindex="-1" />
             <span class="dep-rep-draft__unit">m</span>
           </label>
         </div>

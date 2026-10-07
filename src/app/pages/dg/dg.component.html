@@ -722,12 +722,9 @@
                               class="dg-hint-tooltip-host"
                               [appContainerTypeTooltip]="container.type"
                             >
-                              <input
-                                type="text"
-                                class="dg-cell-input dg-cell-input--mono"
-                                [ngModel]="container.type"
-                                (ngModelChange)="onContainerChange(container.id, 'type', $event)"
-                                placeholder="—"
+                              <app-container-type-suggest
+                                [value]="container.type"
+                                (valueChange)="onContainerChange(container.id, 'type', $event)"
                               />
                             </span>
                           </td>
@@ -867,14 +864,11 @@
                                   class="dg-hint-tooltip-host"
                                   [appContainerTypeTooltip]="container.type"
                                 >
-                                  <input
-                                    type="text"
-                                    class="dg-cell-input dg-cell-input--mono"
-                                    [ngModel]="container.type"
-                                    (ngModelChange)="
+                                  <app-container-type-suggest
+                                    [value]="container.type"
+                                    (valueChange)="
                                       onContainerChange(container.id, 'type', $event)
                                     "
-                                    placeholder="—"
                                   />
                                 </span>
                               </td>

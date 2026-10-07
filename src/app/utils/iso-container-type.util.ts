@@ -119,6 +119,12 @@ const MANIFEST_CONTAINER_TYPES: readonly IsoContainerTypeEntry[] = [
     description: '20-foot general-purpose dry container (manifest code 22GP)',
   },
   {
+    code: '25GP',
+    sizeLabel: '20′ High Cube (9′6″)',
+    summary: 'General-purpose dry container — 20-foot high-cube GP box.',
+    description: '20-foot high-cube general-purpose dry container (manifest code 25GP)',
+  },
+  {
     code: 'L5GP',
     sizeLabel: '45′ High Cube (9′6″)',
     summary:
@@ -138,10 +144,58 @@ const MANIFEST_CONTAINER_TYPES: readonly IsoContainerTypeEntry[] = [
     description: '40-foot high-cube refrigerated container (manifest code 45RF)',
   },
   {
+    code: '42RF',
+    sizeLabel: '40′ standard height',
+    summary: 'Refrigerated container — 40-foot reefer unit (manifest shorthand).',
+    description: '40-foot refrigerated container (manifest code 42RF)',
+  },
+  {
     code: '22RF',
     sizeLabel: '20′ standard height',
     summary: 'Refrigerated container — 20-foot reefer unit (manifest shorthand).',
     description: '20-foot refrigerated container (manifest code 22RF)',
+  },
+  {
+    code: '22TN',
+    sizeLabel: '20′ standard height',
+    summary: 'Tank container — 20-foot ISO tank (manifest shorthand).',
+    description: '20-foot tank container (manifest code 22TN)',
+  },
+  {
+    code: '42TN',
+    sizeLabel: '40′ standard height',
+    summary: 'Tank container — 40-foot ISO tank (manifest shorthand).',
+    description: '40-foot tank container (manifest code 42TN)',
+  },
+  {
+    code: '22OT',
+    sizeLabel: '20′ standard height',
+    summary: 'Open-top container — 20-foot (manifest shorthand).',
+    description: '20-foot open-top container (manifest code 22OT)',
+  },
+  {
+    code: '42OT',
+    sizeLabel: '40′ standard height',
+    summary: 'Open-top container — 40-foot (manifest shorthand).',
+    description: '40-foot open-top container (manifest code 42OT)',
+  },
+  {
+    code: '45OT',
+    sizeLabel: '40′ High Cube (9′6″)',
+    summary: 'Open-top container — 40-foot high-cube (manifest shorthand).',
+    description: '40-foot high-cube open-top container (manifest code 45OT)',
+  },
+  {
+    code: '22FR',
+    sizeLabel: '20′ standard height',
+    summary: 'Flat-rack container — 20-foot (manifest shorthand).',
+    description: '20-foot flat-rack container (manifest code 22FR)',
+  },
+  {
+    code: '42FR',
+    sizeLabel: '40′ standard height',
+    summary: 'Flat-rack container — 40-foot (manifest shorthand).',
+    description: '40-foot flat-rack container (manifest code 42FR)',
   },
 ];
 
@@ -211,6 +265,17 @@ function withTooltipSizeLabel(entry: IsoContainerTypeEntry): IsoContainerTypeEnt
   return { ...entry, sizeLabel };
 }
 
+/** Catalog used for Size/Type typing suggestions (ISO + manifest, unique by code). */
+export const SUGGESTABLE_CONTAINER_TYPES: readonly IsoContainerTypeEntry[] = (() => {
+  const map = new Map<string, IsoContainerTypeEntry>();
+  for (const entry of [...MANIFEST_CONTAINER_TYPES, ...ISO_CONTAINER_TYPES]) {
+    const code = normalizeIsoContainerTypeCode(entry.code);
+    if (!code || map.has(code)) continue;
+    map.set(code, withTooltipSizeLabel({ ...entry, code }));
+  }
+  return [...map.values()].sort((a, b) => a.code.localeCompare(b.code));
+})();
+
 function guessSizeLabel(code: string): string {
   const lengthKey = code.slice(0, 2);
   const size = ISO_LENGTH[lengthKey];
@@ -248,4 +313,68 @@ function guessIsoContainerType(code: string): IsoContainerTypeEntry | null {
     summary,
     description: `${sizeLabel} — ${summary}`,
   };
+}
+
+/** Shorthand length digit(s): `4`/`40` → all 40′ codes (42*, 45*); `2`/`20` → 20′. */
+function lengthFamilyForQuery(q: string): '20' | '40' | null {
+  if (q === '2' || q === '20') return '20';
+  if (q === '4' || q === '40') return '40';
+  return null;
+}
+
+function entryLengthFamily(code: string): '20' | '40' | '45' | null {
+  const key = code.slice(0, 2);
+  const size = ISO_LENGTH[key] ?? '';
+  if (size.startsWith('20')) return '20';
+  if (size.startsWith('40')) return '40';
+  if (size.startsWith('45')) return '45';
+  return null;
+}
+
+function scoreContainerTypeSuggestion(entry: IsoContainerTypeEntry, q: string): number {
+  const code = entry.code;
+  if (code === q) return 1000;
+
+  const family = lengthFamilyForQuery(q);
+  if (family) {
+    // Digit length queries (`4`, `40`, `2`) rank the whole family — not only code prefix.
+    if (entryLengthFamily(code) !== family) return 0;
+    let score = 600;
+    if (code.endsWith('GP') || code.endsWith('G1') || code.endsWith('G0')) score += 80;
+    else if (code.endsWith('RF') || code.endsWith('R1')) score += 60;
+    else if (code.endsWith('TN') || code.endsWith('T1')) score += 50;
+    else if (code.endsWith('OT') || code.endsWith('U1')) score += 40;
+    else if (code.endsWith('FR') || code.endsWith('P1')) score += 40;
+    // Prefer HC variants within the family (25*, 45*).
+    if (code.startsWith('25') || code.startsWith('45')) score += 15;
+    return score;
+  }
+
+  if (code.startsWith(q)) return 800 + Math.min(q.length, 8) * 10;
+
+  const sizeLabel = containerTypeSizeLabel(entry).toUpperCase().replace(/[′'″"\s]/g, '');
+  const qCompact = q.replace(/[′'″"\s]/g, '');
+  if (qCompact && sizeLabel.includes(qCompact)) return 500;
+  if (entry.summary.toUpperCase().includes(q)) return 300;
+  return 0;
+}
+
+/**
+ * Size/Type suggestions while typing in DG inventory.
+ * Typing `4` → 40′ family (42GP, 45GP, 42G1, …); `2` → 20′; code prefix also matches.
+ */
+export function suggestIsoContainerTypes(
+  rawQuery: string | undefined | null,
+  limit = 12,
+): IsoContainerTypeEntry[] {
+  const q = normalizeIsoContainerTypeCode(rawQuery);
+  if (!q) return [];
+  const scored = SUGGESTABLE_CONTAINER_TYPES.map((entry) => ({
+    entry,
+    score: scoreContainerTypeSuggestion(entry, q),
+  })).filter((row) => row.score > 0);
+  scored.sort(
+    (a, b) => b.score - a.score || a.entry.code.localeCompare(b.entry.code),
+  );
+  return scored.slice(0, Math.max(1, limit)).map((row) => row.entry);
 }

@@ -564,10 +564,9 @@
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
                     <span [appContainerTypeTooltip]="container.size">
-                      <input
-                        class="dg-cell-input dg-cell-input--mono"
-                        [ngModel]="container.size"
-                        (ngModelChange)="onUnifeederContainerChange(container, 'size', $event)"
+                      <app-container-type-suggest
+                        [value]="container.size"
+                        (valueChange)="onUnifeederContainerChange(container, 'size', $event)"
                       />
                     </span>
                   </td>

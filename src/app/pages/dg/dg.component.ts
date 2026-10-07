@@ -40,6 +40,7 @@ import { commitDgDualWeightEdit } from '../../utils/dg-weight-tonnage.util';
 import { formatDisplayDate } from '../../utils/date.util';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
+import { ContainerTypeSuggestComponent } from '../../components/container-type-suggest/container-type-suggest.component';
 import { DgArchiveModalsComponent } from '../../components/dg-archive-modals/dg-archive-modals.component';
 import { DgUnifeederInventoryComponent } from '../../components/dg-unifeeder-inventory/dg-unifeeder-inventory.component';
 import { ContainerTypeTooltipDirective } from '../../directives/container-type-tooltip.directive';
@@ -72,6 +73,7 @@ export type DgInventoryTab = DgActiveInventoryTab;
     FormsModule,
     DgActIconComponent,
     PortSelectComponent,
+    ContainerTypeSuggestComponent,
     DatePickerComponent,
     ContainerTypeTooltipDirective,
     DgClassTooltipDirective,
