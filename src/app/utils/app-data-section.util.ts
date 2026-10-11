@@ -1,10 +1,13 @@
 import { APP_DATA_SCHEMA_VERSION } from '../data/empty-app-data';
 import { AppData } from '../models/crew.models';
 
-/** Main nav sections — one cooperative lock each when sharing a data folder. */
+/** Main nav sections. Home/Reefer/Settings use cooperative locks; DG/ETA/FUEL/Phone do not. */
 export type AppSection = 'home' | 'dg' | 'reefer' | 'eta' | 'fuel' | 'phone' | 'settings';
 
 export const APP_SECTIONS: AppSection[] = ['home', 'dg', 'reefer', 'eta', 'fuel', 'phone', 'settings'];
+
+/** Sections that share data without exclusive edit locks. */
+export const SECTION_LOCK_EXEMPT: ReadonlySet<AppSection> = new Set(['dg', 'eta', 'fuel', 'phone']);
 
 export const APP_SECTION_LABELS: Record<AppSection, string> = {
   home: 'Home',

@@ -423,8 +423,8 @@ export class AppStateStore {
   }
 
   /**
-   * Save FUEL column-display presets immediately — shared list, not tied to the FUEL edit lock
-   * (view-only users may still save/load layouts).
+   * Save FUEL column-display presets immediately — shared list in the data folder
+   * (FUEL has no cooperative lock).
    */
   async persistFuelDisplayPresets(
     notify: PersistNotify = 'silent',

@@ -33,53 +33,12 @@
             >
           }</a
         >
-        <a
-          routerLink="/dg"
-          routerLinkActive="active"
-          class="nav-dg nav-link--lockable"
-          [class.nav-link--lock-mine]="navLockState('dg') === 'mine'"
-          [class.nav-link--lock-other]="navLockState('dg') === 'other'"
-          [title]="navLockTooltip('dg')"
-          >DG
-          @if (navLockBadge('dg'); as badge) {
-            <span
-              class="nav-lock-badge"
-              [class.nav-lock-badge--mine]="navLockState('dg') === 'mine'"
-              >{{ badge }}</span
-            >
-          }</a
+        <a routerLink="/dg" routerLinkActive="active" class="nav-dg" title="DG">DG</a>
+        <a routerLink="/eta" routerLinkActive="active" class="nav-eta" title="ETA"
+          >ETA</a
         >
-        <a
-          routerLink="/eta"
-          routerLinkActive="active"
-          class="nav-eta nav-link--lockable"
-          [class.nav-link--lock-mine]="navLockState('eta') === 'mine'"
-          [class.nav-link--lock-other]="navLockState('eta') === 'other'"
-          [title]="navLockTooltip('eta')"
-          >ETA
-          @if (navLockBadge('eta'); as badge) {
-            <span
-              class="nav-lock-badge"
-              [class.nav-lock-badge--mine]="navLockState('eta') === 'mine'"
-              >{{ badge }}</span
-            >
-          }</a
-        >
-        <a
-          routerLink="/fuel"
-          routerLinkActive="active"
-          class="nav-fuel nav-link--lockable"
-          [class.nav-link--lock-mine]="navLockState('fuel') === 'mine'"
-          [class.nav-link--lock-other]="navLockState('fuel') === 'other'"
-          [title]="navLockTooltip('fuel')"
-          >FUEL
-          @if (navLockBadge('fuel'); as badge) {
-            <span
-              class="nav-lock-badge"
-              [class.nav-lock-badge--mine]="navLockState('fuel') === 'mine'"
-              >{{ badge }}</span
-            >
-          }</a
+        <a routerLink="/fuel" routerLinkActive="active" class="nav-fuel" title="FUEL"
+          >FUEL</a
         >
         <a
           routerLink="/phone"

@@ -1,6 +1,10 @@
 import { Injectable, computed, signal } from '@angular/core';
 import type { SectionLockBanner } from '../../electron';
-import { APP_SECTION_LABELS, AppSection } from '../utils/app-data-section.util';
+import {
+  APP_SECTION_LABELS,
+  AppSection,
+  SECTION_LOCK_EXEMPT,
+} from '../utils/app-data-section.util';
 import { readLocalStorage, writeLocalStorage } from '../utils/browser-storage.util';
 
 export interface SectionLockRecord {
@@ -32,7 +36,7 @@ export class SectionLockService {
 
   readonly lockBanner = computed((): SectionLockBanner | null => {
     const section = this.activeSection();
-    if (!section || !this.cooperativeMode()) return null;
+    if (!section || !this.cooperativeMode() || SECTION_LOCK_EXEMPT.has(section)) return null;
     const label = APP_SECTION_LABELS[section];
     if (this.displacedBy()) {
       const who = this.displacedBy()!.displayName || 'Another user';
@@ -94,7 +98,8 @@ export class SectionLockService {
     await this.releaseCurrent();
     this.activeSection.set(section);
     this.displacedBy.set(null);
-    if (!section || !this.cooperativeMode()) {
+    // DG / ETA / FUEL / Phone: no exclusive lock — shared reload/Save only.
+    if (!section || !this.cooperativeMode() || SECTION_LOCK_EXEMPT.has(section)) {
       this.readOnly.set(false);
       this.heldBy.set(null);
       await this.refreshPeerLocks();
@@ -203,7 +208,7 @@ export class SectionLockService {
   canPersist(): boolean {
     if (!this.cooperativeMode()) return true;
     const section = this.activeSection();
-    if (!section) return true;
+    if (!section || SECTION_LOCK_EXEMPT.has(section)) return true;
     return !this.readOnly() && !this.displacedBy();
   }
 

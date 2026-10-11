@@ -89,7 +89,6 @@ interface FuelRobTankMenu {
 import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { FuelStore } from '../../services/fuel.store';
-import { SectionLockService } from '../../services/section-lock.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
 import {
@@ -198,7 +197,6 @@ export class FuelComponent {
   private readonly fuelStore = inject(FuelStore);
   private readonly toast = inject(ToastService);
   private readonly localPrefs = inject(ElectronLocalPrefsService);
-  private readonly sectionLock = inject(SectionLockService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -212,15 +210,10 @@ export class FuelComponent {
   protected readonly canWriteExcel = !!window.electronAPI?.writeFileBase64;
   protected readonly library = this.storage.fuelLibrary;
   protected readonly busy = signal(false);
-  /**
-   * View / Edit — single source: local prefs (survives navigation + app restart).
-   * While section is view-only, show View without wiping the saved Edit preference.
-   */
-  protected readonly activeTab = computed((): 'view' | 'edit' => {
-    const pref = this.localPrefs.fuelUi().activeTab === 'edit' ? 'edit' : 'view';
-    if (pref === 'edit' && this.viewOnly()) return 'view';
-    return pref;
-  });
+  /** View / Edit — local prefs (survives navigation + app restart). No section lock. */
+  protected readonly activeTab = computed((): 'view' | 'edit' =>
+    this.localPrefs.fuelUi().activeTab === 'edit' ? 'edit' : 'view',
+  );
   protected readonly showAddModal = signal(false);
   /** Stable seed for Add modal (new object only when opening — avoids draft reset). */
   protected readonly addModalSeed = signal<Partial<FuelLogEvent> | null>(null);
@@ -277,14 +270,8 @@ export class FuelComponent {
   protected readonly utcPressing = signal(false);
   private utcPressTimer: ReturnType<typeof setTimeout> | null = null;
   private utcLongPressHandled = false;
-  protected readonly viewOnly = computed(
-    () => this.sectionLock.readOnly() || !!this.sectionLock.displacedBy(),
-  );
-
-  /** Editing is only on the Edit tab (and not when another PC holds the lock). */
-  protected readonly canEdit = computed(
-    () => this.activeTab() === 'edit' && !this.viewOnly(),
-  );
+  /** Editing is only on the Edit tab (FUEL has no cooperative lock). */
+  protected readonly canEdit = computed(() => this.activeTab() === 'edit');
 
   /** Unsaved Edit draft (persisted in AppData — survives restart). */
   protected readonly dirty = computed(() => this.library().editDirty);
@@ -547,7 +534,6 @@ export class FuelComponent {
   }
 
   protected syncTitle(): string {
-    if (this.viewOnly()) return 'View only — cannot write the Excel file';
     if (!this.canWriteExcel) return 'Save to file needs the desktop app';
     if (this.hasReadyToWrite()) {
       return `Hover: Write saves ${this.readyCount()} ready row(s) to Excel · Discard restores last clean draft`;
@@ -558,7 +544,7 @@ export class FuelComponent {
 
   protected async confirmWriteToFile(ev?: Event): Promise<void> {
     ev?.stopPropagation();
-    if (this.busy() || !this.hasReadyToWrite() || !this.canWriteExcel || this.viewOnly()) return;
+    if (this.busy() || !this.hasReadyToWrite() || !this.canWriteExcel) return;
     const n = this.readyCount();
     const ok = await this.confirmDialog.confirm({
       title: 'Write ready rows to Excel?',
@@ -575,7 +561,7 @@ export class FuelComponent {
 
   protected async confirmDiscardEdits(ev?: Event): Promise<void> {
     ev?.stopPropagation();
-    if (this.busy() || !this.dirty() || this.viewOnly()) return;
+    if (this.busy() || !this.dirty()) return;
     const ok = await this.confirmDialog.confirm({
       title: 'Discard Edit draft?',
       message:
@@ -811,10 +797,6 @@ export class FuelComponent {
   }
 
   protected setActiveTab(tab: 'view' | 'edit'): void {
-    if (tab === 'edit' && this.viewOnly()) {
-      this.toast.showError('Someone else is editing FUEL — view only');
-      return;
-    }
     // Persist on this PC — stays after leave Fuel / close app. Draft is never discarded.
     if (tab === this.localPrefs.fuelUi().activeTab) {
       this.closeMenus();
@@ -826,11 +808,7 @@ export class FuelComponent {
 
   protected openAddModal(): void {
     if (!this.canEdit()) {
-      this.toast.showError(
-        this.viewOnly()
-          ? 'Someone else is editing FUEL — view only'
-          : 'Switch to the Edit tab to add a row',
-      );
+      this.toast.showError('Switch to the Edit tab to add a row');
       return;
     }
     this.closeDensityHud();
@@ -1445,6 +1423,15 @@ export class FuelComponent {
     this.applyDensity(hud.eventId, n, false);
   }
 
+  /** Mouse wheel over Density HUD: ↑ +0.01 / ↓ −0.01 · Shift ±0.1 (same as arrows). */
+  protected onDensityHudWheel(event: WheelEvent): void {
+    if (!this.densityHud()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const dir: 1 | -1 = event.deltaY < 0 ? 1 : -1;
+    this.nudgeDensityHud(dir, event.shiftKey ? 0.1 : 0.01);
+  }
+
   protected onDensityHudArrow(event: Event, dir: 1 | -1): void {
     const ke = event as KeyboardEvent;
     ke.preventDefault();
@@ -1550,10 +1537,6 @@ export class FuelComponent {
   }
 
   protected async saveToFile(): Promise<void> {
-    if (this.viewOnly()) {
-      this.toast.showError('Someone else is editing FUEL — cannot save');
-      return;
-    }
     const path = this.pathDraft().trim() || this.library().sourcePath.trim();
     const api = window.electronAPI;
     if (!api?.readFileBase64 || !api.writeFileBase64 || !/[\\/]/.test(path)) {
@@ -1654,11 +1637,7 @@ export class FuelComponent {
 
   protected clearData(): void {
     if (!this.canEdit()) {
-      this.toast.showError(
-        this.viewOnly()
-          ? 'Someone else is editing FUEL — cannot clear'
-          : 'Switch to the Edit tab to clear',
-      );
+      this.toast.showError('Switch to the Edit tab to clear');
       return;
     }
     this.fuelStore.clearEditEvents();

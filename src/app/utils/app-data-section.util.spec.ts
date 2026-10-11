@@ -3,6 +3,7 @@ import { createEmptyAppData } from '../data/empty-app-data';
 import {
   mergeSectionForSave,
   mergeSectionFromDisk,
+  SECTION_LOCK_EXEMPT,
   sectionFromRoutePath,
 } from './app-data-section.util';
 
@@ -13,9 +14,32 @@ describe('app-data-section.util', () => {
     expect(sectionFromRoutePath('/dg/reference')).toBe('dg');
     expect(sectionFromRoutePath('/dg/dep-rep')).toBe('dg');
     expect(sectionFromRoutePath('/eta')).toBe('eta');
-  expect(sectionFromRoutePath('/fuel')).toBe('fuel');
-  expect(sectionFromRoutePath('/settings')).toBe('settings');
+    expect(sectionFromRoutePath('/fuel')).toBe('fuel');
+    expect(sectionFromRoutePath('/settings')).toBe('settings');
     expect(sectionFromRoutePath('/crew-arr')).toBeNull();
+  });
+
+  it('DG / ETA / FUEL / Phone are lock-exempt', () => {
+    expect(SECTION_LOCK_EXEMPT.has('dg')).toBe(true);
+    expect(SECTION_LOCK_EXEMPT.has('eta')).toBe(true);
+    expect(SECTION_LOCK_EXEMPT.has('fuel')).toBe(true);
+    expect(SECTION_LOCK_EXEMPT.has('phone')).toBe(true);
+    expect(SECTION_LOCK_EXEMPT.has('home')).toBe(false);
+    expect(SECTION_LOCK_EXEMPT.has('reefer')).toBe(false);
+  });
+
+  it('mergeSectionForSave writes ETA / DG from any PC into the shared file', () => {
+    const disk = createEmptyAppData();
+    const memory = createEmptyAppData();
+    memory.etaLibrary = {
+      ...memory.etaLibrary,
+      draft: { ...memory.etaLibrary.draft, name: 'Shared ETA' },
+    };
+    memory.dgLibrary = { ...memory.dgLibrary, showDischarged: true };
+    const etaSaved = mergeSectionForSave(disk, memory, 'eta');
+    expect(etaSaved.etaLibrary.draft.name).toBe('Shared ETA');
+    const dgSaved = mergeSectionForSave(disk, memory, 'dg');
+    expect(dgSaved.dgLibrary.showDischarged).toBe(true);
   });
 
   it('mergeSectionFromDisk updates only the target section', () => {

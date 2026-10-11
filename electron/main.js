@@ -523,7 +523,8 @@ function guardShrinkBeforeWrite(data) {
   }
 }
 
-const SECTION_LOCK_IDS = ['home', 'dg', 'reefer', 'eta', 'fuel', 'settings'];
+/** Exclusive edit locks — DG/ETA/FUEL/Phone share without locks (reload on tab / Save). */
+const SECTION_LOCK_IDS = ['home', 'reefer', 'settings'];
 const LOCK_STALE_MS = 90_000;
 /** Shared-folder signal: close every running CREW instance (for exe replace). */
 const FORCE_QUIT_FILE = 'force-quit.json';
