@@ -397,7 +397,7 @@ describe('writeFuelLogToExcelBytes', () => {
     expect(roundTrip.events.map((e) => e.rawEvent)).toEqual(['BOSP', 'Noon']);
   });
 
-  it('appends new rows with Total t density formula and preserves existing H formulas', async () => {
+  it('preserves MASTER H formulas and appends identity on the next blank row', async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Fuel Log MASTER');
     for (let r = 1; r <= 8; r++) ws.addRow([]);
@@ -409,6 +409,8 @@ describe('writeFuelLogToExcelBytes', () => {
     ws.getCell('F5').value = 100;
     ws.getCell('G5').value = { formula: 'F5-0', result: 0 };
     ws.getCell('H5').value = { formula: 'ROUND(G5*0.88,1)', result: 0 };
+    // FO-VPC pre-seeds shared H on the next empty row.
+    ws.getCell('H6').value = { sharedFormula: 'H5', result: 0 };
 
     const buf = await wb.xlsx.writeBuffer();
     const events = [
@@ -432,6 +434,7 @@ describe('writeFuelLogToExcelBytes', () => {
         time: '12:00',
         fmMeAe: 105,
         totalM3: 5,
+        totalMt: 4.5,
         density: 0.9,
         sourceRow: 0,
       }),
@@ -449,12 +452,64 @@ describe('writeFuelLogToExcelBytes', () => {
       /ROUND\(G5\*0\.88/i,
     );
     expect(master.getCell('F5').value).toBe(110);
-    // Appended row gets density formula.
     expect(master.getCell('A6').value).toBe('Sea');
     expect(master.getCell('B6').value).toBe('Noon');
-    expect(String((master.getCell('H6').value as { formula?: string })?.formula ?? '')).toMatch(
-      /ROUND\(G6\*0\.9/i,
-    );
+    expect(master.getCell('F6').value).toBe(105);
+    // Pre-seeded shared H kept (not replaced with a new ROUND).
+    expect(
+      String(
+        (master.getCell('H6').value as { sharedFormula?: string; formula?: string })?.sharedFormula ??
+          (master.getCell('H6').value as { formula?: string })?.formula ??
+          '',
+      ),
+    ).toMatch(/H5|ROUND/i);
+  });
+
+  it('writes MASTER time and keeps ENGINE LOG linked via MASTER formula', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    const ceng = wb.addWorksheet('ENGINE LOG');
+    for (let r = 1; r <= 10; r++) {
+      master.addRow([]);
+      ceng.addRow([]);
+    }
+
+    master.getCell('A5').value = 'Riga';
+    master.getCell('B5').value = 'FWE/Shifting';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 9, 10));
+    master.getCell('D5').value = '15:36';
+
+    ceng.getCell('A3').value = { formula: "'Fuel Log MASTER '!A5", result: 'Riga' };
+    ceng.getCell('B3').value = { formula: "'Fuel Log MASTER '!B5", result: 'FWE/Shifting' };
+    ceng.getCell('C3').value = {
+      formula: "'Fuel Log MASTER '!C5",
+      result: new Date(Date.UTC(2026, 9, 10)),
+    };
+    ceng.getCell('D3').value = { formula: "'Fuel Log MASTER '!D5", result: '15:36' };
+
+    const buf = await wb.xlsx.writeBuffer();
+    const events = [
+      createEmptyFuelLogEvent({
+        id: 'fwe',
+        place: 'Riga',
+        rawEvent: 'FWE/Shifting',
+        date: '2026-10-10',
+        time: '15:37',
+        sourceRow: 5,
+        cengSourceRow: 3,
+        writeStatus: 'ready',
+      }),
+    ];
+
+    const out = await writeFuelLogToExcelBytes(buf as ArrayBuffer, events);
+    const wb2 = new ExcelJS.Workbook();
+    await wb2.xlsx.load(out.bytes.buffer as ExcelJS.Buffer);
+    const master2 = wb2.worksheets.find((s) => /master/i.test(s.name))!;
+    const ceng2 = wb2.getWorksheet('ENGINE LOG')!;
+    expect(master2.getCell('D5').value).toBe('15:37');
+    const cengD = ceng2.getCell('D3').value as { formula?: string; result?: unknown };
+    expect(String(cengD.formula ?? '')).toMatch(/MASTER.*D5/i);
+    expect(cengD.result).toBe('15:37');
   });
 
   it('writes over shared-formula columns without crashing', async () => {

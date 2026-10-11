@@ -6,7 +6,6 @@ import {
   fillMissingPeriodTotals,
   inferFuelDensityFromMtM3,
   normalizeFuelDensity,
-  recomputeFuelTotalMtFromM3,
   type FuelLogEvent,
   type FuelMasterSummary,
 } from '../models/fuel.models';
@@ -239,6 +238,7 @@ function importFromCengSpine(
         boilerConsM3: periodNum(row.getCell(35), trustPeriodFormulas),
         boilerConsMt: periodNum(row.getCell(36), trustPeriodFormulas),
         sourceRow: m?.sourceRow ?? 0,
+        cengSourceRow: r,
       }),
     );
   }
@@ -349,11 +349,18 @@ export interface FuelExcelWriteResult {
 }
 
 /**
- * Write Fuel Log MASTER (+ matching CENG rows) from in-memory events.
- * - Existing Excel rows: update editable cells; never overwrite Total m³ / Total t
- *   formulas (G/H) so FO-VPC formulas stay intact.
- * - New events (sourceRow 0): append after the last used MASTER row.
- * - Does not clear historical Excel rows (old data left untouched).
+ * Write Fuel Log MASTER (+ keep ENGINE LOG in sync).
+ *
+ * FO-VPC layout (verified on ship file):
+ * - MASTER is the source of truth for place / event / date / time / FM / fuel cols.
+ * - ENGINE LOG A–D, F–M (and some others) are formulas → `'Fuel Log MASTER '!Xn`.
+ * - Empty MASTER/ENGINE rows below the log already carry shared / link formulas.
+ *
+ * Therefore we:
+ * - write values only into non-formula MASTER cells (never flatten whole sheets);
+ * - find the ENGINE row that references this MASTER row and patch formula caches
+ *   + write machinery value columns only (never destroy MASTER links).
+ *
  * Caller should pass only `writeStatus === 'ready'` rows.
  */
 export async function writeFuelLogToExcelBytes(
@@ -377,29 +384,25 @@ export async function writeFuelLogToExcelBytes(
     if (place || rawEvent) nextMasterRow = r + 1;
   }
 
-  // Never flatten/overwrite G (Total m³) / H (Total t) on existing rows —
-  // those hold FO-VPC formulas (Fₙ−Fₙ₋₁ and ROUND(G×density,1)).
-  const preservePeriodCols = new Set([7, 8]);
   const written: FuelLogEvent[] = [];
 
   for (const event of events) {
     const isNew = !(event.sourceRow >= 5);
     const rowNum = isNew ? nextMasterRow++ : event.sourceRow;
-    flattenSharedFormulasOnRow(master, rowNum, 1, 18, isNew ? undefined : preservePeriodCols);
-    writeMasterRow(master, rowNum, event, { isNew });
+    writeMasterRow(master, rowNum, event);
+    let cengRowWritten = event.cengSourceRow;
     if (ceng) {
-      const cengRow = isNew
-        ? (findCengRow(ceng, event) ?? mirrorCengRow(ceng, rowNum))
-        : findCengRow(ceng, event);
-      if (cengRow) {
-        flattenSharedFormulasOnRow(ceng, cengRow, 1, 36, isNew ? undefined : preservePeriodCols);
-        writeCengRow(ceng, cengRow, event, { isNew });
+      const cengRow = resolveCengRowForWrite(ceng, event, rowNum, isNew);
+      if (cengRow != null) {
+        syncEngineLogRow(ceng, cengRow, rowNum, event, quoteSheetName(master.name));
+        cengRowWritten = cengRow;
       }
     }
     written.push(
       createEmptyFuelLogEvent({
         ...event,
         sourceRow: rowNum,
+        cengSourceRow: cengRowWritten,
         writeStatus: 'synced',
       }),
     );
@@ -419,55 +422,32 @@ function findCengWorksheet(wb: ExcelJS.Workbook): ExcelJS.Worksheet | undefined 
   );
 }
 
-function writeMasterRow(
-  ws: ExcelJS.Worksheet,
-  rowNum: number,
-  e: FuelLogEvent,
-  opts: { isNew: boolean },
-): void {
+/**
+ * Write MASTER identity + entered values. Formula cells (Time Used / G / H / ROB…)
+ * are left intact; we only refresh their cached result when we have a number.
+ */
+function writeMasterRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent): void {
   const row = ws.getRow(rowNum);
-  setText(row.getCell(1), e.place);
-  setText(row.getCell(2), e.rawEvent);
+  setCellValue(row.getCell(1), e.place.trim() || null);
+  setCellValue(row.getCell(2), e.rawEvent.trim() || null);
   setDate(row.getCell(3), e.date);
   setTime(row.getCell(4), e.time);
-  setNum(row.getCell(5), e.timeUsedHours);
-  setNum(row.getCell(6), e.fmMeAe);
-  // G Total m³ / H Total t — keep Excel formulas on existing rows.
-  writePeriodCell(row.getCell(7), e.totalM3, opts.isNew);
-  writeTotalMtCell(row.getCell(8), rowNum, e, opts.isNew);
-  setNum(row.getCell(9), e.meMt);
-  setNum(row.getCell(10), e.aeMt);
-  setNum(row.getCell(11), e.robRmdMt);
-  setNum(row.getCell(12), e.robB100Mt);
-  setNum(row.getCell(13), e.bunkerRmdBioMt);
-  setNum(row.getCell(14), e.bunkerDmaMt);
-  setNum(row.getCell(15), e.robDmaMt);
-  setNum(row.getCell(16), e.boilerMt);
-  setNum(row.getCell(17), e.dmaConsM3);
-  setNum(row.getCell(18), e.boilerFm);
-}
-
-/** G: write value only when new or cell has no formula. */
-function writePeriodCell(cell: ExcelJS.Cell, value: number | null, isNew: boolean): void {
-  if (!isNew && cellHasFormula(cell)) return;
-  setNum(cell, value);
-}
-
-/** H: ROUND(G×density,1) for new rows; never overwrite existing formulas. */
-function writeTotalMtCell(
-  cell: ExcelJS.Cell,
-  rowNum: number,
-  e: FuelLogEvent,
-  isNew: boolean,
-): void {
-  if (!isNew && cellHasFormula(cell)) return;
-  const density = normalizeFuelDensity(e.density) ?? FUEL_DEFAULT_DENSITY;
-  const result = recomputeFuelTotalMtFromM3(e.totalM3, density);
-  cell.value = {
-    formula: `ROUND(G${rowNum}*${density},1)`,
-    result: result ?? undefined,
-  };
-  cell.numFmt = '0.0';
+  // E Time Used — FO-VPC formula; patch cache only.
+  patchFormulaResult(row.getCell(5), e.timeUsedHours);
+  setCellValue(row.getCell(6), e.fmMeAe);
+  patchFormulaResult(row.getCell(7), e.totalM3);
+  patchFormulaResult(row.getCell(8), e.totalMt);
+  // Prefer keeping shared ME/AE/ROB formulas; write value only when cell is plain.
+  setCellValue(row.getCell(9), e.meMt);
+  setCellValue(row.getCell(10), e.aeMt);
+  setCellValue(row.getCell(11), e.robRmdMt);
+  setCellValue(row.getCell(12), e.robB100Mt);
+  setCellValue(row.getCell(13), e.bunkerRmdBioMt);
+  setCellValue(row.getCell(14), e.bunkerDmaMt);
+  setCellValue(row.getCell(15), e.robDmaMt);
+  setCellValue(row.getCell(16), e.boilerMt);
+  setCellValue(row.getCell(17), e.dmaConsM3);
+  setCellValue(row.getCell(18), e.boilerFm);
 }
 
 /** Wipe a MASTER data row so re-import skips it (deleted in the UI). */
@@ -502,49 +482,62 @@ function cengRowMatchesEvent(
   return place === e.place || raw === e.rawEvent;
 }
 
-function writeCengRow(
+/**
+ * ENGINE LOG mirrors MASTER via formulas. Refresh cached results for linked
+ * columns and write only plain machinery value cells (counters / kW / …).
+ */
+function syncEngineLogRow(
   ws: ExcelJS.Worksheet,
-  rowNum: number,
+  engineRow: number,
+  masterRow: number,
   e: FuelLogEvent,
-  opts: { isNew: boolean },
+  masterSheetRef: string,
 ): void {
-  const row = ws.getRow(rowNum);
-  setText(row.getCell(1), e.place);
-  setText(row.getCell(2), e.rawEvent);
-  setDate(row.getCell(3), e.date);
-  setTime(row.getCell(4), e.time);
-  setNum(row.getCell(5), e.timeUsedHours);
-  setNum(row.getCell(6), e.fmMeAe);
-  writePeriodCell(row.getCell(7), e.totalM3, opts.isNew);
-  writeTotalMtCell(row.getCell(8), rowNum, e, opts.isNew);
-  setNum(row.getCell(9), e.meMt);
-  setNum(row.getCell(10), e.aeMt);
-  setNum(row.getCell(11), e.robRmdMt);
-  setNum(row.getCell(12), e.robB100Mt);
-  setNum(row.getCell(13), e.robDmaMt);
-  setNum(row.getCell(14), e.meCounterRh);
-  setNum(row.getCell(15), e.meShapoliRev);
-  setNum(row.getCell(16), e.meShapoliKwh);
-  setNum(row.getCell(17), e.meHours);
-  setNum(row.getCell(18), e.meRpm);
-  setNum(row.getCell(19), e.meKw);
-  setNum(row.getCell(20), e.ae1CounterRh);
-  setNum(row.getCell(21), e.ae1KwAvg);
-  setNum(row.getCell(22), e.ae1Hours);
-  setNum(row.getCell(23), e.ae1Kw);
-  setNum(row.getCell(24), e.ae2CounterRh);
-  setNum(row.getCell(25), e.ae2KwAvg);
-  setNum(row.getCell(26), e.ae2Hours);
-  setNum(row.getCell(27), e.ae2Kw);
-  setNum(row.getCell(28), e.ae3CounterRh);
-  setNum(row.getCell(29), e.ae3KwAvg);
-  setNum(row.getCell(30), e.ae3Hours);
-  setNum(row.getCell(31), e.ae3Kw);
-  setNum(row.getCell(32), e.boilerCounterRh);
-  setNum(row.getCell(33), e.boilerHours);
-  setNum(row.getCell(34), e.boilerFmCeng);
-  setNum(row.getCell(35), e.boilerConsM3);
-  setNum(row.getCell(36), e.boilerConsMt);
+  const row = ws.getRow(engineRow);
+  const link = (cell: ExcelJS.Cell, col: string, result: string | number | Date | null) =>
+    ensureEngineMasterLink(cell, col, masterRow, result, masterSheetRef);
+  // Ensure A points at this MASTER row (pre-seeded empty rows already do).
+  link(row.getCell(1), 'A', e.place.trim() || null);
+  link(row.getCell(2), 'B', e.rawEvent.trim() || null);
+  link(row.getCell(3), 'C', excelDateFromIso(e.date));
+  link(row.getCell(4), 'D', e.time.trim() || null);
+  patchFormulaResult(row.getCell(5), e.timeUsedHours);
+  link(row.getCell(6), 'F', e.fmMeAe);
+  link(row.getCell(7), 'G', e.totalM3);
+  link(row.getCell(8), 'H', e.totalMt);
+  link(row.getCell(9), 'I', e.meMt);
+  link(row.getCell(10), 'J', e.aeMt);
+  link(row.getCell(11), 'K', e.robRmdMt);
+  link(row.getCell(12), 'L', e.robB100Mt);
+  link(row.getCell(13), 'O', e.robDmaMt);
+  // Machinery — values only (never replace formulas).
+  setCellValue(row.getCell(14), e.meCounterRh);
+  setCellValue(row.getCell(15), e.meShapoliRev);
+  setCellValue(row.getCell(16), e.meShapoliKwh);
+  setCellValue(row.getCell(17), e.meHours);
+  setCellValue(row.getCell(18), e.meRpm);
+  setCellValue(row.getCell(19), e.meKw);
+  setCellValue(row.getCell(20), e.ae1CounterRh);
+  setCellValue(row.getCell(21), e.ae1KwAvg);
+  setCellValue(row.getCell(22), e.ae1Hours);
+  setCellValue(row.getCell(23), e.ae1Kw);
+  setCellValue(row.getCell(24), e.ae2CounterRh);
+  setCellValue(row.getCell(25), e.ae2KwAvg);
+  setCellValue(row.getCell(26), e.ae2Hours);
+  setCellValue(row.getCell(27), e.ae2Kw);
+  setCellValue(row.getCell(28), e.ae3CounterRh);
+  setCellValue(row.getCell(29), e.ae3KwAvg);
+  setCellValue(row.getCell(30), e.ae3Hours);
+  setCellValue(row.getCell(31), e.ae3Kw);
+  setCellValue(row.getCell(32), e.boilerCounterRh);
+  setCellValue(row.getCell(33), e.boilerHours);
+  link(row.getCell(34), 'R', e.boilerFmCeng ?? e.boilerFm);
+  link(row.getCell(35), 'Q', e.boilerConsM3 ?? e.dmaConsM3);
+  link(row.getCell(36), 'P', e.boilerConsMt ?? e.boilerMt);
+}
+
+function quoteSheetName(name: string): string {
+  return `'${String(name).replace(/'/g, "''")}'`;
 }
 
 function findCengRow(ws: ExcelJS.Worksheet, e: FuelLogEvent): number | null {
@@ -562,44 +555,181 @@ function findCengRow(ws: ExcelJS.Worksheet, e: FuelLogEvent): number | null {
   return null;
 }
 
-/** Prefer aligning CENG row number with MASTER when sheets stay in sync. */
-function mirrorCengRow(ws: ExcelJS.Worksheet, masterRow: number): number {
-  // CENG data starts at row 3; MASTER at 5 → offset −2 is typical for aligned logs.
-  const guess = Math.max(3, masterRow - 2);
-  return guess;
+/**
+ * Prefer ENGINE row whose A-column formula points at this MASTER row (FO-VPC).
+ * Fallbacks: remembered cengSourceRow, exact/relaxed identity, then mirror offset.
+ */
+function resolveCengRowForWrite(
+  ws: ExcelJS.Worksheet,
+  e: FuelLogEvent,
+  masterRow: number,
+  isNewMasterRow: boolean,
+): number | null {
+  const byRef = findCengRowByMasterRef(ws, masterRow);
+  if (byRef != null) return byRef;
+
+  const exact = findCengRow(ws, e);
+  if (exact != null) return exact;
+
+  if (e.cengSourceRow >= 3) {
+    const row = ws.getRow(e.cengSourceRow);
+    const place = cellText(row.getCell(1));
+    const raw = cellText(row.getCell(2));
+    if ((!place && !raw) || place === e.place || raw === e.rawEvent) {
+      return e.cengSourceRow;
+    }
+  }
+
+  const relaxed = findCengRowByIdentity(ws, e);
+  if (relaxed != null) return relaxed;
+
+  if (isNewMasterRow) return mirrorCengRow(masterRow);
+  return null;
 }
 
-function setText(cell: ExcelJS.Cell, value: string | null | undefined): void {
-  cell.value = String(value ?? '').trim() || null;
+/** ENGINE row with `…MASTER…!A{masterRow}` (or any col) formula. */
+function findCengRowByMasterRef(ws: ExcelJS.Worksheet, masterRow: number): number | null {
+  if (!(masterRow >= 5)) return null;
+  const re = new RegExp(`MASTER\\s*'?!\\$?[A-Z]+\\$?${masterRow}\\b`, 'i');
+  const max = Math.min(ws.rowCount, masterRow + 80);
+  const min = Math.max(3, masterRow - 80);
+  for (let r = min; r <= max; r++) {
+    const f = cellFormulaText(ws.getRow(r).getCell(1));
+    if (f && re.test(f)) return r;
+  }
+  // Slow fallback — pre-seeded formula rows may sit far from MASTER index.
+  for (let r = 3; r <= ws.rowCount; r++) {
+    const f = cellFormulaText(ws.getRow(r).getCell(1));
+    if (f && re.test(f)) return r;
+  }
+  return null;
 }
 
-function setNum(cell: ExcelJS.Cell, value: number | null): void {
-  if (value == null || !Number.isFinite(value)) {
-    // Keep existing formula cells when clearing would wipe auto-calcs.
-    // Do NOT read cell.formula — ExcelJS shared-formula getter calls slideFormula
-    // and throws when the master formula string is missing.
-    if (cellHasFormula(cell)) return;
+/** Same date + place + rawEvent (ignore time) — only if unique. */
+function findCengRowByIdentity(ws: ExcelJS.Worksheet, e: FuelLogEvent): number | null {
+  const place = (e.place ?? '').trim();
+  const rawEvent = (e.rawEvent ?? '').trim();
+  if (!e.date || (!place && !rawEvent)) return null;
+  const hits: number[] = [];
+  for (let r = 3; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    if (cellDateIso(row.getCell(3)) !== e.date) continue;
+    const p = cellText(row.getCell(1));
+    const raw = cellText(row.getCell(2));
+    if (place && p !== place) continue;
+    if (rawEvent && raw !== rawEvent) continue;
+    if (!place && !rawEvent) continue;
+    hits.push(r);
+  }
+  return hits.length === 1 ? hits[0]! : null;
+}
+
+/** Legacy fallback when ENGINE has no MASTER formula link yet. */
+function mirrorCengRow(masterRow: number): number {
+  return Math.max(3, masterRow - 2);
+}
+
+function ensureEngineMasterLink(
+  cell: ExcelJS.Cell,
+  colLetter: string,
+  masterRow: number,
+  result: string | number | Date | null,
+  masterSheetRef: string,
+): void {
+  const formula = `${masterSheetRef}!${colLetter}${masterRow}`;
+  if (cellHasFormula(cell)) {
+    const existing = cellFormulaText(cell);
+    // Keep FO-VPC MASTER links; only refresh cached result for display.
+    if (/MASTER/i.test(existing)) {
+      patchFormulaResult(cell, result);
+      return;
+    }
+  }
+  // Plain value or empty — install the FO-VPC link so both sheets stay coupled.
+  cell.value = { formula, result: normalizeFormulaResult(result) };
+}
+
+/** Write a plain value, or refresh formula cache — never destroy formulas. */
+function setCellValue(cell: ExcelJS.Cell, value: string | number | null): void {
+  if (cellHasFormula(cell)) {
+    patchFormulaResult(cell, value);
+    return;
+  }
+  if (value == null || (typeof value === 'number' && !Number.isFinite(value))) {
     cell.value = null;
+    return;
+  }
+  if (typeof value === 'string') {
+    cell.value = value.trim() || null;
     return;
   }
   cell.value = value;
 }
 
+function patchFormulaResult(cell: ExcelJS.Cell, result: unknown): void {
+  if (!cellHasFormula(cell)) return;
+  const v = cell.value as {
+    formula?: string;
+    sharedFormula?: string;
+    result?: unknown;
+    ref?: string;
+    shareType?: string;
+  };
+  const nextResult = normalizeFormulaResult(result);
+  if (v.formula != null) {
+    cell.value = {
+      formula: v.formula,
+      result: nextResult,
+      ...(v.ref ? { ref: v.ref, shareType: v.shareType ?? 'shared' } : {}),
+    };
+  } else if (v.sharedFormula != null) {
+    cell.value = { sharedFormula: v.sharedFormula, result: nextResult };
+  }
+}
+
+function normalizeFormulaResult(
+  result: unknown,
+): string | number | boolean | Date | undefined {
+  if (result == null) return undefined;
+  if (typeof result === 'number') return Number.isFinite(result) ? result : undefined;
+  if (typeof result === 'string' || typeof result === 'boolean') return result;
+  if (result instanceof Date && !Number.isNaN(result.getTime())) return result;
+  return undefined;
+}
+
+function excelDateFromIso(iso: string | null | undefined): Date | null {
+  const m = String(iso ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+}
+
 function setDate(cell: ExcelJS.Cell, iso: string | null | undefined): void {
-  if (!iso) {
-    cell.value = null;
+  if (cellHasFormula(cell)) {
+    patchFormulaResult(cell, excelDateFromIso(iso));
     return;
   }
-  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) {
-    cell.value = iso;
+  const d = excelDateFromIso(iso);
+  if (!d) {
+    cell.value = iso?.trim() ? iso : null;
     return;
   }
-  cell.value = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  cell.value = d;
   cell.numFmt = 'dd.mm.yyyy';
 }
 
 function setTime(cell: ExcelJS.Cell, hm: string | null | undefined): void {
+  if (cellHasFormula(cell)) {
+    const m = String(hm ?? '').match(/^(\d{1,2}):(\d{2})$/);
+    if (m) {
+      patchFormulaResult(
+        cell,
+        new Date(Date.UTC(1899, 11, 30, Number(m[1]), Number(m[2]), 0)),
+      );
+    } else {
+      patchFormulaResult(cell, hm?.trim() || null);
+    }
+    return;
+  }
   if (!hm) {
     cell.value = null;
     return;
@@ -609,9 +739,9 @@ function setTime(cell: ExcelJS.Cell, hm: string | null | undefined): void {
     cell.value = hm;
     return;
   }
-  const d = new Date(Date.UTC(1899, 11, 30, Number(m[1]), Number(m[2]), 0));
-  cell.value = d;
-  cell.numFmt = 'hh:mm';
+  // FO-VPC MASTER stores time as text "hh:mm" on many rows — keep that shape.
+  cell.value = `${String(m[1]).padStart(2, '0')}:${m[2]}`;
+  cell.numFmt = '@';
 }
 
 function cellText(cell: ExcelJS.Cell): string {

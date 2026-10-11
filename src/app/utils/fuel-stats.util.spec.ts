@@ -51,6 +51,7 @@ function row(
     boilerConsM3: null,
     boilerConsMt: null,
     sourceRow: 1,
+    cengSourceRow: 0,
     writeStatus: 'synced',
     rolledFromCount: 1,
     ...partial,

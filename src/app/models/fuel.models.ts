@@ -689,7 +689,14 @@ export interface FuelLogEvent {
   boilerFmCeng: number | null;
   boilerConsM3: number | null;
   boilerConsMt: number | null;
+  /** Fuel Log MASTER row (≥ 5). 0 = not yet on MASTER / app-added. */
   sourceRow: number;
+  /**
+   * ENGINE LOG / CENG row (≥ 3) this event was imported from.
+   * Used when time/date is edited so Write can still find the sheet row.
+   * 0 = unknown (MASTER-only or app-added).
+   */
+  cengSourceRow: number;
   /**
    * Edit-tab write gate (app-only; not in Excel):
    * - synced — already in the file (black date)
@@ -1039,6 +1046,7 @@ export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLo
       boilerConsM3: partial?.boilerConsM3 ?? null,
       boilerConsMt: partial?.boilerConsMt ?? null,
       sourceRow: partial?.sourceRow ?? 0,
+      cengSourceRow: partial?.cengSourceRow ?? 0,
       writeStatus:
         partial?.writeStatus ??
         defaultFuelWriteStatus(partial?.sourceRow ?? 0),
@@ -1365,6 +1373,10 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
     boilerConsM3: numOrNull(e.boilerConsM3),
     boilerConsMt: numOrNull(e.boilerConsMt),
     sourceRow: typeof e.sourceRow === 'number' && Number.isFinite(e.sourceRow) ? e.sourceRow : index,
+    cengSourceRow:
+      typeof e.cengSourceRow === 'number' && Number.isFinite(e.cengSourceRow)
+        ? e.cengSourceRow
+        : 0,
     writeStatus: (() => {
       const sourceRow =
         typeof e.sourceRow === 'number' && Number.isFinite(e.sourceRow) ? e.sourceRow : index;
@@ -1847,9 +1859,95 @@ export function applyFuelConsumptionSideEffects(
 }
 
 /**
+ * When Add/edit sets ME/AE (or Total) consumption, keep FMₙ = FMₙ₋₁ + m³.
+ * Prefer ME+AE tonnes over a stale Total t/m³ left from an earlier FM delta.
+ */
+function advanceFmFromConsumption(
+  draft: FuelLogEvent,
+  previousFm: number | null | undefined,
+  density: number,
+): FuelLogEvent {
+  if (previousFm == null || !Number.isFinite(previousFm) || !(density > 0)) return draft;
+
+  const fromMeAe =
+    draft.meMt != null || draft.aeMt != null
+      ? Math.round(((draft.meMt ?? 0) + (draft.aeMt ?? 0)) * 10) / 10
+      : null;
+
+  const periodMt =
+    fromMeAe != null && fromMeAe > 0
+      ? fromMeAe
+      : draft.totalMt != null && Number.isFinite(draft.totalMt) && draft.totalMt > 0
+        ? draft.totalMt
+        : null;
+
+  // When ME/AE were typed, always derive m³ from those tonnes — ignore stale G.
+  let periodM3: number | null = null;
+  if (fromMeAe != null && fromMeAe > 0) {
+    periodM3 = Math.round((fromMeAe / density) * 10) / 10;
+  } else if (draft.totalM3 != null && Number.isFinite(draft.totalM3) && draft.totalM3 > 0) {
+    periodM3 = draft.totalM3;
+  } else if (periodMt != null && periodMt > 0) {
+    periodM3 = Math.round((periodMt / density) * 10) / 10;
+  }
+  if (periodM3 == null || periodM3 <= 0) return draft;
+
+  const fmDelta = recomputeFuelTotalM3FromFm(draft.fmMeAe, previousFm);
+  // Only bump when FM hasn't caught up to ME/AE yet. If the user (or Excel)
+  // already set a higher FM reading, keep that meter value.
+  const fmLagging =
+    fromMeAe != null &&
+    fromMeAe > 0 &&
+    (fmDelta == null || fmDelta + 0.05 < periodM3);
+  const fmStale =
+    draft.fmMeAe == null ||
+    draft.fmMeAe === previousFm ||
+    fmDelta === 0 ||
+    fmLagging;
+  if (!fmStale) return draft;
+
+  const fm = recomputeFuelFmFromTotalM3(previousFm, periodM3);
+  if (fm == null) return draft;
+  return { ...draft, fmMeAe: fm, totalM3: periodM3 };
+}
+
+/** Same idea for Boiler FM ↔ DMA period (t = m³, no density). */
+function advanceBoilerFmFromConsumption(
+  draft: FuelLogEvent,
+  previousBoilerFm: number | null | undefined,
+): FuelLogEvent {
+  if (previousBoilerFm == null || !Number.isFinite(previousBoilerFm)) return draft;
+
+  const period =
+    draft.dmaConsM3 != null && Number.isFinite(draft.dmaConsM3) && draft.dmaConsM3 > 0
+      ? draft.dmaConsM3
+      : draft.boilerMt != null && Number.isFinite(draft.boilerMt) && draft.boilerMt > 0
+        ? draft.boilerMt
+        : null;
+  if (period == null) return draft;
+
+  const fmDelta = recomputeFuelTotalM3FromFm(draft.boilerFm, previousBoilerFm);
+  const fmStale =
+    draft.boilerFm == null ||
+    draft.boilerFm === previousBoilerFm ||
+    fmDelta == null ||
+    fmDelta === 0;
+  if (!fmStale) return draft;
+
+  const fm = recomputeFuelFmFromTotalM3(previousBoilerFm, period);
+  if (fm == null) return draft;
+  return {
+    ...draft,
+    boilerFm: fm,
+    dmaConsM3: draft.dmaConsM3 ?? period,
+    boilerMt: draft.boilerMt ?? period,
+  };
+}
+
+/**
  * Apply auto-calcs when drafting a new/edited event against the chronologically previous row.
  * - Hrs from elapsed time
- * - Total m³ = FMₙ − FMₙ₋₁
+ * - Total m³ = FMₙ − FMₙ₋₁  (or reverse: FMₙ = FMₙ₋₁ + m³ when Add sets ME/AE t)
  * - Total t = ROUND(m³ × density, 1)  (Excel H)
  * - ROB tanks = previous − assigned period consumption (clamped ≥ 0)
  */
@@ -1864,11 +1962,17 @@ export function applyFuelEventAutoCalcs(
     const hrs = fuelElapsedHours(previous.date, previous.time, next.date, next.time);
     if (hrs != null) next = { ...next, timeUsedHours: hrs };
   }
-  const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, previous?.fmMeAe);
-  if (m3 != null) next = { ...next, totalM3: m3 };
+
   // Per-row density (Excel H) — do not inherit from previous event.
   const density = resolveFuelDensity(next, null, preferredDensity);
   next = { ...next, density };
+
+  // Add-modal path: user typed ME/AE t while FM still equals previous (or empty).
+  // Advance FM by the period volume so the meter is not left "red = same as prev".
+  next = advanceFmFromConsumption(next, previous?.fmMeAe, density);
+
+  const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, previous?.fmMeAe);
+  if (m3 != null) next = { ...next, totalM3: m3 };
   const total = recomputeFuelTotalMtFromM3(next.totalM3, density);
   if (total != null) {
     next = { ...next, totalMt: total };
@@ -1880,6 +1984,8 @@ export function applyFuelEventAutoCalcs(
   }
 
   // Boiler/DMA: no density — period m³ = FM delta, t = m³.
+  // If Add set boiler t/m³ while Boiler FM still equals previous, advance FM.
+  next = advanceBoilerFmFromConsumption(next, previous?.boilerFm);
   if (next.dmaConsM3 == null || next.boilerMt == null) {
     const dmaM3 = recomputeFuelTotalM3FromFm(next.boilerFm, previous?.boilerFm);
     if (dmaM3 != null) {

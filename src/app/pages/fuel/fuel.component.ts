@@ -970,13 +970,20 @@ export class FuelComponent {
       ),
     );
 
+    // FM / Boiler FM advanced from consumption — not "same as previous" anymore.
+    const pendingKept = pending.filter((field) => {
+      if (field === 'fmMeAe') return next.fmMeAe == null || next.fmMeAe === prev?.fmMeAe;
+      if (field === 'boilerFm') return next.boilerFm == null || next.boilerFm === prev?.boilerFm;
+      return true;
+    });
+
     // Re-project ROB on this + later app-added rows; Excel imports stay untouched.
     const merged = [...editEvents.filter((e) => e.id !== next.id), next];
     this.fuelStore.replaceEditEvents(cascadeAppAddedFuelRob(merged));
     if (next.density != null) this.fuelStore.setLastDensity(next.density);
-    if (pending.length) {
+    if (pendingKept.length) {
       const map = new Map(this.pendingInheritedByEvent());
-      map.set(next.id, new Set(pending));
+      map.set(next.id, new Set(pendingKept));
       this.pendingInheritedByEvent.set(map);
     }
     this.closeAddModal();

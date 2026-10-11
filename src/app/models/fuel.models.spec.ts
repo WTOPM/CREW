@@ -303,6 +303,72 @@ describe('applyFuelEventAutoCalcs', () => {
     expect(next.totalMt).toBe(2.5); // ROUND(2.8 × 0.88, 1)
   });
 
+  it('advances FM from Add-modal AE/ME t when FM still equals previous', () => {
+    const prev = ev({
+      id: '1',
+      kind: 'noon',
+      rawEvent: 'Noon',
+      date: '2026-10-11',
+      time: '12:00',
+      fmMeAe: 4532.3,
+      robB100Mt: 291.5,
+    });
+    // Inherited FM (= previous) + user typed AE 0.5 t in Add modal.
+    const draft = ev({
+      id: '2',
+      kind: 'port_report',
+      rawEvent: 'Port Report',
+      date: '2026-10-11',
+      time: '18:00',
+      fmMeAe: 4532.3,
+      density: 0.88,
+      aeMt: 0.5,
+      meMt: 0,
+      aeRobTank: 'b100',
+      meRobTank: 'b100',
+      sourceRow: 0,
+    });
+    const next = applyFuelEventAutoCalcs(draft, prev);
+    // m³ = ROUND(0.5 / 0.88, 1) = 0.6 → FM = 4532.3 + 0.6
+    expect(next.totalM3).toBe(0.6);
+    expect(next.fmMeAe).toBe(4532.9);
+    expect(next.totalMt).toBe(0.5);
+    expect(next.aeMt).toBe(0.5);
+    expect(next.robB100Mt).toBe(291.0);
+  });
+
+  it('prefers AE/ME t over a stale Total t/m³ when advancing FM', () => {
+    const prev = ev({
+      id: '1',
+      kind: 'noon',
+      date: '2026-10-11',
+      time: '12:00',
+      fmMeAe: 4532.3,
+      robB100Mt: 291.5,
+    });
+    // Stale G/H from an earlier tiny FM bump, but user typed AE 0.5.
+    const draft = ev({
+      id: '2',
+      kind: 'port_report',
+      date: '2026-10-11',
+      time: '18:00',
+      fmMeAe: 4532.4,
+      totalM3: 0.1,
+      totalMt: 0.1,
+      density: 0.88,
+      aeMt: 0.5,
+      meMt: 0,
+      aeRobTank: 'b100',
+      meRobTank: 'b100',
+      sourceRow: 0,
+    });
+    const next = applyFuelEventAutoCalcs(draft, prev);
+    expect(next.totalM3).toBe(0.6);
+    expect(next.fmMeAe).toBe(4532.9);
+    expect(next.totalMt).toBe(0.5);
+    expect(next.aeMt).toBe(0.5);
+  });
+
   it('projects ROB RMD/DMA from previous minus period consumption', () => {
     const prev = ev({
       id: '1',
