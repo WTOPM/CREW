@@ -26,10 +26,13 @@ import {
   FUEL_EVENT_KIND_LABELS,
   FUEL_LIMIT_OPTIONS,
   FUEL_RAW_EVENT_OPTIONS,
+  FUEL_ROB_TANK_LABELS,
+  FUEL_ROB_TANK_TIPS,
   applyFuelEventAutoCalcs,
   cascadeAppAddedFuelRob,
   classifyFuelEvent,
   createEmptyFuelLogEvent,
+  discoverFuelRobTanks,
   filterFuelEvents,
   findFuelEventBeforePrevious,
   findLatestFuelEvent,
@@ -42,12 +45,18 @@ import {
   applyFuelConsumptionSideEffects,
   inheritFuelFieldsFromPrevious,
   normalizeFuelDensity,
+  nudgeFuelDensity,
   parseFuelTimeDisplay,
+  splitFuelTotalMtToMeAe,
+  projectFuelRobForEvent,
   recomputeFuelCounterFromHours,
+  recomputeFuelFmFromTotalM3,
   recomputeFuelHoursFromCounter,
   recomputeFuelTotalM3FromFm,
   recomputeFuelTotalMtFromM3,
+  syncFuelBoilerDmaPeriod,
   resolveFuelDensity,
+  resolveFuelRobTankAssignment,
   dateTimeFromFuelHrsEdit,
   fuelElapsedHours,
   parseFuelHoursInput,
@@ -58,6 +67,7 @@ import {
   type FuelEventKind,
   type FuelInheritableField,
   type FuelLogEvent,
+  type FuelRobTankId,
   type FuelWriteStatus,
 } from '../../models/fuel.models';
 
@@ -66,7 +76,15 @@ interface FuelDensityHud {
   density: number;
   x: number;
   y: number;
-  mode: 'drag' | 'menu';
+}
+
+/** F-badge menu: pick which ROB tank ME / AE / Boiler consumption debits. */
+interface FuelRobTankMenu {
+  eventId: string;
+  field: 'meRobTank' | 'aeRobTank' | 'boilerRobTank';
+  selected: FuelRobTankId;
+  x: number;
+  y: number;
 }
 import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
@@ -194,22 +212,29 @@ export class FuelComponent {
   protected readonly canWriteExcel = !!window.electronAPI?.writeFileBase64;
   protected readonly library = this.storage.fuelLibrary;
   protected readonly busy = signal(false);
-  /** View = Excel snapshot; Edit = independent persisted draft (restored per PC). */
-  protected readonly activeTab = signal<'view' | 'edit'>(
-    this.localPrefs.fuelUi().activeTab === 'edit' ? 'edit' : 'view',
-  );
+  /**
+   * View / Edit — single source: local prefs (survives navigation + app restart).
+   * While section is view-only, show View without wiping the saved Edit preference.
+   */
+  protected readonly activeTab = computed((): 'view' | 'edit' => {
+    const pref = this.localPrefs.fuelUi().activeTab === 'edit' ? 'edit' : 'view';
+    if (pref === 'edit' && this.viewOnly()) return 'view';
+    return pref;
+  });
   protected readonly showAddModal = signal(false);
   /** Stable seed for Add modal (new object only when opening — avoids draft reset). */
   protected readonly addModalSeed = signal<Partial<FuelLogEvent> | null>(null);
-  /** Floating density editor on Total t (drag ↑↓ or right-click). */
+  /** Floating density editor on Total t (D click or right-click). */
   protected readonly densityHud = signal<FuelDensityHud | null>(null);
-  private densityDrag: {
-    eventId: string;
-    startDensity: number;
-    pointerId: number;
-    /** Accumulated pointer movementY (px); up → negative → denser. */
-    accumY: number;
-  } | null = null;
+  /** Floating ROB-tank picker on ME / AE / Boiler t (F badge). */
+  protected readonly robTankMenu = signal<FuelRobTankMenu | null>(null);
+  protected readonly robTankLabels = FUEL_ROB_TANK_LABELS;
+  protected readonly robTankTips = FUEL_ROB_TANK_TIPS;
+  protected readonly robTankOptions = computed(() =>
+    discoverFuelRobTanks(
+      this.canEdit() ? this.library().editEvents : this.library().events,
+    ),
+  );
   /** eventId → fields still showing previous-row values (red until edited). */
   protected readonly pendingInheritedByEvent = signal<
     ReadonlyMap<string, ReadonlySet<FuelInheritableField>>
@@ -360,15 +385,14 @@ export class FuelComponent {
     void this.localPrefs.load().then(() => {
       const legacy = this.localPrefs.takeLegacyFuelDisplayPresets();
       if (legacy.length) this.fuelStore.importDisplayPresetsIfEmpty(legacy);
-      // Restore View/Edit tab for this PC (after prefs file is loaded).
-      const tab = this.localPrefs.fuelUi().activeTab;
-      if (tab === 'edit' && !this.viewOnly()) this.activeTab.set('edit');
-      else this.activeTab.set('view');
+      // activeTab is computed from fuelUi — load()/apply() already restored it.
     });
 
     afterNextRender(() => {
       this.bindHScrollObservers();
       this.bindTableWheelContainment();
+      // Dirty Edit may still have null Total m³/t from before the import fix.
+      this.fuelStore.healEditPeriodTotals();
     });
 
     this.destroyRef.onDestroy(() => {
@@ -376,7 +400,7 @@ export class FuelComponent {
       this.clearKindPressTimer();
       this.clearUtcPressTimer();
       this.unbindTableWheelContainment();
-      this.clearDensityDragCursor();
+      this.closeDensityHud();
     });
 
     effect(() => {
@@ -787,13 +811,15 @@ export class FuelComponent {
   }
 
   protected setActiveTab(tab: 'view' | 'edit'): void {
-    if (tab === this.activeTab()) return;
     if (tab === 'edit' && this.viewOnly()) {
       this.toast.showError('Someone else is editing FUEL — view only');
       return;
     }
-    // Edit draft is independent and persisted — switching tabs never discards it.
-    this.activeTab.set(tab);
+    // Persist on this PC — stays after leave Fuel / close app. Draft is never discarded.
+    if (tab === this.localPrefs.fuelUi().activeTab) {
+      this.closeMenus();
+      return;
+    }
     void this.localPrefs.setFuelUi({ activeTab: tab });
     this.closeMenus();
   }
@@ -949,25 +975,68 @@ export class FuelComponent {
       next = { ...current, ...partial };
     }
 
-    // Excel: Total m³ = Fₙ − Fₙ₋₁; Total t = ROUND(m³ × density, 1).
+    // Excel: Total m³ ↔ FM (both directions); Total t = ROUND(m³ × density, 1).
+    // When Total t changes → ME/AE default split ~2:1.
     if (
       partial.fmMeAe !== undefined ||
       partial.density !== undefined ||
       partial.totalM3 !== undefined
     ) {
-      if (partial.fmMeAe !== undefined) {
+      if (partial.fmMeAe !== undefined && partial.totalM3 === undefined) {
         const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, prev?.fmMeAe);
         if (m3 != null) next = { ...next, totalM3: m3 };
         else if (partial.fmMeAe === null) next = { ...next, totalM3: null };
+      } else if (partial.totalM3 !== undefined && partial.fmMeAe === undefined) {
+        const fm = recomputeFuelFmFromTotalM3(prev?.fmMeAe, next.totalM3);
+        if (fm != null) next = { ...next, fmMeAe: fm };
       }
       // Keep this row’s density; never pull another row’s factor from Excel.
       const density = resolveFuelDensity(next, null, this.library().lastDensity);
       next = { ...next, density };
       const total = recomputeFuelTotalMtFromM3(next.totalM3, density);
-      if (total != null) next = { ...next, totalMt: total };
-      else if (partial.fmMeAe === null && partial.density === undefined) {
+      if (total != null) {
+        const split = splitFuelTotalMtToMeAe(total);
+        next = { ...next, totalMt: total, meMt: split.meMt, aeMt: split.aeMt };
+      } else if (partial.fmMeAe === null && partial.density === undefined) {
         next = { ...next, totalMt: null };
       }
+    }
+
+    // Boiler FM ↔ DMA m³ ↔ DMA/Boiler t (no density; t = m³ 1:1).
+    if (
+      partial.boilerFm !== undefined &&
+      partial.dmaConsM3 === undefined &&
+      partial.boilerMt === undefined
+    ) {
+      next = { ...next, ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'boilerFm') };
+    } else if (partial.dmaConsM3 !== undefined && partial.boilerFm === undefined) {
+      next = { ...next, ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'dmaConsM3') };
+    } else if (
+      partial.boilerMt !== undefined &&
+      partial.boilerFm === undefined &&
+      partial.dmaConsM3 === undefined
+    ) {
+      next = { ...next, ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'boilerMt') };
+    }
+
+    // ROB = previous − ME/AE/Boiler on F-picked tanks.
+    // Must run after density/FM/m³ / boiler-DMA may have rewritten amounts.
+    const shouldProjectRob =
+      Object.keys(consumptionPatch).length > 0 ||
+      partial.meRobTank !== undefined ||
+      partial.aeRobTank !== undefined ||
+      partial.boilerRobTank !== undefined ||
+      partial.fmMeAe !== undefined ||
+      partial.density !== undefined ||
+      partial.totalM3 !== undefined ||
+      partial.boilerFm !== undefined ||
+      partial.dmaConsM3 !== undefined ||
+      next.meMt !== current.meMt ||
+      next.aeMt !== current.aeMt ||
+      next.boilerMt !== current.boilerMt;
+    if (shouldProjectRob) {
+      const before = findFuelEventBeforePrevious(editEvents, prev);
+      next = projectFuelRobForEvent(next, prev, before);
     }
 
     // Running-hours counters ↔ period hours (both directions).
@@ -1042,15 +1111,12 @@ export class FuelComponent {
       next = { ...next, writeStatus: 'draft' };
     }
 
-    // Keep ROB in sync for app-added rows (tank picks from Add); Excel rows unchanged.
+    // Keep ROB in sync for app-added rows; this row already projected above.
     const merged = editEvents.map((e) => (e.id === id ? next : e));
     const shouldCascadeRob =
-      Object.keys(consumptionPatch).length > 0 ||
+      shouldProjectRob ||
       partial.date !== undefined ||
-      partial.time !== undefined ||
-      partial.meRobTank !== undefined ||
-      partial.aeRobTank !== undefined ||
-      partial.boilerRobTank !== undefined;
+      partial.time !== undefined;
     this.fuelStore.replaceEditEvents(
       shouldCascadeRob ? cascadeAppAddedFuelRob(merged) : merged,
     );
@@ -1155,8 +1221,13 @@ export class FuelComponent {
     this.patchEvent(e.id, { [field]: next } as Partial<FuelLogEvent>);
     const input = event.target as HTMLInputElement;
     queueMicrotask(() => {
+      const updated = this.library().editEvents.find((x) => x.id === e.id);
+      const shown =
+        field === 'meMt' || field === 'aeMt'
+          ? (updated?.[field] ?? next)
+          : next;
       input.value =
-        col.type === 'hours' && this.hoursAsHm() ? formatFuelHoursHm(next) : String(next);
+        col.type === 'hours' && this.hoursAsHm() ? formatFuelHoursHm(shown) : String(shown);
     });
   }
 
@@ -1170,7 +1241,17 @@ export class FuelComponent {
     this.onEditCommit(e, col, raw);
     queueMicrotask(() => {
       if (document.activeElement !== input) return;
-      if (col.id === 'time' || col.type === 'time' || col.type === 'hours') {
+      // Sync clamped / paired ME↔AE and time/hours display back into the focused cell.
+      if (
+        col.id === 'time' ||
+        col.type === 'time' ||
+        col.type === 'hours' ||
+        col.id === 'meMt' ||
+        col.id === 'aeMt' ||
+        col.id === 'dmaConsMt' ||
+        col.id === 'dmaConsM3' ||
+        col.id === 'boilerFm'
+      ) {
         const updated = this.library().editEvents.find((x) => x.id === e.id);
         if (updated) input.value = this.editValue({ ...e, ...updated }, col);
       }
@@ -1204,6 +1285,7 @@ export class FuelComponent {
     return (
       col.id === 'totalM3' ||
       col.id === 'totalMt' ||
+      col.id === 'dmaConsM3' ||
       col.id === 'robRmd' ||
       col.id === 'robB100' ||
       col.id === 'robDma' ||
@@ -1228,109 +1310,124 @@ export class FuelComponent {
     return e.fmMeAe <= prev.fmMeAe;
   }
 
-  protected onTotalMtPointerDown(e: FuelDisplayEvent, event: PointerEvent): void {
-    if (!this.canEdit() || event.button !== 0) return;
-    event.preventDefault();
-    this.hideFloatingTips();
-    const density = resolveFuelDensity(e, null, this.library().lastDensity);
-    const anchorX = event.clientX;
-    const anchorY = event.clientY;
-    this.densityDrag = {
-      eventId: e.id,
-      startDensity: density,
-      pointerId: event.pointerId,
-      accumY: 0,
-    };
-    // Fixed HUD position for the whole drag — do not follow the mouse.
-    this.densityHud.set({
-      eventId: e.id,
-      density,
-      x: anchorX,
-      y: anchorY,
-      mode: 'drag',
-    });
-    document.documentElement.classList.add('fuel-density-dragging');
-    const el = event.target as HTMLElement;
-    el.setPointerCapture?.(event.pointerId);
-    // Pointer lock: movementY keeps working at screen edges (cursor stays put / hidden).
-    try {
-      void el.requestPointerLock?.();
-    } catch {
-      /* ignore — fall back to unlocked movementY */
-    }
-  }
-
-  protected onTotalMtContextMenu(e: FuelDisplayEvent, event: MouseEvent): void {
+  /** Open density HUD from the D badge (LMB) or anywhere on Total t (RMB). */
+  protected openDensityHud(e: FuelDisplayEvent, event: MouseEvent): void {
     if (!this.canEdit()) return;
     event.preventDefault();
+    event.stopPropagation();
+    this.closeRobTankMenu();
     this.hideFloatingTips();
-    this.clearDensityDragCursor();
     const density = resolveFuelDensity(e, null, this.library().lastDensity);
-    this.densityDrag = null;
     this.densityHud.set({
       eventId: e.id,
       density,
       x: event.clientX,
       y: event.clientY,
-      mode: 'menu',
     });
   }
 
-  @HostListener('document:pointermove', ['$event'])
-  protected onDensityPointerMove(event: PointerEvent): void {
-    const drag = this.densityDrag;
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    // Accumulate movement (works past screen edges when pointer is locked).
-    drag.accumY += event.movementY;
-    // Drag up = denser; ~40 px per 0.001. HUD stays at start x/y.
-    const steps = Math.round(-drag.accumY / 40);
-    const next =
-      normalizeFuelDensity(Math.round((drag.startDensity + steps * 0.001) * 1000) / 1000) ??
-      drag.startDensity;
-    const hud = this.densityHud();
-    this.densityHud.set({
-      eventId: drag.eventId,
-      density: next,
-      x: hud?.x ?? event.clientX,
-      y: hud?.y ?? event.clientY,
-      mode: 'drag',
-    });
-    this.applyDensity(drag.eventId, next, false);
+  protected onTotalMtContextMenu(e: FuelDisplayEvent, event: MouseEvent): void {
+    this.openDensityHud(e, event);
   }
 
-  @HostListener('document:pointerup', ['$event'])
-  protected onDensityPointerUp(event: PointerEvent): void {
-    const drag = this.densityDrag;
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    const hud = this.densityHud();
-    if (hud) this.applyDensity(drag.eventId, hud.density, true);
-    this.densityDrag = null;
+  /** Column → ROB tank field for the F badge (ME / AE / Boiler t). */
+  protected consumptionRobField(
+    col: FuelColumnDef,
+  ): 'meRobTank' | 'aeRobTank' | 'boilerRobTank' | null {
+    if (col.id === 'meMt') return 'meRobTank';
+    if (col.id === 'aeMt') return 'aeRobTank';
+    if (col.id === 'dmaConsMt') return 'boilerRobTank';
+    return null;
+  }
+
+  protected isConsumptionFuelCol(col: FuelColumnDef): boolean {
+    return this.consumptionRobField(col) != null;
+  }
+
+  /** Resolved ROB tank for this consumption cell (explicit or inferred). */
+  protected resolvedRobTank(
+    e: FuelDisplayEvent,
+    field: 'meRobTank' | 'aeRobTank' | 'boilerRobTank',
+  ): FuelRobTankId {
+    const events = this.canEdit() ? this.library().editEvents : this.library().events;
+    const prev = findPreviousFuelEvent(events, e.date, e.time, e.id);
+    const before = findFuelEventBeforePrevious(events, prev);
+    const assignment = resolveFuelRobTankAssignment(e, prev, before);
+    if (field === 'meRobTank') return assignment.me;
+    if (field === 'aeRobTank') return assignment.ae;
+    return assignment.boiler;
+  }
+
+  protected openRobTankMenu(e: FuelDisplayEvent, col: FuelColumnDef, event: MouseEvent): void {
+    if (!this.canEdit()) return;
+    const field = this.consumptionRobField(col);
+    if (!field) return;
+    event.preventDefault();
+    event.stopPropagation();
     this.closeDensityHud();
+    this.hideFloatingTips();
+    this.robTankMenu.set({
+      eventId: e.id,
+      field,
+      selected: this.resolvedRobTank(e, field),
+      x: event.clientX,
+      y: event.clientY,
+    });
   }
 
-  /** RMB density menu — close when clicking anywhere outside the HUD. */
+  protected selectRobTank(tank: FuelRobTankId): void {
+    const menu = this.robTankMenu();
+    if (!menu) return;
+    this.patchEvent(menu.eventId, { [menu.field]: tank });
+    this.closeRobTankMenu();
+  }
+
+  protected closeRobTankMenu(): void {
+    this.robTankMenu.set(null);
+  }
+
+  protected robBadgeTip(e: FuelDisplayEvent, col: FuelColumnDef): string {
+    const field = this.consumptionRobField(col);
+    if (!field) return 'From ROB';
+    const tank = this.resolvedRobTank(e, field);
+    return `From ROB ${FUEL_ROB_TANK_LABELS[tank]} — click to change`;
+  }
+
+  /** Density / ROB menus — close when clicking outside. */
   @HostListener('document:pointerdown', ['$event'])
-  protected onDensityMenuOutside(event: PointerEvent): void {
-    const hud = this.densityHud();
-    if (!hud || hud.mode !== 'menu') return;
+  protected onFloatingMenusOutside(event: PointerEvent): void {
     const t = event.target;
-    if (t instanceof Element && t.closest('.fuel-density-hud')) return;
-    this.commitDensityHud();
+    if (this.densityHud()) {
+      if (!(t instanceof Element && t.closest('.fuel-density-hud'))) {
+        this.commitDensityHud();
+      }
+    }
+    if (this.robTankMenu()) {
+      if (!(t instanceof Element && t.closest('.fuel-rob-menu, .fuel-rob-badge'))) {
+        this.closeRobTankMenu();
+      }
+    }
   }
 
-  /** RMB menu: ↑ / ↓ adjust density by 0.001. */
+  /** ↑/↓ ±0.01 · Shift ↑/↓ ±0.1 (density HUD); Esc closes either floating menu. */
   @HostListener('document:keydown', ['$event'])
-  protected onDensityMenuKeydown(event: KeyboardEvent): void {
-    const hud = this.densityHud();
-    if (!hud || hud.mode !== 'menu') return;
+  protected onFloatingMenusKeydown(event: KeyboardEvent): void {
+    if (this.robTankMenu()) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.closeRobTankMenu();
+      }
+      return;
+    }
+    if (!this.densityHud()) return;
     if (event.key === 'ArrowUp') {
       event.preventDefault();
-      this.nudgeDensityHud(1);
+      this.nudgeDensityHud(1, event.shiftKey ? 0.1 : 0.01);
       return;
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      this.nudgeDensityHud(-1);
+      this.nudgeDensityHud(-1, event.shiftKey ? 0.1 : 0.01);
       return;
     }
     if (event.key === 'Escape') {
@@ -1348,11 +1445,17 @@ export class FuelComponent {
     this.applyDensity(hud.eventId, n, false);
   }
 
-  protected nudgeDensityHud(dir: 1 | -1): void {
+  protected onDensityHudArrow(event: Event, dir: 1 | -1): void {
+    const ke = event as KeyboardEvent;
+    ke.preventDefault();
+    ke.stopPropagation();
+    this.nudgeDensityHud(dir, ke.shiftKey ? 0.1 : 0.01);
+  }
+
+  protected nudgeDensityHud(dir: 1 | -1, step: 0.01 | 0.1 = 0.01): void {
     const hud = this.densityHud();
     if (!hud) return;
-    const next =
-      normalizeFuelDensity(Math.round((hud.density + dir * 0.001) * 1000) / 1000) ?? hud.density;
+    const next = nudgeFuelDensity(hud.density, dir, step);
     this.densityHud.set({ ...hud, density: next });
     this.applyDensity(hud.eventId, next, false);
   }
@@ -1365,20 +1468,7 @@ export class FuelComponent {
   }
 
   protected closeDensityHud(): void {
-    this.densityDrag = null;
-    this.clearDensityDragCursor();
     this.densityHud.set(null);
-  }
-
-  private clearDensityDragCursor(): void {
-    document.documentElement.classList.remove('fuel-density-dragging');
-    if (document.pointerLockElement) {
-      try {
-        document.exitPointerLock();
-      } catch {
-        /* ignore */
-      }
-    }
   }
 
   /** Drop hover tips so the density HUD is not covered. */
@@ -1394,6 +1484,18 @@ export class FuelComponent {
   /** Hover tip only — what the field is / how it auto-updates (no keyboard chrome). */
   protected cellTip(col: FuelColumnDef): string {
     return col.tip.trim();
+  }
+
+  /** Tip on the Total t cell (replaces Shift+F3 noise on this readonly field). */
+  protected densityCellTip(e: Pick<FuelLogEvent, 'density'>): string {
+    const d = resolveFuelDensity(e, null, this.library().lastDensity);
+    return `Density ${d} — Excel H = ROUND(m³ × density, 1). Click D or right-click (↑↓ ±0.01, Shift ±0.1).`;
+  }
+
+  /** Short tip on the D badge only. */
+  protected densityBadgeTip(e: Pick<FuelLogEvent, 'density'>): string {
+    const d = resolveFuelDensity(e, null, this.library().lastDensity);
+    return `Density = ${d}`;
   }
 
   protected async onPathSegmentPress(seg: FuelPathSegment, event: MouseEvent): Promise<void> {

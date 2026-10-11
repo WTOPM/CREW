@@ -27,6 +27,7 @@ import {
   formatFuelHoursHm,
   fuelRobValue,
   normalizeFuelDensity,
+  nudgeFuelDensity,
   type FuelLogEvent,
   type FuelRobTankId,
 } from '../../models/fuel.models';
@@ -184,10 +185,15 @@ export class FuelEventEditModalComponent {
     this.updateField('density', n);
   }
 
-  protected nudgeDensity(dir: 1 | -1): void {
+  protected onDensityArrow(event: Event, dir: 1 | -1): void {
+    const ke = event as KeyboardEvent;
+    ke.preventDefault();
+    this.nudgeDensity(dir, ke.shiftKey ? 0.1 : 0.01);
+  }
+
+  protected nudgeDensity(dir: 1 | -1, step: 0.01 | 0.1 = 0.01): void {
     const cur = this.draft().density ?? this.preferredDensity() ?? FUEL_DEFAULT_DENSITY;
-    const next = normalizeFuelDensity(Math.round((cur + dir * 0.001) * 1000) / 1000);
-    if (next != null) this.updateField('density', next);
+    this.updateField('density', nudgeFuelDensity(cur, dir, step));
   }
 
   protected onRawEventPick(value: string): void {

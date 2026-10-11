@@ -156,7 +156,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'fmMeAe',
     label: 'ME/AE FM',
-    tip: 'ME/AE flowmeter counter — entered from the meter (Excel col F). Total m³ is the delta from the previous FM.',
+    tip: 'ME/AE flowmeter counter (Excel F). Linked to Total m³: edit FM → m³, or edit m³ → FM = previous + m³.',
     type: 'num',
     field: 'fmMeAe',
     numeric: true,
@@ -164,7 +164,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'totalM3',
     label: 'Total m³',
-    tip: 'Period volume = this FM − previous FM (Excel G = Fₙ−Fₙ₋₁). Auto when FM is set.',
+    tip: 'Period volume = this FM − previous FM (Excel G = Fₙ−Fₙ₋₁). Edit either side: FM updates m³, or m³ updates FM.',
     type: 'num',
     field: 'totalM3',
     numeric: true,
@@ -172,7 +172,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'totalMt',
     label: 'Total t',
-    tip: 'Excel H = ROUND(m³ × density, 1) — each row has its own density. Drag ↑↓ or right-click to set this row’s density.',
+    tip: 'Excel H = ROUND(m³ × density, 1). When Total t changes, ME/AE split ~2:1. Click D or right-click for density (↑↓ ±0.01, Shift ±0.1).',
     type: 'num',
     field: 'totalMt',
     numeric: true,
@@ -180,7 +180,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'meMt',
     label: 'ME t',
-    tip: 'Main engine fuel consumed for the period (mt).',
+    tip: 'Main engine (mt). ME + AE = Total t; max = Total t; AE gets the remainder. Click F to pick which ROB tank to debit.',
     type: 'num',
     field: 'meMt',
     tone: 'me',
@@ -189,7 +189,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'aeMt',
     label: 'AE t',
-    tip: 'Auxiliary engines fuel consumed for the period (mt).',
+    tip: 'Aux engines (mt). ME + AE = Total t; max = Total t; ME gets the remainder. Click F to pick which ROB tank to debit.',
     type: 'num',
     field: 'aeMt',
     tone: 'ae',
@@ -238,7 +238,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'dmaConsMt',
     label: 'DMA / Boiler t',
-    tip: 'DMA total consumption (mt) — used as boiler-side fuel in MASTER.',
+    tip: 'DMA/Boiler consumption (mt). No density — t = m³. Linked to Boiler FM; debits ROB (F).',
     type: 'num',
     field: 'boilerMt',
     tone: 'boiler',
@@ -247,7 +247,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'dmaConsM3',
     label: 'DMA m³',
-    tip: 'DMA total consumption volume (m³).',
+    tip: 'Period volume = this Boiler FM − previous (no density). Edit FM ↔ m³ ↔ t together.',
     type: 'num',
     field: 'dmaConsM3',
     tone: 'boiler',
@@ -256,7 +256,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'boilerFm',
     label: 'Boiler FM',
-    tip: 'Boiler flowmeter counter (MASTER col R).',
+    tip: 'Boiler flowmeter (MASTER R). Delta → DMA m³ and DMA/Boiler t (1:1, no density); ROB DMA falls.',
     type: 'num',
     field: 'boilerFm',
     tone: 'boiler',
@@ -789,7 +789,7 @@ export interface FuelLibrarySettings {
   displayPresets: FuelDisplayPreset[];
   /** MASTER S1–AC4 snapshot (AUX / tanks) for read-only compare. */
   masterSummary: FuelMasterSummary | null;
-  /** Last density used on Add / Total t drag — default for new rows. */
+  /** Last density used on Add / density HUD — default for new rows. */
   lastDensity: number | null;
 }
 
@@ -861,13 +861,29 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
   };
 }
 
-/** Clamp / parse density (Excel range ~0.5–1.2). */
+/** Clamp / parse density (Excel range ~0.5–1.2). Keeps up to 3 decimals (typed). */
 export function normalizeFuelDensity(raw: unknown): number | null {
   if (raw == null || raw === '') return null;
   const n = typeof raw === 'number' ? raw : Number(String(raw).replace(',', '.'));
   if (!Number.isFinite(n)) return null;
   const clamped = Math.min(1.2, Math.max(0.5, Math.round(n * 1000) / 1000));
   return clamped;
+}
+
+/**
+ * Arrow / step buttons: ±0.01 (hundredths), or ±0.1 (tenths) when `step` is 0.1.
+ * Thousandths only via typed input → {@link normalizeFuelDensity}.
+ */
+export function nudgeFuelDensity(
+  current: number,
+  dir: 1 | -1,
+  step: 0.01 | 0.1 = 0.01,
+): number {
+  const base = normalizeFuelDensity(current) ?? FUEL_DEFAULT_DENSITY;
+  // Work in hundredths to avoid 0.88+0.1 float → 1.0.
+  const cents = Math.round(base * 100);
+  const delta = step === 0.1 ? 10 : 1;
+  return normalizeFuelDensity((cents + dir * delta) / 100) ?? base;
 }
 
 /** Total t = ROUND(m³ × density, 1) — Excel H. */
@@ -1041,13 +1057,17 @@ export function normalizeFuelLibrary(
     ? kindsRaw.filter((k): k is FuelEventKind => k in FUEL_EVENT_KIND_LABELS)
     : [...FUEL_DEFAULT_VISIBLE_KINDS];
 
-  const events = normalizeFuelEventList(raw?.events);
+  const events = fillMissingPeriodTotals(normalizeFuelEventList(raw?.events));
   // Additive: old saves without edit* fields seed Edit from View (clean).
   const hasEditEvents = Array.isArray(raw?.editEvents);
-  const editEvents = hasEditEvents ? normalizeFuelEventList(raw?.editEvents) : cloneFuelEventList(events);
+  const editRaw = hasEditEvents ? normalizeFuelEventList(raw?.editEvents) : cloneFuelEventList(events);
+  // Dirty Edit often kept null G/H from before formula-import fix — pull from View, then FM.
+  const editEvents = fillMissingPeriodTotals(
+    hasEditEvents ? mergeMissingFuelPeriodFields(editRaw, events) : editRaw,
+  );
   const hasEditBaseline = Array.isArray(raw?.editBaseline);
   const editBaseline = hasEditBaseline
-    ? normalizeFuelEventList(raw?.editBaseline)
+    ? fillMissingPeriodTotals(normalizeFuelEventList(raw?.editBaseline))
     : cloneFuelEventList(editEvents);
 
   return {
@@ -1469,6 +1489,48 @@ export function recomputeFuelTotalMt(meMt: number | null, aeMt: number | null): 
   return Math.round(((meMt ?? 0) + (aeMt ?? 0)) * 10) / 10;
 }
 
+/** Round fuel mt to 1 decimal (Excel display). */
+function roundFuelMt1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Default split when Total t changes: ~2:1 ME:AE (e.g. 0.2 / 0.1).
+ * ME + AE always equals Total exactly (1 decimal).
+ */
+export function splitFuelTotalMtToMeAe(totalMt: number): { meMt: number; aeMt: number } {
+  const t = roundFuelMt1(Math.max(0, totalMt));
+  if (t <= 0) return { meMt: 0, aeMt: 0 };
+  const meMt = roundFuelMt1((t * 2) / 3);
+  const aeMt = roundFuelMt1(t - meMt);
+  return { meMt, aeMt };
+}
+
+/**
+ * Keep ME + AE = Total t. Edited side clamped to [0, Total]; the other gets the rest.
+ * `edited: 'total'` → fresh 2:1 split.
+ */
+export function balanceFuelMeAeAgainstTotal(
+  totalMt: number | null | undefined,
+  meMt: number | null | undefined,
+  aeMt: number | null | undefined,
+  edited: 'me' | 'ae' | 'total',
+): { meMt: number | null; aeMt: number | null } {
+  if (totalMt == null || !Number.isFinite(totalMt)) {
+    return { meMt: meMt ?? null, aeMt: aeMt ?? null };
+  }
+  const t = roundFuelMt1(Math.max(0, totalMt));
+  if (edited === 'total') {
+    return splitFuelTotalMtToMeAe(t);
+  }
+  if (edited === 'me') {
+    const me = roundFuelMt1(Math.min(t, Math.max(0, meMt ?? 0)));
+    return { meMt: me, aeMt: roundFuelMt1(t - me) };
+  }
+  const ae = roundFuelMt1(Math.min(t, Math.max(0, aeMt ?? 0)));
+  return { meMt: roundFuelMt1(t - ae), aeMt: ae };
+}
+
 /**
  * Excel MASTER/CENG: Total m³ (G) = Fₙ − Fₙ₋₁.
  * FM is the manual meter reading; m³ is the period delta (never negative).
@@ -1480,6 +1542,131 @@ export function recomputeFuelTotalM3FromFm(
   if (fmMeAe == null || previousFm == null) return null;
   const delta = Math.round((fmMeAe - previousFm) * 10) / 10;
   return delta < 0 ? null : delta;
+}
+
+/**
+ * Reverse link: FMₙ = previous FM + Total m³.
+ * Used when the user edits period volume instead of the meter reading.
+ */
+export function recomputeFuelFmFromTotalM3(
+  previousFm: number | null | undefined,
+  totalM3: number | null,
+): number | null {
+  if (previousFm == null || totalM3 == null || !Number.isFinite(totalM3)) return null;
+  if (totalM3 < 0) return null;
+  return Math.round((previousFm + totalM3) * 10) / 10;
+}
+
+/**
+ * Boiler / DMA period (no density): m³ = FMₙ − FMₙ₋₁, t = m³ (1:1).
+ * Editing any side keeps FM ↔ m³ ↔ t in sync.
+ */
+export function syncFuelBoilerDmaPeriod(
+  draft: Pick<FuelLogEvent, 'boilerFm' | 'dmaConsM3' | 'boilerMt'>,
+  previousBoilerFm: number | null | undefined,
+  edited: 'boilerFm' | 'dmaConsM3' | 'boilerMt',
+): Pick<FuelLogEvent, 'boilerFm' | 'dmaConsM3' | 'boilerMt'> {
+  if (edited === 'boilerFm') {
+    if (draft.boilerFm == null) {
+      return { boilerFm: null, dmaConsM3: null, boilerMt: null };
+    }
+    const m3 = recomputeFuelTotalM3FromFm(draft.boilerFm, previousBoilerFm);
+    if (m3 == null) {
+      return { boilerFm: draft.boilerFm, dmaConsM3: draft.dmaConsM3, boilerMt: draft.boilerMt };
+    }
+    return { boilerFm: draft.boilerFm, dmaConsM3: m3, boilerMt: m3 };
+  }
+
+  const period =
+    edited === 'dmaConsM3'
+      ? draft.dmaConsM3 == null
+        ? null
+        : roundFuelMt1(Math.max(0, draft.dmaConsM3))
+      : draft.boilerMt == null
+        ? null
+        : roundFuelMt1(Math.max(0, draft.boilerMt));
+
+  if (period == null) {
+    return {
+      boilerFm: draft.boilerFm,
+      dmaConsM3: null,
+      boilerMt: null,
+    };
+  }
+  const fm = recomputeFuelFmFromTotalM3(previousBoilerFm, period);
+  return {
+    boilerFm: fm ?? draft.boilerFm,
+    dmaConsM3: period,
+    boilerMt: period,
+  };
+}
+
+/**
+ * When Total m³ / Total t are missing (stale Edit draft / formula cache), rebuild
+ * from FM deltas (G = Fₙ−Fₙ₋₁) and density (H = ROUND(G×d,1)).
+ */
+export function fillMissingPeriodTotals(events: readonly FuelLogEvent[]): FuelLogEvent[] {
+  if (!events.length) return [];
+  const sorted = [...events].sort((a, b) =>
+    fuelEventChronoKey(a).localeCompare(fuelEventChronoKey(b)),
+  );
+  let prevFm: number | null = null;
+  let prevBoilerFm: number | null = null;
+  const patched = new Map<string, FuelLogEvent>();
+  for (const e of sorted) {
+    let next = e;
+    if (next.totalM3 == null) {
+      const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, prevFm);
+      if (m3 != null) next = { ...next, totalM3: m3 };
+    }
+    if (next.totalMt == null && next.totalM3 != null) {
+      const density = next.density ?? FUEL_DEFAULT_DENSITY;
+      const mt = recomputeFuelTotalMtFromM3(next.totalM3, density);
+      if (mt != null) {
+        next = { ...next, totalMt: mt, density: next.density ?? density };
+      }
+    }
+    // Boiler/DMA: no density — m³ = FM delta, t = m³.
+    if (next.dmaConsM3 == null) {
+      const m3 = recomputeFuelTotalM3FromFm(next.boilerFm, prevBoilerFm);
+      if (m3 != null) next = { ...next, dmaConsM3: m3 };
+    }
+    if (next.boilerMt == null && next.dmaConsM3 != null) {
+      next = { ...next, boilerMt: next.dmaConsM3 };
+    }
+    patched.set(e.id, next === e ? e : createEmptyFuelLogEvent(next));
+    if (next.fmMeAe != null) prevFm = next.fmMeAe;
+    if (next.boilerFm != null) prevBoilerFm = next.boilerFm;
+  }
+  return events.map((e) => patched.get(e.id) ?? e);
+}
+
+/**
+ * Copy missing period fields from View/import into Edit rows (match id, else
+ * date|time|place|event). Keeps user edits when Edit already has a value.
+ */
+export function mergeMissingFuelPeriodFields(
+  editEvents: readonly FuelLogEvent[],
+  sourceEvents: readonly FuelLogEvent[],
+): FuelLogEvent[] {
+  if (!editEvents.length || !sourceEvents.length) return [...editEvents];
+  const byId = new Map(sourceEvents.map((e) => [e.id, e]));
+  const byKey = new Map(
+    sourceEvents.map((e) => [`${e.date}|${e.time}|${e.place}|${e.rawEvent}`, e] as const),
+  );
+  return editEvents.map((e) => {
+    const src = byId.get(e.id) ?? byKey.get(`${e.date}|${e.time}|${e.place}|${e.rawEvent}`);
+    if (!src) return e;
+    let next = e;
+    if (next.fmMeAe == null && src.fmMeAe != null) next = { ...next, fmMeAe: src.fmMeAe };
+    if (next.totalM3 == null && src.totalM3 != null) next = { ...next, totalM3: src.totalM3 };
+    if (next.totalMt == null && src.totalMt != null) next = { ...next, totalMt: src.totalMt };
+    if (next.density == null && src.density != null) next = { ...next, density: src.density };
+    if (next.boilerFm == null && src.boilerFm != null) next = { ...next, boilerFm: src.boilerFm };
+    if (next.dmaConsM3 == null && src.dmaConsM3 != null) next = { ...next, dmaConsM3: src.dmaConsM3 };
+    if (next.boilerMt == null && src.boilerMt != null) next = { ...next, boilerMt: src.boilerMt };
+    return next === e ? e : createEmptyFuelLogEvent(next);
+  });
 }
 
 /**
@@ -1562,7 +1749,7 @@ export function isAppAddedFuelEvent(e: Pick<FuelLogEvent, 'sourceRow'>): boolean
   return !(e.sourceRow >= 5);
 }
 
-function fuelEventChronoKey(
+export function fuelEventChronoKey(
   e: Pick<FuelLogEvent, 'date' | 'time' | 'sourceRow' | 'id'>,
 ): string {
   return `${e.date}T${e.time || '00:00'}#${String(e.sourceRow).padStart(6, '0')}#${e.id}`;
@@ -1635,6 +1822,7 @@ export function isFuelConsumptionEditField(field: string): field is FuelConsumpt
 /**
  * Side effects when ME / AE / DMA consumption is edited in the table:
  * - Total t stays Excel-faithful (m³ × density) — not rebuilt from ME+AE
+ * - Editing ME or AE alone: clamp to Total t, other side = remainder
  * - ROB tanks = previous ROB − assigned consumption (clamped ≥ 0)
  */
 export function applyFuelConsumptionSideEffects(
@@ -1643,7 +1831,19 @@ export function applyFuelConsumptionSideEffects(
   beforePrevious: FuelLogEvent | null | undefined,
   partial: Partial<Pick<FuelLogEvent, FuelConsumptionEditField>>,
 ): FuelLogEvent {
-  return projectFuelRobForEvent({ ...current, ...partial }, previous, beforePrevious);
+  let merged: FuelLogEvent = { ...current, ...partial };
+  const editingMe = partial.meMt !== undefined && partial.aeMt === undefined;
+  const editingAe = partial.aeMt !== undefined && partial.meMt === undefined;
+  if (editingMe || editingAe) {
+    const bal = balanceFuelMeAeAgainstTotal(
+      merged.totalMt,
+      merged.meMt,
+      merged.aeMt,
+      editingMe ? 'me' : 'ae',
+    );
+    merged = { ...merged, meMt: bal.meMt, aeMt: bal.aeMt };
+  }
+  return projectFuelRobForEvent(merged, previous, beforePrevious);
 }
 
 /**
@@ -1670,7 +1870,26 @@ export function applyFuelEventAutoCalcs(
   const density = resolveFuelDensity(next, null, preferredDensity);
   next = { ...next, density };
   const total = recomputeFuelTotalMtFromM3(next.totalM3, density);
-  if (total != null) next = { ...next, totalMt: total };
+  if (total != null) {
+    next = { ...next, totalMt: total };
+    // New draft with empty ME/AE → default 2:1 split of Total t.
+    if (next.meMt == null && next.aeMt == null) {
+      const split = splitFuelTotalMtToMeAe(total);
+      next = { ...next, meMt: split.meMt, aeMt: split.aeMt };
+    }
+  }
+
+  // Boiler/DMA: no density — period m³ = FM delta, t = m³.
+  if (next.dmaConsM3 == null || next.boilerMt == null) {
+    const dmaM3 = recomputeFuelTotalM3FromFm(next.boilerFm, previous?.boilerFm);
+    if (dmaM3 != null) {
+      next = {
+        ...next,
+        dmaConsM3: next.dmaConsM3 ?? dmaM3,
+        boilerMt: next.boilerMt ?? dmaM3,
+      };
+    }
+  }
 
   if (previous) {
     const meH = recomputeFuelHoursFromCounter(next.meCounterRh, previous.meCounterRh);

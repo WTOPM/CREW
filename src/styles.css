@@ -35,12 +35,6 @@ html {
   scrollbar-gutter: stable;
 }
 
-/* Fuel Total t density drag — hide system cursor; HUD stays fixed. */
-html.fuel-density-dragging,
-html.fuel-density-dragging * {
-  cursor: none !important;
-}
-
 .page {
   max-width: 1200px;
   margin: 0 auto;

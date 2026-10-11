@@ -21,9 +21,16 @@ import {
   recomputeFuelCounterFromHours,
   recomputeFuelHoursFromCounter,
   projectFuelRobAfterConsumption,
+  recomputeFuelFmFromTotalM3,
   recomputeFuelTotalM3FromFm,
   recomputeFuelTotalMtFromM3,
+  syncFuelBoilerDmaPeriod,
   normalizeFuelDensity,
+  nudgeFuelDensity,
+  fillMissingPeriodTotals,
+  mergeMissingFuelPeriodFields,
+  splitFuelTotalMtToMeAe,
+  balanceFuelMeAeAgainstTotal,
   dateTimeFromFuelHrsEdit,
   shiftFuelDateTime,
   type FuelLogEvent,
@@ -142,6 +149,34 @@ describe('recomputeFuelTotalM3FromFm', () => {
     expect(recomputeFuelTotalM3FromFm(null, 100)).toBeNull();
     expect(recomputeFuelTotalM3FromFm(90, 100)).toBeNull(); // negative delta rejected
   });
+
+  it('reverse: FMₙ = previous FM + Total m³', () => {
+    expect(recomputeFuelFmFromTotalM3(4529.2, 1.9)).toBe(4531.1);
+    expect(recomputeFuelFmFromTotalM3(4529.2, 0.5)).toBe(4529.7);
+    expect(recomputeFuelFmFromTotalM3(null, 1.9)).toBeNull();
+    expect(recomputeFuelFmFromTotalM3(100, null)).toBeNull();
+    expect(recomputeFuelFmFromTotalM3(100, -0.1)).toBeNull();
+  });
+});
+
+describe('syncFuelBoilerDmaPeriod', () => {
+  it('Boiler FM delta → DMA m³ and t 1:1 (no density)', () => {
+    expect(
+      syncFuelBoilerDmaPeriod({ boilerFm: 73.7, dmaConsM3: 0.1, boilerMt: 0.7 }, 73.0, 'boilerFm'),
+    ).toEqual({ boilerFm: 73.7, dmaConsM3: 0.7, boilerMt: 0.7 });
+  });
+
+  it('DMA m³ edit updates FM and t', () => {
+    expect(
+      syncFuelBoilerDmaPeriod({ boilerFm: 73.0, dmaConsM3: 0.5, boilerMt: 0.1 }, 73.0, 'dmaConsM3'),
+    ).toEqual({ boilerFm: 73.5, dmaConsM3: 0.5, boilerMt: 0.5 });
+  });
+
+  it('DMA/Boiler t edit updates FM and m³', () => {
+    expect(
+      syncFuelBoilerDmaPeriod({ boilerFm: 73.0, dmaConsM3: 0.1, boilerMt: 0.7 }, 73.0, 'boilerMt'),
+    ).toEqual({ boilerFm: 73.7, dmaConsM3: 0.7, boilerMt: 0.7 });
+  });
 });
 
 describe('recomputeFuelTotalMtFromM3', () => {
@@ -150,6 +185,70 @@ describe('recomputeFuelTotalMtFromM3', () => {
     expect(recomputeFuelTotalMtFromM3(5, 0.9)).toBe(4.5);
     expect(normalizeFuelDensity(0.879)).toBe(0.879);
     expect(normalizeFuelDensity(0.4)).toBe(0.5); // clamped
+  });
+
+  it('nudges density by hundredths / tenths (not thousandths)', () => {
+    expect(nudgeFuelDensity(0.88, 1)).toBe(0.89);
+    expect(nudgeFuelDensity(0.88, -1)).toBe(0.87);
+    expect(nudgeFuelDensity(0.88, 1, 0.1)).toBe(0.98);
+    expect(nudgeFuelDensity(0.879, 1)).toBe(0.89);
+  });
+});
+
+describe('fillMissingPeriodTotals / mergeMissingFuelPeriodFields', () => {
+  it('rebuilds Total m³ / t from FM on Edit rows', () => {
+    const a = ev({
+      id: 'a',
+      kind: 'start_sea',
+      rawEvent: 'BOSP',
+      date: '2026-09-01',
+      time: '08:00',
+      fmMeAe: 100,
+      totalM3: null,
+      totalMt: null,
+    });
+    const b = ev({
+      id: 'b',
+      kind: 'noon',
+      rawEvent: 'Noon',
+      date: '2026-09-01',
+      time: '12:00',
+      fmMeAe: 105,
+      totalM3: null,
+      totalMt: null,
+      density: 0.88,
+    });
+    const filled = fillMissingPeriodTotals([a, b]);
+    expect(filled[1]!.totalM3).toBe(5);
+    expect(filled[1]!.totalMt).toBe(4.4);
+  });
+
+  it('merges missing totals from View into Edit by date/time/place/event', () => {
+    const edit = ev({
+      id: 'edit-1',
+      kind: 'noon',
+      rawEvent: 'Noon',
+      date: '2026-09-01',
+      time: '12:00',
+      place: 'Sea',
+      totalM3: null,
+      totalMt: null,
+    });
+    const view = ev({
+      id: 'view-9',
+      kind: 'noon',
+      rawEvent: 'Noon',
+      date: '2026-09-01',
+      time: '12:00',
+      place: 'Sea',
+      totalM3: 2.2,
+      totalMt: 1.9,
+      density: 0.88,
+    });
+    const merged = mergeMissingFuelPeriodFields([edit], [view]);
+    expect(merged[0]!.totalM3).toBe(2.2);
+    expect(merged[0]!.totalMt).toBe(1.9);
+    expect(merged[0]!.id).toBe('edit-1');
   });
 });
 
@@ -423,6 +522,72 @@ describe('applyFuelConsumptionSideEffects', () => {
     expect(next.robRmdMt).toBe(0);
     expect(next.robB100Mt).toBe(341.1);
     expect(next.robDmaMt).toBe(68.0);
+  });
+
+  it('clamps ME to Total t and puts the remainder on AE', () => {
+    const current = ev({
+      id: '2',
+      kind: 'noon',
+      date: '2026-10-06',
+      time: '18:00',
+      totalMt: 0.6,
+      meMt: 0.4,
+      aeMt: 0.2,
+      meRobTank: 'b100',
+      aeRobTank: 'b100',
+      boilerRobTank: 'dma',
+    });
+    const next = applyFuelConsumptionSideEffects(current, null, null, { meMt: 0.5 });
+    expect(next.meMt).toBe(0.5);
+    expect(next.aeMt).toBe(0.1);
+    expect(next.totalMt).toBe(0.6);
+
+    const allMe = applyFuelConsumptionSideEffects(current, null, null, { meMt: 0.6 });
+    expect(allMe.meMt).toBe(0.6);
+    expect(allMe.aeMt).toBe(0);
+
+    const over = applyFuelConsumptionSideEffects(current, null, null, { meMt: 0.9 });
+    expect(over.meMt).toBe(0.6);
+    expect(over.aeMt).toBe(0);
+
+    const zeroMe = applyFuelConsumptionSideEffects(current, null, null, { meMt: 0 });
+    expect(zeroMe.meMt).toBe(0);
+    expect(zeroMe.aeMt).toBe(0.6);
+  });
+
+  it('clamps AE to Total t and puts the remainder on ME', () => {
+    const current = ev({
+      id: '2',
+      kind: 'noon',
+      date: '2026-10-06',
+      time: '18:00',
+      totalMt: 0.6,
+      meMt: 0.4,
+      aeMt: 0.2,
+      meRobTank: 'b100',
+      aeRobTank: 'b100',
+      boilerRobTank: 'dma',
+    });
+    const next = applyFuelConsumptionSideEffects(current, null, null, { aeMt: 0.5 });
+    expect(next.aeMt).toBe(0.5);
+    expect(next.meMt).toBe(0.1);
+
+    const allAe = applyFuelConsumptionSideEffects(current, null, null, { aeMt: 0.6 });
+    expect(allAe.aeMt).toBe(0.6);
+    expect(allAe.meMt).toBe(0);
+
+    const over = applyFuelConsumptionSideEffects(current, null, null, { aeMt: 0.9 });
+    expect(over.aeMt).toBe(0.6);
+    expect(over.meMt).toBe(0);
+  });
+});
+
+describe('splitFuelTotalMtToMeAe', () => {
+  it('splits Total t ~2:1 ME:AE', () => {
+    expect(splitFuelTotalMtToMeAe(0.3)).toEqual({ meMt: 0.2, aeMt: 0.1 });
+    expect(splitFuelTotalMtToMeAe(0.6)).toEqual({ meMt: 0.4, aeMt: 0.2 });
+    expect(balanceFuelMeAeAgainstTotal(0.6, 0, 0.5, 'ae')).toEqual({ meMt: 0.1, aeMt: 0.5 });
+    expect(balanceFuelMeAeAgainstTotal(0.9, null, null, 'total')).toEqual({ meMt: 0.6, aeMt: 0.3 });
   });
 });
 

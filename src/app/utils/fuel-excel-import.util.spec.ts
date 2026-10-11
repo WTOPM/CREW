@@ -215,6 +215,51 @@ describe('importFuelLogFromExcelBytes', () => {
     expect(result.events[0].meCounterRh).toBe(42);
   });
 
+  it('reads Total m³ / Total t from formula results even when FM is blank', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    master.getCell('A5').value = 'Sea';
+    master.getCell('B5').value = 'Noon';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D5').value = '12:00';
+    // No FM — old import wiped all formula G/H; positive caches must still load.
+    master.getCell('G5').value = { formula: 'F5-F4', result: 2.2 };
+    master.getCell('H5').value = { formula: 'ROUND(G5*0.88,1)', result: 1.9 };
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].totalM3).toBe(2.2);
+    expect(result.events[0].totalMt).toBe(1.9);
+    expect(result.events[0].density).toBe(0.88);
+  });
+
+  it('rebuilds Total m³ / Total t from FM deltas when G/H have no cached result', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    master.getCell('A5').value = 'Sea';
+    master.getCell('B5').value = 'BOSP';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D5').value = '08:00';
+    master.getCell('F5').value = 100;
+
+    master.getCell('A6').value = 'Sea';
+    master.getCell('B6').value = 'Noon';
+    master.getCell('C6').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D6').value = '12:00';
+    master.getCell('F6').value = 105;
+    // Formulas with no cached result — FO-VPC / ExcelJS often omits them.
+    master.getCell('G6').value = { formula: 'F6-F5' };
+    master.getCell('H6').value = { formula: 'ROUND(G6*0.9,1)' };
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    const noon = result.events.find((e) => e.rawEvent === 'Noon');
+    expect(noon?.totalM3).toBe(5);
+    expect(noon?.totalMt).toBe(4.5); // 5 × 0.9
+    expect(noon?.density).toBe(0.9);
+  });
+
   it('skips incomplete rows and drops stale negative formula caches', async () => {
     const wb = new ExcelJS.Workbook();
     const master = wb.addWorksheet('Fuel Log MASTER ');

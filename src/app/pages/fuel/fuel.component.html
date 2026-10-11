@@ -724,17 +724,54 @@
                             }
                           </span>
                         } @else if (col.id === 'totalMt') {
-                          <input
-                            class="fuel-cell-input fuel-cell-input--auto fuel-cell-input--density"
-                            [value]="editValue(e, col)"
-                            [attr.tabindex]="-1"
-                            [appPlainTooltip]="cellTip(col)"
-                            autocomplete="off"
-                            spellcheck="false"
-                            readonly
-                            (pointerdown)="onTotalMtPointerDown(e, $event)"
+                          <span
+                            class="fuel-density-cell"
                             (contextmenu)="onTotalMtContextMenu(e, $event)"
-                          />
+                          >
+                            <input
+                              class="fuel-cell-input fuel-cell-input--auto fuel-cell-input--density"
+                              [value]="editValue(e, col)"
+                              [attr.tabindex]="-1"
+                              [appPlainTooltip]="densityCellTip(e)"
+                              autocomplete="off"
+                              spellcheck="false"
+                              readonly
+                              (contextmenu)="onTotalMtContextMenu(e, $event)"
+                            />
+                            <button
+                              type="button"
+                              class="fuel-density-badge"
+                              [appPlainTooltip]="densityBadgeTip(e)"
+                              tabindex="-1"
+                              (click)="openDensityHud(e, $event)"
+                              (contextmenu)="onTotalMtContextMenu(e, $event)"
+                            >
+                              D
+                            </button>
+                          </span>
+                        } @else if (isConsumptionFuelCol(col)) {
+                          <span class="fuel-density-cell">
+                            <input
+                              class="fuel-cell-input fuel-cell-input--density"
+                              [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
+                              [value]="editValue(e, col)"
+                              [appPlainTooltip]="cellTip(col)"
+                              autocomplete="off"
+                              spellcheck="false"
+                              (input)="onEditLive(e, col, $event)"
+                              (change)="onEditCommit(e, col, $any($event.target).value)"
+                              (keydown)="onCellKeydown(e, col, $event)"
+                            />
+                            <button
+                              type="button"
+                              class="fuel-rob-badge"
+                              [appPlainTooltip]="robBadgeTip(e, col)"
+                              tabindex="-1"
+                              (click)="openRobTankMenu(e, col, $event)"
+                            >
+                              F
+                            </button>
+                          </span>
                         } @else {
                           <input
                             class="fuel-cell-input"
@@ -829,7 +866,6 @@
 @if (densityHud(); as hud) {
   <div
     class="fuel-density-hud"
-    [class.fuel-density-hud--drag]="hud.mode === 'drag'"
     [style.left.px]="hud.x + 12"
     [style.top.px]="hud.y - 36"
     (mousedown)="$event.stopPropagation()"
@@ -844,16 +880,44 @@
       (input)="onDensityHudInput($any($event.target).value)"
       (keydown.enter)="commitDensityHud()"
       (keydown.escape)="closeDensityHud()"
-      (keydown.arrowup)="$event.preventDefault(); nudgeDensityHud(1)"
-      (keydown.arrowdown)="$event.preventDefault(); nudgeDensityHud(-1)"
+      (keydown.arrowup)="onDensityHudArrow($event, 1)"
+      (keydown.arrowdown)="onDensityHudArrow($event, -1)"
       autofocus
     />
-    @if (hud.mode === 'menu') {
-      <div class="fuel-density-hud__steps" aria-hidden="true">
-        <button type="button" class="fuel-density-hud__step" tabindex="-1" title="+0.001" (mousedown)="$event.preventDefault()" (click)="nudgeDensityHud(1)">▲</button>
-        <button type="button" class="fuel-density-hud__step" tabindex="-1" title="−0.001" (mousedown)="$event.preventDefault()" (click)="nudgeDensityHud(-1)">▼</button>
-      </div>
-      <button type="button" class="fuel-density-hud__ok" (click)="commitDensityHud()">OK</button>
+    <div class="fuel-density-hud__steps" aria-hidden="true">
+      <button type="button" class="fuel-density-hud__step" tabindex="-1" title="+0.01" (mousedown)="$event.preventDefault()" (click)="nudgeDensityHud(1)">▲</button>
+      <button type="button" class="fuel-density-hud__step" tabindex="-1" title="−0.01" (mousedown)="$event.preventDefault()" (click)="nudgeDensityHud(-1)">▼</button>
+    </div>
+    <button type="button" class="fuel-density-hud__ok" (click)="commitDensityHud()">OK</button>
+  </div>
+}
+
+@if (robTankMenu(); as menu) {
+  <div
+    class="fuel-rob-menu"
+    [style.left.px]="menu.x + 8"
+    [style.top.px]="menu.y + 8"
+    (mousedown)="$event.stopPropagation()"
+    (pointerdown)="$event.stopPropagation()"
+    role="listbox"
+    [attr.aria-label]="'ROB tank for ' + menu.field"
+  >
+    <div class="fuel-rob-menu__title">From ROB</div>
+    @for (tank of robTankOptions(); track tank) {
+      <button
+        type="button"
+        class="fuel-rob-menu__item"
+        [class.fuel-rob-menu__item--active]="menu.selected === tank"
+        role="option"
+        [attr.aria-selected]="menu.selected === tank"
+        [title]="robTankTips[tank]"
+        (click)="selectRobTank(tank)"
+      >
+        <span class="fuel-rob-menu__label">{{ robTankLabels[tank] }}</span>
+        @if (menu.selected === tank) {
+          <span class="fuel-rob-menu__check" aria-hidden="true">✓</span>
+        }
+      </button>
     }
   </div>
 }

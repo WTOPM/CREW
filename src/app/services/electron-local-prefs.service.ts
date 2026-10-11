@@ -88,13 +88,24 @@ export class ElectronLocalPrefsService {
     const next = { ...DEFAULT_PREFS, ...prefs };
     this.prefs.set(next);
     this.minimizeToTray.set(!!next.minimizeToTray);
+    // Preserve in-memory fuel UI when Electron omits a field (partial prefs / older files).
+    // Otherwise `activeTab: undefined` was normalized to 'view' and wiped Edit after save.
+    const prevUi = this.fuelUi();
     this.fuelUi.set(
       normalizeFuelLocalUiPrefs({
-        visibleColumns: next.fuelVisibleColumns as FuelColumnId[] | undefined,
-        hoursAsHm: next.fuelHoursAsHm,
-        showUtc: next.fuelShowUtc,
-        utcOffsetHours: next.fuelUtcOffsetHours,
-        activeTab: next.fuelActiveTab,
+        visibleColumns:
+          (next.fuelVisibleColumns as FuelColumnId[] | undefined) ?? prevUi.visibleColumns,
+        hoursAsHm:
+          typeof next.fuelHoursAsHm === 'boolean' ? next.fuelHoursAsHm : prevUi.hoursAsHm,
+        showUtc: typeof next.fuelShowUtc === 'boolean' ? next.fuelShowUtc : prevUi.showUtc,
+        utcOffsetHours:
+          typeof next.fuelUtcOffsetHours === 'number'
+            ? next.fuelUtcOffsetHours
+            : prevUi.utcOffsetHours,
+        activeTab:
+          next.fuelActiveTab === 'edit' || next.fuelActiveTab === 'view'
+            ? next.fuelActiveTab
+            : prevUi.activeTab,
       }),
     );
     const legacy = normalizeFuelDisplayPresets(next.fuelDisplayPresets);

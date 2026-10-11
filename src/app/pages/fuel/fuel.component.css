@@ -2241,9 +2241,134 @@
   box-shadow: 0 0 0 2px rgb(239 68 68 / 30%);
 }
 
+.fuel-density-cell {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 .fuel-cell-input--density {
-  cursor: ns-resize;
+  display: block;
+  width: 100%;
+  padding-right: 1.4rem;
+  cursor: default;
   user-select: none;
+}
+
+.fuel-density-badge {
+  position: absolute;
+  right: 0.12rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  width: 1.275rem;
+  height: 1.275rem;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: #b45309;
+  font-size: 0.87rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.fuel-density-badge:hover {
+  opacity: 1;
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.fuel-rob-badge {
+  position: absolute;
+  right: 0.12rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  width: 1.275rem;
+  height: 1.275rem;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: #0369a1;
+  font-size: 0.87rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.fuel-rob-badge:hover {
+  opacity: 1;
+  color: #0c4a6e;
+  background: #e0f2fe;
+}
+
+.fuel-rob-menu {
+  position: fixed;
+  z-index: 10050;
+  min-width: 7.5rem;
+  padding: 0.3rem;
+  border-radius: 0.4rem;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 35%);
+  font-size: 0.8rem;
+  pointer-events: auto;
+}
+
+.fuel-rob-menu__title {
+  padding: 0.2rem 0.45rem 0.35rem;
+  opacity: 0.7;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.fuel-rob-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fuel-rob-menu__item:hover {
+  background: #1e293b;
+}
+
+.fuel-rob-menu__item--active {
+  background: #164e63;
+  color: #ecfeff;
+}
+
+.fuel-rob-menu__item--active:hover {
+  background: #155e75;
+}
+
+.fuel-rob-menu__check {
+  color: #67e8f9;
+  font-weight: 800;
 }
 
 .fuel-density-hud {
@@ -2261,10 +2386,6 @@
   box-shadow: 0 8px 24px rgb(15 23 42 / 35%);
   font-size: 0.8rem;
   pointer-events: auto;
-}
-
-.fuel-density-hud--drag {
-  pointer-events: none;
 }
 
 .fuel-density-hud__label {

@@ -3,6 +3,7 @@ import {
   classifyFuelEvent,
   createEmptyFuelLogEvent,
   FUEL_DEFAULT_DENSITY,
+  fillMissingPeriodTotals,
   inferFuelDensityFromMtM3,
   normalizeFuelDensity,
   recomputeFuelTotalMtFromM3,
@@ -52,7 +53,11 @@ export async function importFuelLogFromExcelBytes(
     appendMasterOnlyRows(events, masterIndex, warnings);
   }
 
-  return { events, sheetName: (ceng ?? master).name.trim(), warnings, masterSummary };
+  // FO-VPC often stores G/H as shared formulas; ExcelJS may omit cached results.
+  // Fill gaps from FM deltas + density so Total m³ / Total t match the sheet.
+  const filled = fillMissingPeriodTotals(events);
+
+  return { events: filled, sheetName: (ceng ?? master).name.trim(), warnings, masterSummary };
 }
 
 interface MasterFuelRow {
@@ -630,12 +635,15 @@ function cellNum1(cell: ExcelJS.Cell): number | null {
   return Math.round(n * 10) / 10;
 }
 
-/** Period consumption — drop negatives / stale Excel delta caches. */
-function periodNum(cell: ExcelJS.Cell, trustFormulas: boolean): number | null {
-  if (!trustFormulas && cellHasFormula(cell)) return null;
+/**
+ * Period consumption (Total m³ / Total t / ME / AE …).
+ * Always drop negatives (stale Fₙ−Fₙ₋₁ when FM blank).
+ * Keep non-negative formula results even when FM is blank — FO-VPC G/H are
+ * almost always formulas; discarding them wiped Total m³/t on import.
+ */
+function periodNum(cell: ExcelJS.Cell, _trustFormulas: boolean): number | null {
   const n = cellNum1(cell);
   if (n == null) return null;
-  // Broken Fₙ−Fₙ₋₁ when FM blank → large negatives in the xlsx cache.
   if (n < 0) return null;
   return n;
 }
@@ -715,8 +723,8 @@ function densityFromTotalMtCell(
 function cellFormulaText(cell: ExcelJS.Cell): string {
   const v = cell?.value;
   if (v == null || typeof v !== 'object' || v instanceof Date) return '';
-  const o = v as { formula?: string };
-  return String(o.formula ?? '').trim();
+  const o = v as { formula?: string; sharedFormula?: string };
+  return String(o.formula ?? o.sharedFormula ?? '').trim();
 }
 
 function cellDateIso(cell: ExcelJS.Cell): string {
@@ -790,8 +798,15 @@ function resolveCell(cell: ExcelJS.Cell): unknown {
     }
     if (o.richText) return o.richText.map((t) => t.text).join('');
     if (o.text) return o.text;
-    // Formula / sharedFormula with no cached result — do not String() the object.
-    if (o.formula != null || o.sharedFormula != null) return null;
+    // ExcelJS sometimes keeps the cached result on the Cell, not in value.
+    if (o.formula != null || o.sharedFormula != null) {
+      const cellResult = (cell as ExcelJS.Cell & { result?: unknown }).result;
+      if (cellResult !== undefined && cellResult !== null) {
+        if (typeof cellResult === 'object' && 'error' in (cellResult as object)) return null;
+        return cellResult;
+      }
+      return null;
+    }
   }
   return v;
 }

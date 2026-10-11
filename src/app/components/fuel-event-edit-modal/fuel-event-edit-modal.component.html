@@ -114,13 +114,13 @@
                 (ngModelChange)="onDensity($event)"
                 inputmode="decimal"
                 placeholder="0.88"
-                title="Excel H = ROUND(m³ × density, 1). ↑↓ ±0.001"
-                (keydown.arrowup)="$event.preventDefault(); nudgeDensity(1)"
-                (keydown.arrowdown)="$event.preventDefault(); nudgeDensity(-1)"
+                title="Excel H = ROUND(m³ × density, 1). ↑↓ ±0.01 · Shift ↑↓ ±0.1 · type for 0.001"
+                (keydown.arrowup)="onDensityArrow($event, 1)"
+                (keydown.arrowdown)="onDensityArrow($event, -1)"
               />
               <div class="fuel-event-mt-steps" aria-hidden="true">
-                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="+0.001" (mousedown)="$event.preventDefault()" (click)="nudgeDensity(1)">▲</button>
-                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="−0.001" (mousedown)="$event.preventDefault()" (click)="nudgeDensity(-1)">▼</button>
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="+0.01" (mousedown)="$event.preventDefault()" (click)="nudgeDensity(1)">▲</button>
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="−0.01" (mousedown)="$event.preventDefault()" (click)="nudgeDensity(-1)">▼</button>
               </div>
             </div>
           </div>

@@ -3,6 +3,8 @@ import {
   cloneFuelEventList,
   createDefaultFuelLibrary,
   createEmptyFuelLogEvent,
+  fillMissingPeriodTotals,
+  mergeMissingFuelPeriodFields,
   normalizeFuelLibrary,
   type FuelDisplayPreset,
   type FuelEventKind,
@@ -32,6 +34,10 @@ export class FuelStore {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
       const imported = cloneFuelEventList(partial.events);
       const keepEdit = prev.editDirty;
+      // Dirty Edit keeps user rows, but pull missing Total m³/t from the new View snapshot.
+      const editEvents = keepEdit
+        ? fillMissingPeriodTotals(mergeMissingFuelPeriodFields(prev.editEvents, imported))
+        : imported;
       return {
         ...d,
         fuelLibrary: normalizeFuelLibrary({
@@ -44,13 +50,46 @@ export class FuelStore {
           view: prev.view,
           displayPresets: prev.displayPresets,
           masterSummary: partial.masterSummary ?? null,
-          editEvents: keepEdit ? prev.editEvents : imported,
+          editEvents,
           editBaseline: keepEdit ? prev.editBaseline : cloneFuelEventList(imported),
           editDirty: keepEdit,
         }),
       };
     });
     void this.state.persist('saved');
+  }
+
+  /**
+   * Heal Edit Total m³ / Total t from View + FM without discarding the draft.
+   * Safe to call on Fuel page open (silent).
+   */
+  healEditPeriodTotals(): void {
+    this.data.update((d) => {
+      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      if (!prev.editEvents.length) return d;
+      const merged = mergeMissingFuelPeriodFields(prev.editEvents, prev.events);
+      const editEvents = fillMissingPeriodTotals(merged);
+      const changed = editEvents.some((e, i) => {
+        const before = prev.editEvents[i];
+        return (
+          !before ||
+          before.totalM3 !== e.totalM3 ||
+          before.totalMt !== e.totalMt ||
+          before.density !== e.density ||
+          before.fmMeAe !== e.fmMeAe
+        );
+      });
+      if (!changed && editEvents.length === prev.editEvents.length) return d;
+      return {
+        ...d,
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          editEvents,
+          editDirty: prev.editDirty,
+        }),
+      };
+    });
+    void this.state.persist('silent');
   }
 
   setSourcePath(path: string): void {
