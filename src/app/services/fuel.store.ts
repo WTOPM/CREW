@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import {
+  cloneFuelEventList,
   createDefaultFuelLibrary,
   createEmptyFuelLogEvent,
   normalizeFuelLibrary,
@@ -16,6 +17,10 @@ export class FuelStore {
   private readonly state = inject(AppStateStore);
   private readonly data = this.state.data;
 
+  /**
+   * View tab: replace Excel snapshot.
+   * Edit draft is left alone when editDirty; otherwise Edit is re-seeded from the import.
+   */
   replaceFromImport(partial: {
     events: FuelLogEvent[];
     sourcePath: string;
@@ -25,11 +30,13 @@ export class FuelStore {
   }): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      const imported = cloneFuelEventList(partial.events);
+      const keepEdit = prev.editDirty;
       return {
         ...d,
         fuelLibrary: normalizeFuelLibrary({
           ...prev,
-          events: partial.events,
+          events: imported,
           sourcePath: partial.sourcePath,
           sourceFileName: partial.sourceFileName,
           sheetName: partial.sheetName,
@@ -37,6 +44,9 @@ export class FuelStore {
           view: prev.view,
           displayPresets: prev.displayPresets,
           masterSummary: partial.masterSummary ?? null,
+          editEvents: keepEdit ? prev.editEvents : imported,
+          editBaseline: keepEdit ? prev.editBaseline : cloneFuelEventList(imported),
+          editDirty: keepEdit,
         }),
       };
     });
@@ -95,37 +105,48 @@ export class FuelStore {
     this.updateView({ visibleKinds: kinds });
   }
 
+  /** Edit-tab upsert (persists draft; marks dirty). */
   upsertEvent(event: FuelLogEvent): void {
     const normalized = createEmptyFuelLogEvent(event);
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
-      const idx = prev.events.findIndex((e) => e.id === normalized.id);
-      const events =
+      const idx = prev.editEvents.findIndex((e) => e.id === normalized.id);
+      const editEvents =
         idx >= 0
-          ? prev.events.map((e, i) => (i === idx ? normalized : e))
-          : [...prev.events, normalized];
+          ? prev.editEvents.map((e, i) => (i === idx ? normalized : e))
+          : [...prev.editEvents, normalized];
       return {
         ...d,
-        fuelLibrary: normalizeFuelLibrary({ ...prev, events }),
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          editEvents,
+          editDirty: true,
+        }),
       };
     });
     void this.state.persist('debounced');
   }
 
+  /** Edit-tab patch (persists draft; marks dirty). */
   updateEvent(id: string, partial: Partial<FuelLogEvent>): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
-      const events = prev.events.map((e) =>
+      const editEvents = prev.editEvents.map((e) =>
         e.id === id ? createEmptyFuelLogEvent({ ...e, ...partial, id: e.id }) : e,
       );
       return {
         ...d,
-        fuelLibrary: normalizeFuelLibrary({ ...prev, events }),
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          editEvents,
+          editDirty: true,
+        }),
       };
     });
     void this.state.persist('debounced');
   }
 
+  /** Edit-tab delete (persists draft; marks dirty). */
   removeEvent(id: string): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
@@ -133,43 +154,96 @@ export class FuelStore {
         ...d,
         fuelLibrary: normalizeFuelLibrary({
           ...prev,
-          events: prev.events.filter((e) => e.id !== id),
+          editEvents: prev.editEvents.filter((e) => e.id !== id),
+          editDirty: true,
         }),
       };
     });
     void this.state.persist('debounced');
   }
 
-  clearEvents(): void {
+  /** Clear Edit draft only (View Excel snapshot stays). */
+  clearEditEvents(): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
       return {
         ...d,
         fuelLibrary: normalizeFuelLibrary({
           ...prev,
-          events: [],
-          importedAt: '',
-          sheetName: '',
-          masterSummary: null,
+          editEvents: [],
+          editBaseline: [],
+          editDirty: false,
         }),
       };
     });
     void this.state.persist('silent');
   }
 
-  /** Replace events in place (e.g. discard unsaved edits back to a baseline). */
-  replaceEvents(events: FuelLogEvent[]): void {
+  /** @deprecated Use clearEditEvents — kept for older call sites. */
+  clearEvents(): void {
+    this.clearEditEvents();
+  }
+
+  /** Discard Edit draft back to editBaseline (persisted). */
+  discardEditDraft(): void {
+    this.data.update((d) => {
+      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      const restored = cloneFuelEventList(prev.editBaseline);
+      return {
+        ...d,
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          editEvents: restored,
+          editDirty: false,
+        }),
+      };
+    });
+    void this.state.persist('saved');
+  }
+
+  /**
+   * After successful Write to Excel: mark Edit clean, refresh baseline,
+   * and sync View snapshot to what was written (other PCs still Update from file).
+   */
+  markEditWritten(events: readonly FuelLogEvent[]): void {
+    const written = cloneFuelEventList(events);
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
       return {
         ...d,
         fuelLibrary: normalizeFuelLibrary({
           ...prev,
-          events: events.map((e) => createEmptyFuelLogEvent(e)),
+          events: written,
+          editEvents: written,
+          editBaseline: cloneFuelEventList(written),
+          editDirty: false,
         }),
       };
     });
     void this.state.persist('saved');
+  }
+
+  /** Replace Edit events in place (e.g. tests / rare resets). */
+  replaceEditEvents(events: FuelLogEvent[], dirty = true): void {
+    const next = cloneFuelEventList(events);
+    this.data.update((d) => {
+      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      return {
+        ...d,
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          editEvents: next,
+          editBaseline: dirty ? prev.editBaseline : cloneFuelEventList(next),
+          editDirty: dirty,
+        }),
+      };
+    });
+    void this.state.persist('saved');
+  }
+
+  /** @deprecated Prefer discardEditDraft / replaceEditEvents. */
+  replaceEvents(events: FuelLogEvent[]): void {
+    this.replaceEditEvents(events, false);
   }
 
   findDisplayPresetByName(name: string): FuelDisplayPreset | undefined {

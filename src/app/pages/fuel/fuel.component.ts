@@ -16,19 +16,27 @@ import { RouterLink } from '@angular/router';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { FuelDisplayModalsComponent } from '../../components/fuel-display-modals/fuel-display-modals.component';
 import { FuelEventEditModalComponent } from '../../components/fuel-event-edit-modal/fuel-event-edit-modal.component';
+import { PlainTooltipDirective } from '../../directives/plain-tooltip.directive';
 import {
   FUEL_COLUMNS,
   FUEL_DEFAULT_VISIBLE_COLUMNS,
   FUEL_DEFAULT_VISIBLE_KINDS,
   FUEL_EVENT_KIND_LABELS,
   FUEL_LIMIT_OPTIONS,
+  applyFuelEventAutoCalcs,
   classifyFuelEvent,
+  createEmptyFuelLogEvent,
   filterFuelEvents,
   findFuelEventBeforePrevious,
   findPreviousFuelEvent,
   formatFuelHoursHm,
+  formatFuelTimeDisplay,
   formatFuelUtcOffsetLabel,
+  splitFuelHoursHm,
   applyFuelConsumptionSideEffects,
+  inheritFuelFieldsFromPrevious,
+  parseFuelTimeDisplay,
+  recomputeFuelHoursFromCounter,
   recomputeFuelTotalM3FromFm,
   dateTimeFromFuelHrsEdit,
   fuelElapsedHours,
@@ -38,6 +46,7 @@ import {
   type FuelColumnId,
   type FuelDisplayEvent,
   type FuelEventKind,
+  type FuelInheritableField,
   type FuelLogEvent,
 } from '../../models/fuel.models';
 import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
@@ -135,7 +144,14 @@ interface FuelPathSegment {
 
 @Component({
   selector: 'app-fuel',
-  imports: [RouterLink, FormsModule, DatePickerComponent, FuelEventEditModalComponent, FuelDisplayModalsComponent],
+  imports: [
+    RouterLink,
+    FormsModule,
+    DatePickerComponent,
+    FuelEventEditModalComponent,
+    FuelDisplayModalsComponent,
+    PlainTooltipDirective,
+  ],
   templateUrl: './fuel.component.html',
   styleUrl: './fuel.component.css',
 })
@@ -155,9 +171,13 @@ export class FuelComponent {
   protected readonly canWriteExcel = !!window.electronAPI?.writeFileBase64;
   protected readonly library = this.storage.fuelLibrary;
   protected readonly busy = signal(false);
-  protected readonly dirty = signal(false);
-  protected readonly editMode = signal(false);
+  /** View = Excel snapshot; Edit = independent persisted draft. */
+  protected readonly activeTab = signal<'view' | 'edit'>('view');
   protected readonly showAddModal = signal(false);
+  /** eventId → fields still showing previous-row values (red until edited). */
+  protected readonly pendingInheritedByEvent = signal<
+    ReadonlyMap<string, ReadonlySet<FuelInheritableField>>
+  >(new Map());
   protected readonly showDisplaySaveModal = signal(false);
   protected readonly showDisplayLoadModal = signal(false);
   protected readonly showMasterSummaryModal = signal(false);
@@ -184,8 +204,6 @@ export class FuelComponent {
 
   private hScrollSyncing = false;
   private hScrollRo: ResizeObserver | null = null;
-  /** Events as last loaded / saved / discarded — Discard restores this. */
-  private fileBaseline: FuelLogEvent[] = [];
   private colPressTimer: ReturnType<typeof setTimeout> | null = null;
   private kindPressTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -202,6 +220,20 @@ export class FuelComponent {
     () => this.sectionLock.readOnly() || !!this.sectionLock.displacedBy(),
   );
 
+  /** Editing is only on the Edit tab (and not when another PC holds the lock). */
+  protected readonly canEdit = computed(
+    () => this.activeTab() === 'edit' && !this.viewOnly(),
+  );
+
+  /** Unsaved Edit draft (persisted in AppData — survives restart). */
+  protected readonly dirty = computed(() => this.library().editDirty);
+
+  /** Events for the active tab: View = Excel snapshot, Edit = draft. */
+  protected readonly activeEvents = computed(() => {
+    const lib = this.library();
+    return this.activeTab() === 'edit' ? lib.editEvents : lib.events;
+  });
+
   protected readonly visibleColumnDefs = computed(() => {
     const ids = new Set(this.fuelUi().visibleColumns);
     return FUEL_COLUMNS.filter((c) => ids.has(c.id));
@@ -209,12 +241,12 @@ export class FuelComponent {
 
   protected readonly visibleEvents = computed(() => {
     const lib = this.library();
-    return filterFuelEvents(lib.events, lib.view);
+    return filterFuelEvents(this.activeEvents(), lib.view);
   });
 
   protected readonly matchCountBeforeLimit = computed(() => {
     const lib = this.library();
-    return filterFuelEvents(lib.events, { ...lib.view, limitCount: 0 }).length;
+    return filterFuelEvents(this.activeEvents(), { ...lib.view, limitCount: 0 }).length;
   });
 
   protected readonly pathSegments = computed(() => parseFuelPathSegments(this.pathDraft()));
@@ -255,7 +287,6 @@ export class FuelComponent {
 
     afterNextRender(() => {
       this.bindHScrollObservers();
-      this.captureFileBaseline();
     });
 
     this.destroyRef.onDestroy(() => {
@@ -375,7 +406,7 @@ export class FuelComponent {
       title: 'Write to Excel file?',
       message:
         'Save your unsaved fuel-log edits into the Excel file on disk?\n\n' +
-        'This overwrites the matching rows in the workbook.',
+        'Matching rows are updated; rows you deleted here are cleared in the workbook.',
       confirmLabel: 'Write',
       cancelLabel: 'Keep editing',
     });
@@ -387,19 +418,18 @@ export class FuelComponent {
     ev?.stopPropagation();
     if (this.busy() || !this.dirty() || this.viewOnly()) return;
     const ok = await this.confirmDialog.confirm({
-      title: 'Discard unsaved edits?',
+      title: 'Discard Edit draft?',
       message:
-        'Revert the fuel log to how it was when the file was last opened, updated, or written?\n\n' +
-        'All unsaved changes will be lost.',
+        'Revert the Edit tab to the last clean draft (after Write, or last sync from Excel while Edit was clean).\n\n' +
+        'View tab / Excel file are not changed. Unsaved Edit changes will be lost.',
       confirmLabel: 'Discard',
       cancelLabel: 'Keep editing',
       variant: 'danger',
     });
     if (!ok) return;
-    this.fuelStore.replaceEvents(structuredClone(this.fileBaseline) as FuelLogEvent[]);
-    this.dirty.set(false);
-    this.editMode.set(false);
-    this.toast.show('Edits discarded — restored last file state', 'success');
+    this.fuelStore.discardEditDraft();
+    this.pendingInheritedByEvent.set(new Map());
+    this.toast.show('Edit draft discarded', 'success');
   }
 
   protected onColHeadPointerDown(col: FuelColumnDef, ev: PointerEvent): void {
@@ -476,10 +506,6 @@ export class FuelComponent {
     }
     this.fuelStore.setVisibleKinds(visible.filter((k) => k !== kind));
     this.toast.show(`Hidden “${this.kindLabels[kind]}” — restore via Events`, 'success');
-  }
-
-  private captureFileBaseline(): void {
-    this.fileBaseline = structuredClone(this.library().events) as FuelLogEvent[];
   }
 
   protected async selectAllColumns(): Promise<void> {
@@ -615,37 +641,113 @@ export class FuelComponent {
     return shiftFuelDateTime(date, time, this.utcOffsetHours());
   }
 
-  protected setEditMode(enabled: boolean): void {
-    if (enabled && this.viewOnly()) {
+  protected setActiveTab(tab: 'view' | 'edit'): void {
+    if (tab === this.activeTab()) return;
+    if (tab === 'edit' && this.viewOnly()) {
       this.toast.showError('Someone else is editing FUEL — view only');
       return;
     }
-    this.editMode.set(enabled);
+    // Edit draft is independent and persisted — switching tabs never discards it.
+    this.activeTab.set(tab);
+    this.closeMenus();
   }
 
   protected openAddModal(): void {
-    if (this.viewOnly()) {
-      this.toast.showError('Someone else is editing FUEL — view only');
-      return;
-    }
-    if (!this.editMode()) {
-      this.toast.showError('Turn on Edit first');
+    if (!this.canEdit()) {
+      this.toast.showError(
+        this.viewOnly()
+          ? 'Someone else is editing FUEL — view only'
+          : 'Switch to the Edit tab to add a row',
+      );
       return;
     }
     this.showAddModal.set(true);
   }
 
+  protected async confirmDeleteEvent(e: FuelDisplayEvent, ev?: Event): Promise<void> {
+    ev?.stopPropagation();
+    if (!this.canEdit()) return;
+    const label = [e.date, e.time, e.place || e.rawEvent || this.kindLabels[e.kind]]
+      .filter(Boolean)
+      .join(' · ');
+    const ok = await this.confirmDialog.confirm({
+      title: 'Delete this row?',
+      message:
+        `Remove “${label}” from the fuel log?\n\n` +
+        'It stays only in memory until you Write to Excel — then the matching Excel row is cleared too.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Keep',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    this.fuelStore.removeEvent(e.id);
+    if (this.pendingInheritedByEvent().has(e.id)) {
+      const next = new Map(this.pendingInheritedByEvent());
+      next.delete(e.id);
+      this.pendingInheritedByEvent.set(next);
+    }
+    this.toast.show('Row deleted — Write to Excel when ready', 'success');
+  }
+
   protected onAddSave(event: FuelLogEvent): void {
-    this.fuelStore.upsertEvent(event);
-    this.dirty.set(true);
+    // After Add modal: fill the new table row from the chronologically
+    // previous event’s counters / place / ROB tanks (red until edited).
+    const editEvents = this.library().editEvents;
+    const prev = findPreviousFuelEvent(editEvents, event.date, event.time, event.id);
+    const { patch, inheritedFields } = inheritFuelFieldsFromPrevious(prev);
+    // Don’t overwrite fields the user already set in the modal.
+    const fill: Partial<FuelLogEvent> = {};
+    const pending: FuelInheritableField[] = [];
+    for (const field of inheritedFields) {
+      const cur = event[field];
+      const empty =
+        cur == null || (typeof cur === 'string' && !String(cur).trim());
+      if (!empty) continue;
+      (fill as Record<string, unknown>)[field] = patch[field];
+      pending.push(field);
+    }
+
+    const before = findFuelEventBeforePrevious(editEvents, prev);
+    const next = createEmptyFuelLogEvent(
+      applyFuelEventAutoCalcs({ ...event, ...fill }, prev, before),
+    );
+
+    this.fuelStore.upsertEvent(next);
+    if (pending.length) {
+      const map = new Map(this.pendingInheritedByEvent());
+      map.set(next.id, new Set(pending));
+      this.pendingInheritedByEvent.set(map);
+    }
     this.showAddModal.set(false);
-    this.toast.show('Event added — Save to file when ready', 'success');
+    this.toast.show('Event added — Write to Excel when ready (draft is kept if you close the app)', 'success');
+  }
+
+  protected isCellInherited(eventId: string, field: keyof FuelLogEvent | undefined): boolean {
+    if (!field) return false;
+    return this.pendingInheritedByEvent().get(eventId)?.has(field as FuelInheritableField) === true;
+  }
+
+  private clearInheritedFields(eventId: string, fields: readonly string[]): void {
+    const cur = this.pendingInheritedByEvent().get(eventId);
+    if (!cur?.size) return;
+    let changed = false;
+    const nextSet = new Set(cur);
+    for (const f of fields) {
+      if (nextSet.delete(f as FuelInheritableField)) changed = true;
+    }
+    if (!changed) return;
+    const next = new Map(this.pendingInheritedByEvent());
+    if (nextSet.size) next.set(eventId, nextSet);
+    else next.delete(eventId);
+    this.pendingInheritedByEvent.set(next);
   }
 
   protected patchEvent(id: string, partial: Partial<FuelLogEvent>): void {
-    if (!this.editMode() || this.viewOnly()) return;
-    const current = this.library().events.find((e) => e.id === id);
+    if (!this.canEdit()) return;
+    const editEvents = this.library().editEvents;
+    const current = editEvents.find((e) => e.id === id);
     if (!current) return;
+    this.clearInheritedFields(id, Object.keys(partial));
 
     const consumptionPatch: Partial<Pick<FuelLogEvent, 'meMt' | 'aeMt' | 'boilerMt'>> = {};
     if (partial.meMt !== undefined) consumptionPatch.meMt = partial.meMt;
@@ -654,11 +756,11 @@ export class FuelComponent {
 
     const date = partial.date ?? current.date;
     const time = partial.time ?? current.time;
-    const prev = findPreviousFuelEvent(this.library().events, date, time, current.id);
+    const prev = findPreviousFuelEvent(editEvents, date, time, current.id);
 
     let next: FuelLogEvent;
     if (Object.keys(consumptionPatch).length > 0) {
-      const before = findFuelEventBeforePrevious(this.library().events, prev);
+      const before = findFuelEventBeforePrevious(editEvents, prev);
       const { meMt: _me, aeMt: _ae, boilerMt: _boiler, ...rest } = partial;
       next = {
         ...applyFuelConsumptionSideEffects(current, prev, before, consumptionPatch),
@@ -673,6 +775,28 @@ export class FuelComponent {
       const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, prev?.fmMeAe);
       if (m3 != null) next = { ...next, totalM3: m3 };
       else if (partial.fmMeAe === null) next = { ...next, totalM3: null };
+    }
+
+    // Running-hours counters → period hours (same delta rule as FM → m³).
+    if (partial.meCounterRh !== undefined) {
+      const h = recomputeFuelHoursFromCounter(next.meCounterRh, prev?.meCounterRh);
+      next = { ...next, meHours: h };
+    }
+    if (partial.ae1CounterRh !== undefined) {
+      const h = recomputeFuelHoursFromCounter(next.ae1CounterRh, prev?.ae1CounterRh);
+      next = { ...next, ae1Hours: h };
+    }
+    if (partial.ae2CounterRh !== undefined) {
+      const h = recomputeFuelHoursFromCounter(next.ae2CounterRh, prev?.ae2CounterRh);
+      next = { ...next, ae2Hours: h };
+    }
+    if (partial.ae3CounterRh !== undefined) {
+      const h = recomputeFuelHoursFromCounter(next.ae3CounterRh, prev?.ae3CounterRh);
+      next = { ...next, ae3Hours: h };
+    }
+    if (partial.boilerCounterRh !== undefined) {
+      const h = recomputeFuelHoursFromCounter(next.boilerCounterRh, prev?.boilerCounterRh);
+      next = { ...next, boilerHours: h };
     }
 
     // Hrs edit moves the clock (±0.1 h = 6 min). Do not touch date/time if caller set them.
@@ -691,7 +815,7 @@ export class FuelComponent {
       partial.timeUsedHours === undefined
     ) {
       const prevAfter = findPreviousFuelEvent(
-        this.library().events,
+        editEvents,
         next.date,
         next.time,
         current.id,
@@ -704,7 +828,6 @@ export class FuelComponent {
 
     if (partial.rawEvent != null) next.kind = classifyFuelEvent(partial.rawEvent);
     this.fuelStore.updateEvent(id, next);
-    this.dirty.set(true);
   }
 
   protected onCellText(id: string, field: 'place' | 'rawEvent' | 'time', value: string): void {
@@ -744,7 +867,7 @@ export class FuelComponent {
       this.patchEvent(e.id, { date: stored.date, time: stored.time });
       const input = event.target as HTMLInputElement;
       queueMicrotask(() => {
-        const updated = this.library().events.find((x) => x.id === e.id);
+        const updated = this.library().editEvents.find((x) => x.id === e.id);
         if (!updated) return;
         input.value = this.displayDateTime(updated).time;
       });
@@ -757,7 +880,7 @@ export class FuelComponent {
 
     if (field === 'timeUsedHours') {
       // Step the stored event hours (not the rolled display sum) so Time moves ±6 min.
-      const stored = this.library().events.find((x) => x.id === e.id);
+      const stored = this.library().editEvents.find((x) => x.id === e.id);
       const base =
         typeof stored?.timeUsedHours === 'number' && Number.isFinite(stored.timeUsedHours)
           ? stored.timeUsedHours
@@ -768,7 +891,7 @@ export class FuelComponent {
       this.patchEvent(e.id, { timeUsedHours: nextHrs });
       const input = event.target as HTMLInputElement;
       queueMicrotask(() => {
-        const updated = this.library().events.find((x) => x.id === e.id);
+        const updated = this.library().editEvents.find((x) => x.id === e.id);
         const hrs = updated?.timeUsedHours ?? nextHrs;
         input.value = this.hoursAsHm() ? formatFuelHoursHm(hrs) : String(hrs);
       });
@@ -797,7 +920,7 @@ export class FuelComponent {
     queueMicrotask(() => {
       if (document.activeElement !== input) return;
       if (col.id === 'time' || col.type === 'time' || col.type === 'hours') {
-        const updated = this.library().events.find((x) => x.id === e.id);
+        const updated = this.library().editEvents.find((x) => x.id === e.id);
         if (updated) input.value = this.editValue({ ...e, ...updated }, col);
       }
       if (start != null) {
@@ -810,7 +933,7 @@ export class FuelComponent {
   private canLiveCommit(col: FuelColumnDef, raw: string): boolean {
     const s = String(raw ?? '').trim();
     if (!s) return false;
-    if (col.type === 'time' || col.id === 'time') return /^\d{1,2}:\d{2}$/.test(s);
+    if (col.type === 'time' || col.id === 'time') return parseFuelTimeDisplay(s) != null;
     if (col.type === 'hours' || col.type === 'num' || col.type === 'kw') {
       return parseFuelHoursInput(s) != null;
     }
@@ -824,8 +947,18 @@ export class FuelComponent {
       col.id === 'totalMt' ||
       col.id === 'robRmd' ||
       col.id === 'robB100' ||
-      col.id === 'robDma'
+      col.id === 'robDma' ||
+      col.id === 'meHours' ||
+      col.id === 'ae1Hours' ||
+      col.id === 'ae2Hours' ||
+      col.id === 'ae3Hours' ||
+      col.id === 'boilerHours'
     );
+  }
+
+  /** Hover tip only — what the field is / how it auto-updates (no keyboard chrome). */
+  protected cellTip(col: FuelColumnDef): string {
+    return col.tip.trim();
   }
 
   protected async onPathSegmentPress(seg: FuelPathSegment, event: MouseEvent): Promise<void> {
@@ -897,14 +1030,15 @@ export class FuelComponent {
         this.toast.showError(res.error || 'Could not read Excel');
         return;
       }
-      const nextBytes = await writeFuelLogToExcelBytes(base64ToBytes(res.base64), this.library().events);
+      const draft = this.library().editEvents;
+      const nextBytes = await writeFuelLogToExcelBytes(base64ToBytes(res.base64), draft);
       const write = await api.writeFileBase64(path, bytesToBase64(nextBytes));
       if (!write.ok) {
         this.toast.showError(write.error || 'Could not write Excel');
         return;
       }
-      this.dirty.set(false);
-      this.captureFileBaseline();
+      this.fuelStore.markEditWritten(draft);
+      this.pendingInheritedByEvent.set(new Map());
       this.toast.show('Saved to Excel file', 'success');
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Save failed');
@@ -948,6 +1082,7 @@ export class FuelComponent {
     fileName: string,
   ): Promise<void> {
     try {
+      const keptEdit = this.library().editDirty;
       const result = await importFuelLogFromExcelBytes(bytes);
       this.fuelStore.replaceFromImport({
         events: result.events,
@@ -956,26 +1091,46 @@ export class FuelComponent {
         sheetName: result.sheetName,
         masterSummary: result.masterSummary,
       });
-      this.dirty.set(false);
-      this.editMode.set(false);
-      this.captureFileBaseline();
       const warn = result.warnings.length ? ` (${result.warnings.length} row warnings)` : '';
-      this.toast.show(`Imported ${result.events.length} events${warn}`, 'success');
+      if (keptEdit) {
+        this.toast.show(
+          `View updated from Excel (${result.events.length} events)${warn}. Edit draft kept.`,
+          'success',
+        );
+      } else {
+        this.toast.show(`Imported ${result.events.length} events${warn}`, 'success');
+      }
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Import failed');
     }
   }
 
   protected clearData(): void {
-    if (this.viewOnly()) {
-      this.toast.showError('Someone else is editing FUEL — cannot clear');
+    if (!this.canEdit()) {
+      this.toast.showError(
+        this.viewOnly()
+          ? 'Someone else is editing FUEL — cannot clear'
+          : 'Switch to the Edit tab to clear',
+      );
       return;
     }
-    this.fuelStore.clearEvents();
-    this.dirty.set(false);
-    this.editMode.set(false);
-    this.captureFileBaseline();
-    this.toast.show('Fuel events cleared', 'success');
+    this.fuelStore.clearEditEvents();
+    this.pendingInheritedByEvent.set(new Map());
+    this.toast.show('Edit draft cleared', 'success');
+  }
+
+  /** H:MM parts for red hours / blue minutes when Hours mode is on. */
+  protected hoursHmParts(
+    e: FuelDisplayEvent,
+    col: FuelColumnDef,
+  ): { sign: string; hours: string; minutes: string } | null {
+    if (!this.hoursAsHm() || col.type !== 'hours') return null;
+    return splitFuelHoursHm(this.cellText(e, col));
+  }
+
+  /** Clock HH:MM in the current display zone (no UTC suffix). */
+  protected displayTimeOnly(e: Pick<FuelLogEvent, 'date' | 'time'>): string {
+    return this.displayDateTime(e).time;
   }
 
   protected cellText(e: FuelDisplayEvent, col: FuelColumnDef): string {
@@ -986,7 +1141,8 @@ export class FuelComponent {
     }
     if (col.id === 'time') {
       const { time } = this.displayDateTime(e);
-      return time || '—';
+      if (!time) return '—';
+      return formatFuelTimeDisplay(time, this.showUtc());
     }
     if (!col.field) return '—';
     const v = e[col.field];
@@ -1017,8 +1173,10 @@ export class FuelComponent {
       return;
     }
     if (col.id === 'time') {
+      const parsed = parseFuelTimeDisplay(raw);
+      if (parsed == null) return;
       const shown = this.displayDateTime(e);
-      const stored = this.toStoredDateTime(shown.date, raw);
+      const stored = this.toStoredDateTime(shown.date, parsed);
       this.patchEvent(e.id, { date: stored.date, time: stored.time });
       return;
     }

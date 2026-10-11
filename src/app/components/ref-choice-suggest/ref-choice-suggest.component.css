@@ -1,0 +1,47 @@
+:host {
+  display: block;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.rcs {
+  width: 100%;
+  min-width: 0;
+}
+
+.rcs input,
+.rcs textarea {
+  width: 100%;
+}
+
+.rcs__list {
+  position: fixed;
+  z-index: 10050;
+  margin: 0;
+  padding: 0.2rem 0;
+  list-style: none;
+  overflow: auto;
+  border: 1px solid #fda4af;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  box-sizing: border-box;
+}
+
+.rcs__option {
+  padding: 0.4rem 0.65rem;
+  cursor: pointer;
+  line-height: 1.25;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #0f172a;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rcs__option:hover,
+.rcs__option--selected {
+  background: #ffe4e6;
+  color: #9f1239;
+}

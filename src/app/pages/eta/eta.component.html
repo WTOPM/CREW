@@ -573,7 +573,9 @@
             [readonly]="!gpsWindowActive()"
             aria-label="Latitude minutes"
           />
-          <span class="eta-gps-dms__sym" aria-hidden="true">.</span>
+          <span class="eta-gps-dms__sym" aria-hidden="true">{{
+            gps.format === 'dms' ? '′' : '.'
+          }}</span>
           <input
             class="eta-gps-dms__num"
             type="text"
@@ -586,9 +588,15 @@
             (focus)="onGpsDmsFocus($event)"
             (blur)="onGpsPanelBlur('lat', 'sec')"
             [readonly]="!gpsWindowActive()"
-            aria-label="Latitude hundredths of a minute"
+            [attr.aria-label]="
+              gps.format === 'dms'
+                ? 'Latitude seconds'
+                : 'Latitude hundredths of a minute'
+            "
           />
-          <span class="eta-gps-dms__sym" aria-hidden="true">′</span>
+          <span class="eta-gps-dms__sym" aria-hidden="true">{{
+            gps.format === 'dms' ? '″' : '′'
+          }}</span>
           <button
             type="button"
             class="eta-gps-dms__hemi"
@@ -631,7 +639,9 @@
             [readonly]="!gpsWindowActive()"
             aria-label="Longitude minutes"
           />
-          <span class="eta-gps-dms__sym" aria-hidden="true">.</span>
+          <span class="eta-gps-dms__sym" aria-hidden="true">{{
+            gps.format === 'dms' ? '′' : '.'
+          }}</span>
           <input
             class="eta-gps-dms__num"
             type="text"
@@ -644,9 +654,15 @@
             (focus)="onGpsDmsFocus($event)"
             (blur)="onGpsPanelBlur('lon', 'sec')"
             [readonly]="!gpsWindowActive()"
-            aria-label="Longitude hundredths of a minute"
+            [attr.aria-label]="
+              gps.format === 'dms'
+                ? 'Longitude seconds'
+                : 'Longitude hundredths of a minute'
+            "
           />
-          <span class="eta-gps-dms__sym" aria-hidden="true">′</span>
+          <span class="eta-gps-dms__sym" aria-hidden="true">{{
+            gps.format === 'dms' ? '″' : '′'
+          }}</span>
           <button
             type="button"
             class="eta-gps-dms__hemi"
@@ -661,18 +677,47 @@
       </div>
 
       <div class="eta-gps-toast__foot">
-        <button
-          type="button"
-          class="eta-gps-toast__clear"
-          tabindex="-1"
-          [disabled]="!gpsWindowActive()"
-          (click)="clearGpsPanel()"
+        <div
+          class="eta-gps-fmt"
+          role="radiogroup"
+          aria-label="Coordinate format"
+          title="DDM = minutes.decimal ′ · DMS = minutes ′ seconds ″"
         >
-          Clear
-        </button>
-        <button type="button" class="eta-gps-toast__done" tabindex="-1" (click)="dismissGpsPanel()">
-          Done
-        </button>
+          <label class="eta-gps-fmt__item">
+            <input
+              type="radio"
+              name="etaGpsCoordFmt"
+              [checked]="gps.format === 'ddm'"
+              [disabled]="!gpsWindowActive()"
+              (change)="setGpsCoordFormat('ddm')"
+            />
+            <span>DDM</span>
+          </label>
+          <label class="eta-gps-fmt__item">
+            <input
+              type="radio"
+              name="etaGpsCoordFmt"
+              [checked]="gps.format === 'dms'"
+              [disabled]="!gpsWindowActive()"
+              (change)="setGpsCoordFormat('dms')"
+            />
+            <span>DMS</span>
+          </label>
+        </div>
+        <div class="eta-gps-toast__foot-actions">
+          <button
+            type="button"
+            class="eta-gps-toast__clear"
+            tabindex="-1"
+            [disabled]="!gpsWindowActive()"
+            (click)="clearGpsPanel()"
+          >
+            Clear
+          </button>
+          <button type="button" class="eta-gps-toast__done" tabindex="-1" (click)="dismissGpsPanel()">
+            Done
+          </button>
+        </div>
       </div>
     </div>
   </div>

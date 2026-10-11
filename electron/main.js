@@ -2075,7 +2075,7 @@ function openGpsFloatWindow(ownerEvent, payload) {
   gpsFloatPendingInit = payload ?? null;
 
   if (gpsFloatWindow && !gpsFloatWindow.isDestroyed()) {
-    gpsFloatWindow.setContentSize(390, 236);
+    gpsFloatWindow.setContentSize(390, 252);
     applyGpsFloatAlwaysOnTop(gpsFloatWindow);
     positionGpsFloatWindow(gpsFloatWindow);
     gpsFloatWindow.show();
@@ -2086,7 +2086,7 @@ function openGpsFloatWindow(ownerEvent, payload) {
 
   const win = new BrowserWindow({
     width: 390,
-    height: 236,
+    height: 252,
     useContentSize: true,
     frame: false,
     resizable: false,

@@ -1,0 +1,63 @@
+<div class="rcs">
+  @if (multiline()) {
+    <textarea
+      #filterInput
+      rows="1"
+      autocomplete="off"
+      spellcheck="false"
+      [class]="inputClass()"
+      [class.dg-cell-input--await-input]="awaiting()"
+      [class.dg-cell-input--readonly]="readonly()"
+      [readonly]="readonly()"
+      [attr.title]="title()"
+      [attr.tabindex]="readonly() ? -1 : 0"
+      [ngModel]="draft()"
+      (ngModelChange)="onDraftChange($event)"
+      (mousedown)="onMouseDown($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+      (keydown)="onKeydown($event)"
+    ></textarea>
+  } @else {
+    <input
+      #filterInput
+      type="text"
+      autocomplete="off"
+      spellcheck="false"
+      [class]="inputClass()"
+      [class.dg-cell-input--await-input]="awaiting()"
+      [class.dg-cell-input--readonly]="readonly()"
+      [readonly]="readonly()"
+      [attr.title]="title()"
+      [attr.tabindex]="readonly() ? -1 : 0"
+      [ngModel]="draft()"
+      (ngModelChange)="onDraftChange($event)"
+      (mousedown)="onMouseDown($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+      (keydown)="onKeydown($event)"
+    />
+  }
+</div>
+@if (open() && filtered().length) {
+  <ul
+    #panel
+    class="rcs__list"
+    role="listbox"
+    [style.top.px]="panelPos().top"
+    [style.left.px]="panelPos().left"
+    [style.width.px]="panelPos().width"
+    [style.maxHeight.px]="panelPos().maxHeight"
+  >
+    @for (opt of filtered(); track opt) {
+      <li
+        class="rcs__option"
+        role="option"
+        [class.rcs__option--selected]="opt === draft()"
+        (mousedown)="pick(opt, $event)"
+      >
+        {{ opt }}
+      </li>
+    }
+  </ul>
+}

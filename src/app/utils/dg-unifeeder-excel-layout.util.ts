@@ -10,6 +10,11 @@ import {
   unifeederExportWeightKg,
 } from './dg-unifeeder-weight.util';
 import { mergeUnifeederRowsInContainersWithMeta } from './dg-unifeeder-merge.util';
+import {
+  formatRemarksFlagsColumn,
+  remarksFlagsAlign,
+  resolveRemarksParts,
+} from './dg-unifeeder-remarks.util';
 import { type DgWeightViewOptions } from './dg-weight-view.util';
 import { workbookToBytes } from './crew-list-excel-layout.util';
 
@@ -17,7 +22,7 @@ export interface UnifeederDgExcelExportOptions {
   useGrossWeight?: boolean;
   roundWeights?: boolean;
   mergeLines?: boolean;
-  /** POL/POD values = terminal abbrevs when true (headers unchanged). */
+  /** When true, POL/POD cells use terminal abbrevs (same as inventory). */
   showByTerminals?: boolean;
   /** @deprecated Use roundWeights */
   grossTotalKg?: boolean;
@@ -182,18 +187,34 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
   return trimmed;
 }
 
-/** POL/POD cell — port UN/LOCODE, or terminal abbrev when “By terminals” is on. */
+/**
+ * POL/POD for Excel/PDF — mirrors inventory toggles:
+ * - By terminals on → terminal abbrev (blank if none set)
+ * - off → port UN/LOCODE
+ */
+export function unifeederExportPolPodLabel(
+  row: Pick<
+    DgUnifeederRow,
+    'loadPort' | 'dischargePort' | 'loadTerminal' | 'dischargeTerminal'
+  >,
+  which: 'load' | 'discharge',
+  ports: readonly Port[],
+  showByTerminals = false,
+): string {
+  if (showByTerminals) {
+    const term = (which === 'load' ? row.loadTerminal : row.dischargeTerminal).trim();
+    return term ? term.toUpperCase() : '';
+  }
+  return resolvePortLabel(which === 'load' ? row.loadPort : row.dischargePort, ports);
+}
+
 function resolvePolPodExportValue(
   row: DgUnifeederRow,
   which: 'load' | 'discharge',
   ports: readonly Port[],
   showByTerminals: boolean,
 ): string {
-  if (showByTerminals) {
-    const term = (which === 'load' ? row.loadTerminal : row.dischargeTerminal).trim();
-    if (term) return term.toUpperCase();
-  }
-  return resolvePortLabel(which === 'load' ? row.loadPort : row.dischargePort, ports);
+  return unifeederExportPolPodLabel(row, which, ports, showByTerminals);
 }
 
 function formatAmountKgValue(
@@ -213,43 +234,24 @@ function formatAmountKgValue(
   return { value: `${raw} kg` };
 }
 
-function formatRemarksFlashPoint(value: string): string {
-  const v = value.trim();
-  if (!v) return '';
-  return v.replace(/\s*°\s*C\s*$/i, ' C').replace(/\s*°C$/i, ' C');
-}
-
-function remarksLqLabel(value: string): string {
-  const v = value.trim().toUpperCase();
-  if (!v || v === 'NO' || v === 'N' || v === '—' || v === '--') return '';
-  if (v === 'YES' || v === 'Y' || v === 'LQ') return 'LQ';
-  return value.trim();
-}
-
-function remarksMpLabel(value: string): string {
-  const v = value.trim().toUpperCase();
-  if (!v || v === 'NO' || v === 'N') return '';
-  if (v === 'YES' || v === 'Y' || v === 'MP') return 'MP';
-  return value.trim();
-}
-
 const REMARKS_COL_K = 11;
 const REMARKS_COL_L = 12;
 
 function remarksSplitBorders(): {
   k: Partial<ExcelJS.Borders>;
   l: Partial<ExcelJS.Borders>;
-  merged: Partial<ExcelJS.Borders>;
 } {
-  const merged = { top: thinEdge, left: thinEdge, bottom: thinEdge, right: thinEdge };
   return {
     k: { top: thinEdge, left: thinEdge, bottom: thinEdge },
     l: { top: thinEdge, right: thinEdge, bottom: thinEdge },
-    merged,
   };
 }
 
-/** Flash point (K left), LQ (K/L center), MP (L right). Split K+L when multiple parts. */
+/**
+ * Remarks always uses two cells (never merge K+L):
+ * - K = flash point (°C)
+ * - L = LQ left, MP right (MP always on the same column edge)
+ */
 function writeRemarksRow(
   ws: ExcelJS.Worksheet,
   row: number,
@@ -258,97 +260,21 @@ function writeRemarksRow(
 ): void {
   const borders = remarksSplitBorders();
   const valign = { vertical: 'middle' as const };
+  const { flashPoint, lq, mp } = resolveRemarksParts(data);
+  const flags = formatRemarksFlagsColumn(lq, mp);
 
-  if (!data) {
-    mergeCells(ws, row, REMARKS_COL_K, row, REMARKS_COL_L);
-    setCell(ws, row, REMARKS_COL_K, '', {
-      font: bodyFont,
-      alignment: { horizontal: 'center', ...valign },
-      border: borders.merged,
-    });
-    return;
-  }
-
-  const left = formatRemarksFlashPoint(data.flashPoint);
-  const center = remarksLqLabel(data.lq);
-  const right = remarksMpLabel(data.marinePollutant);
-  const hasLeft = !!left;
-  const hasCenter = !!center;
-  const hasRight = !!right;
-
-  if (!hasLeft && !hasCenter && !hasRight) {
-    mergeCells(ws, row, REMARKS_COL_K, row, REMARKS_COL_L);
-    setCell(ws, row, REMARKS_COL_K, '', {
-      font: bodyFont,
-      alignment: { horizontal: 'center', ...valign },
-      border: borders.merged,
-    });
-    return;
-  }
-
-  const partCount = [hasLeft, hasCenter, hasRight].filter(Boolean).length;
-  if (partCount === 1) {
-    mergeCells(ws, row, REMARKS_COL_K, row, REMARKS_COL_L);
-    const text = left || center || right;
-    const horizontal = hasLeft ? 'left' : hasCenter ? 'center' : 'right';
-    setCell(ws, row, REMARKS_COL_K, text, {
-      font: bodyFont,
-      alignment: { horizontal, ...valign },
-      border: borders.merged,
-    });
-    return;
-  }
-
-  if (hasLeft && hasRight && !hasCenter) {
-    setCell(ws, row, REMARKS_COL_K, left, {
-      font: bodyFont,
-      alignment: { horizontal: 'left', ...valign },
-      border: borders.k,
-    });
-    setCell(ws, row, REMARKS_COL_L, right, {
-      font: bodyFont,
-      alignment: { horizontal: 'right', ...valign },
-      border: borders.l,
-    });
-    return;
-  }
-
-  if (hasLeft && hasCenter && !hasRight) {
-    setCell(ws, row, REMARKS_COL_K, left, {
-      font: bodyFont,
-      alignment: { horizontal: 'left', ...valign },
-      border: borders.k,
-    });
-    setCell(ws, row, REMARKS_COL_L, center, {
-      font: bodyFont,
-      alignment: { horizontal: 'center', ...valign },
-      border: borders.l,
-    });
-    return;
-  }
-
-  if (!hasLeft && hasCenter && hasRight) {
-    setCell(ws, row, REMARKS_COL_K, center, {
-      font: bodyFont,
-      alignment: { horizontal: 'center', ...valign },
-      border: borders.k,
-    });
-    setCell(ws, row, REMARKS_COL_L, right, {
-      font: bodyFont,
-      alignment: { horizontal: 'right', ...valign },
-      border: borders.l,
-    });
-    return;
-  }
-
-  setCell(ws, row, REMARKS_COL_K, `${left}  ${center}`, {
+  setCell(ws, row, REMARKS_COL_K, flashPoint, {
     font: bodyFont,
-    alignment: { horizontal: 'left', ...valign },
+    alignment: { horizontal: 'left', wrapText: false, ...valign },
     border: borders.k,
   });
-  setCell(ws, row, REMARKS_COL_L, right, {
+  setCell(ws, row, REMARKS_COL_L, flags, {
     font: bodyFont,
-    alignment: { horizontal: 'right', ...valign },
+    alignment: {
+      horizontal: remarksFlagsAlign(lq, mp),
+      wrapText: false,
+      ...valign,
+    },
     border: borders.l,
   });
 }

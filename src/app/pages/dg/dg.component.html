@@ -724,6 +724,7 @@
                             >
                               <app-container-type-suggest
                                 [value]="container.type"
+                                mode="type"
                                 (valueChange)="onContainerChange(container.id, 'type', $event)"
                               />
                             </span>
@@ -866,6 +867,7 @@
                                 >
                                   <app-container-type-suggest
                                     [value]="container.type"
+                                    mode="type"
                                     (valueChange)="
                                       onContainerChange(container.id, 'type', $event)
                                     "
@@ -977,7 +979,6 @@
                                     (blur)="
                                       onCmaUnNoCommit(container.id, line.sourceLineIds[0], $event)
                                     "
-                                    (keydown)="onUnNoEnter($event)"
                                     placeholder="—"
                                   />
                                 </span>

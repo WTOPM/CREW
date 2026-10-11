@@ -174,7 +174,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'meMt',
     label: 'ME t',
-    tip: 'Main engine fuel consumed in this period (mt).',
+    tip: 'Main engine fuel consumed for the period (mt).',
     type: 'num',
     field: 'meMt',
     tone: 'me',
@@ -183,7 +183,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'aeMt',
     label: 'AE t',
-    tip: 'Auxiliary engines fuel consumed in this period (mt).',
+    tip: 'Auxiliary engines fuel consumed for the period (mt).',
     type: 'num',
     field: 'aeMt',
     tone: 'ae',
@@ -192,7 +192,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robRmd',
     label: 'ROB RMD',
-    tip: 'ROB of ULSFO / RMD at this event (mt). Auto: previous ROB − ME/AE assigned to RMD.',
+    tip: 'ROB of ULSFO / RMD (mt). Auto: previous ROB − ME/AE assigned to RMD.',
     type: 'num',
     field: 'robRmdMt',
     numeric: true,
@@ -200,7 +200,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robB100',
     label: 'ROB B100',
-    tip: 'ROB of biofuel blend (B100) at this event (mt). Auto: previous ROB − ME/AE assigned to B100.',
+    tip: 'ROB of biofuel blend B100 (mt). Auto: previous ROB − ME/AE assigned to B100.',
     type: 'num',
     field: 'robB100Mt',
     numeric: true,
@@ -208,7 +208,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'bunkerRmdBio',
     label: 'Bunker RMD/BIO',
-    tip: 'Bunker received RMD/BIO this event (mt).',
+    tip: 'Bunker received RMD/BIO (mt).',
     type: 'num',
     field: 'bunkerRmdBioMt',
     numeric: true,
@@ -216,7 +216,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'bunkerDma',
     label: 'Bunker DMA',
-    tip: 'Bunker received DMA this event (mt).',
+    tip: 'Bunker received DMA (mt).',
     type: 'num',
     field: 'bunkerDmaMt',
     numeric: true,
@@ -224,7 +224,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robDma',
     label: 'ROB DMA',
-    tip: 'ROB of DMA / MGO at this event (mt). Auto: previous ROB − DMA/Boiler consumption.',
+    tip: 'ROB of DMA / MGO (mt). Auto: previous ROB − DMA/Boiler consumption.',
     type: 'num',
     field: 'robDmaMt',
     numeric: true,
@@ -259,7 +259,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'meCounterRh',
     label: 'ME counter',
-    tip: 'Main engine running-hours counter (CENG).',
+    tip: 'Main engine running-hours counter. Period ME hrs = this − previous.',
     type: 'num',
     field: 'meCounterRh',
     tone: 'me',
@@ -286,7 +286,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'meHours',
     label: 'ME hrs',
-    tip: 'Main engine running hours (CENG).',
+    tip: 'Main engine running hours for the period. Auto: ME counter − previous.',
     type: 'hours',
     field: 'meHours',
     tone: 'me',
@@ -331,7 +331,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'ae1Hours',
     label: 'AE1 hrs',
-    tip: 'Aux engine 1 running hours.',
+    tip: 'AE1 running hours for the period. Auto: AE1 counter − previous.',
     type: 'hours',
     field: 'ae1Hours',
     tone: 'ae1',
@@ -367,7 +367,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'ae2Hours',
     label: 'AE2 hrs',
-    tip: 'Aux engine 2 running hours.',
+    tip: 'AE2 running hours for the period. Auto: AE2 counter − previous.',
     type: 'hours',
     field: 'ae2Hours',
     tone: 'ae2',
@@ -403,7 +403,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'ae3Hours',
     label: 'AE3 hrs',
-    tip: 'Aux engine 3 running hours.',
+    tip: 'AE3 running hours for the period. Auto: AE3 counter − previous.',
     type: 'hours',
     field: 'ae3Hours',
     tone: 'ae3',
@@ -430,7 +430,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'boilerHours',
     label: 'Boiler hrs',
-    tip: 'Boiler running hours (CENG).',
+    tip: 'Boiler running hours for the period. Auto: Boiler counter − previous.',
     type: 'hours',
     field: 'boilerHours',
     tone: 'boiler',
@@ -727,7 +727,20 @@ export interface FuelLibrarySettings {
   sourceFileName: string;
   importedAt: string;
   sheetName: string;
+  /**
+   * View tab — last load from Excel (Update from file).
+   * Independent of the Edit draft.
+   */
   events: FuelLogEvent[];
+  /**
+   * Edit tab working copy. Survives app restart until Write to Excel.
+   * Mutations (add/edit/delete) only touch this list.
+   */
+  editEvents: FuelLogEvent[];
+  /** Clean Edit snapshot for Discard (last Write or last sync from Excel). */
+  editBaseline: FuelLogEvent[];
+  /** True while Edit has changes not yet written to Excel. */
+  editDirty: boolean;
   view: FuelViewPrefs;
   /** Named column layouts — shared across PCs via the data folder. */
   displayPresets: FuelDisplayPreset[];
@@ -789,10 +802,80 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
     importedAt: '',
     sheetName: '',
     events: [],
+    editEvents: [],
+    editBaseline: [],
+    editDirty: false,
     view: createDefaultFuelViewPrefs(),
     displayPresets: [],
     masterSummary: null,
   };
+}
+
+/** Normalize a fuel-event list from persisted / import raw data. */
+export function normalizeFuelEventList(raw: unknown): FuelLogEvent[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((e, i) => normalizeFuelLogEvent(e, i))
+    .filter((e): e is FuelLogEvent => !!e);
+}
+
+export function cloneFuelEventList(events: readonly FuelLogEvent[]): FuelLogEvent[] {
+  return events.map((e) => createEmptyFuelLogEvent(e));
+}
+
+/**
+ * Fields safe to copy from the previous row when drafting a new event.
+ * Counters stay “pending” (UI red) until the user changes them (e.g. ↑).
+ */
+export const FUEL_INHERITABLE_FROM_PREVIOUS = [
+  'place',
+  'fmMeAe',
+  'boilerFm',
+  'boilerFmCeng',
+  'meCounterRh',
+  'ae1CounterRh',
+  'ae2CounterRh',
+  'ae3CounterRh',
+  'boilerCounterRh',
+  'meRobTank',
+  'aeRobTank',
+  'boilerRobTank',
+] as const satisfies readonly (keyof FuelLogEvent)[];
+
+export type FuelInheritableField = (typeof FUEL_INHERITABLE_FROM_PREVIOUS)[number];
+
+/** Copy previous counters / place / ROB tanks for a new draft. */
+export function inheritFuelFieldsFromPrevious(
+  previous: FuelLogEvent | null | undefined,
+): { patch: Partial<FuelLogEvent>; inheritedFields: FuelInheritableField[] } {
+  if (!previous) return { patch: {}, inheritedFields: [] };
+  const patch: Partial<FuelLogEvent> = {};
+  const inheritedFields: FuelInheritableField[] = [];
+  for (const field of FUEL_INHERITABLE_FROM_PREVIOUS) {
+    const value = previous[field];
+    if (value == null) continue;
+    if (typeof value === 'string' && !value.trim()) continue;
+    (patch as Record<string, unknown>)[field] = value;
+    inheritedFields.push(field);
+  }
+  return { patch, inheritedFields };
+}
+
+/** Chronologically last event in the log (for seeding a new row). */
+export function findLatestFuelEvent(
+  events: readonly FuelLogEvent[],
+): FuelLogEvent | null {
+  if (!events.length) return null;
+  let best: FuelLogEvent | null = null;
+  let bestKey = '';
+  for (const e of events) {
+    const key = `${e.date}T${e.time || '00:00'}#${String(e.sourceRow).padStart(6, '0')}`;
+    if (!best || key > bestKey) {
+      best = e;
+      bestKey = key;
+    }
+  }
+  return best;
 }
 
 export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLogEvent {
@@ -861,14 +944,24 @@ export function normalizeFuelLibrary(
     ? kindsRaw.filter((k): k is FuelEventKind => k in FUEL_EVENT_KIND_LABELS)
     : [...FUEL_DEFAULT_VISIBLE_KINDS];
 
+  const events = normalizeFuelEventList(raw?.events);
+  // Additive: old saves without edit* fields seed Edit from View (clean).
+  const hasEditEvents = Array.isArray(raw?.editEvents);
+  const editEvents = hasEditEvents ? normalizeFuelEventList(raw?.editEvents) : cloneFuelEventList(events);
+  const hasEditBaseline = Array.isArray(raw?.editBaseline);
+  const editBaseline = hasEditBaseline
+    ? normalizeFuelEventList(raw?.editBaseline)
+    : cloneFuelEventList(editEvents);
+
   return {
     sourcePath: String(raw?.sourcePath ?? defaults.sourcePath).trim(),
     sourceFileName: String(raw?.sourceFileName ?? defaults.sourceFileName).trim(),
     importedAt: String(raw?.importedAt ?? defaults.importedAt).trim(),
     sheetName: String(raw?.sheetName ?? defaults.sheetName).trim(),
-    events: Array.isArray(raw?.events)
-      ? raw!.events.map((e, i) => normalizeFuelLogEvent(e, i)).filter((e): e is FuelLogEvent => !!e)
-      : [],
+    events,
+    editEvents,
+    editBaseline,
+    editDirty: raw?.editDirty === true,
     view: {
       visibleKinds,
       newestFirst: viewRaw?.newestFirst !== false,
@@ -992,6 +1085,25 @@ export function formatFuelUtcOffsetLabel(hours: number): string {
   const abs = Math.abs(h);
   const text = Number.isInteger(abs) ? String(abs) : String(abs);
   return `${sign}${text}`;
+}
+
+/** Shown time: `12:00` locally, or `12:00 UTC` when UTC mode is on. */
+export function formatFuelTimeDisplay(time: string, showUtc: boolean): string {
+  const t = String(time ?? '').trim();
+  if (!t) return '';
+  return showUtc ? `${t} UTC` : t;
+}
+
+/** Accept `12:00` or `12:00 UTC` (case-insensitive) → `HH:MM`. */
+export function parseFuelTimeDisplay(raw: string): string | null {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+  const m = /^(\d{1,2}):(\d{2})(?:\s*UTC)?$/i.exec(s);
+  if (!m) return null;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm) || hh > 23 || mm > 59) return null;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
 /**
@@ -1208,6 +1320,15 @@ export function formatFuelHoursHm(hours: number | null | undefined): string {
   return `${sign}${hh}:${String(m).padStart(2, '0')}`;
 }
 
+/** Split `H:MM` / `-H:MM` for colored display (hours / minutes). */
+export function splitFuelHoursHm(
+  text: string,
+): { sign: string; hours: string; minutes: string } | null {
+  const m = /^(-?)(\d+):(\d{2})$/.exec(String(text ?? '').trim());
+  if (!m) return null;
+  return { sign: m[1], hours: m[2], minutes: m[3] };
+}
+
 /** Parse H:MM or decimal into hours. */
 export function parseFuelHoursInput(raw: string): number | null {
   const s = String(raw ?? '').trim();
@@ -1251,6 +1372,19 @@ export function recomputeFuelTotalM3FromFm(
 ): number | null {
   if (fmMeAe == null || previousFm == null) return null;
   const delta = Math.round((fmMeAe - previousFm) * 10) / 10;
+  return delta < 0 ? null : delta;
+}
+
+/**
+ * Running-hours / RH counters: period hours = counterₙ − counterₙ₋₁
+ * (same delta rule as FM → m³; never negative).
+ */
+export function recomputeFuelHoursFromCounter(
+  counter: number | null,
+  previousCounter: number | null | undefined,
+): number | null {
+  if (counter == null || previousCounter == null) return null;
+  const delta = Math.round((counter - previousCounter) * 10) / 10;
   return delta < 0 ? null : delta;
 }
 
@@ -1366,6 +1500,19 @@ export function applyFuelEventAutoCalcs(
   if (m3 != null) next = { ...next, totalM3: m3 };
   const total = recomputeFuelTotalMt(next.meMt, next.aeMt);
   if (total != null) next = { ...next, totalMt: total };
+
+  if (previous) {
+    const meH = recomputeFuelHoursFromCounter(next.meCounterRh, previous.meCounterRh);
+    if (meH != null) next = { ...next, meHours: meH };
+    const ae1H = recomputeFuelHoursFromCounter(next.ae1CounterRh, previous.ae1CounterRh);
+    if (ae1H != null) next = { ...next, ae1Hours: ae1H };
+    const ae2H = recomputeFuelHoursFromCounter(next.ae2CounterRh, previous.ae2CounterRh);
+    if (ae2H != null) next = { ...next, ae2Hours: ae2H };
+    const ae3H = recomputeFuelHoursFromCounter(next.ae3CounterRh, previous.ae3CounterRh);
+    if (ae3H != null) next = { ...next, ae3Hours: ae3H };
+    const boilerH = recomputeFuelHoursFromCounter(next.boilerCounterRh, previous.boilerCounterRh);
+    if (boilerH != null) next = { ...next, boilerHours: boilerH };
+  }
 
   const assignment = resolveFuelRobTankAssignment(next, previous, beforePrevious);
   next = {

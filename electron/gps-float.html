@@ -45,7 +45,7 @@
         display: flex;
         align-items: center;
         gap: 0.6rem;
-        padding: 0.65rem 0.75rem 0.55rem;
+        padding: 0.55rem 0.75rem 0.45rem;
         cursor: pointer;
         border-bottom: 1px solid #e8eef8;
         min-height: 0;
@@ -99,8 +99,8 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: 0.4rem;
-        padding: 0.55rem 0.7rem;
+        gap: 0.35rem;
+        padding: 0.45rem 0.7rem 0.35rem;
         min-height: 0;
       }
       .row {
@@ -164,9 +164,48 @@
         justify-content: space-between;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.35rem 0.75rem 0.65rem;
+        padding: 0.25rem 0.75rem 0.55rem;
         min-height: 0;
         flex-shrink: 0;
+      }
+      .fmt {
+        display: inline-flex;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: inset 0 0 0 1px #d5deea;
+        background: #fff;
+        flex: 0 0 auto;
+      }
+      .fmt label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.6rem;
+        padding: 0.38rem 0.45rem;
+        cursor: pointer;
+        font: 800 0.68rem/1 'Segoe UI', system-ui, sans-serif;
+        letter-spacing: 0.04em;
+        color: #64748b;
+        background: transparent;
+      }
+      .fmt label:hover {
+        color: var(--blue-deep);
+        background: #eff6ff;
+      }
+      .fmt input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .fmt label:has(input:checked) {
+        color: #fff;
+        background: var(--blue);
+      }
+      .foot-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-left: auto;
       }
       .clear,
       .done {
@@ -219,33 +258,48 @@
           <input class="num" data-idx="0" data-axis="lat" data-part="deg" maxlength="2" inputmode="numeric" aria-label="Latitude degrees" />
           <span class="sym" aria-hidden="true">°</span>
           <input class="num" data-idx="1" data-axis="lat" data-part="min" maxlength="2" inputmode="numeric" aria-label="Latitude minutes" />
-          <span class="sym" aria-hidden="true">.</span>
+          <span class="sym mid-sym" aria-hidden="true">.</span>
           <input class="num" data-idx="2" data-axis="lat" data-part="sec" maxlength="2" inputmode="numeric" aria-label="Latitude hundredths of a minute" />
-          <span class="sym" aria-hidden="true">′</span>
+          <span class="sym end-sym" aria-hidden="true">′</span>
           <button type="button" class="hemi" data-idx="3" data-axis="lat" id="latHemi" title="Toggle N / S">N</button>
         </div>
         <div class="row">
           <input class="num" data-idx="4" data-axis="lon" data-part="deg" maxlength="3" inputmode="numeric" aria-label="Longitude degrees" />
           <span class="sym" aria-hidden="true">°</span>
           <input class="num" data-idx="5" data-axis="lon" data-part="min" maxlength="2" inputmode="numeric" aria-label="Longitude minutes" />
-          <span class="sym" aria-hidden="true">.</span>
+          <span class="sym mid-sym" aria-hidden="true">.</span>
           <input class="num" data-idx="6" data-axis="lon" data-part="sec" maxlength="2" inputmode="numeric" aria-label="Longitude hundredths of a minute" />
-          <span class="sym" aria-hidden="true">′</span>
+          <span class="sym end-sym" aria-hidden="true">′</span>
           <button type="button" class="hemi" data-idx="7" data-axis="lon" id="lonHemi" title="Toggle E / W">E</button>
         </div>
       </div>
 
       <div class="foot">
-        <button type="button" class="clear" id="clearBtn">Clear</button>
-        <button type="button" class="done" id="doneBtn">Done</button>
+        <div class="fmt" role="radiogroup" aria-label="Coordinate format" title="DDM = minutes.decimal ′ · DMS = minutes ′ seconds ″">
+          <label>
+            <input type="radio" name="coordFmt" value="ddm" checked />
+            DDM
+          </label>
+          <label>
+            <input type="radio" name="coordFmt" value="dms" />
+            DMS
+          </label>
+        </div>
+        <div class="foot-actions">
+          <button type="button" class="clear" id="clearBtn">Clear</button>
+          <button type="button" class="done" id="doneBtn">Done</button>
+        </div>
       </div>
     </div>
 
     <script>
+      const FORMAT_KEY = 'crew.gpsCoordFormat';
+
       const state = {
         targetKey: '',
         legId: '',
         label: '',
+        format: 'ddm',
         lat: { deg: '00', min: '00', sec: '00', hemi: 'N' },
         lon: { deg: '000', min: '00', sec: '00', hemi: 'E' },
         dirty: false,
@@ -256,6 +310,26 @@
       }
       function pad3(n) {
         return String(Math.trunc(Math.abs(n))).padStart(3, '0');
+      }
+
+      function readStoredFormat() {
+        try {
+          return localStorage.getItem(FORMAT_KEY) === 'dms' ? 'dms' : 'ddm';
+        } catch {
+          return 'ddm';
+        }
+      }
+
+      function storeFormat(format) {
+        try {
+          localStorage.setItem(FORMAT_KEY, format);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      function maxSec() {
+        return state.format === 'dms' ? 59 : 99;
       }
 
       function sanitize(raw, part, axis) {
@@ -284,26 +358,75 @@
         return Number.isFinite(n) ? n : null;
       }
 
-      /** Mirror Angular split-DDM validation (sec = hundredths of a minute). */
-      function isValidDraft() {
-        function toDec(draft, kind) {
-          const degEmpty = !String(draft.deg).trim();
-          const minEmpty = !String(draft.min).trim();
-          const secEmpty = !String(draft.sec).trim();
-          if (degEmpty && minEmpty && secEmpty) return null;
-          const deg = parsePart(draft.deg) ?? 0;
-          const min = parsePart(draft.min) ?? 0;
-          const hundredths = parsePart(draft.sec) ?? 0;
-          if (deg < 0 || min < 0 || hundredths < 0 || min >= 60 || hundredths >= 100) return null;
-          const maxDeg = kind === 'lat' ? 90 : 180;
-          if (deg > maxDeg) return null;
-          if (deg === maxDeg && (min > 0 || hundredths > 0)) return null;
-          const abs = deg + (min + hundredths / 100) / 60;
-          const negative = kind === 'lat' ? draft.hemi === 'S' : draft.hemi === 'W';
-          return negative ? -abs : abs;
+      function toDec(draft, kind, format) {
+        const degEmpty = !String(draft.deg).trim();
+        const minEmpty = !String(draft.min).trim();
+        const secEmpty = !String(draft.sec).trim();
+        if (degEmpty && minEmpty && secEmpty) return null;
+        const deg = parsePart(draft.deg) ?? 0;
+        const min = parsePart(draft.min) ?? 0;
+        const sec = parsePart(draft.sec) ?? 0;
+        const maxS = format === 'dms' ? 59 : 99;
+        if (deg < 0 || min < 0 || sec < 0 || min >= 60 || sec > maxS) return null;
+        const maxDeg = kind === 'lat' ? 90 : 180;
+        if (deg > maxDeg) return null;
+        if (deg === maxDeg && (min > 0 || sec > 0)) return null;
+        const abs =
+          format === 'dms' ? deg + min / 60 + sec / 3600 : deg + (min + sec / 100) / 60;
+        const negative = kind === 'lat' ? draft.hemi === 'S' : draft.hemi === 'W';
+        return negative ? -abs : abs;
+      }
+
+      function fromDec(value, kind, format) {
+        const emptyHemi = kind === 'lat' ? 'N' : 'E';
+        if (value == null || !Number.isFinite(value)) {
+          return {
+            deg: kind === 'lon' ? '000' : '00',
+            min: '00',
+            sec: '00',
+            hemi: emptyHemi,
+          };
         }
-        const lat = toDec(state.lat, 'lat');
-        const lon = toDec(state.lon, 'lon');
+        const hemi = kind === 'lat' ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W';
+        const abs = Math.abs(value);
+        let deg = Math.floor(abs + 1e-12);
+        if (format === 'dms') {
+          let minFloat = (abs - deg) * 60;
+          let min = Math.floor(minFloat + 1e-12);
+          let sec = Math.round((minFloat - min) * 60 + 1e-9);
+          if (sec >= 60) {
+            sec = 0;
+            min += 1;
+          }
+          if (min >= 60) {
+            min = 0;
+            deg += 1;
+          }
+          return {
+            deg: kind === 'lon' ? pad3(deg) : pad2(deg),
+            min: pad2(min),
+            sec: pad2(sec),
+            hemi,
+          };
+        }
+        const minFloat = (abs - deg) * 60;
+        let hundredths = Math.round(minFloat * 100 + 1e-9);
+        if (hundredths >= 6000) {
+          hundredths = 0;
+          deg += 1;
+        }
+        return {
+          deg: kind === 'lon' ? pad3(deg) : pad2(deg),
+          min: pad2(Math.floor(hundredths / 100)),
+          sec: pad2(hundredths % 100),
+          hemi,
+        };
+      }
+
+      function isValidDraft(format) {
+        const fmt = format || state.format;
+        const lat = toDec(state.lat, 'lat', fmt);
+        const lon = toDec(state.lon, 'lon', fmt);
         if (lat == null || lon == null) return false;
         return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
       }
@@ -311,6 +434,25 @@
       function formatSummary() {
         const lat = state.lat;
         const lon = state.lon;
+        if (state.format === 'dms') {
+          return (
+            padPart(lat.deg, 'deg', 'lat') +
+            '°' +
+            padPart(lat.min, 'min', 'lat') +
+            '′' +
+            padPart(lat.sec, 'sec', 'lat') +
+            '″ ' +
+            lat.hemi +
+            ', ' +
+            padPart(lon.deg, 'deg', 'lon') +
+            '°' +
+            padPart(lon.min, 'min', 'lon') +
+            '′' +
+            padPart(lon.sec, 'sec', 'lon') +
+            '″ ' +
+            lon.hemi
+          );
+        }
         return (
           padPart(lat.deg, 'deg', 'lat') +
           '°' +
@@ -330,17 +472,54 @@
         );
       }
 
+      function applyFormatChrome() {
+        const dms = state.format === 'dms';
+        for (const el of document.querySelectorAll('.mid-sym')) {
+          el.textContent = dms ? '′' : '.';
+        }
+        for (const el of document.querySelectorAll('.end-sym')) {
+          el.textContent = dms ? '″' : '′';
+        }
+        for (const el of document.querySelectorAll('[data-part="sec"]')) {
+          el.setAttribute(
+            'aria-label',
+            dms
+              ? (el.dataset.axis === 'lat' ? 'Latitude' : 'Longitude') + ' seconds'
+              : (el.dataset.axis === 'lat' ? 'Latitude' : 'Longitude') +
+                  ' hundredths of a minute',
+          );
+        }
+        for (const radio of document.querySelectorAll('input[name="coordFmt"]')) {
+          radio.checked = radio.value === state.format;
+        }
+      }
+
       function render() {
         document.getElementById('label').textContent = state.label || 'GPS';
         document.getElementById('summary').textContent = formatSummary();
+        document.getElementById('summary').style.color = '';
         document.getElementById('latHemi').textContent = state.lat.hemi;
         document.getElementById('lonHemi').textContent = state.lon.hemi;
+        applyFormatChrome();
         for (const el of document.querySelectorAll('.num')) {
           const axis = el.dataset.axis;
           const part = el.dataset.part;
           if (document.activeElement === el) continue;
           el.value = state[axis][part];
         }
+      }
+
+      function setFormat(next) {
+        const format = next === 'dms' ? 'dms' : 'ddm';
+        if (format === state.format) return;
+        const latDec = toDec(state.lat, 'lat', state.format);
+        const lonDec = toDec(state.lon, 'lon', state.format);
+        state.format = format;
+        storeFormat(format);
+        if (latDec != null) state.lat = fromDec(latDec, 'lat', format);
+        if (lonDec != null) state.lon = fromDec(lonDec, 'lon', format);
+        // Clamp sec if switching into DMS with hundredths > 59 after failed parse — already converted via decimal.
+        render();
       }
 
       function focusIdx(idx) {
@@ -350,12 +529,19 @@
         if (el instanceof HTMLInputElement) queueMicrotask(() => el.select());
       }
 
+      /** Always send DDM drafts to the main app (stored as decimal degrees there). */
+      function toDdmDraft(draft, kind) {
+        if (state.format === 'ddm') return { ...draft };
+        const dec = toDec(draft, kind, 'dms');
+        return fromDec(dec, kind, 'ddm');
+      }
+
       function payload(extra) {
         return {
           targetKey: state.targetKey,
           legId: state.legId || undefined,
-          lat: { ...state.lat },
-          lon: { ...state.lon },
+          lat: toDdmDraft(state.lat, 'lat'),
+          lon: toDdmDraft(state.lon, 'lon'),
           dirty: state.dirty,
           ...extra,
         };
@@ -363,13 +549,12 @@
 
       function closePanel(extra) {
         if (!window.gpsFloatApi) return;
-        // Persist only when Done / Clear — never while typing (avoids CREW lag).
         window.gpsFloatApi.close(payload(extra));
       }
 
       function stepPart(axis, part, delta) {
         const maxDeg = axis === 'lat' ? 90 : 180;
-        const max = part === 'deg' ? maxDeg : part === 'min' ? 59 : 99;
+        const max = part === 'deg' ? maxDeg : part === 'min' ? 59 : maxSec();
         const current = parsePart(state[axis][part]) ?? 0;
         let next = Math.trunc(current) + delta;
         if (next > max) next = 0;
@@ -395,7 +580,9 @@
         if (!latEmpty || !lonEmpty) {
           if (!isValidDraft()) {
             document.getElementById('summary').textContent =
-              'Invalid GPS (min 0–59; .xx 00–99)';
+              state.format === 'dms'
+                ? 'Invalid GPS (min 0–59; sec 0–59)'
+                : 'Invalid GPS (min 0–59; .xx 00–99)';
             document.getElementById('summary').style.color = '#dc2626';
             return;
           }
@@ -410,6 +597,14 @@
         render();
         closePanel({ save: true, clear: true });
       });
+
+      for (const radio of document.querySelectorAll('input[name="coordFmt"]')) {
+        radio.addEventListener('change', () => {
+          if (radio.checked) setFormat(radio.value);
+        });
+        radio.addEventListener('click', (e) => e.stopPropagation());
+      }
+      document.querySelector('.fmt').addEventListener('click', (e) => e.stopPropagation());
 
       document.getElementById('dms').addEventListener('focusin', (e) => {
         const el = e.target;
@@ -504,14 +699,19 @@
           state.targetKey = data?.targetKey || '';
           state.legId = data?.legId || '';
           state.label = data?.label || 'GPS';
+          // Incoming drafts are always DDM from the main app.
+          state.format = 'ddm';
           state.lat = { ...(data?.lat || state.lat) };
           state.lon = { ...(data?.lon || state.lon) };
           state.dirty = false;
-          render();
+          const preferred = readStoredFormat();
+          if (preferred === 'dms') setFormat('dms');
+          else render();
           queueMicrotask(() => focusIdx(0));
         });
         window.gpsFloatApi.ready();
       } else {
+        state.format = readStoredFormat();
         render();
       }
     </script>

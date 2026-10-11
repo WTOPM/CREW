@@ -10,13 +10,43 @@
     </div>
     <div class="fuel-page-header__badges">
       @if (dirty()) {
-        <span class="fuel-dirty-pill" title="Edits not yet written to the Excel file">Unsaved</span>
+        <span
+          class="fuel-dirty-pill"
+          title="Edit draft not yet written to Excel — kept if you close the app"
+          >Unsaved Edit</span
+        >
       }
       @if (viewOnly()) {
         <span class="fuel-viewonly-pill" title="Another computer holds the FUEL edit lock">View only</span>
       }
     </div>
   </header>
+
+  <nav class="fuel-page-tabs section-readonly-allow" aria-label="Fuel mode">
+    <button
+      type="button"
+      class="fuel-page-tab fuel-page-tab--view"
+      [class.fuel-page-tab--active]="activeTab() === 'view'"
+      [attr.aria-selected]="activeTab() === 'view'"
+      (click)="setActiveTab('view')"
+    >
+      <span class="fuel-page-tab__label">View</span>
+      <span class="fuel-page-tab__sub">from Excel</span>
+    </button>
+    <button
+      type="button"
+      class="fuel-page-tab fuel-page-tab--edit"
+      [class.fuel-page-tab--active]="activeTab() === 'edit'"
+      [class.fuel-page-tab--locked]="viewOnly()"
+      [attr.aria-selected]="activeTab() === 'edit'"
+      [disabled]="viewOnly()"
+      [title]="viewOnly() ? 'View only — another PC is editing' : 'Edit and write back to Excel'"
+      (click)="setActiveTab('edit')"
+    >
+      <span class="fuel-page-tab__label">Edit</span>
+      <span class="fuel-page-tab__sub">{{ viewOnly() ? 'locked' : 'write Excel' }}</span>
+    </button>
+  </nav>
 
   <section class="fuel-toolbar card">
     <div class="fuel-toolbar__source">
@@ -65,96 +95,103 @@
             {{ busy() ? 'Loading…' : library().events.length ? 'Update from file' : 'Upload' }}
           </button>
         </span>
-        <div
-          class="fuel-sync"
-          [class.fuel-sync--dirty]="dirty() && !viewOnly() && canWriteExcel"
-          [class.fuel-sync--idle]="!dirty() || viewOnly() || !canWriteExcel"
-          [class.fuel-sync--busy]="busy()"
-          [attr.title]="syncTitle()"
-        >
-          <div class="fuel-sync__face">
-            <span class="fuel-sync__icon" aria-hidden="true">
-              @if (dirty() && !viewOnly() && canWriteExcel) {
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path
-                    fill="currentColor"
-                    d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
-                  />
-                </svg>
-              } @else {
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path
-                    fill="currentColor"
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"
-                    opacity="0.35"
-                  />
-                  <path
-                    fill="currentColor"
-                    d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
-                  />
-                </svg>
-              }
-            </span>
-            <span class="fuel-sync__text">
-              <span class="fuel-sync__label">
-                @if (viewOnly()) {
-                  Save to file
-                } @else if (!canWriteExcel) {
-                  Save to file
-                } @else if (dirty()) {
-                  Unsaved edits
+        @if (activeTab() === 'edit') {
+          <div
+            class="fuel-sync"
+            [class.fuel-sync--dirty]="dirty() && !viewOnly() && canWriteExcel"
+            [class.fuel-sync--idle]="!dirty() || viewOnly() || !canWriteExcel"
+            [class.fuel-sync--busy]="busy()"
+            [attr.title]="syncTitle()"
+          >
+            <div class="fuel-sync__face">
+              <span class="fuel-sync__icon" aria-hidden="true">
+                @if (dirty() && !viewOnly() && canWriteExcel) {
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+                    />
+                  </svg>
                 } @else {
-                  Save to file
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"
+                      opacity="0.35"
+                    />
+                    <path
+                      fill="currentColor"
+                      d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+                    />
+                  </svg>
                 }
               </span>
-              <span class="fuel-sync__sub">
-                @if (viewOnly()) {
-                  view only
-                } @else if (!canWriteExcel) {
-                  desktop only
-                } @else if (dirty()) {
-                  hover · Write / Discard
-                } @else {
-                  no changes
-                }
+              <span class="fuel-sync__text">
+                <span class="fuel-sync__label">
+                  @if (viewOnly()) {
+                    Save to file
+                  } @else if (!canWriteExcel) {
+                    Save to file
+                  } @else if (dirty()) {
+                    Unsaved edits
+                  } @else {
+                    Save to file
+                  }
+                </span>
+                <span class="fuel-sync__sub">
+                  @if (viewOnly()) {
+                    view only
+                  } @else if (!canWriteExcel) {
+                    desktop only
+                  } @else if (dirty()) {
+                    hover · Write / Discard
+                  } @else {
+                    no changes
+                  }
+                </span>
               </span>
-            </span>
+            </div>
+            <div class="fuel-sync__split" [attr.aria-hidden]="!(dirty() && !viewOnly() && canWriteExcel)">
+              <button
+                type="button"
+                class="fuel-sync__write"
+                (click)="confirmWriteToFile($event)"
+                [disabled]="busy() || !dirty() || !canWriteExcel || viewOnly()"
+              >
+                Write
+              </button>
+              <button
+                type="button"
+                class="fuel-sync__discard"
+                (click)="confirmDiscardEdits($event)"
+                [disabled]="busy() || !dirty() || viewOnly()"
+              >
+                Discard
+              </button>
+            </div>
           </div>
-          <div class="fuel-sync__split" [attr.aria-hidden]="!(dirty() && !viewOnly() && canWriteExcel)">
-            <button
-              type="button"
-              class="fuel-sync__write"
-              (click)="confirmWriteToFile($event)"
-              [disabled]="busy() || !dirty() || !canWriteExcel || viewOnly()"
-            >
-              Write
-            </button>
-            <button
-              type="button"
-              class="fuel-sync__discard"
-              (click)="confirmDiscardEdits($event)"
-              [disabled]="busy() || !dirty() || viewOnly()"
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-        <button
-          type="button"
-          class="btn btn-secondary fuel-clear-btn"
-          (click)="clearData()"
-          [disabled]="busy() || !library().events.length || viewOnly()"
-          title="Clear imported fuel events"
-        >
-          CLEAR
-        </button>
+          <button
+            type="button"
+            class="btn btn-secondary fuel-clear-btn"
+            (click)="clearData()"
+            [disabled]="busy() || !library().editEvents.length || viewOnly()"
+            title="Clear Edit draft (View / Excel unchanged)"
+          >
+            CLEAR
+          </button>
+        }
       </div>
     </div>
   </section>
 
   <section class="fuel-filters card section-readonly-allow">
     <div class="fuel-filters-head">
-      <h2 class="fuel-section-title">Fuel log</h2>
+      <h2 class="fuel-section-title">
+        Fuel log
+        <span class="fuel-section-title__mode">
+          · {{ activeTab() === 'edit' ? 'Edit' : 'View' }}
+        </span>
+      </h2>
       <div class="fuel-filter-presets">
         <button
           type="button"
@@ -353,52 +390,12 @@
 
   <section class="fuel-table-card card">
     <div class="fuel-table-toolbar">
-      <button
-        type="button"
-        class="fuel-mode-btn fuel-mode-btn--edit"
-        [class.fuel-mode-btn--on]="editMode()"
-        [class.fuel-mode-btn--locked]="viewOnly()"
-        [disabled]="viewOnly()"
-        [attr.aria-pressed]="editMode()"
-        [title]="
-          viewOnly()
-            ? 'View only — another PC is editing'
-            : editMode()
-              ? 'Editing on — click to lock'
-              : 'Click to edit data'
-        "
-        (click)="setEditMode(!editMode())"
-      >
-        <span class="fuel-mode-btn__icon" aria-hidden="true">
-          @if (editMode()) {
-            <!-- Pencil writing (tip down + stroke) -->
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path
-                fill="currentColor"
-                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-              />
-              <path
-                fill="currentColor"
-                opacity="0.55"
-                d="M2 22h10v-1.5H2z"
-              />
-            </svg>
-          } @else {
-            <!-- Pencil at rest -->
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path
-                fill="currentColor"
-                d="M14.06 9.02 5 18.07V19h.93l9.06-9.06-.93-.92zM17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83a.996.996 0 0 0 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L4 16.25V20h3.75L17.81 9.94l-3.75-3.75z"
-                opacity="0.85"
-              />
-            </svg>
-          }
+      @if (activeTab() === 'edit') {
+        <span class="fuel-edit-tab-badge" title="Edit tab — changes write to Excel via Save to file">
+          <span class="fuel-edit-tab-badge__label">Editing</span>
+          <span class="fuel-edit-tab-badge__sub">this tab</span>
         </span>
-        <span class="fuel-mode-btn__text">
-          <span class="fuel-mode-btn__label">{{ editMode() ? 'Editing' : 'Edit' }}</span>
-          <span class="fuel-mode-btn__sub">{{ editMode() ? 'pencil on' : 'locked' }}</span>
-        </span>
-      </button>
+      }
 
       <span class="section-readonly-allow fuel-table-toolbar__view">
         <button
@@ -416,7 +413,10 @@
           <span class="fuel-mode-btn__sample" aria-hidden="true">
             @if (hoursAsHm()) {
               <span class="fuel-hours-sample fuel-hours-sample--hm">
-                <span class="fuel-hours-sample__main">1:06</span>
+                <span class="fuel-hours-sample__main">
+                  <span class="fuel-hm__h">1</span><span class="fuel-hm__sep">:</span
+                  ><span class="fuel-hm__m">06</span>
+                </span>
                 <span class="fuel-hours-sample__hint">H:MM</span>
               </span>
             } @else {
@@ -496,56 +496,58 @@
         </button>
       </span>
 
-      <button
-        type="button"
-        class="fuel-add-btn"
-        [class.fuel-add-btn--ready]="editMode() && !viewOnly()"
-        [class.fuel-add-btn--locked]="!editMode() || viewOnly()"
-        (click)="openAddModal()"
-        [disabled]="viewOnly() || !editMode()"
-        [attr.aria-disabled]="viewOnly() || !editMode()"
-        [title]="
-          viewOnly()
-            ? 'View only — another PC is editing'
-            : editMode()
-              ? 'Add a new fuel log row'
-              : 'Inactive until Edit is on — turn on Edit first'
-        "
-      >
-        <span class="fuel-add-btn__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" focusable="false">
-            <path
-              fill="currentColor"
-              opacity="0.35"
-              d="M4 5h16a1 1 0 0 1 1 1v2H3V6a1 1 0 0 1 1-1zm-1 5h18v3H3v-3zm0 5h10v3H4a1 1 0 0 1-1-1v-2z"
-            />
-            <circle cx="17.5" cy="17.5" r="5.5" fill="currentColor" />
-            <path
-              fill="#fff"
-              d="M17.5 14.25a.75.75 0 0 1 .75.75v1.75H20a.75.75 0 0 1 0 1.5h-1.75V20a.75.75 0 0 1-1.5 0v-1.75H15a.75.75 0 0 1 0-1.5h1.75V15a.75.75 0 0 1 .75-.75z"
-            />
-          </svg>
-        </span>
-        <span class="fuel-add-btn__text">
-          <span class="fuel-add-btn__label">Add row</span>
-          <span class="fuel-add-btn__sub">
-            @if (viewOnly()) {
-              view only
-            } @else if (editMode()) {
-              new event
-            } @else {
-              needs Edit
-            }
+      @if (activeTab() === 'edit') {
+        <button
+          type="button"
+          class="fuel-add-btn"
+          [class.fuel-add-btn--ready]="canEdit()"
+          [class.fuel-add-btn--locked]="!canEdit()"
+          (click)="openAddModal()"
+          [disabled]="!canEdit()"
+          [attr.aria-disabled]="!canEdit()"
+          [title]="
+            viewOnly() ? 'View only — another PC is editing' : 'Add a new fuel log row'
+          "
+        >
+          <span class="fuel-add-btn__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path
+                fill="currentColor"
+                opacity="0.35"
+                d="M4 5h16a1 1 0 0 1 1 1v2H3V6a1 1 0 0 1 1-1zm-1 5h18v3H3v-3zm0 5h10v3H4a1 1 0 0 1-1-1v-2z"
+              />
+              <circle cx="17.5" cy="17.5" r="5.5" fill="currentColor" />
+              <path
+                fill="#fff"
+                d="M17.5 14.25a.75.75 0 0 1 .75.75v1.75H20a.75.75 0 0 1 0 1.5h-1.75V20a.75.75 0 0 1-1.5 0v-1.75H15a.75.75 0 0 1 0-1.5h1.75V15a.75.75 0 0 1 .75-.75z"
+              />
+            </svg>
           </span>
-        </span>
-      </button>
+          <span class="fuel-add-btn__text">
+            <span class="fuel-add-btn__label">Add row</span>
+            <span class="fuel-add-btn__sub">
+              @if (viewOnly()) {
+                view only
+              } @else {
+                new event
+              }
+            </span>
+          </span>
+        </button>
+      }
     </div>
 
     @if (visibleEvents().length === 0) {
       <div class="fuel-empty">
-        @if (library().events.length === 0) {
-          <strong>No log loaded</strong>
-          <span>Upload the FO-VPC Excel to fill this table.</span>
+        @if (activeEvents().length === 0) {
+          <strong>{{ activeTab() === 'edit' ? 'Edit draft empty' : 'No log loaded' }}</strong>
+          <span>
+            @if (activeTab() === 'edit') {
+              Update from file while Edit is clean to seed the draft, or Add row.
+            } @else {
+              Upload the FO-VPC Excel to fill this table.
+            }
+          </span>
         } @else {
           <strong>Nothing matches</strong>
           <span>Open Events and enable kinds, or clear the date / search filters.</span>
@@ -561,6 +563,11 @@
           <table class="fuel-table">
             <thead>
               <tr>
+                @if (canEdit()) {
+                  <th class="fuel-col-actions" scope="col" title="Delete row">
+                    <span class="fuel-col-head__label fuel-col-actions__label" aria-hidden="true"></span>
+                  </th>
+                }
                 @for (col of visibleColumnDefs(); track col.id) {
                   <th
                     class="fuel-col-head"
@@ -588,6 +595,24 @@
             <tbody>
               @for (e of visibleEvents(); track e.id) {
                 <tr [attr.data-kind]="e.kind">
+                  @if (canEdit()) {
+                    <td class="fuel-col-actions">
+                      <button
+                        type="button"
+                        class="fuel-row-delete"
+                        title="Delete this row"
+                        aria-label="Delete row"
+                        (click)="confirmDeleteEvent(e, $event)"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path
+                            fill="currentColor"
+                            d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9zm-1 12h12a1 1 0 0 0 1-1V8H5v12a1 1 0 0 0 1 1z"
+                          />
+                        </svg>
+                      </button>
+                    </td>
+                  }
                   @for (col of visibleColumnDefs(); track col.id) {
                     <td [class.num]="col.numeric" [class]="toneClass(col)">
                       @if (col.id === 'kind') {
@@ -605,19 +630,38 @@
                           <span class="fuel-kind-badge__label">{{ kindLabels[e.kind] }}</span>
                           <span class="fuel-kind-badge__hold" aria-hidden="true"></span>
                         </span>
-                      } @else if (editMode() && !viewOnly()) {
+                      } @else if (canEdit()) {
                         @if (col.id === 'date') {
                           <app-date-picker
                             size="sm"
                             [value]="e.date"
                             (valueChange)="onCellDate(e.id, $event)"
                           />
+                        } @else if (col.id === 'time') {
+                          <span class="fuel-time-edit">
+                            <input
+                              class="fuel-cell-input fuel-cell-input--time"
+                              [value]="editValue(e, col)"
+                              [appPlainTooltip]="cellTip(col)"
+                              autocomplete="off"
+                              spellcheck="false"
+                              (input)="onEditLive(e, col, $event)"
+                              (change)="onEditCommit(e, col, $any($event.target).value)"
+                              (keydown)="onCellKeydown(e, col, $event)"
+                            />
+                            @if (showUtc()) {
+                              <span class="fuel-time-utc" aria-hidden="true">UTC</span>
+                            }
+                          </span>
                         } @else {
                           <input
                             class="fuel-cell-input"
                             [class.fuel-cell-input--auto]="isAutoCalcCol(col)"
+                            [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
                             [value]="editValue(e, col)"
-                            [title]="isAutoCalcCol(col) ? (col.tip + ' · Auto from consumption (↑↓ ±0.1)') : (col.tip + (col.numeric || col.type === 'time' ? ' · ↑↓ ±0.1 · Enter to leave' : ' · Enter to leave'))"
+                            [appPlainTooltip]="cellTip(col)"
+                            autocomplete="off"
+                            spellcheck="false"
                             (input)="onEditLive(e, col, $event)"
                             (change)="onEditCommit(e, col, $any($event.target).value)"
                             (keydown)="onCellKeydown(e, col, $event)"
@@ -630,7 +674,25 @@
                           [disabled]="cellText(e, col) === '—'"
                           (click)="copyCell(cellText(e, col), $event)"
                         >
-                          <span class="fuel-copy__text">{{ cellText(e, col) }}</span>
+                          <span class="fuel-copy__text">
+                            @if (hoursHmParts(e, col); as hm) {
+                              <span class="fuel-hm">
+                                @if (hm.sign) {
+                                  <span class="fuel-hm__h">{{ hm.sign }}</span>
+                                }
+                                <span class="fuel-hm__h">{{ hm.hours }}</span
+                                ><span class="fuel-hm__sep">:</span
+                                ><span class="fuel-hm__m">{{ hm.minutes }}</span>
+                              </span>
+                            } @else if (col.id === 'time' && showUtc() && displayTimeOnly(e); as t) {
+                              <span class="fuel-time">
+                                <span>{{ t }}</span>
+                                <span class="fuel-time-utc">UTC</span>
+                              </span>
+                            } @else {
+                              {{ cellText(e, col) }}
+                            }
+                          </span>
                           @if (col.id === 'hrs' && e.rolledFromCount > 1) {
                             <span
                               class="fuel-roll-tag"
@@ -667,7 +729,7 @@
 
 @if (showAddModal()) {
   <app-fuel-event-edit-modal
-    [allEvents]="library().events"
+    [allEvents]="library().editEvents"
     [hoursAsHm]="hoursAsHm()"
     (save)="onAddSave($event)"
     (cancel)="showAddModal.set(false)"

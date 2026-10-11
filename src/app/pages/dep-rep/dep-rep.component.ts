@@ -21,6 +21,7 @@ import {
 } from '../../utils/dep-rep-excel.util';
 import {
   airdraftHeightAboveWaterMetres,
+  formatAirdraftMetres,
   normalizeShipMetresInput,
   parseAirdraftMetres,
 } from '../../services/airdraft-field-positions';
@@ -568,6 +569,32 @@ export class DepRepComponent {
       return;
     }
     input.value = normalized;
+    this.applyMetresValue(field, normalized);
+  }
+
+  /** ▲/▼ or ArrowUp/ArrowDown — step draft by 0.1 m. */
+  protected stepDraftMetres(field: DraftField, direction: 1 | -1, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    const current = parseAirdraftMetres(this.metresFieldValue(field)) ?? 0;
+    const next = Math.round((current + direction * 0.1) * 10) / 10;
+    const clamped = Math.min(40, Math.max(0, next));
+    this.applyMetresValue(field, formatAirdraftMetres(clamped));
+  }
+
+  protected onMetresKeydown(field: DraftField, event: KeyboardEvent): void {
+    if (event.key === 'ArrowUp') {
+      this.stepDraftMetres(field, 1, event);
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      this.stepDraftMetres(field, -1, event);
+      return;
+    }
+    this.onFieldEnter(event);
+  }
+
+  private applyMetresValue(field: DraftField, normalized: string): void {
     this.metresDraft.set(null);
     const local = this.localShipFields();
     if (local) {

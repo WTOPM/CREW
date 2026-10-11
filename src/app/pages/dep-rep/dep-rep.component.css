@@ -671,7 +671,7 @@
 
 .dep-rep-draft input {
   width: 100%;
-  padding: 0.28rem 1.35rem 0.28rem 0.2rem;
+  padding: 0.28rem 1.85rem 0.28rem 0.2rem;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -685,13 +685,62 @@
   outline: none;
 }
 
+.dep-rep-draft__spin {
+  position: absolute;
+  top: 1.45rem;
+  right: 0.28rem;
+  bottom: 0.42rem;
+  width: 1.05rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.dep-rep-draft__spin-btn {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.dep-rep-draft__spin-btn + .dep-rep-draft__spin-btn {
+  border-top: 1px solid #e2e8f0;
+}
+
+.dep-rep-draft__spin-btn--up:hover,
+.dep-rep-draft__spin-btn--up:focus-visible {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.dep-rep-draft__spin-btn--down:hover,
+.dep-rep-draft__spin-btn--down:focus-visible {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
 .dep-rep-draft__unit {
   position: absolute;
-  right: 0.55rem;
+  right: 1.45rem;
   bottom: 0.62rem;
   font-size: 0.72rem;
   font-weight: 650;
   color: #94a3b8;
+  pointer-events: none;
 }
 
 .dep-rep-draft--mid {

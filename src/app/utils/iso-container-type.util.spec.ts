@@ -1,32 +1,90 @@
 import { describe, expect, it } from 'vitest';
-import { suggestIsoContainerTypes } from './iso-container-type.util';
+import {
+  displayContainerSize,
+  resolveContainerColumnValue,
+  resolveContainerSizeValue,
+  splitContainerSizeLabel,
+  suggestIsoContainerTypes,
+  SUGGESTABLE_CONTAINER_TYPES,
+} from './iso-container-type.util';
+
+const P = '\u2032'; // ′
 
 describe('suggestIsoContainerTypes', () => {
   it('shows 40′ family when typing 4', () => {
-    const codes = suggestIsoContainerTypes('4').map((e) => e.code);
-    expect(codes.length).toBeGreaterThan(3);
-    expect(codes.every((c) => c.startsWith('4') || c.startsWith('L'))).toBe(true);
-    expect(codes).toContain('45GP');
-    expect(codes).toContain('42GP');
-    expect(codes).not.toContain('22GP');
+    const sizes = suggestIsoContainerTypes('4').map((e) => e.sizeLabel);
+    expect(sizes.length).toBeGreaterThan(3);
+    expect(sizes.every((s) => s.startsWith(`40${P}`) || s.startsWith(`45${P}`))).toBe(
+      true,
+    );
+    expect(sizes).toContain(`40${P}HC`);
+    expect(sizes).toContain(`40${P}DC`);
+    expect(sizes).not.toContain(`20${P}DC`);
   });
 
   it('shows 20′ family when typing 2', () => {
-    const codes = suggestIsoContainerTypes('2').map((e) => e.code);
-    expect(codes).toContain('22GP');
-    expect(codes).toContain('25GP');
-    expect(codes.every((c) => c.startsWith('2'))).toBe(true);
+    const sizes = suggestIsoContainerTypes('2').map((e) => e.sizeLabel);
+    expect(sizes).toContain(`20${P}DC`);
+    expect(sizes).toContain(`20${P}HC`);
+    expect(sizes).toContain(`20${P}HCPW`);
+    expect(sizes.every((s) => s.startsWith(`20${P}`))).toBe(true);
   });
 
-  it('matches code prefixes', () => {
-    const codes = suggestIsoContainerTypes('45').map((e) => e.code);
-    expect(codes).toContain('45GP');
-    expect(codes).toContain('45G1');
-    expect(codes).toContain('45RF');
+  it('matches size labels and codes', () => {
+    const bySize = suggestIsoContainerTypes('40 HC').map((e) => e.sizeLabel);
+    expect(bySize).toContain(`40${P}HC`);
+
+    const byCode = suggestIsoContainerTypes('45GP').map((e) => e.sizeLabel);
+    expect(byCode[0]).toBe(`40${P}HC`);
   });
 
   it('returns empty for blank query', () => {
     expect(suggestIsoContainerTypes('')).toEqual([]);
     expect(suggestIsoContainerTypes('   ')).toEqual([]);
+  });
+
+  it('lists unique compact sizes including PW / PF', () => {
+    const sizes = SUGGESTABLE_CONTAINER_TYPES.map((e) => e.sizeLabel);
+    expect(sizes).toContain(`20${P}DC`);
+    expect(sizes).toContain(`20${P}HCPW`);
+    expect(sizes).toContain(`40${P}HCPW`);
+    expect(sizes).toContain(`45${P}HCPW`);
+    expect(sizes).toContain(`40${P}PF`);
+    expect(sizes).toContain(`40${P}PFHC`);
+    expect(sizes).toContain(`40${P}RFHC`);
+    expect(new Set(sizes).size).toBe(sizes.length);
+  });
+});
+
+describe('displayContainerSize / resolveContainerColumnValue', () => {
+  it('maps codes to compact size labels with ′', () => {
+    expect(displayContainerSize('45GP')).toBe(`40${P}HC`);
+    expect(displayContainerSize('22GP')).toBe(`20${P}DC`);
+    expect(displayContainerSize('46GP')).toBe(`40${P}HCPW`);
+    expect(displayContainerSize('42FR')).toBe(`40${P}PF`);
+    expect(displayContainerSize('45RF')).toBe(`40${P}RFHC`);
+  });
+
+  it('keeps size labels and normalizes ASCII apostrophes / spaces', () => {
+    expect(resolveContainerSizeValue("40' HC")).toBe(`40${P}HC`);
+    expect(resolveContainerSizeValue(`40${P}HC`)).toBe(`40${P}HC`);
+    expect(resolveContainerSizeValue('45GP')).toBe(`40${P}HC`);
+    expect(resolveContainerSizeValue(`40${P} RF HC`)).toBe(`40${P}RFHC`);
+  });
+
+  it('resolves type mode to codes that fit the column', () => {
+    expect(resolveContainerColumnValue('45RF', 'type')).toBe('45RF');
+    expect(resolveContainerColumnValue(`40${P}RFHC`, 'type')).toBe('45RF');
+    expect(resolveContainerColumnValue('45RF', 'size')).toBe(`40${P}RFHC`);
+  });
+
+  it('splits length prefix for colored display', () => {
+    expect(splitContainerSizeLabel(`40${P}RFHC`)).toEqual({
+      prefix: `40${P}`,
+      rest: 'RFHC',
+      family: '40',
+    });
+    expect(splitContainerSizeLabel(`20${P}DC`).family).toBe('20');
+    expect(splitContainerSizeLabel(`45${P}HCPW`).family).toBe('45');
   });
 });

@@ -36,9 +36,9 @@ export class ContainerTypeTooltipDirective implements OnDestroy {
       this.hide();
       const tip = showHintTooltip(
         this.el.nativeElement,
-        entry.code,
-        entry.summary,
         containerTypeSizeLabel(entry),
+        entry.summary,
+        entry.code,
       );
       this.tooltipHide = tip.hide;
     }, SHOW_DELAY_MS);

@@ -1,14 +1,28 @@
-<div class="cts">
+<div class="cts" [class.cts--pretty]="showPretty()">
+  @if (showPretty()) {
+    <div class="cts__pretty" aria-hidden="true">
+      <span
+        class="cts__len"
+        [class.cts__len--20]="prettySize()!.family === '20'"
+        [class.cts__len--40]="prettySize()!.family === '40'"
+        [class.cts__len--45]="prettySize()!.family === '45'"
+        >{{ prettySize()!.prefix }}</span
+      ><span class="cts__rest">{{ prettySize()!.rest }}</span>
+    </div>
+  }
   <input
     #filterInput
     type="text"
     autocomplete="off"
     spellcheck="false"
     [class]="inputClass()"
+    [class.cts__input--ghost]="showPretty()"
     [placeholder]="placeholder()"
     [ngModel]="draft()"
     (ngModelChange)="onDraftChange($event)"
     (focus)="onFocus()"
+    (blur)="onBlur()"
+    (keydown)="onKeydown($event)"
   />
 </div>
 @if (open() && suggestions().length) {
@@ -25,11 +39,44 @@
       <li
         class="cts__option"
         role="option"
-        [class.cts__option--selected]="opt.code === draft()"
-        (mousedown)="pick(opt.code, $event)"
+        [class.cts__option--selected]="
+          sizeMode() ? opt.sizeLabel === draft() : opt.code === draft()
+        "
+        (mousedown)="pick(opt, $event)"
       >
-        <strong class="cts__code">{{ opt.code }}</strong>
-        <span class="cts__meta">{{ sizeLabel(opt.code) }}</span>
+        @if (sizeMode()) {
+          @let parts = sizeParts(opt.sizeLabel);
+          <strong class="cts__size">
+            @if (parts.family) {
+              <span
+                class="cts__len"
+                [class.cts__len--20]="parts.family === '20'"
+                [class.cts__len--40]="parts.family === '40'"
+                [class.cts__len--45]="parts.family === '45'"
+                >{{ parts.prefix }}</span
+              ><span class="cts__rest">{{ parts.rest }}</span>
+            } @else {
+              {{ opt.sizeLabel }}
+            }
+          </strong>
+          <span class="cts__meta">{{ opt.code }}</span>
+        } @else {
+          <strong class="cts__code">{{ opt.code }}</strong>
+          @let metaParts = sizeParts(opt.sizeLabel);
+          <span class="cts__meta">
+            @if (metaParts.family) {
+              <span
+                class="cts__len"
+                [class.cts__len--20]="metaParts.family === '20'"
+                [class.cts__len--40]="metaParts.family === '40'"
+                [class.cts__len--45]="metaParts.family === '45'"
+                >{{ metaParts.prefix }}</span
+              ><span>{{ metaParts.rest }}</span>
+            } @else {
+              {{ opt.sizeLabel }}
+            }
+          </span>
+        }
       </li>
     }
   </ul>

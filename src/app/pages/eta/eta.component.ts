@@ -38,17 +38,20 @@ import {
   scenarioTooltip,
 } from '../../utils/eta-calculator.util';
 import {
+  convertEtaGpsDraftFormat,
   decimalToEtaGpsDmsDraft,
   emptyEtaGpsDmsDraft,
   formatEtaGpsShort,
   isEtaGpsDmsPartComplete,
   isValidEtaGpsCoords,
+  normalizeEtaGpsCoordFormat,
   padEtaGpsDmsPart,
   sanitizeEtaGpsDmsPart,
   stepEtaGpsDmsPart,
   toggleEtaGpsLatHemi,
   toggleEtaGpsLonHemi,
   tryBuildEtaGpsCoordsFromDms,
+  type EtaGpsCoordFormat,
   type EtaGpsCoords,
   type EtaGpsDmsDraft,
 } from '../../utils/eta-gps.util';
@@ -97,11 +100,14 @@ export class EtaComponent implements OnDestroy {
   } | null>(null);
   private readonly legSpeedEdit = signal<{ legId: string; text: string } | null>(null);
 
+  private static readonly GPS_FORMAT_KEY = 'crew.gpsCoordFormat';
+
   /** Sticky GPS card state (in-app toast fallback, or pin highlight while Electron float is open). */
   protected readonly gpsPanel = signal<{
     target: EtaGpsTarget;
     lat: EtaGpsDmsDraft;
     lon: EtaGpsDmsDraft;
+    format: EtaGpsCoordFormat;
     dirty: boolean;
   } | null>(null);
 
@@ -420,12 +426,18 @@ export class EtaComponent implements OnDestroy {
     }
     if (!this.commitGpsPanel()) return;
     const coords = this.gpsForTarget(target);
-    const lat = decimalToEtaGpsDmsDraft(coords?.lat, 'lat');
-    const lon = decimalToEtaGpsDmsDraft(coords?.lon, 'lon');
-    this.gpsPanel.set({ target, lat, lon, dirty: false });
+    const format = this.readGpsCoordFormat();
+    const lat = decimalToEtaGpsDmsDraft(coords?.lat, 'lat', format);
+    const lon = decimalToEtaGpsDmsDraft(coords?.lon, 'lon', format);
+    this.gpsPanel.set({ target, lat, lon, format, dirty: false });
 
     if (this.gpsFloatMode()) {
-      void this.openGpsFloatWindow(target, lat, lon);
+      // Float window always receives DDM; it applies the preferred format itself.
+      void this.openGpsFloatWindow(
+        target,
+        decimalToEtaGpsDmsDraft(coords?.lat, 'lat', 'ddm'),
+        decimalToEtaGpsDmsDraft(coords?.lon, 'lon', 'ddm'),
+      );
       return;
     }
 
@@ -513,8 +525,43 @@ export class EtaComponent implements OnDestroy {
   protected gpsPanelSummary(): string {
     const open = this.gpsPanel();
     if (!open) return '';
-    const built = tryBuildEtaGpsCoordsFromDms(open.lat, open.lon);
-    return built ? formatEtaGpsShort(built) : 'Degrees · minutes.decimal ′';
+    const built = tryBuildEtaGpsCoordsFromDms(open.lat, open.lon, open.format);
+    if (built) return formatEtaGpsShort(built, open.format);
+    return open.format === 'dms'
+      ? 'Degrees · minutes ′ · seconds ″'
+      : 'Degrees · minutes.decimal ′';
+  }
+
+  protected setGpsCoordFormat(raw: string): void {
+    if (this.gpsFloatMode() || !this.gpsWindowActive()) return;
+    const open = this.gpsPanel();
+    if (!open) return;
+    const next = normalizeEtaGpsCoordFormat(raw);
+    if (next === open.format) return;
+    this.storeGpsCoordFormat(next);
+    this.gpsPanel.set({
+      ...open,
+      format: next,
+      lat: convertEtaGpsDraftFormat(open.lat, 'lat', open.format, next),
+      lon: convertEtaGpsDraftFormat(open.lon, 'lon', open.format, next),
+      dirty: true,
+    });
+  }
+
+  private readGpsCoordFormat(): EtaGpsCoordFormat {
+    try {
+      return normalizeEtaGpsCoordFormat(localStorage.getItem(EtaComponent.GPS_FORMAT_KEY));
+    } catch {
+      return 'ddm';
+    }
+  }
+
+  private storeGpsCoordFormat(format: EtaGpsCoordFormat): void {
+    try {
+      localStorage.setItem(EtaComponent.GPS_FORMAT_KEY, format);
+    } catch {
+      /* ignore */
+    }
   }
 
   /** Tab cycles the 8 DMS controls; ↑/↓ step values (and N/E). */
@@ -603,7 +650,13 @@ export class EtaComponent implements OnDestroy {
     };
     const field = map[idx];
     if (!field) return;
-    const nextAxis = stepEtaGpsDmsPart(open[field.axis], field.part, field.axis, delta);
+    const nextAxis = stepEtaGpsDmsPart(
+      open[field.axis],
+      field.part,
+      field.axis,
+      delta,
+      open.format,
+    );
     this.gpsPanel.set({ ...open, [field.axis]: nextAxis, dirty: true });
   }
 
@@ -611,7 +664,7 @@ export class EtaComponent implements OnDestroy {
   private commitGpsPanel(): boolean {
     const open = this.gpsPanel();
     if (!open || !open.dirty) return true;
-    const built = tryBuildEtaGpsCoordsFromDms(open.lat, open.lon);
+    const built = tryBuildEtaGpsCoordsFromDms(open.lat, open.lon, open.format);
     if (built) {
       this.writeGps(open.target, built);
       this.gpsPanel.set({ ...open, dirty: false });
@@ -620,7 +673,11 @@ export class EtaComponent implements OnDestroy {
     const latEmpty = !open.lat.deg.trim() && !open.lat.min.trim() && !open.lat.sec.trim();
     const lonEmpty = !open.lon.deg.trim() && !open.lon.min.trim() && !open.lon.sec.trim();
     if (!latEmpty || !lonEmpty) {
-      this.toast.showError('Invalid GPS (lat ±90, lon ±180; minutes 0–59; .xx 00–99)');
+      this.toast.showError(
+        open.format === 'dms'
+          ? 'Invalid GPS (lat ±90, lon ±180; minutes 0–59; seconds 0–59)'
+          : 'Invalid GPS (lat ±90, lon ±180; minutes 0–59; .xx 00–99)',
+      );
       return false;
     }
     return true;

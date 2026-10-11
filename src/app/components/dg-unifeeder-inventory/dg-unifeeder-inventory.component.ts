@@ -62,10 +62,15 @@ import {
   mfagSpillagePageRefFromEmsCode,
 } from '../../utils/dg-mfag-schedule.util';
 import {
+  resolveUnifeederUnAutofill,
+  unifeederDescriptionChoices,
+  unifeederNeedsDescriptionChoice,
+  unifeederNeedsPackingGroupChoice,
+  unifeederPackingGroupChoices,
   unNumberHasDigits,
 } from '../../utils/dg-un-number-autofill.util';
 import { normalizeUnNumber } from '../../utils/dg-un-number.util';
-import { applyUnifeederReferenceOrManifest } from '../../utils/dg-import-un-reference.util';
+import { RefChoiceSuggestComponent } from '../ref-choice-suggest/ref-choice-suggest.component';
 import {
   applyUnifeederReferenceValue,
   findIdenticalUnifeederReferenceMismatches,
@@ -74,7 +79,10 @@ import {
   type UnifeederRefCompareField,
   type UnifeederReferenceMismatch,
 } from '../../utils/dg-unifeeder-reference-mismatch.util';
-import { dgFlashPointTone } from '../../utils/dg-flash-point-display.util';
+import {
+  dgFlashPointTone,
+  suggestUnifeederFlashPointFormat,
+} from '../../utils/dg-flash-point-display.util';
 import { DgRowSelection } from '../../utils/dg-row-selection.util';
 
 /**
@@ -89,6 +97,7 @@ import { DgRowSelection } from '../../utils/dg-row-selection.util';
     FormsModule,
     PortSelectComponent,
     ContainerTypeSuggestComponent,
+    RefChoiceSuggestComponent,
     DgActIconComponent,
     ContainerTypeTooltipDirective,
     DgClassTooltipDirective,
@@ -198,6 +207,7 @@ export class DgUnifeederInventoryComponent {
         const first = group.rows[0];
         return {
           key: group.key,
+          trackId: first?.id ?? group.key,
           size: pickUnifeederContainerHeaderField(group.rows, 'size') || (first?.size ?? ''),
           stow: pickUnifeederContainerHeaderField(group.rows, 'stow') || (first?.stow ?? ''),
           containerNo: first?.containerNo ?? '',
@@ -253,6 +263,10 @@ export class DgUnifeederInventoryComponent {
     [...this.unifeederLibrary().manifests].sort((a, b) => b.addedAt.localeCompare(a.addedAt)),
   );
 
+  protected readonly flashPointFormatSuggest = suggestUnifeederFlashPointFormat;
+  protected readonly lqChoices: string[] = ['LQ'];
+  protected readonly mpChoices: string[] = ['MP'];
+
   protected flashPointTone(value: string): 'negative' | 'positive' | 'neutral' {
     return dgFlashPointTone(value);
   }
@@ -261,10 +275,15 @@ export class DgUnifeederInventoryComponent {
     return formatDisplayDate(value);
   }
 
-  protected onUnNoEnter(event: KeyboardEvent): void {
+  /** Enter leaves any inventory cell and commits via blur handlers. */
+  @HostListener('keydown', ['$event'])
+  protected onInventoryCellEnter(event: KeyboardEvent): void {
     if (event.key !== 'Enter') return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.readOnly || target.disabled) return;
     event.preventDefault();
-    (event.target as HTMLInputElement | null)?.blur();
+    target.blur();
   }
 
   protected toggleUnifeederShowDischarged(checked: boolean): void {
@@ -273,6 +292,10 @@ export class DgUnifeederInventoryComponent {
 
   protected toggleUnifeederShowByTerminals(checked: boolean): void {
     this.dg.updateUnifeederViewSettings({ showByTerminals: checked });
+  }
+
+  protected setUnifeederSizeColumnMode(mode: 'type' | 'size'): void {
+    this.dg.updateUnifeederViewSettings({ sizeColumnMode: mode });
   }
 
   protected setUnifeederWeightTonnage(gross: boolean): void {
@@ -364,27 +387,23 @@ export class DgUnifeederInventoryComponent {
     const current = this.unifeederLibrary().onboard.find((r) => r.id === rowId);
     if (!current || !unNumberHasDigits(current.unNo)) return;
 
-    const { row: next } = applyUnifeederReferenceOrManifest({
-      size: current.size,
-      stow: current.stow,
-      containerNo: current.containerNo,
-      loadPort: current.loadPort,
-      dischargePort: current.dischargePort,
-      unNo: current.unNo,
+    const resolved = resolveUnifeederUnAutofill(current.unNo, {
       packingGroup: current.packingGroup,
-      weightKg: current.weightKg,
-      lq: current.lq,
-      flashPoint: current.flashPoint,
-      marinePollutant: current.marinePollutant,
-      goodsDescription: current.goodsDescription,
+      description: current.goodsDescription,
       dgClass: current.dgClass,
-      subRisk: current.subRisk,
-      fire: current.fire,
-      spillage: current.spillage,
     });
+    if (resolved.kind === 'none' || resolved.kind === 'needs-packing-group') {
+      if (clearKeepOnPgChange) {
+        this.dg.updateUnifeederRow(rowId, { referenceKeepManifest: undefined });
+      }
+      return;
+    }
 
+    const next = resolved.patch;
     this.dg.updateUnifeederRow(rowId, {
       dgClass: next.dgClass ?? current.dgClass,
+      goodsDescription: next.goodsDescription ?? current.goodsDescription,
+      packingGroup: next.packingGroup || current.packingGroup,
       subRisk: next.subRisk ?? current.subRisk,
       fire: next.fire ?? current.fire,
       spillage: next.spillage ?? current.spillage,
@@ -395,6 +414,35 @@ export class DgUnifeederInventoryComponent {
         current.spillageSchedule,
       ...(clearKeepOnPgChange ? { referenceKeepManifest: undefined } : {}),
     });
+  }
+
+  protected unifeederNeedsPackingGroup(line: DgUnifeederRowDisplay): boolean {
+    return unifeederNeedsPackingGroupChoice(line);
+  }
+
+  protected unifeederPackingGroupOptions(line: DgUnifeederRowDisplay): string[] {
+    return unifeederPackingGroupChoices(line.unNo);
+  }
+
+  protected unifeederNeedsDescription(line: DgUnifeederRowDisplay): boolean {
+    return unifeederNeedsDescriptionChoice(line);
+  }
+
+  protected unifeederDescriptionOptions(line: DgUnifeederRowDisplay): string[] {
+    return unifeederDescriptionChoices(line.unNo, line.packingGroup);
+  }
+
+  protected unifeederAwaitPgTitle(line: DgUnifeederRowDisplay): string {
+    if (!this.unifeederNeedsPackingGroup(line)) return '';
+    const opts = this.unifeederPackingGroupOptions(line);
+    return opts.length
+      ? `Choose packing group from DG Reference: ${opts.join(' / ')}`
+      : 'Choose packing group from DG Reference';
+  }
+
+  protected unifeederAwaitDescTitle(line: DgUnifeederRowDisplay): string {
+    if (!this.unifeederNeedsDescription(line)) return '';
+    return 'Choose proper shipping name — several DG Reference variants match this UN/PG';
   }
 
   protected unifeederPrimaryRowId(row: DgUnifeederRowDisplay): string {
@@ -461,6 +509,21 @@ export class DgUnifeederInventoryComponent {
   ): void {
     for (const rowId of this.unifeederContainerSourceRowIds(group)) {
       this.onUnifeederRowChange(rowId, field, value);
+    }
+  }
+
+  /** POL/POD port pick — also clears terminal so docs stay on the chosen port. */
+  protected onUnifeederPolPodPortChange(
+    group: DgUnifeederContainerDisplayGroup,
+    which: 'load' | 'discharge',
+    portName: string,
+  ): void {
+    if (which === 'load') {
+      this.onUnifeederContainerChange(group, 'loadPort', portName);
+      this.onUnifeederContainerChange(group, 'loadTerminal', '');
+    } else {
+      this.onUnifeederContainerChange(group, 'dischargePort', portName);
+      this.onUnifeederContainerChange(group, 'dischargeTerminal', '');
     }
   }
 
@@ -795,35 +858,51 @@ export class DgUnifeederInventoryComponent {
     const current = this.unifeederLibrary().onboard.find((r) => r.id === primaryId);
     if (!current) return;
 
-    const { row: next } = applyUnifeederReferenceOrManifest({
-      size: current.size,
-      stow: current.stow,
-      containerNo: current.containerNo,
-      loadPort: current.loadPort,
-      dischargePort: current.dischargePort,
-      unNo: raw,
-      packingGroup: current.packingGroup,
-      weightKg: current.weightKg,
-      lq: current.lq,
-      flashPoint: current.flashPoint,
-      marinePollutant: current.marinePollutant,
-      goodsDescription: current.goodsDescription,
-      dgClass: current.dgClass,
-      subRisk: current.subRisk,
-      fire: current.fire,
-      spillage: current.spillage,
+    const unChanged = normalizeUnNumber(raw) !== normalizeUnNumber(current.unNo);
+    // Fresh UN entry: do not reuse a stale packing group from another UN.
+    const pgHint = unChanged ? '' : current.packingGroup;
+    const descHint = unChanged ? '' : current.goodsDescription;
+    const resolved = resolveUnifeederUnAutofill(raw, {
+      packingGroup: pgHint,
+      description: descHint,
+      dgClass: unChanged ? '' : current.dgClass,
     });
 
-    const unChanged =
-      normalizeUnNumber(raw) !== normalizeUnNumber(current.unNo);
+    if (resolved.kind === 'none') {
+      this.dg.updateUnifeederRow(primaryId, {
+        unNo: normalizeUnNumber(raw),
+        ...(unChanged ? { referenceKeepManifest: undefined } : {}),
+      });
+      return;
+    }
+
+    if (resolved.kind === 'needs-packing-group') {
+      this.dg.updateUnifeederRow(primaryId, {
+        unNo: resolved.unNo,
+        packingGroup: '',
+        goodsDescription: '',
+        dgClass: '',
+        subRisk: '',
+        fire: '',
+        spillage: '',
+        fireSchedule: '',
+        spillageSchedule: '',
+        referenceKeepManifest: undefined,
+      });
+      return;
+    }
+
+    const next = resolved.patch;
     this.dg.updateUnifeederRow(primaryId, {
       unNo: next.unNo ?? normalizeUnNumber(raw),
-      dgClass: next.dgClass ?? current.dgClass,
-      goodsDescription: next.goodsDescription ?? current.goodsDescription,
-      packingGroup: next.packingGroup ?? current.packingGroup,
-      subRisk: next.subRisk ?? current.subRisk,
-      fire: next.fire ?? current.fire,
-      spillage: next.spillage ?? current.spillage,
+      dgClass: next.dgClass ?? '',
+      goodsDescription: next.goodsDescription ?? '',
+      packingGroup: next.packingGroup ?? pgHint,
+      subRisk: next.subRisk ?? '',
+      fire: next.fire ?? '',
+      spillage: next.spillage ?? '',
+      fireSchedule: mfagFirePageRefFromEmsCode(next.fire ?? '') || '',
+      spillageSchedule: mfagSpillagePageRefFromEmsCode(next.spillage ?? '') || '',
       ...(unChanged ? { referenceKeepManifest: undefined } : {}),
     });
   }

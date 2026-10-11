@@ -254,7 +254,12 @@ export class DgManifestStore {
     partial: Partial<
       Pick<
         DgUnifeederLibrarySettings,
-        'showDischarged' | 'mergeLines' | 'useGrossWeight' | 'roundWeights' | 'showByTerminals'
+        | 'showDischarged'
+        | 'mergeLines'
+        | 'useGrossWeight'
+        | 'roundWeights'
+        | 'showByTerminals'
+        | 'sizeColumnMode'
       >
     >,
   ): void {
@@ -291,6 +296,7 @@ export class DgManifestStore {
             useGrossWeight: lib.manifestUseGrossWeight,
             roundWeights: lib.manifestRoundWeights,
             showByTerminals: lib.unifeeder.showByTerminals,
+            sizeColumnMode: lib.unifeeder.sizeColumnMode,
           },
         },
       };

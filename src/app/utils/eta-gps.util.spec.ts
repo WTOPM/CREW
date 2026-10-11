@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  convertEtaGpsDraftFormat,
   decimalToEtaGpsDmsDraft,
   etaGpsDmsDraftToDecimal,
   formatEtaGpsShort,
@@ -97,5 +98,33 @@ describe('eta-gps.util', () => {
     });
     expect(text).toContain('53°52.70′ N');
     expect(text).toContain('007°52.66′ E');
+  });
+
+  it('round-trips DMS drafts with arc-seconds', () => {
+    const built = tryBuildEtaGpsCoordsFromDms(
+      { deg: '53', min: '52', sec: '42', hemi: 'N' },
+      { deg: '007', min: '15', sec: '30', hemi: 'E' },
+      'dms',
+    );
+    expect(built).not.toBeNull();
+    expect(built!.lat).toBeCloseTo(53 + 52 / 60 + 42 / 3600, 6);
+    const lat = decimalToEtaGpsDmsDraft(built!.lat, 'lat', 'dms');
+    expect(lat).toMatchObject({ deg: '53', min: '52', sec: '42', hemi: 'N' });
+    expect(formatEtaGpsShort(built!, 'dms')).toContain('53°52′42″ N');
+  });
+
+  it('converts DDM editor fields to DMS and back', () => {
+    const ddm = { deg: '53', min: '52', sec: '70', hemi: 'N' as const };
+    const dms = convertEtaGpsDraftFormat(ddm, 'lat', 'ddm', 'dms');
+    // 0.70′ = 42″
+    expect(dms).toMatchObject({ deg: '53', min: '52', sec: '42', hemi: 'N' });
+    const back = convertEtaGpsDraftFormat(dms, 'lat', 'dms', 'ddm');
+    expect(back).toMatchObject({ deg: '53', min: '52', sec: '70', hemi: 'N' });
+  });
+
+  it('rejects DMS seconds >= 60', () => {
+    expect(
+      etaGpsDmsDraftToDecimal({ deg: '53', min: '52', sec: '60', hemi: 'N' }, 'lat', 'dms'),
+    ).toBeNull();
   });
 });

@@ -466,10 +466,15 @@ export class DgComponent {
     this.dg.updateDgOnboardCargoLine(containerId, lineId, { [field]: value });
   }
 
-  protected onUnNoEnter(event: KeyboardEvent): void {
+  /** Enter leaves any inventory cell and commits via blur handlers. */
+  @HostListener('keydown', ['$event'])
+  protected onInventoryCellEnter(event: KeyboardEvent): void {
     if (event.key !== 'Enter') return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.readOnly || target.disabled) return;
     event.preventDefault();
-    (event.target as HTMLInputElement | null)?.blur();
+    target.blur();
   }
 
   protected onCmaUnNoCommit(containerId: string, lineId: string, event: FocusEvent): void {

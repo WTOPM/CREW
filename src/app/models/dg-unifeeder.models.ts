@@ -109,6 +109,11 @@ export interface DgUnifeederLibrarySettings {
   roundWeights: boolean;
   /** When true, POL/POD columns show matched terminal abbrevs instead of port names. */
   showByTerminals: boolean;
+  /**
+   * Inventory column: `type` = ISO/manifest codes (45RF), `size` = short labels (40′ RF HC).
+   * Display-only preference; does not rewrite stored rows until a cell is edited.
+   */
+  sizeColumnMode: 'type' | 'size';
   /** @deprecated Use useGrossWeight + roundWeights */
   grossTotalKg?: boolean;
 }
@@ -122,6 +127,7 @@ export function createDefaultUnifeederLibrary(): DgUnifeederLibrarySettings {
     useGrossWeight: true,
     roundWeights: false,
     showByTerminals: false,
+    sizeColumnMode: 'type',
   };
 }
 
@@ -256,6 +262,7 @@ export function normalizeUnifeederLibrary(
     useGrossWeight,
     roundWeights,
     showByTerminals: raw.showByTerminals === true,
+    sizeColumnMode: raw.sizeColumnMode === 'size' ? 'size' : 'type',
   };
 }
 

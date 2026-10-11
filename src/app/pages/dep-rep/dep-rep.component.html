@@ -320,7 +320,7 @@
           <label
             class="dep-rep-draft"
             [class.dep-rep-is-empty]="isBlank(metresFieldValue('draftAft'))"
-            title="SETTINGS ↔ DEP REP ↔ EXCEL B8"
+            title="SETTINGS ↔ DEP REP ↔ EXCEL B8 — arrows ±0.1 m"
           >
             <span>Aft</span>
             <input
@@ -328,15 +328,37 @@
               (focus)="onMetresFocus('draftAft', $event)"
               (input)="onMetresInput('draftAft', $event)"
               (blur)="onMetresBlur('draftAft', $event)"
-              (keydown)="onFieldEnter($event)"
+              (keydown)="onMetresKeydown('draftAft', $event)"
               inputmode="decimal"
             />
+            <span class="dep-rep-draft__spin" aria-hidden="true">
+              <button
+                type="button"
+                class="dep-rep-draft__spin-btn dep-rep-draft__spin-btn--up"
+                tabindex="-1"
+                title="Increase 0.1 m"
+                (mousedown)="$event.preventDefault()"
+                (click)="stepDraftMetres('draftAft', 1, $event)"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                class="dep-rep-draft__spin-btn dep-rep-draft__spin-btn--down"
+                tabindex="-1"
+                title="Decrease 0.1 m"
+                (mousedown)="$event.preventDefault()"
+                (click)="stepDraftMetres('draftAft', -1, $event)"
+              >
+                ▼
+              </button>
+            </span>
             <span class="dep-rep-draft__unit">m</span>
           </label>
           <label
             class="dep-rep-draft"
             [class.dep-rep-is-empty]="isBlank(metresFieldValue('draftFore'))"
-            title="SETTINGS ↔ DEP REP ↔ EXCEL D8"
+            title="SETTINGS ↔ DEP REP ↔ EXCEL D8 — arrows ±0.1 m"
           >
             <span>Fore</span>
             <input
@@ -344,9 +366,31 @@
               (focus)="onMetresFocus('draftFore', $event)"
               (input)="onMetresInput('draftFore', $event)"
               (blur)="onMetresBlur('draftFore', $event)"
-              (keydown)="onFieldEnter($event)"
+              (keydown)="onMetresKeydown('draftFore', $event)"
               inputmode="decimal"
             />
+            <span class="dep-rep-draft__spin" aria-hidden="true">
+              <button
+                type="button"
+                class="dep-rep-draft__spin-btn dep-rep-draft__spin-btn--up"
+                tabindex="-1"
+                title="Increase 0.1 m"
+                (mousedown)="$event.preventDefault()"
+                (click)="stepDraftMetres('draftFore', 1, $event)"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                class="dep-rep-draft__spin-btn dep-rep-draft__spin-btn--down"
+                tabindex="-1"
+                title="Decrease 0.1 m"
+                (mousedown)="$event.preventDefault()"
+                (click)="stepDraftMetres('draftFore', -1, $event)"
+              >
+                ▼
+              </button>
+            </span>
             <span class="dep-rep-draft__unit">m</span>
           </label>
           <label

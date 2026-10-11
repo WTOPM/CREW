@@ -316,6 +316,43 @@ describe('importFuelLogFromExcelBytes', () => {
 });
 
 describe('writeFuelLogToExcelBytes', () => {
+  it('clears MASTER rows removed from the in-memory event list', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Fuel Log MASTER');
+    for (let r = 1; r <= 8; r++) ws.addRow([]);
+
+    ws.getCell('A5').value = 'Sea';
+    ws.getCell('B5').value = 'BOSP';
+    ws.getCell('C5').value = new Date(Date.UTC(2026, 9, 1));
+    ws.getCell('D5').value = '08:00';
+    ws.getCell('F5').value = 100;
+
+    ws.getCell('A6').value = 'Sea';
+    ws.getCell('B6').value = 'Noon';
+    ws.getCell('C6').value = new Date(Date.UTC(2026, 9, 1));
+    ws.getCell('D6').value = '12:00';
+    ws.getCell('F6').value = 105;
+
+    const buf = await wb.xlsx.writeBuffer();
+    // Keep only BOSP — Noon should be wiped from Excel.
+    const events = [
+      createEmptyFuelLogEvent({
+        id: '1',
+        place: 'Sea',
+        rawEvent: 'BOSP',
+        date: '2026-10-01',
+        time: '08:00',
+        fmMeAe: 100,
+        sourceRow: 5,
+      }),
+    ];
+
+    const out = await writeFuelLogToExcelBytes(buf as ArrayBuffer, events);
+    const roundTrip = await importFuelLogFromExcelBytes(out.buffer as ArrayBuffer);
+    expect(roundTrip.events).toHaveLength(1);
+    expect(roundTrip.events[0].rawEvent).toBe('BOSP');
+  });
+
   it('writes over shared-formula columns without crashing', async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Fuel Log MASTER');

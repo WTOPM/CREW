@@ -257,7 +257,13 @@ export interface DgUnifeederRowDisplay extends DgUnifeederRow {
 }
 
 export interface DgUnifeederContainerDisplayGroup {
+  /** Grouping key (container number, or `empty:<rowId>` while blank). */
   key: string;
+  /**
+   * Stable @for identity. Must NOT change when the user types a container number
+   * (`key` switches from `empty:…` → number) — otherwise the input is destroyed and focus is lost.
+   */
+  trackId: string;
   size: string;
   stow: string;
   containerNo: string;
@@ -301,6 +307,7 @@ export function buildUnifeederContainerDisplayGroups(
     const first = group.rows[0];
     return {
       key: group.key,
+      trackId: first?.id ?? group.key,
       size: pickUnifeederContainerHeaderField(group.rows, 'size') || (first?.size ?? ''),
       stow: pickUnifeederContainerHeaderField(group.rows, 'stow') || (first?.stow ?? ''),
       containerNo: first?.containerNo ?? '',

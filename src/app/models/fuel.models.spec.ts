@@ -7,8 +7,15 @@ import {
   discoverFuelRobTanks,
   filterFuelEvents,
   formatFuelHoursHm,
+  formatFuelTimeDisplay,
+  splitFuelHoursHm,
+  createDefaultFuelLibrary,
   createDefaultFuelViewPrefs,
+  normalizeFuelLibrary,
   inferDefaultRobTanks,
+  inheritFuelFieldsFromPrevious,
+  parseFuelTimeDisplay,
+  recomputeFuelHoursFromCounter,
   projectFuelRobAfterConsumption,
   recomputeFuelTotalM3FromFm,
   dateTimeFromFuelHrsEdit,
@@ -43,6 +50,12 @@ describe('formatFuelHoursHm', () => {
     expect(formatFuelHoursHm(0.5)).toBe('0:30');
     expect(formatFuelHoursHm(24)).toBe('24:00');
     expect(formatFuelHoursHm(null)).toBe('—');
+  });
+
+  it('splits H:MM for colored display', () => {
+    expect(splitFuelHoursHm('1:06')).toEqual({ sign: '', hours: '1', minutes: '06' });
+    expect(splitFuelHoursHm('-2:30')).toEqual({ sign: '-', hours: '2', minutes: '30' });
+    expect(splitFuelHoursHm('—')).toBeNull();
   });
 });
 
@@ -401,5 +414,85 @@ describe('shiftFuelDateTime', () => {
       date: '2026-01-01',
       time: '10:00',
     });
+  });
+});
+
+describe('formatFuelTimeDisplay / parseFuelTimeDisplay', () => {
+  it('appends UTC only when UTC mode is on', () => {
+    expect(formatFuelTimeDisplay('12:00', false)).toBe('12:00');
+    expect(formatFuelTimeDisplay('12:00', true)).toBe('12:00 UTC');
+    expect(formatFuelTimeDisplay('', true)).toBe('');
+  });
+
+  it('parses HH:MM with optional UTC suffix', () => {
+    expect(parseFuelTimeDisplay('9:05')).toBe('09:05');
+    expect(parseFuelTimeDisplay('12:00 UTC')).toBe('12:00');
+    expect(parseFuelTimeDisplay('12:00 utc')).toBe('12:00');
+    expect(parseFuelTimeDisplay('25:00')).toBeNull();
+    expect(parseFuelTimeDisplay('noon')).toBeNull();
+  });
+});
+
+describe('inheritFuelFieldsFromPrevious', () => {
+  it('copies counters, place and ROB tanks; skips empty', () => {
+    const prev = ev({
+      id: 'p',
+      kind: 'noon',
+      date: '2026-01-01',
+      time: '12:00',
+      place: 'Sea',
+      fmMeAe: 1234.5,
+      meCounterRh: 9001,
+      meRobTank: 'rmd',
+      aeRobTank: 'b100',
+      boilerRobTank: 'dma',
+      meMt: 12.3,
+    });
+    const { patch, inheritedFields } = inheritFuelFieldsFromPrevious(prev);
+    expect(patch.place).toBe('Sea');
+    expect(patch.fmMeAe).toBe(1234.5);
+    expect(patch.meCounterRh).toBe(9001);
+    expect(patch.meRobTank).toBe('rmd');
+    expect(patch.meMt).toBeUndefined();
+    expect(inheritedFields).toContain('fmMeAe');
+    expect(inheritedFields).toContain('place');
+    expect(inheritedFields).not.toContain('meMt');
+  });
+});
+
+describe('recomputeFuelHoursFromCounter', () => {
+  it('returns period delta; rejects missing/negative', () => {
+    expect(recomputeFuelHoursFromCounter(9012.5, 9001)).toBe(11.5);
+    expect(recomputeFuelHoursFromCounter(9001, 9001)).toBe(0);
+    expect(recomputeFuelHoursFromCounter(100, null)).toBeNull();
+    expect(recomputeFuelHoursFromCounter(null, 100)).toBeNull();
+    expect(recomputeFuelHoursFromCounter(90, 100)).toBeNull();
+  });
+});
+
+describe('normalizeFuelLibrary edit draft', () => {
+  it('seeds editEvents from events when edit fields are missing (old saves)', () => {
+    const lib = normalizeFuelLibrary({
+      events: [ev({ id: 'a', kind: 'noon', date: '2026-01-01', time: '12:00', place: 'Sea' })],
+    });
+    expect(lib.events).toHaveLength(1);
+    expect(lib.editEvents).toHaveLength(1);
+    expect(lib.editEvents[0].place).toBe('Sea');
+    expect(lib.editBaseline).toHaveLength(1);
+    expect(lib.editDirty).toBe(false);
+  });
+
+  it('keeps an independent dirty edit draft', () => {
+    const lib = normalizeFuelLibrary({
+      ...createDefaultFuelLibrary(),
+      events: [ev({ id: 'v', kind: 'noon', date: '2026-01-01', time: '12:00', place: 'ViewPort' })],
+      editEvents: [ev({ id: 'e', kind: 'noon', date: '2026-01-02', time: '12:00', place: 'EditPort' })],
+      editBaseline: [ev({ id: 'b', kind: 'noon', date: '2026-01-01', time: '12:00', place: 'Base' })],
+      editDirty: true,
+    });
+    expect(lib.events[0].place).toBe('ViewPort');
+    expect(lib.editEvents[0].place).toBe('EditPort');
+    expect(lib.editBaseline[0].place).toBe('Base');
+    expect(lib.editDirty).toBe(true);
   });
 });

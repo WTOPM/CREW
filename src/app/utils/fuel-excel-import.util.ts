@@ -320,7 +320,8 @@ function appendMasterOnlyRows(
 
 /**
  * Write Fuel Log MASTER (+ matching CENG rows) from in-memory events.
- * Updates existing sourceRow cells; appends new rows after the last used MASTER row.
+ * Updates existing sourceRow cells; appends new rows after the last used MASTER row;
+ * clears MASTER/CENG rows that are no longer in the event list (deleted in the UI).
  */
 export async function writeFuelLogToExcelBytes(
   bytes: ArrayBuffer | Uint8Array,
@@ -340,6 +341,27 @@ export async function writeFuelLogToExcelBytes(
   // clones remain. Flatten to cached results before we patch cells.
   flattenSharedFormulas(master, 1, 18);
   if (ceng) flattenSharedFormulas(ceng, 1, 36);
+
+  // Drop rows removed in the app so they disappear from Excel on save.
+  const keptMasterRows = new Set(
+    events.map((e) => e.sourceRow).filter((r) => r >= 5),
+  );
+  for (let r = 5; r <= master.rowCount; r++) {
+    const place = cellText(master.getRow(r).getCell(1));
+    const rawEvent = cellText(master.getRow(r).getCell(2));
+    if (!place && !rawEvent) continue;
+    if (keptMasterRows.has(r)) continue;
+    clearMasterRow(master, r);
+  }
+  if (ceng) {
+    for (let r = 3; r <= ceng.rowCount; r++) {
+      const place = cellText(ceng.getRow(r).getCell(1));
+      const rawEvent = cellText(ceng.getRow(r).getCell(2));
+      if (!place && !rawEvent) continue;
+      if (events.some((e) => cengRowMatchesEvent(ceng, r, e))) continue;
+      clearCengRow(ceng, r);
+    }
+  }
 
   let nextMasterRow = 5;
   for (let r = 5; r <= master.rowCount; r++) {
@@ -394,6 +416,38 @@ function writeMasterRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent):
   setNum(row.getCell(16), e.boilerMt);
   setNum(row.getCell(17), e.dmaConsM3);
   setNum(row.getCell(18), e.boilerFm);
+}
+
+/** Wipe a MASTER data row so re-import skips it (deleted in the UI). */
+function clearMasterRow(ws: ExcelJS.Worksheet, rowNum: number): void {
+  const row = ws.getRow(rowNum);
+  for (let c = 1; c <= 18; c++) {
+    row.getCell(c).value = null;
+  }
+}
+
+/** Wipe a CENG data row so re-import skips it. */
+function clearCengRow(ws: ExcelJS.Worksheet, rowNum: number): void {
+  const row = ws.getRow(rowNum);
+  for (let c = 1; c <= 36; c++) {
+    row.getCell(c).value = null;
+  }
+}
+
+/** True when CENG row `r` is the sheet match for event `e` (same rules as findCengRow). */
+function cengRowMatchesEvent(
+  ws: ExcelJS.Worksheet,
+  r: number,
+  e: FuelLogEvent,
+): boolean {
+  const row = ws.getRow(r);
+  const date = cellDateIso(row.getCell(3));
+  const time = cellTimeHm(row.getCell(4));
+  if (date !== e.date || time !== e.time) return false;
+  const place = cellText(row.getCell(1));
+  const raw = cellText(row.getCell(2));
+  if ((!e.place || place === e.place) && (!e.rawEvent || raw === e.rawEvent)) return true;
+  return place === e.place || raw === e.rawEvent;
 }
 
 function writeCengRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent): void {

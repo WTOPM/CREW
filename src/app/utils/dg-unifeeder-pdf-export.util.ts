@@ -10,6 +10,7 @@ import {
   unifeederExportWeightKg,
 } from './dg-unifeeder-weight.util';
 import { mergeUnifeederRowsInContainersWithMeta } from './dg-unifeeder-merge.util';
+import { resolveRemarksParts } from './dg-unifeeder-remarks.util';
 import { type DgWeightViewOptions } from './dg-weight-view.util';
 
 export interface UnifeederDgPdfExportOptions {
@@ -253,7 +254,7 @@ function resolvePortLabel(raw: string, ports: readonly Port[]): string {
   return trimmed;
 }
 
-/** POL/POD cell — port UN/LOCODE, or terminal abbrev when “By terminals” is on. */
+/** POL/POD — same as inventory: terminals when By terminals is on, else port UN/LOCODE. */
 function resolvePolPodExportValue(
   row: DgUnifeederRow,
   which: 'load' | 'discharge',
@@ -262,7 +263,7 @@ function resolvePolPodExportValue(
 ): string {
   if (showByTerminals) {
     const term = (which === 'load' ? row.loadTerminal : row.dischargeTerminal).trim();
-    if (term) return term.toUpperCase();
+    return term ? term.toUpperCase() : '';
   }
   return resolvePortLabel(which === 'load' ? row.loadPort : row.dischargePort, ports);
 }
@@ -286,86 +287,6 @@ function formatAmountKgText(
   return `${raw} kg`;
 }
 
-function formatRemarksFlashPoint(value: string): string {
-  const v = value.trim();
-  if (!v) return '';
-  return v.replace(/\s*°\s*C\s*$/i, ' C').replace(/\s*°C$/i, ' C');
-}
-
-function remarksLqLabel(value: string): string {
-  const v = value.trim().toUpperCase();
-  if (!v || v === 'NO' || v === 'N' || v === '—' || v === '--') return '';
-  if (v === 'YES' || v === 'Y' || v === 'LQ') return 'LQ';
-  return value.trim();
-}
-
-function remarksMpLabel(value: string): string {
-  const v = value.trim().toUpperCase();
-  if (!v || v === 'NO' || v === 'N') return '';
-  if (v === 'YES' || v === 'Y' || v === 'MP') return 'MP';
-  return value.trim();
-}
-
-interface RemarksLayout {
-  merged: boolean;
-  kText: string;
-  lText: string;
-  kAlign: 'left' | 'center' | 'right';
-  lAlign: 'left' | 'center' | 'right';
-  mergedAlign?: 'left' | 'center' | 'right';
-}
-
-function resolveRemarksLayout(data: DgUnifeederRow | undefined): RemarksLayout {
-  const empty: RemarksLayout = {
-    merged: true,
-    kText: '',
-    lText: '',
-    kAlign: 'center',
-    lAlign: 'center',
-    mergedAlign: 'center',
-  };
-  if (!data) return empty;
-
-  const left = formatRemarksFlashPoint(data.flashPoint);
-  const center = remarksLqLabel(data.lq);
-  const right = remarksMpLabel(data.marinePollutant);
-  const hasLeft = !!left;
-  const hasCenter = !!center;
-  const hasRight = !!right;
-
-  if (!hasLeft && !hasCenter && !hasRight) return empty;
-
-  const partCount = [hasLeft, hasCenter, hasRight].filter(Boolean).length;
-  if (partCount === 1) {
-    const text = left || center || right;
-    const align = hasLeft ? 'left' : hasCenter ? 'center' : 'right';
-    return {
-      merged: true,
-      kText: text,
-      lText: '',
-      mergedAlign: align,
-      kAlign: 'center',
-      lAlign: 'center',
-    };
-  }
-
-  if (hasLeft && hasRight && !hasCenter) {
-    return { merged: false, kText: left, lText: right, kAlign: 'left', lAlign: 'right' };
-  }
-  if (hasLeft && hasCenter && !hasRight) {
-    return { merged: false, kText: left, lText: center, kAlign: 'left', lAlign: 'center' };
-  }
-  if (!hasLeft && hasCenter && hasRight) {
-    return { merged: false, kText: center, lText: right, kAlign: 'center', lAlign: 'right' };
-  }
-  return {
-    merged: false,
-    kText: `${left}  ${center}`,
-    lText: right,
-    kAlign: 'left',
-    lAlign: 'right',
-  };
-}
 
 function formatEms(fire: string, spillage: string): string {
   const f = normalizeMfagEmsCode(fire);
@@ -653,30 +574,27 @@ function drawDataRow(
     });
   }
 
-  const remarks = resolveRemarksLayout(data);
+  // Same as Excel: K = °C, L = LQ left + MP right (MP always on L’s right edge).
+  const { flashPoint, lq, mp } = resolveRemarksParts(data);
   const remarksRect = cellRect(metrics, row, 11, row, 12);
-  strokeRect(doc, remarksRect);
-  if (remarks.merged) {
-    drawTextInRect(doc, remarks.kText, remarksRect, {
-      size: bodySize,
-      align: remarks.mergedAlign ?? 'center',
-      bold: true,
-      pad: 3,
-    });
-    return;
-  }
-
   const kRect = cellRect(metrics, row, 11);
   const lRect = cellRect(metrics, row, 12);
-  drawTextInRect(doc, remarks.kText, kRect, {
+  strokeRect(doc, remarksRect);
+  drawTextInRect(doc, flashPoint, kRect, {
     size: bodySize,
-    align: remarks.kAlign,
+    align: 'left',
     bold: true,
     pad: 3,
   });
-  drawTextInRect(doc, remarks.lText, lRect, {
+  drawTextInRect(doc, lq, lRect, {
     size: bodySize,
-    align: remarks.lAlign,
+    align: 'left',
+    bold: true,
+    pad: 3,
+  });
+  drawTextInRect(doc, mp, lRect, {
+    size: bodySize,
+    align: 'right',
     bold: true,
     pad: 3,
   });

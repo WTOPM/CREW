@@ -13,9 +13,11 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  containerTypeSizeLabel,
-  lookupIsoContainerType,
+  type ContainerSizeColumnMode,
+  resolveContainerColumnValue,
+  splitContainerSizeLabel,
   suggestIsoContainerTypes,
+  type IsoContainerTypeEntry,
 } from '../../utils/iso-container-type.util';
 
 interface PanelPos {
@@ -26,8 +28,8 @@ interface PanelPos {
 }
 
 /**
- * Free-text Size/Type cell with live suggestions (e.g. type `4` → 40′ codes).
- * Keeps arbitrary values — suggestions only help pick common codes.
+ * Free-text Size|Type cell with live suggestions.
+ * `mode=type` shows codes (45RF); `mode=size` shows short labels (40′RFHC).
  */
 @Component({
   selector: 'app-container-type-suggest',
@@ -40,6 +42,8 @@ export class ContainerTypeSuggestComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly value = input('');
+  /** Column display mode — type codes fit the narrow Unifeeder column. */
+  readonly mode = input<ContainerSizeColumnMode>('type');
   readonly placeholder = input('—');
   readonly inputClass = input('dg-cell-input dg-cell-input--mono');
   readonly valueChange = output<string>();
@@ -48,11 +52,28 @@ export class ContainerTypeSuggestComponent {
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
 
   protected readonly open = signal(false);
-  protected readonly draft = linkedSignal(() => this.value());
+  protected readonly focused = signal(false);
+  protected readonly draft = linkedSignal(() =>
+    resolveContainerColumnValue(this.value(), this.mode()),
+  );
   protected readonly panelPos = signal<PanelPos>({ top: 0, left: 0, width: 0, maxHeight: 256 });
 
   protected readonly suggestions = computed(() =>
     suggestIsoContainerTypes(this.draft(), 14),
+  );
+
+  protected readonly sizeMode = computed(() => this.mode() === 'size');
+
+  /** Colored `40′` + rest when size mode and not editing. */
+  protected readonly prettySize = computed(() => {
+    if (!this.sizeMode()) return null;
+    const parts = splitContainerSizeLabel(this.draft());
+    if (!parts.family || !parts.prefix) return null;
+    return parts;
+  });
+
+  protected readonly showPretty = computed(
+    () => this.sizeMode() && !this.focused() && !!this.prettySize(),
   );
 
   constructor() {
@@ -75,7 +96,7 @@ export class ContainerTypeSuggestComponent {
     const t = event.target as Node | null;
     if (t && this.host.nativeElement.contains(t)) return;
     if (t && this.panel()?.nativeElement.contains(t)) return;
-    this.closePanel();
+    this.commitDraftAndClose();
   }
 
   @HostListener('window:resize')
@@ -83,15 +104,13 @@ export class ContainerTypeSuggestComponent {
     if (this.open()) this.repositionPanel();
   }
 
-  protected sizeLabel(code: string): string {
-    const entry = lookupIsoContainerType(code);
-    return entry ? containerTypeSizeLabel(entry) : '';
+  protected sizeParts(label: string) {
+    return splitContainerSizeLabel(label);
   }
 
   protected onFocus(): void {
-    // Sync draft only — do not open the list on focus alone (avoids a second
-    // bubble fighting the hover tooltip right after a pick).
-    this.draft.set(this.value());
+    this.focused.set(true);
+    this.draft.set(resolveContainerColumnValue(this.value(), this.mode()));
   }
 
   protected onDraftChange(text: string): void {
@@ -105,13 +124,38 @@ export class ContainerTypeSuggestComponent {
     else queueMicrotask(() => this.repositionPanel());
   }
 
-  protected pick(code: string, event: MouseEvent): void {
+  protected onKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter') return;
     event.preventDefault();
-    this.draft.set(code);
-    this.valueChange.emit(code);
-    this.closePanel();
-    // Leave the field so the hover tip can show cleanly afterwards.
+    event.stopPropagation();
+    this.commitDraftAndClose();
     queueMicrotask(() => this.filterInput()?.nativeElement?.blur());
+  }
+
+  protected onBlur(): void {
+    this.focused.set(false);
+    this.commitDraftAndClose();
+  }
+
+  protected pick(entry: IsoContainerTypeEntry, event: MouseEvent): void {
+    event.preventDefault();
+    const next = this.mode() === 'size' ? entry.sizeLabel : entry.code;
+    this.draft.set(next);
+    this.valueChange.emit(next);
+    this.closePanel();
+    queueMicrotask(() => this.filterInput()?.nativeElement?.blur());
+  }
+
+  private commitDraftAndClose(): void {
+    const next = resolveContainerColumnValue(this.draft(), this.mode());
+    if (next !== this.draft()) {
+      this.draft.set(next);
+    }
+    const shown = resolveContainerColumnValue(this.value(), this.mode());
+    if (next !== shown || (next && next !== this.value())) {
+      this.valueChange.emit(next);
+    }
+    this.closePanel();
   }
 
   private openPanel(): void {
@@ -150,7 +194,7 @@ export class ContainerTypeSuggestComponent {
     const available = openUp ? preferAbove : preferBelow;
     const maxHeight = Math.max(120, Math.min(maxH, available));
     const top = openUp ? Math.max(8, rect.top - gap - maxHeight) : rect.bottom + gap;
-    const width = Math.max(rect.width, 220);
+    const width = Math.max(rect.width, 200);
     this.panelPos.set({
       top,
       left: rect.left,

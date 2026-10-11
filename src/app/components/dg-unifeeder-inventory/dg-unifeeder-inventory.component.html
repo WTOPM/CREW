@@ -141,7 +141,7 @@
           </label>
           <label
             class="uf-toggle"
-            title="Show matched terminal abbrevs in POL/POD instead of port names"
+            title="POL/POD as terminals — same values go to Excel/PDF"
           >
             <input
               type="checkbox"
@@ -150,6 +150,31 @@
             />
             <span>By terminals</span>
           </label>
+          <div
+            class="choice-segmented choice-segmented--row uf-size-column-mode"
+            role="radiogroup"
+            aria-label="Size column display"
+            title="Show container type codes or size labels in the Size/Type column"
+          >
+            <label class="choice-segmented__item">
+              <input
+                type="radio"
+                name="ufSizeColumnMode"
+                [checked]="unifeederLibrary().sizeColumnMode === 'type'"
+                (change)="setUnifeederSizeColumnMode('type')"
+              />
+              <span class="choice-segmented__text">Type</span>
+            </label>
+            <label class="choice-segmented__item">
+              <input
+                type="radio"
+                name="ufSizeColumnMode"
+                [checked]="unifeederLibrary().sizeColumnMode === 'size'"
+                (change)="setUnifeederSizeColumnMode('size')"
+              />
+              <span class="choice-segmented__text">Size</span>
+            </label>
+          </div>
           <label
             class="uf-toggle"
             title="Combine lines in the same container when class, UN, name and MP/LQ match (same as PDF export)"
@@ -273,7 +298,10 @@
     </p>
   } @else {
     <div class="table-wrap dg-unifeeder-wrap dg-unifeeder-card">
-      <table class="dg-unifeeder-table">
+      <table
+        class="dg-unifeeder-table"
+        [class.uf-table--size-labels]="unifeederLibrary().sizeColumnMode === 'size'"
+      >
         <colgroup>
           <col class="uf-col-no" />
           <col class="uf-col-size" />
@@ -319,10 +347,14 @@
               [class.dg-sort-th--desc]="
                 unifeederSortColumn() === 'size' && unifeederSortDirection() === 'desc'
               "
-              title="Sort by Size"
+              [title]="
+                unifeederLibrary().sizeColumnMode === 'size'
+                  ? 'Sort by Size'
+                  : 'Sort by Type'
+              "
               (click)="toggleUnifeederInventorySort('size')"
             >
-              Size
+              {{ unifeederLibrary().sizeColumnMode === 'size' ? 'Size' : 'Type' }}
             </th>
             <th
               class="uf-stow dg-sort-th"
@@ -516,7 +548,7 @@
         <tbody>
           @for (
             container of visibleUnifeederContainerGroups();
-            track container.key;
+            track container.trackId;
             let ci = $index
           ) {
             @for (line of container.lines; track line.id; let first = $first; let last = $last) {
@@ -566,6 +598,7 @@
                     <span [appContainerTypeTooltip]="container.size">
                       <app-container-type-suggest
                         [value]="container.size"
+                        [mode]="unifeederLibrary().sizeColumnMode"
                         (valueChange)="onUnifeederContainerChange(container, 'size', $event)"
                       />
                     </span>
@@ -600,24 +633,27 @@
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
-                    @if (unifeederLibrary().showByTerminals) {
-                      <input
-                        class="dg-cell-input dg-cell-input--mono"
-                        [ngModel]="container.loadTerminal"
-                        (ngModelChange)="
-                          onUnifeederContainerChange(container, 'loadTerminal', $event)
-                        "
-                      />
-                    } @else {
-                      <div class="dg-cell-port-select">
+                    <div class="dg-cell-port-select">
+                      @if (unifeederLibrary().showByTerminals) {
+                        <app-port-select
+                          mode="terminals"
+                          [ports]="ports()"
+                          [value]="container.loadTerminal"
+                          [compact]="true"
+                          (valueChange)="
+                            onUnifeederContainerChange(container, 'loadTerminal', $event)
+                          "
+                          (portChange)="onUnifeederContainerChange(container, 'loadPort', $event)"
+                        />
+                      } @else {
                         <app-port-select
                           [ports]="ports()"
                           [value]="container.loadPort"
                           [compact]="true"
-                          (valueChange)="onUnifeederContainerChange(container, 'loadPort', $event)"
+                          (valueChange)="onUnifeederPolPodPortChange(container, 'load', $event)"
                         />
-                      </div>
-                    }
+                      }
+                    </div>
                   </td>
                   <td
                     class="uf-group"
@@ -625,26 +661,29 @@
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
-                    @if (unifeederLibrary().showByTerminals) {
-                      <input
-                        class="dg-cell-input dg-cell-input--mono"
-                        [ngModel]="container.dischargeTerminal"
-                        (ngModelChange)="
-                          onUnifeederContainerChange(container, 'dischargeTerminal', $event)
-                        "
-                      />
-                    } @else {
-                      <div class="dg-cell-port-select">
+                    <div class="dg-cell-port-select">
+                      @if (unifeederLibrary().showByTerminals) {
+                        <app-port-select
+                          mode="terminals"
+                          [ports]="ports()"
+                          [value]="container.dischargeTerminal"
+                          [compact]="true"
+                          (valueChange)="
+                            onUnifeederContainerChange(container, 'dischargeTerminal', $event)
+                          "
+                          (portChange)="
+                            onUnifeederContainerChange(container, 'dischargePort', $event)
+                          "
+                        />
+                      } @else {
                         <app-port-select
                           [ports]="ports()"
                           [value]="container.dischargePort"
                           [compact]="true"
-                          (valueChange)="
-                            onUnifeederContainerChange(container, 'dischargePort', $event)
-                          "
+                          (valueChange)="onUnifeederPolPodPortChange(container, 'discharge', $event)"
                         />
-                      </div>
-                    }
+                      }
+                    </div>
                   </td>
                 }
                 <td class="uf-cargo">
@@ -657,24 +696,32 @@
                       [tabindex]="line.editable ? 0 : -1"
                       (ngModelChange)="onUnifeederDisplayRowChange(line, 'unNo', $event)"
                       (blur)="onUnifeederUnNoCommit(line, $event)"
-                      (keydown)="onUnNoEnter($event)"
                     />
                   </span>
                 </td>
                 <td class="uf-cargo">
-                  <span [appPackingGroupTooltip]="line.packingGroup">
-                    <input
-                      class="dg-cell-input dg-cell-input--mono"
-                      [class.dg-cell-input--readonly]="!line.editable"
-                      [class.dg-cell-input--ref-mismatch]="
-                        hasUnifeederRefMismatch(line, 'packingGroup')
-                      "
-                      [attr.title]="unifeederRefMismatchTitle(line, 'packingGroup') || null"
-                      [ngModel]="line.packingGroup"
+                  <span
+                    [appPackingGroupTooltip]="line.packingGroup"
+                    (click)="onUnifeederRefMismatchClick($event, line, 'packingGroup')"
+                  >
+                    <app-ref-choice-suggest
+                      [value]="line.packingGroup"
+                      [options]="unifeederPackingGroupOptions(line)"
+                      [awaiting]="line.editable && unifeederNeedsPackingGroup(line)"
                       [readonly]="!line.editable"
-                      [tabindex]="line.editable ? 0 : -1"
-                      (click)="onUnifeederRefMismatchClick($event, line, 'packingGroup')"
-                      (ngModelChange)="onUnifeederDisplayRowChange(line, 'packingGroup', $event)"
+                      [title]="
+                        unifeederAwaitPgTitle(line) ||
+                        unifeederRefMismatchTitle(line, 'packingGroup') ||
+                        null
+                      "
+                      [inputClass]="
+                        'dg-cell-input dg-cell-input--mono' +
+                        (hasUnifeederRefMismatch(line, 'packingGroup')
+                          ? ' dg-cell-input--ref-mismatch'
+                          : '')
+                      "
+                      (valueChange)="onUnifeederDisplayRowChange(line, 'packingGroup', $event)"
+                      (commit)="onUnifeederDisplayRowChange(line, 'packingGroup', $event)"
                     />
                   </span>
                 </td>
@@ -690,53 +737,69 @@
                     inputmode="decimal"
                   />
                 </td>
-                <td class="uf-cargo">
-                  <input
-                    class="dg-cell-input dg-cell-input--mono"
-                    [class.dg-cell-input--readonly]="!line.editable"
-                    [ngModel]="line.lq"
+                <td class="uf-cargo uf-lq">
+                  <app-ref-choice-suggest
+                    [value]="line.lq"
+                    [options]="lqChoices"
+                    [toggleWhenSingle]="true"
                     [readonly]="!line.editable"
-                    [tabindex]="line.editable ? 0 : -1"
-                    (ngModelChange)="onUnifeederDisplayRowChange(line, 'lq', $event)"
+                    inputClass="dg-cell-input dg-cell-input--mono dg-cell-input--lq"
+                    (valueChange)="onUnifeederDisplayRowChange(line, 'lq', $event)"
+                    (commit)="onUnifeederDisplayRowChange(line, 'lq', $event)"
                   />
                 </td>
-                <td class="uf-cargo">
-                  <input
-                    class="dg-cell-input dg-cell-input--mono dg-cell-input--fp"
-                    [class.dg-cell-input--readonly]="!line.editable"
-                    [class.dg-flash--negative]="flashPointTone(line.flashPoint) === 'negative'"
-                    [class.dg-flash--positive]="flashPointTone(line.flashPoint) === 'positive'"
-                    [ngModel]="line.flashPoint"
+                <td class="uf-cargo uf-fp">
+                  <app-ref-choice-suggest
+                    [value]="line.flashPoint"
+                    [formatSuggest]="flashPointFormatSuggest"
                     [readonly]="!line.editable"
-                    [tabindex]="line.editable ? 0 : -1"
-                    (ngModelChange)="onUnifeederDisplayRowChange(line, 'flashPoint', $event)"
-                  />
-                </td>
-                <td class="uf-cargo">
-                  <input
-                    class="dg-cell-input dg-cell-input--mono dg-cell-input--mp"
-                    [class.dg-cell-input--readonly]="!line.editable"
-                    [ngModel]="line.marinePollutant"
-                    [readonly]="!line.editable"
-                    [tabindex]="line.editable ? 0 : -1"
-                    (ngModelChange)="onUnifeederDisplayRowChange(line, 'marinePollutant', $event)"
-                  />
-                </td>
-                <td class="uf-cargo uf-desc">
-                  <textarea
-                    rows="1"
-                    class="dg-cell-input dg-cell-input--name"
-                    [class.dg-cell-input--readonly]="!line.editable"
-                    [class.dg-cell-input--ref-mismatch]="
-                      hasUnifeederRefMismatch(line, 'goodsDescription')
+                    [inputClass]="
+                      'dg-cell-input dg-cell-input--mono dg-cell-input--fp' +
+                      (flashPointTone(line.flashPoint) === 'negative'
+                        ? ' dg-flash--negative'
+                        : flashPointTone(line.flashPoint) === 'positive'
+                          ? ' dg-flash--positive'
+                          : '')
                     "
-                    [attr.title]="unifeederRefMismatchTitle(line, 'goodsDescription') || null"
-                    [ngModel]="line.goodsDescription"
+                    (valueChange)="onUnifeederDisplayRowChange(line, 'flashPoint', $event)"
+                    (commit)="onUnifeederDisplayRowChange(line, 'flashPoint', $event)"
+                  />
+                </td>
+                <td class="uf-cargo uf-mp">
+                  <app-ref-choice-suggest
+                    [value]="line.marinePollutant"
+                    [options]="mpChoices"
+                    [toggleWhenSingle]="true"
                     [readonly]="!line.editable"
-                    [tabindex]="line.editable ? 0 : -1"
-                    (click)="onUnifeederRefMismatchClick($event, line, 'goodsDescription')"
-                    (ngModelChange)="onUnifeederDisplayRowChange(line, 'goodsDescription', $event)"
-                  ></textarea>
+                    inputClass="dg-cell-input dg-cell-input--mono dg-cell-input--mp"
+                    (valueChange)="onUnifeederDisplayRowChange(line, 'marinePollutant', $event)"
+                    (commit)="onUnifeederDisplayRowChange(line, 'marinePollutant', $event)"
+                  />
+                </td>
+                <td
+                  class="uf-cargo uf-desc"
+                  (click)="onUnifeederRefMismatchClick($event, line, 'goodsDescription')"
+                >
+                  <app-ref-choice-suggest
+                    [value]="line.goodsDescription"
+                    [options]="unifeederDescriptionOptions(line)"
+                    [awaiting]="line.editable && unifeederNeedsDescription(line)"
+                    [readonly]="!line.editable"
+                    [multiline]="true"
+                    [title]="
+                      unifeederAwaitDescTitle(line) ||
+                      unifeederRefMismatchTitle(line, 'goodsDescription') ||
+                      null
+                    "
+                    [inputClass]="
+                      'dg-cell-input dg-cell-input--name' +
+                      (hasUnifeederRefMismatch(line, 'goodsDescription')
+                        ? ' dg-cell-input--ref-mismatch'
+                        : '')
+                    "
+                    (valueChange)="onUnifeederDisplayRowChange(line, 'goodsDescription', $event)"
+                    (commit)="onUnifeederDisplayRowChange(line, 'goodsDescription', $event)"
+                  />
                 </td>
                 <td class="uf-cargo">
                   <span class="dg-hint-tooltip-host" [appDgClassTooltip]="line.dgClass">

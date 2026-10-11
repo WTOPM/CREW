@@ -64,6 +64,27 @@ describe('groupUnifeederRawRowsByContainer', () => {
     expect(display).toHaveLength(1);
     expect(display[0]?.stow).toBe('110182');
     expect(display[0]?.lines).toHaveLength(3);
+    expect(display[0]?.trackId).toBe(rows[0]!.id);
+  });
+
+  it('keeps trackId stable when container number is typed (focus must not reset)', () => {
+    const blank = createDgUnifeederRow({ containerNo: '' });
+    const before = buildUnifeederContainerDisplayGroups([blank], {
+      mergeLines: false,
+      useGrossWeight: true,
+      roundWeights: false,
+    });
+    expect(before[0]?.key).toBe(`empty:${blank.id}`);
+    expect(before[0]?.trackId).toBe(blank.id);
+
+    const typed = { ...blank, containerNo: 'M' };
+    const after = buildUnifeederContainerDisplayGroups([typed], {
+      mergeLines: false,
+      useGrossWeight: true,
+      roundWeights: false,
+    });
+    expect(after[0]?.key).toBe('M');
+    expect(after[0]?.trackId).toBe(blank.id);
   });
 });
 
