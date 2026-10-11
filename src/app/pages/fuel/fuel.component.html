@@ -28,10 +28,10 @@
       class="fuel-page-tab fuel-page-tab--view"
       [class.fuel-page-tab--active]="activeTab() === 'view'"
       [attr.aria-selected]="activeTab() === 'view'"
+      title="View — Excel snapshot"
       (click)="setActiveTab('view')"
     >
-      <span class="fuel-page-tab__label">View</span>
-      <span class="fuel-page-tab__sub">from Excel</span>
+      VIEW
     </button>
     <button
       type="button"
@@ -40,11 +40,10 @@
       [class.fuel-page-tab--locked]="viewOnly()"
       [attr.aria-selected]="activeTab() === 'edit'"
       [disabled]="viewOnly()"
-      [title]="viewOnly() ? 'View only — another PC is editing' : 'Edit and write back to Excel'"
+      [title]="viewOnly() ? 'View only — another PC is editing' : 'Edit — write back to Excel'"
       (click)="setActiveTab('edit')"
     >
-      <span class="fuel-page-tab__label">Edit</span>
-      <span class="fuel-page-tab__sub">{{ viewOnly() ? 'locked' : 'write Excel' }}</span>
+      EDIT
     </button>
   </nav>
 
@@ -132,8 +131,10 @@
                     Save to file
                   } @else if (!canWriteExcel) {
                     Save to file
+                  } @else if (hasReadyToWrite()) {
+                    {{ readyCount() }} ready to write
                   } @else if (dirty()) {
-                    Unsaved edits
+                    Drafts pending
                   } @else {
                     Save to file
                   }
@@ -156,7 +157,7 @@
                 type="button"
                 class="fuel-sync__write"
                 (click)="confirmWriteToFile($event)"
-                [disabled]="busy() || !dirty() || !canWriteExcel || viewOnly()"
+                [disabled]="busy() || !hasReadyToWrite() || !canWriteExcel || viewOnly()"
               >
                 Write
               </button>
@@ -376,15 +377,26 @@
           >
         </span>
       </label>
-      <label class="fuel-mini-field fuel-mini-field--grow">
+      <label class="fuel-mini-field fuel-mini-field--search">
         <span>Search</span>
         <input
           type="search"
           [ngModel]="library().view.search"
           (ngModelChange)="onSearch($event)"
-          placeholder="Port or event text"
+          placeholder="Port / event"
         />
       </label>
+      <div class="fuel-mini-field fuel-mini-field--clear">
+        <span aria-hidden="true">&nbsp;</span>
+        <button
+          type="button"
+          class="btn btn-secondary fuel-clear-filters-btn"
+          title="Reset From, To, Show (Last 20) and Search"
+          (click)="clearFilters()"
+        >
+          CLEAR FILTERS
+        </button>
+      </div>
     </div>
   </section>
 
@@ -559,12 +571,12 @@
         #tableWrap
         (scroll)="onTableHScroll()"
       >
-        <div class="fuel-table-v">
+        <div class="fuel-table-v" #tableV>
           <table class="fuel-table">
             <thead>
               <tr>
                 @if (canEdit()) {
-                  <th class="fuel-col-actions" scope="col" title="Delete row">
+                  <th class="fuel-col-actions" scope="col" title="Row status / delete">
                     <span class="fuel-col-head__label fuel-col-actions__label" aria-hidden="true"></span>
                   </th>
                 }
@@ -597,20 +609,48 @@
                 <tr [attr.data-kind]="e.kind">
                   @if (canEdit()) {
                     <td class="fuel-col-actions">
-                      <button
-                        type="button"
-                        class="fuel-row-delete"
-                        title="Delete this row"
-                        aria-label="Delete row"
-                        (click)="confirmDeleteEvent(e, $event)"
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                          <path
-                            fill="currentColor"
-                            d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9zm-1 12h12a1 1 0 0 0 1-1V8H5v12a1 1 0 0 0 1 1z"
-                          />
-                        </svg>
-                      </button>
+                      <div class="fuel-col-actions__btns">
+                        <button
+                          type="button"
+                          class="fuel-row-status"
+                          [class.fuel-row-status--synced]="e.writeStatus === 'synced'"
+                          [class.fuel-row-status--ready]="e.writeStatus === 'ready'"
+                          [class.fuel-row-status--draft]="e.writeStatus === 'draft'"
+                          [attr.title]="writeStatusTitle(e.writeStatus)"
+                          [attr.aria-label]="writeStatusTitle(e.writeStatus)"
+                          (click)="toggleWriteReady(e, $event)"
+                        >
+                          @if (e.writeStatus === 'draft') {
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                              <path
+                                fill="currentColor"
+                                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-.9 3.5h1.8v6.2h-1.8V7.5zm0 7.4h1.8V17h-1.8v-2.1z"
+                              />
+                            </svg>
+                          } @else {
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                              <path
+                                fill="currentColor"
+                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2-4.2-4.2 1.4-1.4 2.8 2.8 5.9-5.9 1.4 1.4-7.3 7.3z"
+                              />
+                            </svg>
+                          }
+                        </button>
+                        <button
+                          type="button"
+                          class="fuel-row-delete"
+                          title="Delete this row"
+                          aria-label="Delete row"
+                          (click)="confirmDeleteEvent(e, $event)"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path
+                              fill="currentColor"
+                              d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9zm-1 12h12a1 1 0 0 0 1-1V8H5v12a1 1 0 0 0 1 1z"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   }
                   @for (col of visibleColumnDefs(); track col.id) {
@@ -634,8 +674,38 @@
                         @if (col.id === 'date') {
                           <app-date-picker
                             size="sm"
+                            [class.fuel-date--draft]="e.writeStatus === 'draft'"
+                            [class.fuel-date--ready]="e.writeStatus === 'ready'"
                             [value]="e.date"
                             (valueChange)="onCellDate(e.id, $event)"
+                          />
+                        } @else if (col.id === 'place') {
+                          <app-ref-choice-suggest
+                            [value]="e.place"
+                            [options]="placeChoices()"
+                            matchMode="prefix"
+                            listTone="fuel"
+                            [inputClass]="
+                              'fuel-cell-input' +
+                              (isCellInherited(e.id, 'place') ? ' fuel-cell-input--inherited' : '')
+                            "
+                            [title]="cellTip(col)"
+                            (valueChange)="onPlaceCommit(e.id, $event)"
+                            (commit)="onPlaceCommit(e.id, $event)"
+                          />
+                        } @else if (col.id === 'rawEvent') {
+                          <app-ref-choice-suggest
+                            [value]="e.rawEvent"
+                            [options]="rawEventChoices()"
+                            matchMode="prefix"
+                            listTone="fuel"
+                            [inputClass]="
+                              'fuel-cell-input' +
+                              (isCellInherited(e.id, 'rawEvent') ? ' fuel-cell-input--inherited' : '')
+                            "
+                            [title]="cellTip(col)"
+                            (valueChange)="onRawEventCommit(e.id, $event)"
+                            (commit)="onRawEventCommit(e.id, $event)"
                           />
                         } @else if (col.id === 'time') {
                           <span class="fuel-time-edit">
@@ -653,13 +723,31 @@
                               <span class="fuel-time-utc" aria-hidden="true">UTC</span>
                             }
                           </span>
+                        } @else if (col.id === 'totalMt') {
+                          <input
+                            class="fuel-cell-input fuel-cell-input--auto fuel-cell-input--density"
+                            [value]="editValue(e, col)"
+                            [attr.tabindex]="-1"
+                            [appPlainTooltip]="cellTip(col)"
+                            autocomplete="off"
+                            spellcheck="false"
+                            readonly
+                            (pointerdown)="onTotalMtPointerDown(e, $event)"
+                            (contextmenu)="onTotalMtContextMenu(e, $event)"
+                          />
                         } @else {
                           <input
                             class="fuel-cell-input"
                             [class.fuel-cell-input--auto]="isAutoCalcCol(col)"
+                            [class.fuel-cell-input--fm-bad]="col.id === 'fmMeAe' && isFmInvalid(e)"
                             [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
+                            [attr.tabindex]="isAutoCalcCol(col) ? -1 : null"
                             [value]="editValue(e, col)"
-                            [appPlainTooltip]="cellTip(col)"
+                            [appPlainTooltip]="
+                              col.id === 'fmMeAe' && isFmInvalid(e)
+                                ? 'FM must be greater than the previous counter'
+                                : cellTip(col)
+                            "
                             autocomplete="off"
                             spellcheck="false"
                             (input)="onEditLive(e, col, $event)"
@@ -727,13 +815,47 @@
   </div>
 }
 
-@if (showAddModal()) {
+@if (showAddModal() && addModalSeed(); as seed) {
   <app-fuel-event-edit-modal
+    [seed]="seed"
     [allEvents]="library().editEvents"
     [hoursAsHm]="hoursAsHm()"
+    [preferredDensity]="library().lastDensity"
     (save)="onAddSave($event)"
-    (cancel)="showAddModal.set(false)"
+    (cancel)="closeAddModal()"
   />
+}
+
+@if (densityHud(); as hud) {
+  <div
+    class="fuel-density-hud"
+    [class.fuel-density-hud--drag]="hud.mode === 'drag'"
+    [style.left.px]="hud.x + 12"
+    [style.top.px]="hud.y - 36"
+    (mousedown)="$event.stopPropagation()"
+    (pointerdown)="$event.stopPropagation()"
+  >
+    <span class="fuel-density-hud__label">Density</span>
+    <input
+      class="fuel-density-hud__input"
+      type="text"
+      inputmode="decimal"
+      [value]="hud.density"
+      (input)="onDensityHudInput($any($event.target).value)"
+      (keydown.enter)="commitDensityHud()"
+      (keydown.escape)="closeDensityHud()"
+      (keydown.arrowup)="$event.preventDefault(); nudgeDensityHud(1)"
+      (keydown.arrowdown)="$event.preventDefault(); nudgeDensityHud(-1)"
+      autofocus
+    />
+    @if (hud.mode === 'menu') {
+      <div class="fuel-density-hud__steps" aria-hidden="true">
+        <button type="button" class="fuel-density-hud__step" tabindex="-1" title="+0.001" (mousedown)="$event.preventDefault()" (click)="nudgeDensityHud(1)">▲</button>
+        <button type="button" class="fuel-density-hud__step" tabindex="-1" title="−0.001" (mousedown)="$event.preventDefault()" (click)="nudgeDensityHud(-1)">▼</button>
+      </div>
+      <button type="button" class="fuel-density-hud__ok" (click)="commitDensityHud()">OK</button>
+    }
+  </div>
 }
 
 <app-fuel-display-modals

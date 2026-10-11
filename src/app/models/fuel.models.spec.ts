@@ -2,22 +2,28 @@ import { describe, expect, it } from 'vitest';
 import {
   applyFuelEventAutoCalcs,
   applyFuelConsumptionSideEffects,
+  cascadeAppAddedFuelRob,
   classifyFuelEvent,
   createEmptyFuelLogEvent,
   discoverFuelRobTanks,
   filterFuelEvents,
   formatFuelHoursHm,
   formatFuelTimeDisplay,
+  fuelEventReadyForWrite,
   splitFuelHoursHm,
   createDefaultFuelLibrary,
   createDefaultFuelViewPrefs,
   normalizeFuelLibrary,
+  defaultFuelWriteStatus,
   inferDefaultRobTanks,
   inheritFuelFieldsFromPrevious,
   parseFuelTimeDisplay,
+  recomputeFuelCounterFromHours,
   recomputeFuelHoursFromCounter,
   projectFuelRobAfterConsumption,
   recomputeFuelTotalM3FromFm,
+  recomputeFuelTotalMtFromM3,
+  normalizeFuelDensity,
   dateTimeFromFuelHrsEdit,
   shiftFuelDateTime,
   type FuelLogEvent,
@@ -138,14 +144,24 @@ describe('recomputeFuelTotalM3FromFm', () => {
   });
 });
 
+describe('recomputeFuelTotalMtFromM3', () => {
+  it('matches Excel H = ROUND(m³ × density, 1)', () => {
+    expect(recomputeFuelTotalMtFromM3(2.5, 0.88)).toBe(2.2);
+    expect(recomputeFuelTotalMtFromM3(5, 0.9)).toBe(4.5);
+    expect(normalizeFuelDensity(0.879)).toBe(0.879);
+    expect(normalizeFuelDensity(0.4)).toBe(0.5); // clamped
+  });
+});
+
 describe('applyFuelEventAutoCalcs', () => {
-  it('fills elapsed hours and total from ME+AE', () => {
+  it('fills elapsed hours; Total t = ROUND(m³ × density, 1)', () => {
     const prev = ev({
       id: '1',
       kind: 'departure',
       rawEvent: 'SBE',
       date: '2026-09-01',
       time: '06:00',
+      fmMeAe: 100,
     });
     const draft = ev({
       id: '2',
@@ -153,12 +169,16 @@ describe('applyFuelEventAutoCalcs', () => {
       rawEvent: 'Noon',
       date: '2026-09-01',
       time: '12:00',
+      fmMeAe: 102.5,
+      density: 0.88,
       meMt: 1.2,
       aeMt: 0.3,
     });
     const next = applyFuelEventAutoCalcs(draft, prev);
     expect(next.timeUsedHours).toBe(6);
-    expect(next.totalMt).toBe(1.5);
+    expect(next.totalM3).toBe(2.5);
+    expect(next.totalMt).toBe(2.2); // ROUND(2.5 × 0.88, 1)
+    expect(next.density).toBe(0.88);
     expect(next.kind).toBe('noon');
   });
 
@@ -181,6 +201,7 @@ describe('applyFuelEventAutoCalcs', () => {
     });
     const next = applyFuelEventAutoCalcs(draft, prev);
     expect(next.totalM3).toBe(2.8);
+    expect(next.totalMt).toBe(2.5); // ROUND(2.8 × 0.88, 1)
   });
 
   it('projects ROB RMD/DMA from previous minus period consumption', () => {
@@ -242,6 +263,80 @@ describe('applyFuelEventAutoCalcs', () => {
     expect(next.robDmaMt).toBe(68.0);
   });
 
+  it('keeps Add-modal tank picks even when stock would infer another tank', () => {
+    const prev = ev({
+      id: '1',
+      kind: 'noon',
+      date: '2026-10-06',
+      time: '12:00',
+      robRmdMt: 0,
+      robB100Mt: 342.1,
+      robDmaMt: 68.4,
+    });
+    const draft = ev({
+      id: '2',
+      kind: 'noon',
+      date: '2026-10-06',
+      time: '18:00',
+      meMt: 1,
+      aeMt: 0,
+      boilerMt: 0.2,
+      meRobTank: 'rmd', // explicit — even though RMD is empty / B100 has stock
+      aeRobTank: 'b100',
+      boilerRobTank: 'dma',
+      sourceRow: 0,
+    });
+    const next = applyFuelEventAutoCalcs(draft, prev);
+    expect(next.meRobTank).toBe('rmd');
+    expect(next.robRmdMt).toBe(0); // clamped
+    expect(next.robB100Mt).toBe(342.1); // not debited
+    expect(next.robDmaMt).toBe(68.2);
+  });
+
+  it('cascades ROB only for app-added rows; Excel rows stay put', () => {
+    const excel = ev({
+      id: 'xlsx',
+      kind: 'noon',
+      date: '2026-10-06',
+      time: '12:00',
+      robRmdMt: 100,
+      robB100Mt: 200,
+      robDmaMt: 50,
+      sourceRow: 40,
+    });
+    const a = ev({
+      id: 'new-a',
+      kind: 'noon',
+      date: '2026-10-06',
+      time: '15:00',
+      meMt: 1,
+      aeMt: 0.5,
+      boilerMt: 0.2,
+      meRobTank: 'b100',
+      aeRobTank: 'b100',
+      boilerRobTank: 'dma',
+      sourceRow: 0,
+    });
+    const b = ev({
+      id: 'new-b',
+      kind: 'noon',
+      date: '2026-10-06',
+      time: '18:00',
+      meMt: 0.5,
+      aeMt: 0,
+      boilerMt: 0,
+      meRobTank: 'b100',
+      aeRobTank: 'b100',
+      boilerRobTank: 'dma',
+      sourceRow: 0,
+    });
+    const out = cascadeAppAddedFuelRob([excel, a, b]);
+    expect(out[0].robB100Mt).toBe(200); // Excel untouched
+    expect(out[1].robB100Mt).toBe(198.5); // 200 − 1 − 0.5
+    expect(out[1].robDmaMt).toBe(49.8);
+    expect(out[2].robB100Mt).toBe(198.0); // 198.5 − 0.5
+  });
+
   it('never goes negative when previous ROB is 0', () => {
     const prev = ev({
       id: '1',
@@ -291,7 +386,7 @@ describe('applyFuelEventAutoCalcs', () => {
 });
 
 describe('applyFuelConsumptionSideEffects', () => {
-  it('rebuilds Total t and ROB from previous when ME/AE/Boiler change', () => {
+  it('rebuilds ROB from previous when ME/AE/Boiler change; Total t stays density-based', () => {
     const prev = ev({
       id: '1',
       kind: 'noon',
@@ -309,7 +404,8 @@ describe('applyFuelConsumptionSideEffects', () => {
       meMt: 0.2,
       aeMt: 0.1,
       boilerMt: 0.1,
-      totalMt: 0.3,
+      totalMt: 2.2,
+      density: 0.88,
       robRmdMt: 999,
       robB100Mt: 999,
       robDmaMt: 999,
@@ -322,7 +418,8 @@ describe('applyFuelConsumptionSideEffects', () => {
       aeMt: 0.5,
       boilerMt: 0.4,
     });
-    expect(next.totalMt).toBe(1.0);
+    // Total t is Excel H = m³×density — not ME+AE.
+    expect(next.totalMt).toBe(2.2);
     expect(next.robRmdMt).toBe(0);
     expect(next.robB100Mt).toBe(341.1);
     expect(next.robDmaMt).toBe(68.0);
@@ -470,6 +567,16 @@ describe('recomputeFuelHoursFromCounter', () => {
   });
 });
 
+describe('recomputeFuelCounterFromHours', () => {
+  it('adds period hours onto previous counter', () => {
+    expect(recomputeFuelCounterFromHours(87013.1, 1.5)).toBe(87014.6);
+    expect(recomputeFuelCounterFromHours(9001, 0)).toBe(9001);
+    expect(recomputeFuelCounterFromHours(null, 1.5)).toBeNull();
+    expect(recomputeFuelCounterFromHours(9001, null)).toBeNull();
+    expect(recomputeFuelCounterFromHours(9001, -0.1)).toBeNull();
+  });
+});
+
 describe('normalizeFuelLibrary edit draft', () => {
   it('seeds editEvents from events when edit fields are missing (old saves)', () => {
     const lib = normalizeFuelLibrary({
@@ -494,5 +601,46 @@ describe('normalizeFuelLibrary edit draft', () => {
     expect(lib.editEvents[0].place).toBe('EditPort');
     expect(lib.editBaseline[0].place).toBe('Base');
     expect(lib.editDirty).toBe(true);
+  });
+});
+
+describe('writeStatus', () => {
+  it('defaults from sourceRow when missing', () => {
+    expect(defaultFuelWriteStatus(0)).toBe('draft');
+    expect(defaultFuelWriteStatus(5)).toBe('synced');
+    expect(createEmptyFuelLogEvent({ sourceRow: 0 }).writeStatus).toBe('draft');
+    expect(createEmptyFuelLogEvent({ sourceRow: 8 }).writeStatus).toBe('synced');
+  });
+
+  it('preserves explicit writeStatus on normalize', () => {
+    const lib = normalizeFuelLibrary({
+      editEvents: [
+        ev({
+          id: 'd',
+          kind: 'noon',
+          date: '2026-01-01',
+          time: '12:00',
+          place: 'Sea',
+          rawEvent: 'Noon',
+          writeStatus: 'ready',
+        }),
+      ],
+      editDirty: true,
+    });
+    expect(lib.editEvents[0]!.writeStatus).toBe('ready');
+  });
+
+  it('fuelEventReadyForWrite requires date/time/place/event', () => {
+    expect(
+      fuelEventReadyForWrite({
+        date: '2026-01-01',
+        time: '12:00',
+        place: 'Sea',
+        rawEvent: 'Noon',
+      }),
+    ).toBe(true);
+    expect(
+      fuelEventReadyForWrite({ date: '', time: '12:00', place: 'Sea', rawEvent: 'Noon' }),
+    ).toBe(false);
   });
 });

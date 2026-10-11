@@ -124,7 +124,13 @@ export interface FuelColumnDef {
 export const FUEL_COLUMNS: FuelColumnDef[] = [
   { id: 'date', label: 'Date', tip: 'Event date from the fuel log (local ship date).', type: 'date', field: 'date' },
   { id: 'time', label: 'Time', tip: 'Event time from the fuel log (HH:mm).', type: 'time', field: 'time' },
-  { id: 'place', label: 'Place', tip: 'Port name or Sea for the event.', type: 'text', field: 'place' },
+  {
+    id: 'place',
+    label: 'Place',
+    tip: 'Type to filter places; pick from the list or ↑/↓ · Enter.',
+    type: 'text',
+    field: 'place',
+  },
   {
     id: 'kind',
     label: 'Kind',
@@ -135,7 +141,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'rawEvent',
     label: 'Excel event',
-    tip: 'Original Excel label (BOSP, FEW, SBE/Shifting, …).',
+    tip: 'Type to filter Excel labels; pick from the list or ↑/↓ · Enter.',
     type: 'text',
     field: 'rawEvent',
   },
@@ -166,7 +172,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'totalMt',
     label: 'Total t',
-    tip: 'Total fuel consumption for the period (mt). Auto: ME + AE when either is edited.',
+    tip: 'Excel H = ROUND(m³ × density, 1) — each row has its own density. Drag ↑↓ or right-click to set this row’s density.',
     type: 'num',
     field: 'totalMt',
     numeric: true,
@@ -259,7 +265,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'meCounterRh',
     label: 'ME counter',
-    tip: 'Main engine running-hours counter. Period ME hrs = this − previous.',
+    tip: 'Main engine cumulative running-hours meter (RH). ME hrs = this − previous; editing ME hrs updates this counter.',
     type: 'num',
     field: 'meCounterRh',
     tone: 'me',
@@ -286,7 +292,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'meHours',
     label: 'ME hrs',
-    tip: 'Main engine running hours for the period. Auto: ME counter − previous.',
+    tip: 'Main engine running hours for the period. Linked both ways with ME counter (counter = previous + hrs).',
     type: 'hours',
     field: 'meHours',
     tone: 'me',
@@ -603,6 +609,18 @@ export function inferDefaultRobTanks(
   };
 }
 
+/** Per-row Excel write readiness (Edit tab). */
+export type FuelWriteStatus = 'synced' | 'draft' | 'ready';
+
+export function isFuelWriteStatus(raw: unknown): raw is FuelWriteStatus {
+  return raw === 'synced' || raw === 'draft' || raw === 'ready';
+}
+
+/** Default status from sourceRow when missing on old saves. */
+export function defaultFuelWriteStatus(sourceRow: number): FuelWriteStatus {
+  return sourceRow >= 5 ? 'synced' : 'draft';
+}
+
 /** One row from Fuel Log MASTER (optionally enriched from CENG). */
 export interface FuelLogEvent {
   id: string;
@@ -621,8 +639,14 @@ export interface FuelLogEvent {
   fmMeAe: number | null;
   /** Total ME+AE consumption m³. */
   totalM3: number | null;
-  /** ULSFO / bio total consumption mt. */
+  /** ULSFO / bio total consumption mt = ROUND(m³ × density, 1). */
   totalMt: number | null;
+  /**
+   * Per-row density for Total t (Excel H = ROUND(G×density,1)).
+   * Each MASTER row has its own factor in the formula — not shared across rows.
+   * Null = use lastDensity starter / default 0.88 when drafting.
+   */
+  density: number | null;
   meMt: number | null;
   aeMt: number | null;
   /** DMA / boiler-side consumption mt (MASTER col P). */
@@ -666,6 +690,23 @@ export interface FuelLogEvent {
   boilerConsM3: number | null;
   boilerConsMt: number | null;
   sourceRow: number;
+  /**
+   * Edit-tab write gate (app-only; not in Excel):
+   * - synced — already in the file (black date)
+   * - draft — new/edited, hold back from Write (red date)
+   * - ready — user marked OK to write (purple date)
+   */
+  writeStatus: FuelWriteStatus;
+}
+
+/** Minimum fields before a draft may be marked ready to Write. */
+export function fuelEventReadyForWrite(e: Pick<FuelLogEvent, 'date' | 'time' | 'place' | 'rawEvent'>): boolean {
+  return (
+    !!String(e.date ?? '').trim() &&
+    !!String(e.time ?? '').trim() &&
+    !!String(e.place ?? '').trim() &&
+    !!String(e.rawEvent ?? '').trim()
+  );
 }
 
 export interface FuelViewPrefs {
@@ -696,6 +737,8 @@ export interface FuelLocalUiPrefs {
    * Displayed UTC = local − this value.
    */
   utcOffsetHours: number;
+  /** Last FUEL page tab on this PC (View / Edit). */
+  activeTab: 'view' | 'edit';
 }
 
 /** One saved column layout (Save / Load display) — shared via data folder. */
@@ -746,6 +789,8 @@ export interface FuelLibrarySettings {
   displayPresets: FuelDisplayPreset[];
   /** MASTER S1–AC4 snapshot (AUX / tanks) for read-only compare. */
   masterSummary: FuelMasterSummary | null;
+  /** Last density used on Add / Total t drag — default for new rows. */
+  lastDensity: number | null;
 }
 
 /** One AE line from MASTER S–V (KW / RH / KG). MT is a shared merged cell. */
@@ -775,6 +820,9 @@ export interface FuelMasterSummary {
   tankNote: string;
 }
 
+/** Excel default in FO-VPC Total t formula ROUND(G×0.88,1). */
+export const FUEL_DEFAULT_DENSITY = 0.88;
+
 export function createDefaultFuelViewPrefs(): FuelViewPrefs {
   return {
     visibleKinds: [...FUEL_DEFAULT_VISIBLE_KINDS],
@@ -792,6 +840,7 @@ export function createDefaultFuelLocalUiPrefs(): FuelLocalUiPrefs {
     hoursAsHm: false,
     showUtc: false,
     utcOffsetHours: 0,
+    activeTab: 'view',
   };
 }
 
@@ -808,7 +857,51 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
     view: createDefaultFuelViewPrefs(),
     displayPresets: [],
     masterSummary: null,
+    lastDensity: FUEL_DEFAULT_DENSITY,
   };
+}
+
+/** Clamp / parse density (Excel range ~0.5–1.2). */
+export function normalizeFuelDensity(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(',', '.'));
+  if (!Number.isFinite(n)) return null;
+  const clamped = Math.min(1.2, Math.max(0.5, Math.round(n * 1000) / 1000));
+  return clamped;
+}
+
+/** Total t = ROUND(m³ × density, 1) — Excel H. */
+export function recomputeFuelTotalMtFromM3(
+  totalM3: number | null | undefined,
+  density: number | null | undefined,
+): number | null {
+  if (totalM3 == null || !Number.isFinite(totalM3)) return null;
+  const d = normalizeFuelDensity(density) ?? FUEL_DEFAULT_DENSITY;
+  return Math.round(totalM3 * d * 10) / 10;
+}
+
+export function inferFuelDensityFromMtM3(
+  totalMt: number | null | undefined,
+  totalM3: number | null | undefined,
+): number | null {
+  if (totalMt == null || totalM3 == null || totalM3 === 0) return null;
+  return normalizeFuelDensity(totalMt / totalM3);
+}
+
+/**
+ * Density for one row. Never silently copies another row’s density —
+ * each Excel H formula has its own factor; new rows get preferred / 0.88.
+ */
+export function resolveFuelDensity(
+  row: Pick<FuelLogEvent, 'density'> | null | undefined,
+  _previous?: Pick<FuelLogEvent, 'density'> | null,
+  preferred?: number | null,
+): number {
+  return (
+    normalizeFuelDensity(row?.density) ??
+    normalizeFuelDensity(preferred) ??
+    FUEL_DEFAULT_DENSITY
+  );
 }
 
 /** Normalize a fuel-event list from persisted / import raw data. */
@@ -892,6 +985,7 @@ export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLo
       fmMeAe: partial?.fmMeAe ?? null,
       totalM3: partial?.totalM3 ?? null,
       totalMt: partial?.totalMt ?? null,
+      density: partial?.density ?? null,
       meMt: partial?.meMt ?? null,
       aeMt: partial?.aeMt ?? null,
       boilerMt: partial?.boilerMt ?? null,
@@ -929,6 +1023,9 @@ export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLo
       boilerConsM3: partial?.boilerConsM3 ?? null,
       boilerConsMt: partial?.boilerConsMt ?? null,
       sourceRow: partial?.sourceRow ?? 0,
+      writeStatus:
+        partial?.writeStatus ??
+        defaultFuelWriteStatus(partial?.sourceRow ?? 0),
     },
     0,
   )!;
@@ -957,6 +1054,8 @@ export function normalizeFuelLibrary(
     sourcePath: String(raw?.sourcePath ?? defaults.sourcePath).trim(),
     sourceFileName: String(raw?.sourceFileName ?? defaults.sourceFileName).trim(),
     importedAt: String(raw?.importedAt ?? defaults.importedAt).trim(),
+    lastDensity:
+      normalizeFuelDensity(raw?.lastDensity) ?? defaults.lastDensity,
     sheetName: String(raw?.sheetName ?? defaults.sheetName).trim(),
     events,
     editEvents,
@@ -1066,6 +1165,7 @@ export function normalizeFuelLocalUiPrefs(
     hoursAsHm: raw?.hoursAsHm === true,
     showUtc: raw?.showUtc === true,
     utcOffsetHours: clampFuelUtcOffsetHours(raw?.utcOffsetHours),
+    activeTab: raw?.activeTab === 'edit' ? 'edit' : 'view',
   };
 }
 
@@ -1207,6 +1307,7 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
     fmMeAe: numOrNull(e.fmMeAe),
     totalM3: numOrNull(e.totalM3),
     totalMt: numOrNull(e.totalMt),
+    density: normalizeFuelDensity(e.density),
     meMt: numOrNull(e.meMt),
     aeMt: numOrNull(e.aeMt),
     boilerMt: numOrNull(e.boilerMt),
@@ -1244,6 +1345,12 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
     boilerConsM3: numOrNull(e.boilerConsM3),
     boilerConsMt: numOrNull(e.boilerConsMt),
     sourceRow: typeof e.sourceRow === 'number' && Number.isFinite(e.sourceRow) ? e.sourceRow : index,
+    writeStatus: (() => {
+      const sourceRow =
+        typeof e.sourceRow === 'number' && Number.isFinite(e.sourceRow) ? e.sourceRow : index;
+      if (isFuelWriteStatus(e.writeStatus)) return e.writeStatus;
+      return defaultFuelWriteStatus(sourceRow);
+    })(),
   };
 }
 
@@ -1388,6 +1495,19 @@ export function recomputeFuelHoursFromCounter(
   return delta < 0 ? null : delta;
 }
 
+/**
+ * Reverse link: counterₙ = previous counter + period hours.
+ * Used when the user edits ME/AE/Boiler hrs instead of the meter reading.
+ */
+export function recomputeFuelCounterFromHours(
+  previousCounter: number | null | undefined,
+  hours: number | null,
+): number | null {
+  if (previousCounter == null || hours == null || !Number.isFinite(hours)) return null;
+  if (hours < 0) return null;
+  return Math.round((previousCounter + hours) * 10) / 10;
+}
+
 /** Round fuel mt to 1 decimal (MASTER numFmt 0.0). */
 export function roundFuelMt(n: number): number {
   return Math.round(n * 10) / 10;
@@ -1421,7 +1541,8 @@ export function projectFuelRobAfterConsumption(
 }
 
 /**
- * Resolve tank assignment for a draft: keep explicit picks, fill nulls via inferDefaultRobTanks.
+ * Resolve tank assignment for a draft: keep explicit picks (from Add modal),
+ * fill nulls via inferDefaultRobTanks only when not set.
  */
 export function resolveFuelRobTankAssignment(
   draft: FuelLogEvent,
@@ -1436,33 +1557,29 @@ export function resolveFuelRobTankAssignment(
   };
 }
 
-/** Fields that trigger Total t + ROB rebuild when edited in the table. */
-export const FUEL_CONSUMPTION_EDIT_FIELDS = ['meMt', 'aeMt', 'boilerMt'] as const;
-export type FuelConsumptionEditField = (typeof FUEL_CONSUMPTION_EDIT_FIELDS)[number];
+/** App-added row (not yet a MASTER sourceRow ≥ 5). Excel imports are left alone. */
+export function isAppAddedFuelEvent(e: Pick<FuelLogEvent, 'sourceRow'>): boolean {
+  return !(e.sourceRow >= 5);
+}
 
-export function isFuelConsumptionEditField(field: string): field is FuelConsumptionEditField {
-  return (FUEL_CONSUMPTION_EDIT_FIELDS as readonly string[]).includes(field);
+function fuelEventChronoKey(
+  e: Pick<FuelLogEvent, 'date' | 'time' | 'sourceRow' | 'id'>,
+): string {
+  return `${e.date}T${e.time || '00:00'}#${String(e.sourceRow).padStart(6, '0')}#${e.id}`;
 }
 
 /**
- * Side effects when ME / AE / DMA consumption is edited in the table:
- * - Total t = ME + AE
- * - ROB tanks = previous ROB − assigned consumption (clamped ≥ 0), always
- *   recomputed from previous even if the user cleared/changed ROB manually.
+ * Stamp tank picks + ROB = previous − ME/AE/Boiler on those tanks.
+ * Explicit Add-modal tanks always win over inference.
  */
-export function applyFuelConsumptionSideEffects(
-  current: FuelLogEvent,
+export function projectFuelRobForEvent(
+  event: FuelLogEvent,
   previous: FuelLogEvent | null | undefined,
-  beforePrevious: FuelLogEvent | null | undefined,
-  partial: Partial<Pick<FuelLogEvent, FuelConsumptionEditField>>,
+  beforePrevious?: FuelLogEvent | null,
 ): FuelLogEvent {
-  let next: FuelLogEvent = { ...current, ...partial };
-  if (partial.meMt !== undefined || partial.aeMt !== undefined) {
-    next = { ...next, totalMt: recomputeFuelTotalMt(next.meMt, next.aeMt) };
-  }
-  const assignment = resolveFuelRobTankAssignment(next, previous, beforePrevious);
-  next = {
-    ...next,
+  const assignment = resolveFuelRobTankAssignment(event, previous, beforePrevious);
+  let next: FuelLogEvent = {
+    ...event,
     meRobTank: assignment.me,
     aeRobTank: assignment.ae,
     boilerRobTank: assignment.boiler,
@@ -1481,15 +1598,66 @@ export function applyFuelConsumptionSideEffects(
 }
 
 /**
+ * Re-project ROB for app-added rows only, in chronological order.
+ * Imported Excel rows keep their ROB untouched; they only act as the baseline
+ * previous for the first new row after them.
+ */
+export function cascadeAppAddedFuelRob(
+  events: readonly FuelLogEvent[],
+): FuelLogEvent[] {
+  if (!events.length) return [];
+  const sorted = [...events].sort((a, b) =>
+    fuelEventChronoKey(a).localeCompare(fuelEventChronoKey(b)),
+  );
+  const projected: FuelLogEvent[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const e = sorted[i]!;
+    if (!isAppAddedFuelEvent(e)) {
+      projected.push(e);
+      continue;
+    }
+    const prev = i > 0 ? projected[i - 1]! : null;
+    const before = i > 1 ? projected[i - 2]! : null;
+    projected.push(projectFuelRobForEvent(e, prev, before));
+  }
+  const byId = new Map(projected.map((e) => [e.id, e]));
+  return events.map((e) => byId.get(e.id) ?? e);
+}
+
+/** Fields that trigger Total t + ROB rebuild when edited in the table. */
+export const FUEL_CONSUMPTION_EDIT_FIELDS = ['meMt', 'aeMt', 'boilerMt'] as const;
+export type FuelConsumptionEditField = (typeof FUEL_CONSUMPTION_EDIT_FIELDS)[number];
+
+export function isFuelConsumptionEditField(field: string): field is FuelConsumptionEditField {
+  return (FUEL_CONSUMPTION_EDIT_FIELDS as readonly string[]).includes(field);
+}
+
+/**
+ * Side effects when ME / AE / DMA consumption is edited in the table:
+ * - Total t stays Excel-faithful (m³ × density) — not rebuilt from ME+AE
+ * - ROB tanks = previous ROB − assigned consumption (clamped ≥ 0)
+ */
+export function applyFuelConsumptionSideEffects(
+  current: FuelLogEvent,
+  previous: FuelLogEvent | null | undefined,
+  beforePrevious: FuelLogEvent | null | undefined,
+  partial: Partial<Pick<FuelLogEvent, FuelConsumptionEditField>>,
+): FuelLogEvent {
+  return projectFuelRobForEvent({ ...current, ...partial }, previous, beforePrevious);
+}
+
+/**
  * Apply auto-calcs when drafting a new/edited event against the chronologically previous row.
  * - Hrs from elapsed time
- * - totalMt = ME + AE (kept for storage; not always shown in UI)
+ * - Total m³ = FMₙ − FMₙ₋₁
+ * - Total t = ROUND(m³ × density, 1)  (Excel H)
  * - ROB tanks = previous − assigned period consumption (clamped ≥ 0)
  */
 export function applyFuelEventAutoCalcs(
   draft: FuelLogEvent,
   previous: FuelLogEvent | null | undefined,
   beforePrevious?: FuelLogEvent | null,
+  preferredDensity?: number | null,
 ): FuelLogEvent {
   let next = { ...draft, kind: classifyFuelEvent(draft.rawEvent) };
   if (previous?.date && next.date) {
@@ -1498,7 +1666,10 @@ export function applyFuelEventAutoCalcs(
   }
   const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, previous?.fmMeAe);
   if (m3 != null) next = { ...next, totalM3: m3 };
-  const total = recomputeFuelTotalMt(next.meMt, next.aeMt);
+  // Per-row density (Excel H) — do not inherit from previous event.
+  const density = resolveFuelDensity(next, null, preferredDensity);
+  next = { ...next, density };
+  const total = recomputeFuelTotalMtFromM3(next.totalM3, density);
   if (total != null) next = { ...next, totalMt: total };
 
   if (previous) {
@@ -1514,25 +1685,7 @@ export function applyFuelEventAutoCalcs(
     if (boilerH != null) next = { ...next, boilerHours: boilerH };
   }
 
-  const assignment = resolveFuelRobTankAssignment(next, previous, beforePrevious);
-  next = {
-    ...next,
-    meRobTank: assignment.me,
-    aeRobTank: assignment.ae,
-    boilerRobTank: assignment.boiler,
-  };
-
-  if (previous) {
-    next = {
-      ...next,
-      ...projectFuelRobAfterConsumption(previous, assignment, {
-        meMt: next.meMt ?? 0,
-        aeMt: next.aeMt ?? 0,
-        boilerMt: next.boilerMt ?? 0,
-      }),
-    };
-  }
-  return next;
+  return projectFuelRobForEvent(next, previous, beforePrevious);
 }
 
 export function filterFuelEvents(

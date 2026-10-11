@@ -1,5 +1,5 @@
-// Feature store for the crew domain: the arrival / departure / archive lists and the
-// sync / preview / apply flows between them. The most intricate slice — list
+﻿// Feature store for the crew domain: the arrival / departure / archive lists and the
+// sync / preview / apply flows between them. The most intricate slice вЂ” list
 // membership is encoded on each member via onArrivalList / onDepartureList / archived /
 // archivedFromDeparture flags, and the two lists can be "linked" (in sync) or diverged.
 //
@@ -34,7 +34,7 @@ export class CrewStore {
       ...member,
     });
     this.data.update((d) => ({ ...d, crew: [...d.crew, newMember] }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     return newMember;
   }
 
@@ -178,7 +178,7 @@ export class CrewStore {
     };
   }
 
-  /** Active crew on arrival but not departure → archive. Returns count archived. */
+  /** Active crew on arrival but not departure в†’ archive. Returns count archived. */
   archiveArrivalOnlyCrew(notify: 'silent' | 'saved' = 'saved'): number {
     let count = 0;
     this.data.update((d) => ({
@@ -273,7 +273,7 @@ export class CrewStore {
     return [...ordered, ...rest];
   }
 
-  /** Remove from departure list → departure archive (stays on arrival if listed there). */
+  /** Remove from departure list в†’ departure archive (stays on arrival if listed there). */
   removeFromDepartureList(id: string): void {
     const member = this.data().crew.find((m) => m.id === id);
     if (!member) return;
@@ -314,7 +314,7 @@ export class CrewStore {
 
   removeCrewMember(id: string): void {
     this.data.update((d) => ({ ...d, crew: d.crew.filter((m) => m.id !== id) }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   setCrewDocumentAttached(crewId: string, docType: CrewDocumentType, attached: boolean): void {
@@ -329,7 +329,7 @@ export class CrewStore {
           : m,
       ),
     }));
-    void this.state.persist('debounced');
+    void this.state.persist('memory');
   }
 
   setCrewSignatureAttached(crewId: string, attached: boolean, fileName: string): void {
@@ -345,7 +345,7 @@ export class CrewStore {
           : m,
       ),
     }));
-    void this.state.persist('debounced');
+    void this.state.persist('memory');
   }
 
   reorderCrewList(list: CrewListKind, fromIndex: number, toIndex: number): void {
@@ -377,7 +377,7 @@ export class CrewStore {
       }
       return { ...d, crewDepartureOrder: reordered };
     });
-    void this.state.persist('debounced');
+    void this.state.persist('memory');
   }
 
   private reorderMembersInCrewArray(

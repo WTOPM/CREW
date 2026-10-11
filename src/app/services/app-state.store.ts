@@ -24,19 +24,20 @@ import { readLocalStorage, writeLocalStorage } from '../utils/browser-storage.ut
 
 const STORAGE_KEY = 'crew-app-data';
 
-/** Coalesce multi‑MB network writes while typing / toggling filters. */
-const PERSIST_DEBOUNCE_MS = 1400;
-
-export type PersistNotify = 'silent' | 'saved' | 'debounced';
+export type PersistNotify = 'silent' | 'saved' | 'debounced' | 'memory';
 
 function notifyRank(n: PersistNotify): number {
   if (n === 'saved') return 2;
-  if (n === 'debounced') return 1;
-  return 0;
+  if (n === 'debounced' || n === 'silent') return 1;
+  return 0; // memory
 }
 
 function maxNotify(a: PersistNotify, b: PersistNotify): PersistNotify {
   return notifyRank(a) >= notifyRank(b) ? a : b;
+}
+
+function cloneAppData(data: AppData): AppData {
+  return structuredClone(data);
 }
 
 export type AppInitResult = 'loaded' | 'missing' | 'error';
@@ -86,11 +87,15 @@ export class AppStateStore {
   /** Electron: false until crew-data.json is loaded or user completes first-run setup. */
   private electronBootstrapComplete = false;
 
-  /** Set when a modal form auto-saves silently; cleared after Saved toast on close. */
+  /**
+   * Settings-modal session: edits stay in RAM until Done / Save.
+   * Snapshot lets backdrop Discard restore prior state.
+   */
+  private formSessionActive = false;
   private formSessionDirty = false;
+  private formSessionSnapshot: AppData | null = null;
 
-  /** Disk write coalesce — memory updates stay instant; network write waits for idle. */
-  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Pending disk write — memory is already updated; disk waits for flushPersist. */
   private persistDirty = false;
   private pendingNotify: PersistNotify = 'silent';
   private pendingSavedMessage: string | undefined;
@@ -218,37 +223,99 @@ export class AppStateStore {
   }
 
   /**
-   * Schedule a coalesced disk write. Memory is already updated by the caller —
-   * this only hits the network/shared folder after ~1.4s idle (or flushPersist).
+   * Mark AppData dirty in memory. Does NOT write the shared/local file unless
+   * notify === 'saved' (immediate flush). Call flushPersist on Done / Save /
+   * tab switch / close / minimize.
    */
-  async persist(notify: PersistNotify = 'debounced', savedMessage?: string): Promise<void> {
-    this.queuePersist(notify, savedMessage);
-    this.scheduleDebouncedPersist();
+  async persist(notify: PersistNotify = 'memory', savedMessage?: string): Promise<void> {
+    if (this.formSessionActive && notify !== 'saved') {
+      this.formSessionDirty = true;
+      this.queuePersist('silent', savedMessage);
+      return;
+    }
+    if (notify === 'saved') {
+      this.queuePersist('saved', savedMessage);
+      await this.flushPersist();
+      return;
+    }
+    // memory / silent / debounced → RAM only until an explicit flush
+    this.queuePersist(notify === 'memory' ? 'silent' : notify, savedMessage);
   }
 
-  /** Write any pending changes now (navigation, quit, bootstrap). */
-  async flushPersist(notify?: PersistNotify, savedMessage?: string): Promise<void> {
-    if (notify != null) this.queuePersist(notify, savedMessage);
-    if (this.persistTimer != null) {
-      clearTimeout(this.persistTimer);
-      this.persistTimer = null;
+  /** True when a settings modal has unsaved in-memory edits. */
+  isFormSessionDirty(): boolean {
+    return this.formSessionActive && this.formSessionDirty;
+  }
+
+  isFormSessionActive(): boolean {
+    return this.formSessionActive;
+  }
+
+  /** Open a form-settings modal: snapshot memory so Discard can restore. */
+  async beginFormSession(): Promise<void> {
+    // Write any prior Home/ETA edits first so Discard only reverts this modal.
+    await this.flushPersist('silent');
+    this.formSessionActive = true;
+    this.formSessionDirty = false;
+    this.formSessionSnapshot = cloneAppData(this.data());
+  }
+
+  /** Done — write to disk only if something changed. */
+  async commitFormSession(savedMessage = 'Form changes saved'): Promise<void> {
+    const dirty = this.formSessionDirty || this.persistDirty;
+    this.formSessionActive = false;
+    this.formSessionSnapshot = null;
+    this.formSessionDirty = false;
+    this.toast.cancelDebouncedSaved();
+    if (!dirty) return;
+    await this.flushPersist('saved', savedMessage);
+  }
+
+  /** Discard modal edits and restore the snapshot from beginFormSession. */
+  discardFormSession(): void {
+    if (this.formSessionSnapshot) {
+      this.data.set(this.formSessionSnapshot);
     }
+    this.formSessionActive = false;
+    this.formSessionSnapshot = null;
+    this.formSessionDirty = false;
+    this.persistDirty = false;
+    this.pendingNotify = 'silent';
+    this.pendingSavedMessage = undefined;
+    this.toast.cancelDebouncedSaved();
+  }
+
+  /** Close modal with no edits — drop session without toast/write. */
+  endFormSessionClean(): void {
+    this.formSessionActive = false;
+    this.formSessionSnapshot = null;
+    this.formSessionDirty = false;
+    this.toast.cancelDebouncedSaved();
+  }
+
+  /** Write any pending changes now (navigation, quit, Done, Save). */
+  async flushPersist(notify?: PersistNotify, savedMessage?: string): Promise<void> {
+    // Settings modal owns its write via commitFormSession — don't flush mid-edit
+    // (minimize/blur would otherwise persist before Done / Discard).
+    if (this.formSessionActive && notify !== 'saved') {
+      if (notify != null) this.queuePersist(notify, savedMessage);
+      return;
+    }
+    if (notify != null) this.queuePersist(notify, savedMessage);
     if (!this.persistDirty && !this.persistInFlight) return;
     await this.runPersistCycle();
   }
 
   private queuePersist(notify: PersistNotify, savedMessage?: string): void {
     this.persistDirty = true;
-    this.pendingNotify = maxNotify(this.pendingNotify, notify);
+    const normalized = notify === 'memory' ? 'silent' : notify;
+    this.pendingNotify = maxNotify(this.pendingNotify, normalized);
     if (savedMessage) this.pendingSavedMessage = savedMessage;
   }
 
-  private scheduleDebouncedPersist(): void {
-    if (this.persistTimer != null) clearTimeout(this.persistTimer);
-    this.persistTimer = setTimeout(() => {
-      this.persistTimer = null;
-      void this.runPersistCycle();
-    }, PERSIST_DEBOUNCE_MS);
+  /** True when memory has edits not yet written to disk. */
+  hasPendingPersist(): boolean {
+    return this.persistDirty || !!this.persistInFlight;
   }
 
   private async runPersistCycle(): Promise<void> {
@@ -397,10 +464,10 @@ export class AppStateStore {
     this.afterPersist(notify, savedMessage);
   }
 
-  /** Save ship/voyage fields — Home edits; merge onto disk so other sections stay intact. */
-  async persistShip(notify: PersistNotify = 'silent', savedMessage?: string): Promise<void> {
+  /** Save ship/voyage fields — Home edits stay in RAM until flush (tab/Save/close). */
+  async persistShip(notify: PersistNotify = 'memory', savedMessage?: string): Promise<void> {
     if (!this.sectionLock.canPersist()) {
-      if (notify !== 'silent') {
+      if (notify === 'saved') {
         this.toast.show(
           'View only — another user is editing this section. Changes were not saved.',
           'warning',
@@ -411,17 +478,15 @@ export class AppStateStore {
 
     const electron = window.electronAPI;
     if (electron && !this.electronBootstrapComplete) {
-      if (notify !== 'silent') {
+      if (notify === 'saved') {
         this.toast.showError('Database is not ready — complete setup first');
       }
       return;
     }
 
-    // Typing draft/callsign etc.: coalesce with the main persist queue (ship is in memory).
-    // Explicit 'saved' still forces an immediate ship merge write.
+    // Typing port / dates / crew voyage fields: memory only.
     if (notify !== 'saved') {
-      this.queuePersist(notify === 'silent' ? 'debounced' : notify, savedMessage);
-      this.scheduleDebouncedPersist();
+      this.queuePersist('silent', savedMessage);
       return;
     }
 
@@ -460,24 +525,24 @@ export class AppStateStore {
   }
 
   private afterPersist(notify: PersistNotify, savedMessage?: string): void {
-    if (notify === 'silent') {
-      this.formSessionDirty = true;
-    } else if (notify === 'saved') {
+    if (notify === 'saved') {
       this.toast.cancelDebouncedSaved();
       if (savedMessage) this.toast.show(savedMessage, 'success');
       else this.toast.showSaved();
-      this.formSessionDirty = false;
-    } else if (notify === 'debounced') {
-      this.toast.debouncedSaved(1100, savedMessage);
+      return;
     }
+    // silent / debounced flushes (tab switch, minimize) — no toast spam
   }
 
-  /** Call when a Done / backdrop closes a settings modal (after silent auto-save). */
+  /**
+   * @deprecated Use beginFormSession / commitFormSession / discardFormSession.
+   * Kept so older call sites still clear toast state.
+   */
   finishFormSession(): void {
-    this.toast.cancelDebouncedSaved();
-    if (this.formSessionDirty) {
-      this.toast.showSaved('Form changes saved');
-      this.formSessionDirty = false;
+    if (this.formSessionActive) {
+      void this.commitFormSession();
+      return;
     }
+    this.toast.cancelDebouncedSaved();
   }
 }

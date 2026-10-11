@@ -1,4 +1,4 @@
-// Feature store for document output configuration: per-document stamp/signature overlay
+﻿// Feature store for document output configuration: per-document stamp/signature overlay
 // prefs, the bulk stamp toggle, ship stamp/signature assets, output (folder/printer)
 // settings, custom uploaded documents, and per-port print packages (authorities + items).
 //
@@ -127,7 +127,7 @@ export class DocumentSettingsStore {
         },
       };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updateShipAssets(partial: Partial<AppData['shipAssets']>): void {
@@ -135,7 +135,7 @@ export class DocumentSettingsStore {
       ...d,
       shipAssets: { ...d.shipAssets, ...partial },
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updateOutputSettings(
@@ -144,7 +144,7 @@ export class DocumentSettingsStore {
   ): void {
     this.data.update((d) => {
       const next: AppData['outputSettings'] = { ...d.outputSettings, ...partial };
-      // Flat path/ON fields without bySection → apply to Home (legacy callers).
+      // Flat path/ON fields without bySection в†’ apply to Home (legacy callers).
       if (
         partial.bySection === undefined &&
         (partial.saveToFolder !== undefined ||
@@ -257,7 +257,7 @@ export class DocumentSettingsStore {
       ...d,
       customDocuments: d.customDocuments.filter((doc) => doc.id !== id),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   /** Create an empty package for a port if it doesn't exist yet. */
@@ -276,7 +276,7 @@ export class DocumentSettingsStore {
       ...d,
       printPackages: d.printPackages.filter((pkg) => pkg.port !== port),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   addAuthority(port: string, name = 'New authority'): void {
@@ -310,7 +310,7 @@ export class DocumentSettingsStore {
       ...d,
       printPackages: d.printPackages.map((pkg) => (pkg.port === port ? fn(pkg) : pkg)),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   private mutateAuthority(

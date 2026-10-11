@@ -316,7 +316,7 @@ describe('importFuelLogFromExcelBytes', () => {
 });
 
 describe('writeFuelLogToExcelBytes', () => {
-  it('clears MASTER rows removed from the in-memory event list', async () => {
+  it('leaves historical MASTER rows untouched when they are not in the write list', async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Fuel Log MASTER');
     for (let r = 1; r <= 8; r++) ws.addRow([]);
@@ -334,7 +334,7 @@ describe('writeFuelLogToExcelBytes', () => {
     ws.getCell('F6').value = 105;
 
     const buf = await wb.xlsx.writeBuffer();
-    // Keep only BOSP — Noon should be wiped from Excel.
+    // Only rewrite BOSP — Noon must remain in the file (append-only policy).
     const events = [
       createEmptyFuelLogEvent({
         id: '1',
@@ -348,9 +348,68 @@ describe('writeFuelLogToExcelBytes', () => {
     ];
 
     const out = await writeFuelLogToExcelBytes(buf as ArrayBuffer, events);
-    const roundTrip = await importFuelLogFromExcelBytes(out.buffer as ArrayBuffer);
-    expect(roundTrip.events).toHaveLength(1);
-    expect(roundTrip.events[0].rawEvent).toBe('BOSP');
+    const roundTrip = await importFuelLogFromExcelBytes(out.bytes.buffer as ArrayBuffer);
+    expect(roundTrip.events.map((e) => e.rawEvent)).toEqual(['BOSP', 'Noon']);
+  });
+
+  it('appends new rows with Total t density formula and preserves existing H formulas', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Fuel Log MASTER');
+    for (let r = 1; r <= 8; r++) ws.addRow([]);
+
+    ws.getCell('A5').value = 'Sea';
+    ws.getCell('B5').value = 'BOSP';
+    ws.getCell('C5').value = new Date(Date.UTC(2026, 9, 1));
+    ws.getCell('D5').value = '08:00';
+    ws.getCell('F5').value = 100;
+    ws.getCell('G5').value = { formula: 'F5-0', result: 0 };
+    ws.getCell('H5').value = { formula: 'ROUND(G5*0.88,1)', result: 0 };
+
+    const buf = await wb.xlsx.writeBuffer();
+    const events = [
+      createEmptyFuelLogEvent({
+        id: '1',
+        place: 'Sea',
+        rawEvent: 'BOSP',
+        date: '2026-10-01',
+        time: '08:00',
+        fmMeAe: 110,
+        totalM3: 2.5,
+        totalMt: 2.2,
+        density: 0.88,
+        sourceRow: 5,
+      }),
+      createEmptyFuelLogEvent({
+        id: '2',
+        place: 'Sea',
+        rawEvent: 'Noon',
+        date: '2026-10-01',
+        time: '12:00',
+        fmMeAe: 105,
+        totalM3: 5,
+        density: 0.9,
+        sourceRow: 0,
+      }),
+    ];
+
+    const out = await writeFuelLogToExcelBytes(buf as ArrayBuffer, events);
+    expect(out.written).toHaveLength(2);
+    expect(out.written[1]!.sourceRow).toBe(6);
+    expect(out.written[1]!.writeStatus).toBe('synced');
+    const wb2 = new ExcelJS.Workbook();
+    await wb2.xlsx.load(out.bytes.buffer as ExcelJS.Buffer);
+    const master = wb2.getWorksheet('Fuel Log MASTER')!;
+    // Existing H formula must survive the rewrite of F.
+    expect(String((master.getCell('H5').value as { formula?: string })?.formula ?? '')).toMatch(
+      /ROUND\(G5\*0\.88/i,
+    );
+    expect(master.getCell('F5').value).toBe(110);
+    // Appended row gets density formula.
+    expect(master.getCell('A6').value).toBe('Sea');
+    expect(master.getCell('B6').value).toBe('Noon');
+    expect(String((master.getCell('H6').value as { formula?: string })?.formula ?? '')).toMatch(
+      /ROUND\(G6\*0\.9/i,
+    );
   });
 
   it('writes over shared-formula columns without crashing', async () => {
@@ -397,9 +456,9 @@ describe('writeFuelLogToExcelBytes', () => {
     ];
 
     const out = await writeFuelLogToExcelBytes(buf as ArrayBuffer, events);
-    expect(out.byteLength).toBeGreaterThan(1000);
+    expect(out.bytes.byteLength).toBeGreaterThan(1000);
 
-    const roundTrip = await importFuelLogFromExcelBytes(out.buffer as ArrayBuffer);
+    const roundTrip = await importFuelLogFromExcelBytes(out.bytes.buffer as ArrayBuffer);
     expect(roundTrip.events.some((e) => e.rawEvent === 'Noon' && e.boilerMt === 0.5)).toBe(true);
   });
 });

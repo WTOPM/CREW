@@ -1,8 +1,8 @@
-<div class="nav-docs">
+﻿<div class="nav-docs">
   <div class="doc-menu doc-menu--crew">
     <button type="button" class="nav-doc-btn" aria-haspopup="true" title="Crew list">
       CREW
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel doc-menu-panel--crew" role="menu">
       @for (id of crewListDocIds; track id) {
@@ -45,7 +45,7 @@
   <div class="doc-menu doc-menu--pax">
     <button type="button" class="nav-doc-btn" aria-haspopup="true" title="Passenger list">
       PAX
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel doc-menu-panel--pax" role="menu">
       @for (id of paxListDocIds; track id) {
@@ -88,7 +88,7 @@
   <div class="doc-menu doc-menu--port">
     <button type="button" class="nav-doc-btn section-readonly-allow" aria-haspopup="true" title="Port of call">
       PORT
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openPortOfCallPdf()">
@@ -125,7 +125,7 @@
   <div class="doc-menu doc-menu--stores">
     <button type="button" class="nav-doc-btn section-readonly-allow" aria-haspopup="true" title="Ship stores">
       STORES
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openShipStores()">
@@ -157,7 +157,7 @@
   <div class="doc-menu doc-menu--effect">
     <button type="button" class="nav-doc-btn section-readonly-allow" aria-haspopup="true" title="Crew effect">
       EFFECT
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openCrewEffect()">
@@ -189,7 +189,7 @@
   <div class="doc-menu doc-menu--nil">
     <button type="button" class="nav-doc-btn section-readonly-allow" aria-haspopup="true" title="NIL list">
       NIL
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openNilList()">
@@ -215,7 +215,7 @@
   <div class="doc-menu doc-menu--money">
     <button type="button" class="nav-doc-btn section-readonly-allow" aria-haspopup="true" title="Money documents">
       MONEY
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openShipMoney()">
@@ -247,7 +247,7 @@
   <div class="doc-menu doc-menu--narcotic">
     <button type="button" class="nav-doc-btn section-readonly-allow" aria-haspopup="true" title="Narcotic list">
       NARCOTIC
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openNarcoticList()">
@@ -273,7 +273,7 @@
   <div class="doc-menu doc-menu--mdh">
     <button type="button" class="nav-doc-btn section-readonly-allow" aria-haspopup="true" title="MDH">
       MDH
-      <span class="doc-menu-chevron" aria-hidden="true">▾</span>
+      <span class="doc-menu-chevron" aria-hidden="true">&#9662;</span>
     </button>
     <div class="doc-menu-panel" role="menu">
       <button type="button" class="doc-menu-item section-readonly-allow" role="menuitem" (click)="openMdh()">
@@ -308,7 +308,7 @@
     <div
       class="modal modal-narrow doc-overlay-modal"
       appClickOutside
-      (appClickOutside)="closeCrewListSettings()"
+      (appClickOutside)="closeCrewListSettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <h3>Crew list settings</h3>
@@ -327,7 +327,7 @@
     <div
       class="modal modal-narrow doc-overlay-modal"
       appClickOutside
-      (appClickOutside)="closePaxSettings()"
+      (appClickOutside)="closePaxSettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <h3>Passenger list settings</h3>
@@ -344,7 +344,7 @@
     <div
       class="modal modal-wide ss-modal"
       appClickOutside
-      (appClickOutside)="closeShipStoresSettings()"
+      (appClickOutside)="closeShipStoresSettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <header class="ss-modal-head">
@@ -387,7 +387,7 @@
     <div
       class="modal modal-wide ss-modal"
       appClickOutside
-      (appClickOutside)="closeCrewEffectSettings()"
+      (appClickOutside)="closeCrewEffectSettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <header class="ss-modal-head">
@@ -430,7 +430,7 @@
     <div
       class="modal modal-wide nil-modal"
       appClickOutside
-      (appClickOutside)="closeNilListSettings()"
+      (appClickOutside)="closeNilListSettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <header class="nil-modal-head">
@@ -449,7 +449,7 @@
     <div
       class="modal modal-wide sm-modal"
       appClickOutside
-      (appClickOutside)="closeMoneySettings()"
+      (appClickOutside)="closeMoneySettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <header class="sm-modal-head">
@@ -497,7 +497,7 @@
     <div
       class="modal modal-wide nl-modal"
       appClickOutside
-      (appClickOutside)="closeNarcoticListSettings()"
+      (appClickOutside)="closeNarcoticListSettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <header class="nl-modal-head">
@@ -518,7 +518,7 @@
     <div
       class="modal modal-narrow doc-overlay-modal"
       appClickOutside
-      (appClickOutside)="closeMdhSettings()"
+      (appClickOutside)="closeMdhSettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <h3>MDH Settings</h3>
@@ -583,7 +583,7 @@
     <div
       class="modal modal-wide poc-modal"
       appClickOutside
-      (appClickOutside)="closePortOfCallSettings()"
+      (appClickOutside)="closePortOfCallSettings('backdrop')"
       (click)="$event.stopPropagation()"
     >
       <header class="poc-modal-head">
@@ -715,7 +715,7 @@
                       title="Remove port call"
                       (click)="removePortCallRow(row.id)"
                     >
-                      ×
+                      Г—
                     </button>
                   </td>
                 </tr>

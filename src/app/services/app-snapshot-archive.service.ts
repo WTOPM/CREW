@@ -100,7 +100,8 @@ export class AppSnapshotArchiveService {
           appSnapshots: this.sortNewestFirst([entry, ...d.appSnapshots]),
         };
       });
-      void this.state.persist('silent');
+      // Home Save must hit disk — in-memory voyage edits are included in the snapshot.
+      void this.state.persist('saved', `Saved snapshot "${entry.label}"`);
       return entry;
     } finally {
       this.saving.set(false);

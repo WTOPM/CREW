@@ -134,7 +134,11 @@ export interface ShipInfo {
   presentMarsecLevel: string;
 }
 
-/** Select / date fields — toast on commit (blur / pick), not while typing. */
+/**
+ * Select / date fields that used to force an immediate disk write.
+ * Kept for reference; Home now keeps all ship edits in memory until
+ * Save / tab switch / close / minimize (see shipFieldPersistNotify).
+ */
 export const SHIP_FIELDS_SAVED_ON_CHANGE: readonly (keyof ShipInfo)[] = [
   'lastPortOfCall',
   'portOfCall',
@@ -186,8 +190,9 @@ export function shipFieldUpdatedMessage(field: keyof ShipInfo): string {
   return SHIP_FIELD_UPDATED_MESSAGES[field] ?? 'Ship data updated';
 }
 
-export function shipFieldPersistNotify(field: keyof ShipInfo): 'saved' | 'debounced' {
-  return (SHIP_FIELDS_SAVED_ON_CHANGE as readonly string[]).includes(field) ? 'saved' : 'debounced';
+/** Home ship fields: always memory-only (flush on Save / tab / close). */
+export function shipFieldPersistNotify(_field: keyof ShipInfo): 'memory' {
+  return 'memory';
 }
 
 export type PersonGender = 'MALE' | 'FEMALE';

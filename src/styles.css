@@ -35,6 +35,12 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Fuel Total t density drag — hide system cursor; HUD stays fixed. */
+html.fuel-density-dragging,
+html.fuel-density-dragging * {
+  cursor: none !important;
+}
+
 .page {
   max-width: 1200px;
   margin: 0 auto;
@@ -4805,6 +4811,10 @@ html.html-form-excel-embed app-root {
   z-index: 1200 !important;
 }
 
+.cdk-overlay-container .rcs-overlay-panel {
+  z-index: 1200 !important;
+}
+
 .date-picker-popup {
   min-width: 20rem;
   padding: 0.85rem;
@@ -4994,4 +5004,16 @@ html.html-form-excel-embed app-root {
 
 .date-picker-popup .cal-foot-btn--muted:hover {
   background: #f1f5f9;
+}
+
+/* Fuel Add-event modal: freeze page scroll; only the modal body scrolls. */
+html.fuel-event-modal-scroll-lock,
+html.fuel-event-modal-scroll-lock body {
+  overflow: hidden !important;
+}
+
+/* Documents / settings modals: freeze page; wheel only inside the modal. */
+html.modal-scroll-lock,
+html.modal-scroll-lock body {
+  overflow: hidden !important;
 }

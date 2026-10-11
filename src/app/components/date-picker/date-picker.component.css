@@ -82,5 +82,18 @@
 
 :host(.eta-sched-date) .date-picker-input {
   color: #1d4ed8;
-  font-weight: 600;
+}
+
+/* Fuel Edit: writeStatus date colors (draft / ready; synced = default). */
+:host(.fuel-date--draft) .date-picker-input,
+:host(.fuel-date--ready) .date-picker-input {
+  font-weight: 700;
+}
+
+:host(.fuel-date--draft) .date-picker-input {
+  color: #dc2626;
+}
+
+:host(.fuel-date--ready) .date-picker-input {
+  color: #7c3aed;
 }

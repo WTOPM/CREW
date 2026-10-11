@@ -1,6 +1,6 @@
-// Feature store for user-managed reference lists: ports (+ terminals), ranks,
+﻿// Feature store for user-managed reference lists: ports (+ terminals), ranks,
 // nationalities. These are suggestion lists edited in Settings; deletions are permanent
-// (see CLAUDE.md). State is shared via AppStateStore — this store only owns the
+// (see CLAUDE.md). State is shared via AppStateStore вЂ” this store only owns the
 // reference-list slice of selectors + mutations.
 
 import { Injectable, computed, inject } from '@angular/core';
@@ -25,13 +25,13 @@ export class ReferenceListsStore {
       ...d,
       ports: mergePorts(d.ports, { name: n, code: code.trim(), country: country.trim() }),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     this.toast.showPortAdded();
   }
 
   removePort(name: string): void {
     this.data.update((d) => ({ ...d, ports: d.ports.filter((p) => p.name !== name) }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     this.toast.showPortDeleted();
   }
 
@@ -47,7 +47,7 @@ export class ReferenceListsStore {
         return { ...p, terminals };
       }),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   removePortTerminal(portName: string, terminalIndex: number): void {
@@ -59,7 +59,7 @@ export class ReferenceListsStore {
         return { ...p, terminals };
       }),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   reorderPorts(previousIndex: number, currentIndex: number): void {
@@ -76,13 +76,13 @@ export class ReferenceListsStore {
     const v = name.trim();
     if (!v) return;
     this.data.update((d) => ({ ...d, ranks: mergeUniqueList(d.ranks, v) }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     this.toast.showRankAdded();
   }
 
   removeRank(name: string): void {
     this.data.update((d) => ({ ...d, ranks: d.ranks.filter((r) => r !== name) }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     this.toast.showRankDeleted();
   }
 
@@ -100,13 +100,13 @@ export class ReferenceListsStore {
     const v = name.trim();
     if (!v) return;
     this.data.update((d) => ({ ...d, nationalities: mergeUniqueList(d.nationalities, v) }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     this.toast.showNationalityAdded();
   }
 
   removeNationality(name: string): void {
     this.data.update((d) => ({ ...d, nationalities: d.nationalities.filter((n) => n !== name) }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     this.toast.showNationalityDeleted();
   }
 

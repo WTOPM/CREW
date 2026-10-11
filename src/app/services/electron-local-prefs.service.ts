@@ -70,6 +70,7 @@ export class ElectronLocalPrefsService {
         fuelHoursAsHm: next.hoursAsHm,
         fuelShowUtc: next.showUtc,
         fuelUtcOffsetHours: next.utcOffsetHours,
+        fuelActiveTab: next.activeTab,
         // Clear legacy shared-looking field so it is not re-imported forever.
         fuelDisplayPresets: [],
       });
@@ -93,6 +94,7 @@ export class ElectronLocalPrefsService {
         hoursAsHm: next.fuelHoursAsHm,
         showUtc: next.fuelShowUtc,
         utcOffsetHours: next.fuelUtcOffsetHours,
+        activeTab: next.fuelActiveTab,
       }),
     );
     const legacy = normalizeFuelDisplayPresets(next.fuelDisplayPresets);

@@ -16,12 +16,11 @@
 }
 
 .rcs__list {
-  position: fixed;
-  z-index: 10050;
   margin: 0;
   padding: 0.2rem 0;
   list-style: none;
   overflow: auto;
+  max-height: 240px;
   border: 1px solid #fda4af;
   border-radius: 8px;
   background: #fff;
@@ -41,7 +40,20 @@
 }
 
 .rcs__option:hover,
+.rcs__option--active,
 .rcs__option--selected {
   background: #ffe4e6;
   color: #9f1239;
+}
+
+.rcs__list--fuel {
+  border-color: #fdba74;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 12%);
+}
+
+.rcs__list--fuel .rcs__option:hover,
+.rcs__list--fuel .rcs__option--active,
+.rcs__list--fuel .rcs__option--selected {
+  background: #fff7ed;
+  color: #9a3412;
 }

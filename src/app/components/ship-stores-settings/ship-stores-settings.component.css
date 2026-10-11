@@ -183,6 +183,7 @@
 .ss-table-wrap {
   max-height: min(56vh, 32rem);
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid #94a3b8;
   border-radius: 10px;
   background: #fff;

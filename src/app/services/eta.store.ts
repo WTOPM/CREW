@@ -23,54 +23,37 @@ import {
 } from '../models/eta.models';
 import { AppStateStore } from './app-state.store';
 
-/** Coalesce disk writes while typing (full crew-data.json is multi‑MB). */
-const ETA_PERSIST_DEBOUNCE_MS = 450;
-
 @Injectable({ providedIn: 'root' })
 export class EtaStore {
   private readonly state = inject(AppStateStore);
   private readonly data = this.state.data;
-  private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
   private touchDraft(draft: EtaPlan): EtaPlan {
     return { ...draft, updatedAt: new Date().toISOString() };
   }
 
   /**
-   * Update etaLibrary in memory immediately; debounce silent disk writes.
-   * Immediate persist for 'saved' (and after flush).
-   * Skips re-normalizing the whole library on each keystroke — data is already trusted in-app.
+   * Update etaLibrary in memory immediately. Disk write only on 'saved' (SAVE)
+   * or an explicit flushPersist (tab leave / close / minimize).
    */
   private updateLibrary(
     mutator: (lib: EtaLibrarySettings) => EtaLibrarySettings,
-    notify: 'silent' | 'saved' = 'silent',
+    notify: 'silent' | 'saved' | 'memory' = 'memory',
   ): void {
     this.data.update((d) => ({
       ...d,
       etaLibrary: mutator(d.etaLibrary),
     }));
     if (notify === 'saved') {
-      this.flushPersist('saved');
+      void this.state.persist('saved');
       return;
     }
-    this.schedulePersist();
+    void this.state.persist('memory');
   }
 
-  private schedulePersist(): void {
-    if (this.persistTimer != null) clearTimeout(this.persistTimer);
-    this.persistTimer = setTimeout(() => {
-      this.persistTimer = null;
-      void this.state.persist('silent');
-    }, ETA_PERSIST_DEBOUNCE_MS);
-  }
-
-  /** Flush any pending ETA write (route leave, save, quit). */
+  /** Flush pending ETA (+ rest of AppData) to disk. */
   flushPersist(notify: 'silent' | 'saved' = 'silent'): void {
-    if (this.persistTimer != null) {
-      clearTimeout(this.persistTimer);
-      this.persistTimer = null;
-    }
-    void this.state.persist(notify);
+    void this.state.flushPersist(notify);
   }
 
   updateDraft(partial: Partial<EtaPlan>, notify: 'silent' | 'saved' = 'silent'): void {
@@ -226,7 +209,7 @@ export class EtaStore {
         plans: lib.plans.map((plan) => applyEtaGpsByWaypointName(plan, name, coords)),
       };
     });
-    this.flushPersist('silent');
+    void this.state.persist('memory');
   }
 
   /** Create or update a catalog entry (modal editor). Syncs matching route labels. */
@@ -282,7 +265,7 @@ export class EtaStore {
         plans,
       };
     });
-    this.flushPersist('silent');
+    void this.state.persist('memory');
     return { ok: true };
   }
 
@@ -297,7 +280,6 @@ export class EtaStore {
         plans: lib.plans.map((plan) => applyEtaGpsByWaypointName(plan, removed.name, null)),
       };
     });
-    this.flushPersist('silent');
   }
 
   reorderWaypoints(fromIndex: number, toIndex: number): void {
@@ -305,7 +287,6 @@ export class EtaStore {
       ...lib,
       waypoints: reorderEtaWaypoints(lib.waypoints ?? [], fromIndex, toIndex),
     }));
-    this.flushPersist('silent');
   }
 
   lookupWaypointGps(name: string): EtaGpsCoords | null {
@@ -385,7 +366,6 @@ export class EtaStore {
         activePlanId: null,
       };
     });
-    this.flushPersist('silent');
   }
 
   deletePlan(planId: string): void {

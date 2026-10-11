@@ -1,4 +1,4 @@
-<div class="rcs">
+<div class="rcs" cdkOverlayOrigin #origin="cdkOverlayOrigin">
   @if (multiline()) {
     <textarea
       #filterInput
@@ -39,25 +39,35 @@
     />
   }
 </div>
-@if (open() && filtered().length) {
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="origin"
+  [cdkConnectedOverlayOpen]="panelOpen()"
+  [cdkConnectedOverlayPositions]="overlayPositions"
+  [cdkConnectedOverlayPush]="true"
+  [cdkConnectedOverlayViewportMargin]="8"
+  [cdkConnectedOverlayWidth]="overlayWidth()"
+  [cdkConnectedOverlayPanelClass]="'rcs-overlay-panel'"
+  (overlayOutsideClick)="onOverlayOutsideClick()"
+>
   <ul
     #panel
     class="rcs__list"
+    [class.rcs__list--fuel]="listTone() === 'fuel'"
     role="listbox"
-    [style.top.px]="panelPos().top"
-    [style.left.px]="panelPos().left"
-    [style.width.px]="panelPos().width"
-    [style.maxHeight.px]="panelPos().maxHeight"
   >
-    @for (opt of filtered(); track opt) {
+    @for (opt of filtered(); track opt; let i = $index) {
       <li
         class="rcs__option"
         role="option"
         [class.rcs__option--selected]="opt === draft()"
+        [class.rcs__option--active]="i === activeIndex()"
         (mousedown)="pick(opt, $event)"
+        (mouseenter)="activeIndex.set(i)"
       >
         {{ opt }}
       </li>
     }
   </ul>
-}
+</ng-template>

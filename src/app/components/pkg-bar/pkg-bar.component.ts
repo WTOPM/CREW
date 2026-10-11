@@ -108,7 +108,7 @@ export class PkgBarComponent {
       }
       this.showSavePanel.set(false);
       this.saveLabel = '';
-      this.toast.show(`Updated snapshot "${entry.label}"`, 'success');
+      // Toast comes from persist('saved') inside archive.save
       return;
     }
 
@@ -119,7 +119,6 @@ export class PkgBarComponent {
     }
     this.showSavePanel.set(false);
     this.saveLabel = '';
-    this.toast.show(`Saved snapshot "${entry.label}"`, 'success');
   }
 
   protected openLoad(): void {

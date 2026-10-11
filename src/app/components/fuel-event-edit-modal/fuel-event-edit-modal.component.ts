@@ -1,9 +1,20 @@
-import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePickerComponent } from '../date-picker/date-picker.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import {
+  FUEL_DEFAULT_DENSITY,
   FUEL_EVENT_KIND_LABELS,
   FUEL_RAW_EVENT_OPTIONS,
   FUEL_ROB_TANK_LABELS,
@@ -15,10 +26,15 @@ import {
   findPreviousFuelEvent,
   formatFuelHoursHm,
   fuelRobValue,
+  normalizeFuelDensity,
   type FuelLogEvent,
   type FuelRobTankId,
 } from '../../models/fuel.models';
 import { StorageService } from '../../services/storage.service';
+import {
+  acquireModalScrollLock,
+  releaseModalScrollLock,
+} from '../../utils/modal-scroll-lock.util';
 
 @Component({
   selector: 'app-fuel-event-edit-modal',
@@ -28,10 +44,18 @@ import { StorageService } from '../../services/storage.service';
 })
 export class FuelEventEditModalComponent {
   private readonly storage = inject(StorageService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    acquireModalScrollLock();
+    this.destroyRef.onDestroy(() => releaseModalScrollLock());
+  }
 
   readonly seed = input<Partial<FuelLogEvent> | null>(null);
   readonly allEvents = input<readonly FuelLogEvent[]>([]);
   readonly hoursAsHm = input(false);
+  /** Last density from library — default for new rows (~0.88). */
+  readonly preferredDensity = input<number | null>(FUEL_DEFAULT_DENSITY);
   readonly save = output<FuelLogEvent>();
   readonly cancel = output<void>();
 
@@ -40,14 +64,27 @@ export class FuelEventEditModalComponent {
   protected readonly robTankLabels = FUEL_ROB_TANK_LABELS;
   protected readonly robTankTips = FUEL_ROB_TANK_TIPS;
 
+  /**
+   * Draft resets only when `seed` identity changes (parent sets it once on open).
+   * `allEvents` / `preferredDensity` are read untracked so table refreshes
+   * cannot wipe Now / time / fuel edits mid-session.
+   */
   protected readonly draft = linkedSignal(() => {
+    const seed = this.seed() ?? {};
+    const preferred = untracked(
+      () => this.preferredDensity() ?? FUEL_DEFAULT_DENSITY,
+    );
     const base = createEmptyFuelLogEvent({
-      id: `fuel-new-${Date.now()}`,
-      ...this.seed(),
+      id: seed.id ?? `fuel-new-${Date.now()}`,
+      density: preferred,
+      ...seed,
     });
-    const prev = findPreviousFuelEvent(this.allEvents(), base.date, base.time, base.id);
-    const before = findFuelEventBeforePrevious(this.allEvents(), prev);
-    return createEmptyFuelLogEvent(applyFuelEventAutoCalcs(base, prev, before));
+    const events = untracked(() => this.allEvents());
+    const prev = findPreviousFuelEvent(events, base.date, base.time, base.id);
+    const before = findFuelEventBeforePrevious(events, prev);
+    return createEmptyFuelLogEvent(
+      applyFuelEventAutoCalcs(base, prev, before, preferred),
+    );
   });
 
   protected readonly previous = computed(() => {
@@ -116,7 +153,9 @@ export class FuelEventEditModalComponent {
   private applyAuto(next: FuelLogEvent): FuelLogEvent {
     const prev = findPreviousFuelEvent(this.allEvents(), next.date, next.time, next.id);
     const before = findFuelEventBeforePrevious(this.allEvents(), prev);
-    return createEmptyFuelLogEvent(applyFuelEventAutoCalcs(next, prev, before));
+    return createEmptyFuelLogEvent(
+      applyFuelEventAutoCalcs(next, prev, before, this.preferredDensity()),
+    );
   }
 
   protected updateField<K extends keyof FuelLogEvent>(key: K, value: FuelLogEvent[K]): void {
@@ -125,6 +164,7 @@ export class FuelEventEditModalComponent {
       key === 'rawEvent' ||
       key === 'date' ||
       key === 'time' ||
+      key === 'density' ||
       key === 'meMt' ||
       key === 'aeMt' ||
       key === 'boilerMt' ||
@@ -137,6 +177,17 @@ export class FuelEventEditModalComponent {
       next = createEmptyFuelLogEvent(next);
     }
     this.draft.set(next);
+  }
+
+  protected onDensity(raw: string): void {
+    const n = normalizeFuelDensity(raw);
+    this.updateField('density', n);
+  }
+
+  protected nudgeDensity(dir: 1 | -1): void {
+    const cur = this.draft().density ?? this.preferredDensity() ?? FUEL_DEFAULT_DENSITY;
+    const next = normalizeFuelDensity(Math.round((cur + dir * 0.001) * 1000) / 1000);
+    if (next != null) this.updateField('density', next);
   }
 
   protected onRawEventPick(value: string): void {
@@ -179,10 +230,6 @@ export class FuelEventEditModalComponent {
   protected onRobTank(field: 'meRobTank' | 'aeRobTank' | 'boilerRobTank', raw: string): void {
     const tank = (raw === 'rmd' || raw === 'b100' || raw === 'dma' ? raw : null) as FuelRobTankId | null;
     this.updateField(field, tank);
-  }
-
-  protected recalc(): void {
-    this.draft.set(this.applyAuto(this.draft()));
   }
 
   protected submit(): void {

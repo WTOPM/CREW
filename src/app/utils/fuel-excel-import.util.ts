@@ -2,6 +2,10 @@ import ExcelJS from 'exceljs';
 import {
   classifyFuelEvent,
   createEmptyFuelLogEvent,
+  FUEL_DEFAULT_DENSITY,
+  inferFuelDensityFromMtM3,
+  normalizeFuelDensity,
+  recomputeFuelTotalMtFromM3,
   type FuelLogEvent,
   type FuelMasterSummary,
 } from '../models/fuel.models';
@@ -61,6 +65,7 @@ interface MasterFuelRow {
   fmMeAe: number | null;
   totalM3: number | null;
   totalMt: number | null;
+  density: number | null;
   meMt: number | null;
   aeMt: number | null;
   robRmdMt: number | null;
@@ -102,6 +107,8 @@ function indexMasterRows(ws: ExcelJS.Worksheet): MasterIndex {
 
     const fmMeAe = cellNum1(row.getCell(6));
     const trustPeriodFormulas = fmMeAe != null;
+    const totalM3 = periodNum(row.getCell(7), trustPeriodFormulas);
+    const totalMt = periodNum(row.getCell(8), trustPeriodFormulas);
     const entry: MasterFuelRow = {
       sourceRow: r,
       place,
@@ -110,8 +117,9 @@ function indexMasterRows(ws: ExcelJS.Worksheet): MasterIndex {
       time,
       timeUsedHours: cellNum1(row.getCell(5)),
       fmMeAe,
-      totalM3: periodNum(row.getCell(7), trustPeriodFormulas),
-      totalMt: periodNum(row.getCell(8), trustPeriodFormulas),
+      totalM3,
+      totalMt,
+      density: densityFromTotalMtCell(row.getCell(8), totalMt, totalM3),
       meMt: periodNum(row.getCell(9), trustPeriodFormulas),
       aeMt: periodNum(row.getCell(10), trustPeriodFormulas),
       robRmdMt: cellNum1(row.getCell(11)),
@@ -171,6 +179,12 @@ function importFromCengSpine(
 
     const fmMeAe = preferCeng(cellNum1(row.getCell(6)), m?.fmMeAe);
     const trustPeriodFormulas = fmMeAe != null;
+    const totalM3 = preferCeng(periodNum(row.getCell(7), trustPeriodFormulas), m?.totalM3);
+    const totalMt = preferCeng(periodNum(row.getCell(8), trustPeriodFormulas), m?.totalMt);
+    const density =
+      densityFromTotalMtCell(row.getCell(8), totalMt, totalM3) ??
+      m?.density ??
+      inferFuelDensityFromMtM3(totalMt, totalM3);
 
     events.push(
       createEmptyFuelLogEvent({
@@ -182,8 +196,9 @@ function importFromCengSpine(
         time,
         timeUsedHours: preferCeng(cellNum1(row.getCell(5)), m?.timeUsedHours),
         fmMeAe,
-        totalM3: preferCeng(periodNum(row.getCell(7), trustPeriodFormulas), m?.totalM3),
-        totalMt: preferCeng(periodNum(row.getCell(8), trustPeriodFormulas), m?.totalMt),
+        totalM3,
+        totalMt,
+        density,
         meMt: preferCeng(periodNum(row.getCell(9), trustPeriodFormulas), m?.meMt),
         aeMt: preferCeng(periodNum(row.getCell(10), trustPeriodFormulas), m?.aeMt),
         robRmdMt: preferCeng(cellNum1(row.getCell(11)), m?.robRmdMt),
@@ -247,6 +262,8 @@ function importFromMasterOnly(master: ExcelJS.Worksheet, warnings: string[]): Fu
     const kind = classifyFuelEvent(rawEvent);
     const fmMeAe = cellNum1(row.getCell(6));
     const trustPeriodFormulas = fmMeAe != null;
+    const totalM3 = periodNum(row.getCell(7), trustPeriodFormulas);
+    const totalMt = periodNum(row.getCell(8), trustPeriodFormulas);
 
     events.push(
       createEmptyFuelLogEvent({
@@ -258,8 +275,9 @@ function importFromMasterOnly(master: ExcelJS.Worksheet, warnings: string[]): Fu
         time,
         timeUsedHours: cellNum1(row.getCell(5)),
         fmMeAe,
-        totalM3: periodNum(row.getCell(7), trustPeriodFormulas),
-        totalMt: periodNum(row.getCell(8), trustPeriodFormulas),
+        totalM3,
+        totalMt,
+        density: densityFromTotalMtCell(row.getCell(8), totalMt, totalM3),
         meMt: periodNum(row.getCell(9), trustPeriodFormulas),
         aeMt: periodNum(row.getCell(10), trustPeriodFormulas),
         robRmdMt: cellNum1(row.getCell(11)),
@@ -302,6 +320,7 @@ function appendMasterOnlyRows(
         fmMeAe: m.fmMeAe,
         totalM3: m.totalM3,
         totalMt: m.totalMt,
+        density: m.density,
         meMt: m.meMt,
         aeMt: m.aeMt,
         robRmdMt: m.robRmdMt,
@@ -318,15 +337,24 @@ function appendMasterOnlyRows(
   }
 }
 
+export interface FuelExcelWriteResult {
+  bytes: Uint8Array;
+  /** Events as written, with sourceRow assigned for new appends. */
+  written: FuelLogEvent[];
+}
+
 /**
  * Write Fuel Log MASTER (+ matching CENG rows) from in-memory events.
- * Updates existing sourceRow cells; appends new rows after the last used MASTER row;
- * clears MASTER/CENG rows that are no longer in the event list (deleted in the UI).
+ * - Existing Excel rows: update editable cells; never overwrite Total m³ / Total t
+ *   formulas (G/H) so FO-VPC formulas stay intact.
+ * - New events (sourceRow 0): append after the last used MASTER row.
+ * - Does not clear historical Excel rows (old data left untouched).
+ * Caller should pass only `writeStatus === 'ready'` rows.
  */
 export async function writeFuelLogToExcelBytes(
   bytes: ArrayBuffer | Uint8Array,
   events: readonly FuelLogEvent[],
-): Promise<Uint8Array> {
+): Promise<FuelExcelWriteResult> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(bytes as ExcelJS.Buffer);
   const master =
@@ -337,32 +365,6 @@ export async function writeFuelLogToExcelBytes(
   }
   const ceng = findCengWorksheet(wb);
 
-  // ExcelJS throws on write when shared-formula masters are overwritten while
-  // clones remain. Flatten to cached results before we patch cells.
-  flattenSharedFormulas(master, 1, 18);
-  if (ceng) flattenSharedFormulas(ceng, 1, 36);
-
-  // Drop rows removed in the app so they disappear from Excel on save.
-  const keptMasterRows = new Set(
-    events.map((e) => e.sourceRow).filter((r) => r >= 5),
-  );
-  for (let r = 5; r <= master.rowCount; r++) {
-    const place = cellText(master.getRow(r).getCell(1));
-    const rawEvent = cellText(master.getRow(r).getCell(2));
-    if (!place && !rawEvent) continue;
-    if (keptMasterRows.has(r)) continue;
-    clearMasterRow(master, r);
-  }
-  if (ceng) {
-    for (let r = 3; r <= ceng.rowCount; r++) {
-      const place = cellText(ceng.getRow(r).getCell(1));
-      const rawEvent = cellText(ceng.getRow(r).getCell(2));
-      if (!place && !rawEvent) continue;
-      if (events.some((e) => cengRowMatchesEvent(ceng, r, e))) continue;
-      clearCengRow(ceng, r);
-    }
-  }
-
   let nextMasterRow = 5;
   for (let r = 5; r <= master.rowCount; r++) {
     const place = cellText(master.getRow(r).getCell(1));
@@ -370,20 +372,36 @@ export async function writeFuelLogToExcelBytes(
     if (place || rawEvent) nextMasterRow = r + 1;
   }
 
+  // Never flatten/overwrite G (Total m³) / H (Total t) on existing rows —
+  // those hold FO-VPC formulas (Fₙ−Fₙ₋₁ and ROUND(G×density,1)).
+  const preservePeriodCols = new Set([7, 8]);
+  const written: FuelLogEvent[] = [];
+
   for (const event of events) {
-    let rowNum = event.sourceRow > 0 ? event.sourceRow : 0;
-    if (rowNum < 5) {
-      rowNum = nextMasterRow++;
-    }
-    writeMasterRow(master, rowNum, event);
+    const isNew = !(event.sourceRow >= 5);
+    const rowNum = isNew ? nextMasterRow++ : event.sourceRow;
+    flattenSharedFormulasOnRow(master, rowNum, 1, 18, isNew ? undefined : preservePeriodCols);
+    writeMasterRow(master, rowNum, event, { isNew });
     if (ceng) {
-      const cengRow = findCengRow(ceng, event) ?? mirrorCengRow(ceng, rowNum);
-      if (cengRow) writeCengRow(ceng, cengRow, event);
+      const cengRow = isNew
+        ? (findCengRow(ceng, event) ?? mirrorCengRow(ceng, rowNum))
+        : findCengRow(ceng, event);
+      if (cengRow) {
+        flattenSharedFormulasOnRow(ceng, cengRow, 1, 36, isNew ? undefined : preservePeriodCols);
+        writeCengRow(ceng, cengRow, event, { isNew });
+      }
     }
+    written.push(
+      createEmptyFuelLogEvent({
+        ...event,
+        sourceRow: rowNum,
+        writeStatus: 'synced',
+      }),
+    );
   }
 
   const out = await wb.xlsx.writeBuffer();
-  return new Uint8Array(out as ArrayBuffer);
+  return { bytes: new Uint8Array(out as ArrayBuffer), written };
 }
 
 /** Match "Fuel Log CENG", FO-VPC "CE LOG" / "ENGINE LOG", or bare "CENG". */
@@ -396,7 +414,12 @@ function findCengWorksheet(wb: ExcelJS.Workbook): ExcelJS.Worksheet | undefined 
   );
 }
 
-function writeMasterRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent): void {
+function writeMasterRow(
+  ws: ExcelJS.Worksheet,
+  rowNum: number,
+  e: FuelLogEvent,
+  opts: { isNew: boolean },
+): void {
   const row = ws.getRow(rowNum);
   setText(row.getCell(1), e.place);
   setText(row.getCell(2), e.rawEvent);
@@ -404,8 +427,9 @@ function writeMasterRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent):
   setTime(row.getCell(4), e.time);
   setNum(row.getCell(5), e.timeUsedHours);
   setNum(row.getCell(6), e.fmMeAe);
-  setNum(row.getCell(7), e.totalM3);
-  setNum(row.getCell(8), e.totalMt);
+  // G Total m³ / H Total t — keep Excel formulas on existing rows.
+  writePeriodCell(row.getCell(7), e.totalM3, opts.isNew);
+  writeTotalMtCell(row.getCell(8), rowNum, e, opts.isNew);
   setNum(row.getCell(9), e.meMt);
   setNum(row.getCell(10), e.aeMt);
   setNum(row.getCell(11), e.robRmdMt);
@@ -416,6 +440,29 @@ function writeMasterRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent):
   setNum(row.getCell(16), e.boilerMt);
   setNum(row.getCell(17), e.dmaConsM3);
   setNum(row.getCell(18), e.boilerFm);
+}
+
+/** G: write value only when new or cell has no formula. */
+function writePeriodCell(cell: ExcelJS.Cell, value: number | null, isNew: boolean): void {
+  if (!isNew && cellHasFormula(cell)) return;
+  setNum(cell, value);
+}
+
+/** H: ROUND(G×density,1) for new rows; never overwrite existing formulas. */
+function writeTotalMtCell(
+  cell: ExcelJS.Cell,
+  rowNum: number,
+  e: FuelLogEvent,
+  isNew: boolean,
+): void {
+  if (!isNew && cellHasFormula(cell)) return;
+  const density = normalizeFuelDensity(e.density) ?? FUEL_DEFAULT_DENSITY;
+  const result = recomputeFuelTotalMtFromM3(e.totalM3, density);
+  cell.value = {
+    formula: `ROUND(G${rowNum}*${density},1)`,
+    result: result ?? undefined,
+  };
+  cell.numFmt = '0.0';
 }
 
 /** Wipe a MASTER data row so re-import skips it (deleted in the UI). */
@@ -450,7 +497,12 @@ function cengRowMatchesEvent(
   return place === e.place || raw === e.rawEvent;
 }
 
-function writeCengRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent): void {
+function writeCengRow(
+  ws: ExcelJS.Worksheet,
+  rowNum: number,
+  e: FuelLogEvent,
+  opts: { isNew: boolean },
+): void {
   const row = ws.getRow(rowNum);
   setText(row.getCell(1), e.place);
   setText(row.getCell(2), e.rawEvent);
@@ -458,8 +510,8 @@ function writeCengRow(ws: ExcelJS.Worksheet, rowNum: number, e: FuelLogEvent): v
   setTime(row.getCell(4), e.time);
   setNum(row.getCell(5), e.timeUsedHours);
   setNum(row.getCell(6), e.fmMeAe);
-  setNum(row.getCell(7), e.totalM3);
-  setNum(row.getCell(8), e.totalMt);
+  writePeriodCell(row.getCell(7), e.totalM3, opts.isNew);
+  writeTotalMtCell(row.getCell(8), rowNum, e, opts.isNew);
   setNum(row.getCell(9), e.meMt);
   setNum(row.getCell(10), e.aeMt);
   setNum(row.getCell(11), e.robRmdMt);
@@ -611,22 +663,60 @@ function cellHasFormula(cell: ExcelJS.Cell): boolean {
  */
 function flattenSharedFormulas(ws: ExcelJS.Worksheet, colFrom: number, colTo: number): void {
   ws.eachRow({ includeEmpty: false }, (row) => {
-    for (let c = colFrom; c <= colTo; c++) {
-      const cell = row.getCell(c);
-      if (!cellHasFormula(cell)) continue;
-      const v = cell.value as { result?: unknown };
-      const result = v?.result;
-      if (typeof result === 'number' && Number.isFinite(result)) {
-        cell.value = result;
-      } else if (typeof result === 'string' || typeof result === 'boolean') {
-        cell.value = result;
-      } else if (result instanceof Date && !Number.isNaN(result.getTime())) {
-        cell.value = result;
-      } else {
-        cell.value = null;
-      }
-    }
+    flattenSharedFormulasOnRow(ws, row.number, colFrom, colTo);
   });
+}
+
+/** Flatten shared/normal formulas on one row; optionally skip columns (e.g. G/H). */
+function flattenSharedFormulasOnRow(
+  ws: ExcelJS.Worksheet,
+  rowNum: number,
+  colFrom: number,
+  colTo: number,
+  skipCols?: ReadonlySet<number>,
+): void {
+  const row = ws.getRow(rowNum);
+  for (let c = colFrom; c <= colTo; c++) {
+    if (skipCols?.has(c)) continue;
+    const cell = row.getCell(c);
+    if (!cellHasFormula(cell)) continue;
+    const v = cell.value as { result?: unknown };
+    const result = v?.result;
+    if (typeof result === 'number' && Number.isFinite(result)) {
+      cell.value = result;
+    } else if (typeof result === 'string' || typeof result === 'boolean') {
+      cell.value = result;
+    } else if (result instanceof Date && !Number.isNaN(result.getTime())) {
+      cell.value = result;
+    } else {
+      cell.value = null;
+    }
+  }
+}
+
+/**
+ * Parse density from Excel H formula `ROUND(G1094*0,88;1)` / `ROUND(G5*0.88,1)`,
+ * else infer from mt/m³.
+ */
+function densityFromTotalMtCell(
+  cell: ExcelJS.Cell,
+  totalMt: number | null,
+  totalM3: number | null,
+): number | null {
+  const formula = cellFormulaText(cell);
+  if (formula) {
+    const m = formula.match(/\*\s*(\d+[.,]\d+)/);
+    if (m) return normalizeFuelDensity(m[1].replace(',', '.'));
+  }
+  return inferFuelDensityFromMtM3(totalMt, totalM3);
+}
+
+/** Safe formula string — never use ExcelJS `cell.formula` (throws on broken shared). */
+function cellFormulaText(cell: ExcelJS.Cell): string {
+  const v = cell?.value;
+  if (v == null || typeof v !== 'object' || v instanceof Date) return '';
+  const o = v as { formula?: string };
+  return String(o.formula ?? '').trim();
 }
 
 function cellDateIso(cell: ExcelJS.Cell): string {

@@ -70,6 +70,21 @@ export class FuelStore {
     void this.state.persist('silent');
   }
 
+  /** Remember last density used on Add / Total t drag (default for new rows). */
+  setLastDensity(density: number | null): void {
+    this.data.update((d) => {
+      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      return {
+        ...d,
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          lastDensity: density,
+        }),
+      };
+    });
+    void this.state.persist('silent');
+  }
+
   updateView(partial: Partial<FuelViewPrefs>): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
@@ -124,7 +139,7 @@ export class FuelStore {
         }),
       };
     });
-    void this.state.persist('debounced');
+    void this.state.persist('memory');
   }
 
   /** Edit-tab patch (persists draft; marks dirty). */
@@ -143,7 +158,7 @@ export class FuelStore {
         }),
       };
     });
-    void this.state.persist('debounced');
+    void this.state.persist('memory');
   }
 
   /** Edit-tab delete (persists draft; marks dirty). */
@@ -159,7 +174,7 @@ export class FuelStore {
         }),
       };
     });
-    void this.state.persist('debounced');
+    void this.state.persist('memory');
   }
 
   /** Clear Edit draft only (View Excel snapshot stays). */
@@ -202,29 +217,53 @@ export class FuelStore {
   }
 
   /**
-   * After successful Write to Excel: mark Edit clean, refresh baseline,
-   * and sync View snapshot to what was written (other PCs still Update from file).
+   * After successful Write of `ready` rows: mark those synced (with Excel
+   * sourceRow), keep drafts in Edit, merge written into View snapshot.
+   * editDirty stays true while any draft/ready rows remain.
    */
-  markEditWritten(events: readonly FuelLogEvent[]): void {
-    const written = cloneFuelEventList(events);
+  markEditPartialWritten(written: readonly FuelLogEvent[]): void {
+    const writtenList = cloneFuelEventList(
+      written.map((e) => createEmptyFuelLogEvent({ ...e, writeStatus: 'synced' })),
+    );
+    const byId = new Map(writtenList.map((e) => [e.id, e]));
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      const editEvents = prev.editEvents.map((e) => byId.get(e.id) ?? e);
+      let events = prev.events.map((e) => byId.get(e.id) ?? e);
+      for (const w of writtenList) {
+        if (!events.some((e) => e.id === w.id)) events = [...events, w];
+      }
+      let editBaseline = prev.editBaseline.map((e) => byId.get(e.id) ?? e);
+      for (const w of writtenList) {
+        if (!editBaseline.some((e) => e.id === w.id)) {
+          editBaseline = [...editBaseline, w];
+        }
+      }
+      const editDirty = editEvents.some((e) => e.writeStatus !== 'synced');
       return {
         ...d,
         fuelLibrary: normalizeFuelLibrary({
           ...prev,
-          events: written,
-          editEvents: written,
-          editBaseline: cloneFuelEventList(written),
-          editDirty: false,
+          events,
+          editEvents,
+          editBaseline,
+          editDirty,
         }),
       };
     });
     void this.state.persist('saved');
   }
 
-  /** Replace Edit events in place (e.g. tests / rare resets). */
-  replaceEditEvents(events: FuelLogEvent[], dirty = true): void {
+  /** @deprecated Prefer markEditPartialWritten (ready-only Write). */
+  markEditWritten(events: readonly FuelLogEvent[]): void {
+    this.markEditPartialWritten(events);
+  }
+
+  /**
+   * Replace Edit events in place (ROB cascade, tests, resets).
+   * `dirty=true` → draft memory persist; `dirty=false` → also refresh baseline.
+   */
+  replaceEditEvents(events: readonly FuelLogEvent[], dirty = true): void {
     const next = cloneFuelEventList(events);
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
@@ -238,7 +277,7 @@ export class FuelStore {
         }),
       };
     });
-    void this.state.persist('saved');
+    void this.state.persist(dirty ? 'memory' : 'saved');
   }
 
   /** @deprecated Prefer discardEditDraft / replaceEditEvents. */

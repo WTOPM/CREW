@@ -8,8 +8,8 @@
 .fuel-event-modal {
   display: flex;
   flex-direction: column;
-  width: min(44rem, 100%);
-  max-height: min(92vh, 40rem);
+  width: min(52rem, 100%);
+  max-height: min(96vh, 56rem);
   margin: auto;
   padding: 0;
   overflow: hidden;
@@ -167,6 +167,10 @@
 
 .fuel-event-grid--4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fuel-event-grid--density {
+  grid-template-columns: minmax(8rem, 12rem);
 }
 
 .fuel-event-field {
@@ -434,31 +438,6 @@ output.fuel-event-field__control {
 
 .fuel-event-link-btn:hover {
   background: #ffedd5;
-}
-
-.fuel-event-recalc {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin: 0;
-  padding: 0.28rem 0.6rem;
-  border: 1px solid #fcd34d;
-  border-radius: 999px;
-  background: #fff;
-  color: #b45309;
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.fuel-event-recalc svg {
-  width: 0.95rem;
-  height: 0.95rem;
-}
-
-.fuel-event-recalc:hover {
-  background: #fff7ed;
 }
 
 .fuel-event-modal__actions {

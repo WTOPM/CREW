@@ -503,6 +503,8 @@
   max-width: 64rem;
   width: min(64rem, 97vw);
   max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .nl-modal.modal-wide {

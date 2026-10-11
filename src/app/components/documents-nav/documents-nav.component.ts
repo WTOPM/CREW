@@ -1,5 +1,17 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import {
+  acquireModalScrollLock,
+  releaseModalScrollLock,
+} from '../../utils/modal-scroll-lock.util';
 import {
   AppData,
   CREW_IDENTITY_PASSPORT,
@@ -150,6 +162,7 @@ type MoneyDocId = (typeof MONEY_DOC_IDS)[number];
   styleUrl: './documents-nav.component.css',
 })
 export class DocumentsNavComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly storage = inject(StorageService);
   private readonly htmlFormExcel = inject(CrewListHtmlFormExcelService);
   private readonly forms = inject(FormsStore);
@@ -212,6 +225,37 @@ export class DocumentsNavComponent implements OnInit {
   protected readonly moneyDocIds = MONEY_DOC_IDS;
   protected moneySettingsDoc = signal<MoneyDocId>('shipMoney');
   protected showNarcoticListSettings = signal(false);
+
+  /** Any Documents settings modal open → freeze page scroll behind it. */
+  private readonly settingsModalOpen = computed(
+    () =>
+      this.showPortOfCallSettings() ||
+      this.showCrewListSettings() ||
+      this.showPaxSettings() ||
+      this.showMdhSettings() ||
+      this.showShipStoresSettings() ||
+      this.showCrewEffectSettings() ||
+      this.showNilListSettings() ||
+      this.showMoneySettings() ||
+      this.showNarcoticListSettings(),
+  );
+
+  constructor() {
+    let locked = false;
+    effect(() => {
+      const open = this.settingsModalOpen();
+      if (open && !locked) {
+        acquireModalScrollLock();
+        locked = true;
+      } else if (!open && locked) {
+        releaseModalScrollLock();
+        locked = false;
+      }
+    });
+    this.destroyRef.onDestroy(() => {
+      if (locked) releaseModalScrollLock();
+    });
+  }
 
   protected paxListDocLabel(id: PaxListTypeId): string {
     return PAX_LIST_TYPE_LABELS[id];
@@ -682,31 +726,38 @@ export class DocumentsNavComponent implements OnInit {
     }
   }
 
-  protected openCrewListSettings(): void {
-    this.showCrewListSettings.set(true);
+  private async openFormModal(open: () => void): Promise<void> {
+    await this.storage.beginFormSession();
+    open();
   }
 
-  protected closeCrewListSettings(): void {
-    this.showCrewListSettings.set(false);
-    this.storage.finishFormSession();
+  private async closeFormModal(close: () => void, reason: 'done' | 'backdrop'): Promise<void> {
+    await this.storage.finishFormUi(reason);
+    close();
+  }
+
+  protected openCrewListSettings(): void {
+    void this.openFormModal(() => this.showCrewListSettings.set(true));
+  }
+
+  protected closeCrewListSettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showCrewListSettings.set(false), reason);
   }
 
   protected openPaxSettings(): void {
-    this.showPaxSettings.set(true);
+    void this.openFormModal(() => this.showPaxSettings.set(true));
   }
 
-  protected closePaxSettings(): void {
-    this.showPaxSettings.set(false);
-    this.storage.finishFormSession();
+  protected closePaxSettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showPaxSettings.set(false), reason);
   }
 
   protected openMdhSettings(): void {
-    this.showMdhSettings.set(true);
+    void this.openFormModal(() => this.showMdhSettings.set(true));
   }
 
-  protected closeMdhSettings(): void {
-    this.showMdhSettings.set(false);
-    this.storage.finishFormSession();
+  protected closeMdhSettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showMdhSettings.set(false), reason);
   }
 
   protected onMdhSettingsDocChange(value: 'mdh' | 'crewVaccine' | 'airdraft'): void {
@@ -754,12 +805,11 @@ export class DocumentsNavComponent implements OnInit {
   }
 
   protected openPortOfCallSettings(): void {
-    this.showPortOfCallSettings.set(true);
+    void this.openFormModal(() => this.showPortOfCallSettings.set(true));
   }
 
-  protected closePortOfCallSettings(): void {
-    this.showPortOfCallSettings.set(false);
-    this.storage.finishFormSession();
+  protected closePortOfCallSettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showPortOfCallSettings.set(false), reason);
   }
 
   protected portSettingsDocLabel(id: PortSettingsDocId): string {
@@ -901,12 +951,11 @@ export class DocumentsNavComponent implements OnInit {
   }
 
   protected openShipStoresSettings(): void {
-    this.showShipStoresSettings.set(true);
+    void this.openFormModal(() => this.showShipStoresSettings.set(true));
   }
 
-  protected closeShipStoresSettings(): void {
-    this.showShipStoresSettings.set(false);
-    this.storage.finishFormSession();
+  protected closeShipStoresSettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showShipStoresSettings.set(false), reason);
   }
 
   protected crewEffectDocLabel(id: CrewEffectDocId): string {
@@ -959,12 +1008,11 @@ export class DocumentsNavComponent implements OnInit {
   }
 
   protected openCrewEffectSettings(): void {
-    this.showCrewEffectSettings.set(true);
+    void this.openFormModal(() => this.showCrewEffectSettings.set(true));
   }
 
-  protected closeCrewEffectSettings(): void {
-    this.showCrewEffectSettings.set(false);
-    this.storage.finishFormSession();
+  protected closeCrewEffectSettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showCrewEffectSettings.set(false), reason);
   }
 
   protected openNilList(): void {
@@ -981,21 +1029,19 @@ export class DocumentsNavComponent implements OnInit {
   }
 
   protected openNilListSettings(): void {
-    this.showNilListSettings.set(true);
+    void this.openFormModal(() => this.showNilListSettings.set(true));
   }
 
-  protected closeNilListSettings(): void {
-    this.showNilListSettings.set(false);
-    this.storage.finishFormSession();
+  protected closeNilListSettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showNilListSettings.set(false), reason);
   }
 
   protected openMoneySettings(): void {
-    this.showMoneySettings.set(true);
+    void this.openFormModal(() => this.showMoneySettings.set(true));
   }
 
-  protected closeMoneySettings(): void {
-    this.showMoneySettings.set(false);
-    this.storage.finishFormSession();
+  protected closeMoneySettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showMoneySettings.set(false), reason);
   }
 
   protected moneyDocLabel(id: MoneyDocId): string {
@@ -1060,12 +1106,11 @@ export class DocumentsNavComponent implements OnInit {
   }
 
   protected openNarcoticListSettings(): void {
-    this.showNarcoticListSettings.set(true);
+    void this.openFormModal(() => this.showNarcoticListSettings.set(true));
   }
 
-  protected closeNarcoticListSettings(): void {
-    this.showNarcoticListSettings.set(false);
-    this.storage.finishFormSession();
+  protected closeNarcoticListSettings(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.closeFormModal(() => this.showNarcoticListSettings.set(false), reason);
   }
 
   protected openMdh(): void {

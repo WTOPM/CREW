@@ -206,10 +206,11 @@ export class SettingsComponent {
   }
 
   protected openPackages(): void {
-    this.showPackagesModal.set(true);
+    void this.storage.beginFormSession().then(() => this.showPackagesModal.set(true));
   }
 
   protected closePackages(): void {
+    // PrintPackagesComponent already ran finishFormUi (Done / backdrop).
     this.showPackagesModal.set(false);
   }
 
@@ -220,27 +221,25 @@ export class SettingsComponent {
     this.expandedPort.set('');
     this.newTerminalAbbrev.set('');
     this.newTerminalName.set('');
-    this.showPortsModal.set(true);
+    void this.storage.beginFormSession().then(() => this.showPortsModal.set(true));
   }
 
   protected openRanks(): void {
     this.newRank.set('');
-    this.showRanksModal.set(true);
+    void this.storage.beginFormSession().then(() => this.showRanksModal.set(true));
   }
 
-  protected closePorts(): void {
-    this.showPortsModal.set(false);
-    this.storage.finishFormSession();
+  protected closePorts(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.storage.finishFormUi(reason).then(() => this.showPortsModal.set(false));
   }
 
   protected openNationalities(): void {
     this.newNationality.set('');
-    this.showNationalitiesModal.set(true);
+    void this.storage.beginFormSession().then(() => this.showNationalitiesModal.set(true));
   }
 
-  protected closeNationalities(): void {
-    this.showNationalitiesModal.set(false);
-    this.storage.finishFormSession();
+  protected closeNationalities(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.storage.finishFormUi(reason).then(() => this.showNationalitiesModal.set(false));
   }
 
   protected addNationalityItem(): void {
@@ -252,9 +251,8 @@ export class SettingsComponent {
     this.refLists.removeNationality(name);
   }
 
-  protected closeRanks(): void {
-    this.showRanksModal.set(false);
-    this.storage.finishFormSession();
+  protected closeRanks(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.storage.finishFormUi(reason).then(() => this.showRanksModal.set(false));
   }
 
   protected addPortItem(): void {

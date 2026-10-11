@@ -20,11 +20,13 @@ import { createEmptyAppData } from '../data/empty-app-data';
 import { extractMainAppSnapshot, mergeMainAppSnapshotIntoLive } from '../utils/app-snapshot.util';
 import { normalizeAppData } from './app-data-normalizer';
 import { AppStateStore, type PersistNotify, type AppInitResult } from './app-state.store';
+import { ConfirmDialogService } from './confirm-dialog.service';
 
 @Injectable({ providedIn: 'root' })
 export class StorageService {
   /** Central state kernel: owns the data signal + persistence (shared with feature stores). */
   private readonly state = inject(AppStateStore);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly data = this.state.data;
 
   readonly ship = computed(() => this.data().ship);
@@ -130,33 +132,69 @@ export class StorageService {
     return window.electronAPI?.getDataPathDebug() ?? Promise.resolve(null);
   }
 
-  private persist(notify: PersistNotify = 'debounced', savedMessage?: string): Promise<void> {
+  private persist(notify: PersistNotify = 'memory', savedMessage?: string): Promise<void> {
     return this.state.persist(notify, savedMessage);
   }
 
-  /** Call when a Done / backdrop closes a settings modal (after silent auto-save). */
+  flushPersist(notify?: PersistNotify, savedMessage?: string): Promise<void> {
+    return this.state.flushPersist(notify, savedMessage);
+  }
+
+  beginFormSession(): Promise<void> {
+    return this.state.beginFormSession();
+  }
+
+  /**
+   * Close a settings modal.
+   * - done: write only if dirty
+   * - backdrop: discard quietly if clean; ask Save/Discard if dirty
+   */
+  async finishFormUi(reason: 'done' | 'backdrop'): Promise<void> {
+    if (!this.state.isFormSessionActive()) {
+      this.state.endFormSessionClean();
+      return;
+    }
+    if (!this.state.isFormSessionDirty()) {
+      this.state.endFormSessionClean();
+      return;
+    }
+    if (reason === 'done') {
+      await this.state.commitFormSession();
+      return;
+    }
+    const ok = await this.confirmDialog.confirm({
+      title: 'Save changes?',
+      message: 'You changed form settings. Save them before closing?',
+      confirmLabel: 'Save',
+      cancelLabel: 'Discard',
+    });
+    if (ok) await this.state.commitFormSession();
+    else this.state.discardFormSession();
+  }
+
+  /** @deprecated Prefer finishFormUi('done' | 'backdrop'). */
   finishFormSession(): void {
-    this.state.finishFormSession();
+    void this.finishFormUi('done');
   }
 
   updateShip(
     partial: Partial<AppData['ship']>,
-    notify?: 'silent' | 'saved' | 'debounced',
+    notify?: PersistNotify,
     savedMessage?: string,
   ): void {
     // Ports/nationalities are user-managed (Settings) — do not auto-add referenced values.
     this.data.update((d) => ({ ...d, ship: { ...d.ship, ...partial } }));
     const fields = Object.keys(partial) as (keyof ShipInfo)[];
-    const mode = notify ?? (fields.length === 1 ? shipFieldPersistNotify(fields[0]) : 'debounced');
+    const mode = notify ?? (fields.length === 1 ? shipFieldPersistNotify(fields[0]) : 'memory');
     void this.state.persistShip(mode, savedMessage);
   }
 
-  updateCrewArr(partial: Partial<AppData['crewArr']>, notify: 'silent' | 'saved' = 'saved'): void {
+  updateCrewArr(partial: Partial<AppData['crewArr']>, notify: PersistNotify = 'memory'): void {
     this.data.update((d) => ({ ...d, crewArr: { ...d.crewArr, ...partial } }));
     void this.persist(notify);
   }
 
-  updatePaxArr(partial: Partial<AppData['paxArr']>, notify: 'silent' | 'saved' = 'saved'): void {
+  updatePaxArr(partial: Partial<AppData['paxArr']>, notify: PersistNotify = 'memory'): void {
     this.data.update((d) => ({ ...d, paxArr: { ...d.paxArr, ...partial } }));
     void this.persist(notify);
   }

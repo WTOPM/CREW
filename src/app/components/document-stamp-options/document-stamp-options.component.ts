@@ -76,7 +76,7 @@ export class DocumentStampOptionsComponent {
   protected readonly isCrewEffect = computed(() => isCrewEffectOverlayId(this.documentId()));
 
   protected closePlacement(): void {
+    // Stay inside the parent form session — Done/backdrop on the settings modal commits.
     this.showPlacement.set(false);
-    this.storage.finishFormSession();
   }
 }

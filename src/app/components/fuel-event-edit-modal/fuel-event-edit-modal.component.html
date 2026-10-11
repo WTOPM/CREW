@@ -1,4 +1,4 @@
-<div class="modal-backdrop fuel-event-backdrop">
+<div class="modal-backdrop fuel-event-backdrop" #backdrop>
   <div
     class="modal fuel-event-modal"
     appClickOutside
@@ -16,7 +16,7 @@
       <p class="fuel-event-modal__hint">{{ autoHint() }}</p>
     </header>
 
-    <div class="fuel-event-modal__body">
+    <div class="fuel-event-modal__body" #scrollBody>
       <section class="fuel-event-section">
         <h4 class="fuel-event-section__title">When</h4>
         <div class="fuel-event-grid fuel-event-grid--3">
@@ -36,7 +36,8 @@
                 type="button"
                 class="fuel-event-time-now"
                 title="Set date &amp; time to now"
-                (click)="setNow()"
+                (mousedown)="$event.stopPropagation()"
+                (click)="setNow(); $event.preventDefault(); $event.stopPropagation()"
               >
                 Now
               </button>
@@ -101,19 +102,33 @@
         </div>
       </section>
 
-      <section class="fuel-event-section fuel-event-section--fuel">
-        <div class="fuel-event-section__head">
-          <h4 class="fuel-event-section__title">Fuel (mt)</h4>
-          <button type="button" class="fuel-event-recalc" (click)="recalc()" title="Recalculate hours and ROB from previous event">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                fill="currentColor"
-                d="M12 6V3L8 7l4 4V8c2.76 0 5 2.24 5 5a5 5 0 0 1-8.9 3.1L6.7 17.5A7 7 0 0 0 19 13c0-3.87-3.13-7-7-7zm-7 7c0-1.34.38-2.59 1.03-3.66l1.42 1.42A4.96 4.96 0 0 0 7 13c0 2.76 2.24 5 5 5v3l4-4-4-4v3c-2.76 0-5-2.24-5-5z"
+      <section class="fuel-event-section">
+        <h4 class="fuel-event-section__title">Density</h4>
+        <div class="fuel-event-grid fuel-event-grid--density">
+          <div class="fuel-event-field">
+            <span class="fuel-event-field__label">Density</span>
+            <div class="fuel-event-mt-row">
+              <input
+                class="fuel-event-field__control"
+                [ngModel]="draft().density ?? ''"
+                (ngModelChange)="onDensity($event)"
+                inputmode="decimal"
+                placeholder="0.88"
+                title="Excel H = ROUND(m³ × density, 1). ↑↓ ±0.001"
+                (keydown.arrowup)="$event.preventDefault(); nudgeDensity(1)"
+                (keydown.arrowdown)="$event.preventDefault(); nudgeDensity(-1)"
               />
-            </svg>
-            Recalculate
-          </button>
+              <div class="fuel-event-mt-steps" aria-hidden="true">
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="+0.001" (mousedown)="$event.preventDefault()" (click)="nudgeDensity(1)">▲</button>
+                <button type="button" class="fuel-event-mt-step" tabindex="-1" title="−0.001" (mousedown)="$event.preventDefault()" (click)="nudgeDensity(-1)">▼</button>
+              </div>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <section class="fuel-event-section fuel-event-section--fuel">
+        <h4 class="fuel-event-section__title">Fuel (mt)</h4>
         <div class="fuel-event-grid fuel-event-grid--3">
           <div class="fuel-event-field">
             <span class="fuel-event-field__label">ME t</span>

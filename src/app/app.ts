@@ -184,6 +184,24 @@ export class App implements OnInit {
     window.electronAPI?.onAppRestoredFromTray?.(() => {
       void this.onRestoredFromTray();
     });
+    // Flush in-memory edits when the window is minimized / unfocused / closed.
+    window.electronAPI?.onAppWindowActive?.((active) => {
+      if (!active) void this.flushPendingToDisk();
+    });
+    const flushHidden = () => {
+      if (document.visibilityState === 'hidden') void this.flushPendingToDisk();
+    };
+    document.addEventListener('visibilitychange', flushHidden);
+    window.addEventListener('pagehide', () => void this.flushPendingToDisk());
+  }
+
+  /** Write RAM edits to the shared/local data file (no toast). */
+  private async flushPendingToDisk(): Promise<void> {
+    try {
+      await this.appState.flushPersist('silent');
+    } catch {
+      /* ignore — quit/minimize path */
+    }
   }
 
   protected onDataSetupResolved(): void {

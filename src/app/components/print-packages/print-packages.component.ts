@@ -68,9 +68,8 @@ export class PrintPackagesComponent implements OnInit {
     }
   }
 
-  protected close(): void {
-    this.storage.finishFormSession();
-    this.closed.emit();
+  protected close(reason: 'done' | 'backdrop' = 'done'): void {
+    void this.storage.finishFormUi(reason).then(() => this.closed.emit());
   }
 
   protected portDocCount(pkg: PortPackage): number {

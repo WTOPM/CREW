@@ -41,6 +41,8 @@ export interface ElectronLocalPrefs {
   fuelShowUtc?: boolean;
   /** Ship local = UTC+N (hours). */
   fuelUtcOffsetHours?: number;
+  /** Last FUEL View/Edit tab on this PC. */
+  fuelActiveTab?: 'view' | 'edit';
   /**
    * @deprecated Migrated into shared fuelLibrary.displayPresets.
    * Still read once for migration, then cleared.

@@ -82,17 +82,20 @@
 
 .fuel-page-tab {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.05rem;
-  min-width: 7.5rem;
-  padding: 0.45rem 0.95rem;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.5rem;
+  padding: 0.55rem 1.15rem;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
   color: #78716c;
   cursor: pointer;
-  text-align: left;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-align: center;
   transition:
     background 0.12s ease,
     border-color 0.12s ease,
@@ -125,19 +128,6 @@
   cursor: not-allowed;
 }
 
-.fuel-page-tab__label {
-  font-size: 0.92rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  line-height: 1.15;
-}
-
-.fuel-page-tab__sub {
-  font-size: 0.68rem;
-  font-weight: 650;
-  letter-spacing: 0.03em;
-  opacity: 0.8;
-}
 
 .fuel-edit-tab-badge {
   display: inline-flex;
@@ -898,8 +888,26 @@
   text-decoration: none;
 }
 
-.fuel-mini-field--grow {
-  flex: 1 1 14rem;
+.fuel-mini-field--search {
+  flex: 0 1 12rem;
+  max-width: 14rem;
+}
+
+.fuel-mini-field--search input {
+  width: 100%;
+  min-width: 0;
+}
+
+.fuel-mini-field--clear {
+  flex: 0 0 auto;
+}
+
+.fuel-clear-filters-btn {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .fuel-table-card {
@@ -965,6 +973,8 @@
   width: max-content;
   min-width: 100%;
   -webkit-overflow-scrolling: touch;
+  /* Cursor over table: never chain vertical scroll to the page. */
+  overscroll-behavior-y: contain;
 }
 
 .fuel-page--hscroll-dock {
@@ -1027,9 +1037,9 @@
   position: sticky;
   left: 0;
   z-index: 3;
-  width: 2.4rem;
-  min-width: 2.4rem;
-  max-width: 2.4rem;
+  width: 4.4rem;
+  min-width: 4.4rem;
+  max-width: 4.4rem;
   padding: 0.2rem !important;
   text-align: center;
   background: #fff7ed;
@@ -1056,7 +1066,15 @@
   height: 1rem;
 }
 
-.fuel-row-delete {
+.fuel-col-actions__btns {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+}
+
+.fuel-row-delete,
+.fuel-row-status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1067,7 +1085,6 @@
   border: 1px solid transparent;
   border-radius: 0.4rem;
   background: transparent;
-  color: #b91c1c;
   cursor: pointer;
   transition:
     background 0.12s ease,
@@ -1075,7 +1092,12 @@
     color 0.12s ease;
 }
 
-.fuel-row-delete svg {
+.fuel-row-delete {
+  color: #b91c1c;
+}
+
+.fuel-row-delete svg,
+.fuel-row-status svg {
   width: 1rem;
   height: 1rem;
 }
@@ -1090,6 +1112,42 @@
   outline: none;
   border-color: #ef4444;
   box-shadow: 0 0 0 2px rgb(239 68 68 / 28%);
+}
+
+.fuel-row-status--draft {
+  color: #dc2626;
+}
+
+.fuel-row-status--draft:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.fuel-row-status--ready {
+  color: #7c3aed;
+}
+
+.fuel-row-status--ready:hover {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+
+.fuel-row-status--synced {
+  color: #64748b;
+}
+
+.fuel-row-status--synced:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.fuel-row-status:focus-visible {
+  outline: none;
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 2px rgb(124 58 237 / 28%);
 }
 
 .fuel-col-head {
@@ -2167,6 +2225,103 @@
   outline: none;
   border-color: #ca8a04;
   box-shadow: 0 0 0 2px rgb(234 179 8 / 35%);
+}
+
+/* ME/AE FM ≤ previous counter — must increase each row. */
+.fuel-cell-input--fm-bad {
+  color: #b91c1c;
+  font-weight: 700;
+  border-color: #f87171;
+  background: #fef2f2;
+}
+
+.fuel-cell-input--fm-bad:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 30%);
+}
+
+.fuel-cell-input--density {
+  cursor: ns-resize;
+  user-select: none;
+}
+
+.fuel-density-hud {
+  position: fixed;
+  /* Above .dg-hint-tooltip (10000) so Density sits on top of the cell tip. */
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 35%);
+  font-size: 0.8rem;
+  pointer-events: auto;
+}
+
+.fuel-density-hud--drag {
+  pointer-events: none;
+}
+
+.fuel-density-hud__label {
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+.fuel-density-hud__input {
+  width: 4.2rem;
+  border: 1px solid #64748b;
+  border-radius: 0.25rem;
+  background: #1e293b;
+  color: #f8fafc;
+  padding: 0.15rem 0.35rem;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.fuel-density-hud__steps {
+  display: flex;
+  flex-direction: column;
+  width: 1.35rem;
+  border: 1px solid #64748b;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.fuel-density-hud__step {
+  flex: 1 1 50%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #64748b;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 0.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fuel-density-hud__step:last-child {
+  border-bottom: 0;
+}
+
+.fuel-density-hud__step:hover {
+  background: #334155;
+}
+
+.fuel-density-hud__ok {
+  border: 0;
+  border-radius: 0.25rem;
+  background: #38bdf8;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
 }
 
 /* Still carrying previous-row counter / place — confirm with ↑ or edit. */

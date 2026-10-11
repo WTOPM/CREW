@@ -16,28 +16,38 @@ import { RouterLink } from '@angular/router';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { FuelDisplayModalsComponent } from '../../components/fuel-display-modals/fuel-display-modals.component';
 import { FuelEventEditModalComponent } from '../../components/fuel-event-edit-modal/fuel-event-edit-modal.component';
+import { RefChoiceSuggestComponent } from '../../components/ref-choice-suggest/ref-choice-suggest.component';
 import { PlainTooltipDirective } from '../../directives/plain-tooltip.directive';
 import {
   FUEL_COLUMNS,
+  FUEL_DEFAULT_DENSITY,
   FUEL_DEFAULT_VISIBLE_COLUMNS,
   FUEL_DEFAULT_VISIBLE_KINDS,
   FUEL_EVENT_KIND_LABELS,
   FUEL_LIMIT_OPTIONS,
+  FUEL_RAW_EVENT_OPTIONS,
   applyFuelEventAutoCalcs,
+  cascadeAppAddedFuelRob,
   classifyFuelEvent,
   createEmptyFuelLogEvent,
   filterFuelEvents,
   findFuelEventBeforePrevious,
+  findLatestFuelEvent,
   findPreviousFuelEvent,
   formatFuelHoursHm,
   formatFuelTimeDisplay,
   formatFuelUtcOffsetLabel,
+  fuelEventReadyForWrite,
   splitFuelHoursHm,
   applyFuelConsumptionSideEffects,
   inheritFuelFieldsFromPrevious,
+  normalizeFuelDensity,
   parseFuelTimeDisplay,
+  recomputeFuelCounterFromHours,
   recomputeFuelHoursFromCounter,
   recomputeFuelTotalM3FromFm,
+  recomputeFuelTotalMtFromM3,
+  resolveFuelDensity,
   dateTimeFromFuelHrsEdit,
   fuelElapsedHours,
   parseFuelHoursInput,
@@ -48,7 +58,16 @@ import {
   type FuelEventKind,
   type FuelInheritableField,
   type FuelLogEvent,
+  type FuelWriteStatus,
 } from '../../models/fuel.models';
+
+interface FuelDensityHud {
+  eventId: string;
+  density: number;
+  x: number;
+  y: number;
+  mode: 'drag' | 'menu';
+}
 import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { FuelStore } from '../../services/fuel.store';
@@ -150,6 +169,7 @@ interface FuelPathSegment {
     DatePickerComponent,
     FuelEventEditModalComponent,
     FuelDisplayModalsComponent,
+    RefChoiceSuggestComponent,
     PlainTooltipDirective,
   ],
   templateUrl: './fuel.component.html',
@@ -165,15 +185,31 @@ export class FuelComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly tableWrapRef = viewChild<ElementRef<HTMLElement>>('tableWrap');
+  private readonly tableVRef = viewChild<ElementRef<HTMLElement>>('tableV');
   private readonly hDockRef = viewChild<ElementRef<HTMLElement>>('hDock');
+  private tableWheelBound: HTMLElement | null = null;
+  private tableWheelHandler: ((event: WheelEvent) => void) | null = null;
 
   protected readonly hasElectronPicker = !!window.electronAPI?.pickExcelFile;
   protected readonly canWriteExcel = !!window.electronAPI?.writeFileBase64;
   protected readonly library = this.storage.fuelLibrary;
   protected readonly busy = signal(false);
-  /** View = Excel snapshot; Edit = independent persisted draft. */
-  protected readonly activeTab = signal<'view' | 'edit'>('view');
+  /** View = Excel snapshot; Edit = independent persisted draft (restored per PC). */
+  protected readonly activeTab = signal<'view' | 'edit'>(
+    this.localPrefs.fuelUi().activeTab === 'edit' ? 'edit' : 'view',
+  );
   protected readonly showAddModal = signal(false);
+  /** Stable seed for Add modal (new object only when opening — avoids draft reset). */
+  protected readonly addModalSeed = signal<Partial<FuelLogEvent> | null>(null);
+  /** Floating density editor on Total t (drag ↑↓ or right-click). */
+  protected readonly densityHud = signal<FuelDensityHud | null>(null);
+  private densityDrag: {
+    eventId: string;
+    startDensity: number;
+    pointerId: number;
+    /** Accumulated pointer movementY (px); up → negative → denser. */
+    accumY: number;
+  } | null = null;
   /** eventId → fields still showing previous-row values (red until edited). */
   protected readonly pendingInheritedByEvent = signal<
     ReadonlyMap<string, ReadonlySet<FuelInheritableField>>
@@ -227,6 +263,47 @@ export class FuelComponent {
 
   /** Unsaved Edit draft (persisted in AppData — survives restart). */
   protected readonly dirty = computed(() => this.library().editDirty);
+
+  /** Rows marked ready — only these go to Excel on Write. */
+  protected readonly readyCount = computed(
+    () => this.library().editEvents.filter((e) => e.writeStatus === 'ready').length,
+  );
+
+  protected readonly hasReadyToWrite = computed(() => this.readyCount() > 0);
+
+  /** Unique Place values for the dropdown (Sea + Edit table, first-seen). */
+  protected readonly placeChoices = computed(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const add = (raw: string) => {
+      const v = String(raw ?? '').trim();
+      if (!v) return;
+      const key = v.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(v);
+    };
+    add('Sea');
+    for (const e of this.library().editEvents) add(e.place);
+    return out;
+  });
+
+  /** Excel event labels: common picker options + values already in the Edit table. */
+  protected readonly rawEventChoices = computed(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const add = (raw: string) => {
+      const v = String(raw ?? '').trim();
+      if (!v) return;
+      const key = v.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(v);
+    };
+    for (const opt of FUEL_RAW_EVENT_OPTIONS) add(opt);
+    for (const e of this.library().editEvents) add(e.rawEvent);
+    return out;
+  });
 
   /** Events for the active tab: View = Excel snapshot, Edit = draft. */
   protected readonly activeEvents = computed(() => {
@@ -283,24 +360,77 @@ export class FuelComponent {
     void this.localPrefs.load().then(() => {
       const legacy = this.localPrefs.takeLegacyFuelDisplayPresets();
       if (legacy.length) this.fuelStore.importDisplayPresetsIfEmpty(legacy);
+      // Restore View/Edit tab for this PC (after prefs file is loaded).
+      const tab = this.localPrefs.fuelUi().activeTab;
+      if (tab === 'edit' && !this.viewOnly()) this.activeTab.set('edit');
+      else this.activeTab.set('view');
     });
 
     afterNextRender(() => {
       this.bindHScrollObservers();
+      this.bindTableWheelContainment();
     });
 
     this.destroyRef.onDestroy(() => {
       this.clearColPressTimer();
       this.clearKindPressTimer();
       this.clearUtcPressTimer();
+      this.unbindTableWheelContainment();
+      this.clearDensityDragCursor();
     });
 
     effect(() => {
       // Remeasure when columns / rows change.
       this.visibleColumnDefs();
       this.visibleEvents();
-      queueMicrotask(() => this.measureHScrollDock());
+      queueMicrotask(() => {
+        this.measureHScrollDock();
+        this.bindTableWheelContainment();
+      });
     });
+  }
+
+  /**
+   * Cursor over the fuel grid: vertical wheel scrolls only `.fuel-table-v`.
+   * Outside the grid: page scroll behaves normally.
+   */
+  private bindTableWheelContainment(): void {
+    const wrap = this.tableWrapRef()?.nativeElement;
+    if (!wrap) {
+      this.unbindTableWheelContainment();
+      return;
+    }
+    if (this.tableWheelBound === wrap && this.tableWheelHandler) return;
+
+    this.unbindTableWheelContainment();
+    const onWheel = (event: WheelEvent) => this.onTableRegionWheel(event);
+    wrap.addEventListener('wheel', onWheel, { passive: false });
+    this.tableWheelBound = wrap;
+    this.tableWheelHandler = onWheel;
+  }
+
+  private unbindTableWheelContainment(): void {
+    if (this.tableWheelBound && this.tableWheelHandler) {
+      this.tableWheelBound.removeEventListener('wheel', this.tableWheelHandler);
+    }
+    this.tableWheelBound = null;
+    this.tableWheelHandler = null;
+  }
+
+  private onTableRegionWheel(event: WheelEvent): void {
+    // Horizontal / trackpad pinch — leave alone (H-scroll dock / browser zoom).
+    if (event.ctrlKey) return;
+    const v = this.tableVRef()?.nativeElement;
+    if (!v) return;
+
+    const dx = event.deltaX;
+    const dy = event.deltaY;
+    // Mostly horizontal gesture → let the wrap / dock handle it.
+    if (Math.abs(dx) > Math.abs(dy)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    v.scrollTop += dy;
   }
 
   protected onTableHScroll(): void {
@@ -395,18 +525,23 @@ export class FuelComponent {
   protected syncTitle(): string {
     if (this.viewOnly()) return 'View only — cannot write the Excel file';
     if (!this.canWriteExcel) return 'Save to file needs the desktop app';
-    if (!this.dirty()) return 'No unsaved edits — nothing to write';
-    return 'Hover: Write (green) saves to Excel · Discard (red) restores last load/save';
+    if (this.hasReadyToWrite()) {
+      return `Hover: Write saves ${this.readyCount()} ready row(s) to Excel · Discard restores last clean draft`;
+    }
+    if (!this.dirty()) return 'No unsaved edits — mark a row ready (✓) to Write';
+    return 'Draft rows stay in the app until marked ready (✓) · Discard restores last clean draft';
   }
 
   protected async confirmWriteToFile(ev?: Event): Promise<void> {
     ev?.stopPropagation();
-    if (this.busy() || !this.dirty() || !this.canWriteExcel || this.viewOnly()) return;
+    if (this.busy() || !this.hasReadyToWrite() || !this.canWriteExcel || this.viewOnly()) return;
+    const n = this.readyCount();
     const ok = await this.confirmDialog.confirm({
-      title: 'Write to Excel file?',
+      title: 'Write ready rows to Excel?',
       message:
-        'Save your unsaved fuel-log edits into the Excel file on disk?\n\n' +
-        'Matching rows are updated; rows you deleted here are cleared in the workbook.',
+        `Write ${n} ready row(s) into the Excel file on disk?\n\n` +
+        'Draft rows (red date) stay in the app until you mark them ready. ' +
+        'Existing Excel history is left untouched.',
       confirmLabel: 'Write',
       cancelLabel: 'Keep editing',
     });
@@ -576,6 +711,16 @@ export class FuelComponent {
     this.fuelStore.updateView({ limitCount: Number.isFinite(n) ? n : 20 });
   }
 
+  /** Reset From / To / Show (Last 20) / Search. */
+  protected clearFilters(): void {
+    this.fuelStore.updateView({
+      dateFrom: '',
+      dateTo: '',
+      search: '',
+      limitCount: 20,
+    });
+  }
+
   protected async setHoursAsHm(enabled: boolean): Promise<void> {
     await this.localPrefs.setFuelHoursAsHm(enabled);
   }
@@ -649,6 +794,7 @@ export class FuelComponent {
     }
     // Edit draft is independent and persisted — switching tabs never discards it.
     this.activeTab.set(tab);
+    void this.localPrefs.setFuelUi({ activeTab: tab });
     this.closeMenus();
   }
 
@@ -661,7 +807,25 @@ export class FuelComponent {
       );
       return;
     }
+    this.closeDensityHud();
+    const editEvents = this.library().editEvents;
+    const latest = findLatestFuelEvent(editEvents);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    // Density is per-row (Excel H). Starter = last value YOU set on this PC, not previous event.
+    this.addModalSeed.set({
+      id: `fuel-new-${Date.now()}`,
+      date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+      time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      place: latest?.place ?? '',
+      density: this.library().lastDensity ?? FUEL_DEFAULT_DENSITY,
+    });
     this.showAddModal.set(true);
+  }
+
+  protected closeAddModal(): void {
+    this.showAddModal.set(false);
+    this.addModalSeed.set(null);
   }
 
   protected async confirmDeleteEvent(e: FuelDisplayEvent, ev?: Event): Promise<void> {
@@ -695,10 +859,14 @@ export class FuelComponent {
     const editEvents = this.library().editEvents;
     const prev = findPreviousFuelEvent(editEvents, event.date, event.time, event.id);
     const { patch, inheritedFields } = inheritFuelFieldsFromPrevious(prev);
-    // Don’t overwrite fields the user already set in the modal.
+    // Don’t overwrite fields the user already set in the modal (incl. ROB tanks).
     const fill: Partial<FuelLogEvent> = {};
     const pending: FuelInheritableField[] = [];
     for (const field of inheritedFields) {
+      // Never replace Add-modal tank picks — they drive ROB debit.
+      if (field === 'meRobTank' || field === 'aeRobTank' || field === 'boilerRobTank') {
+        continue;
+      }
       const cur = event[field];
       const empty =
         cur == null || (typeof cur === 'string' && !String(cur).trim());
@@ -709,17 +877,28 @@ export class FuelComponent {
 
     const before = findFuelEventBeforePrevious(editEvents, prev);
     const next = createEmptyFuelLogEvent(
-      applyFuelEventAutoCalcs({ ...event, ...fill }, prev, before),
+      applyFuelEventAutoCalcs(
+        { ...event, ...fill },
+        prev,
+        before,
+        this.library().lastDensity,
+      ),
     );
 
-    this.fuelStore.upsertEvent(next);
+    // Re-project ROB on this + later app-added rows; Excel imports stay untouched.
+    const merged = [...editEvents.filter((e) => e.id !== next.id), next];
+    this.fuelStore.replaceEditEvents(cascadeAppAddedFuelRob(merged));
+    if (next.density != null) this.fuelStore.setLastDensity(next.density);
     if (pending.length) {
       const map = new Map(this.pendingInheritedByEvent());
       map.set(next.id, new Set(pending));
       this.pendingInheritedByEvent.set(map);
     }
-    this.showAddModal.set(false);
-    this.toast.show('Event added — Write to Excel when ready (draft is kept if you close the app)', 'success');
+    this.closeAddModal();
+    this.toast.show(
+      'Event added as draft — click ✓ when finished, then Write (drafts stay if you close the app)',
+      'success',
+    );
   }
 
   protected isCellInherited(eventId: string, field: keyof FuelLogEvent | undefined): boolean {
@@ -770,33 +949,62 @@ export class FuelComponent {
       next = { ...current, ...partial };
     }
 
-    // Excel: Total m³ = Fₙ − Fₙ₋₁ when FM is entered from the meter.
-    if (partial.fmMeAe !== undefined) {
-      const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, prev?.fmMeAe);
-      if (m3 != null) next = { ...next, totalM3: m3 };
-      else if (partial.fmMeAe === null) next = { ...next, totalM3: null };
+    // Excel: Total m³ = Fₙ − Fₙ₋₁; Total t = ROUND(m³ × density, 1).
+    if (
+      partial.fmMeAe !== undefined ||
+      partial.density !== undefined ||
+      partial.totalM3 !== undefined
+    ) {
+      if (partial.fmMeAe !== undefined) {
+        const m3 = recomputeFuelTotalM3FromFm(next.fmMeAe, prev?.fmMeAe);
+        if (m3 != null) next = { ...next, totalM3: m3 };
+        else if (partial.fmMeAe === null) next = { ...next, totalM3: null };
+      }
+      // Keep this row’s density; never pull another row’s factor from Excel.
+      const density = resolveFuelDensity(next, null, this.library().lastDensity);
+      next = { ...next, density };
+      const total = recomputeFuelTotalMtFromM3(next.totalM3, density);
+      if (total != null) next = { ...next, totalMt: total };
+      else if (partial.fmMeAe === null && partial.density === undefined) {
+        next = { ...next, totalMt: null };
+      }
     }
 
-    // Running-hours counters → period hours (same delta rule as FM → m³).
-    if (partial.meCounterRh !== undefined) {
+    // Running-hours counters ↔ period hours (both directions).
+    if (partial.meCounterRh !== undefined && partial.meHours === undefined) {
       const h = recomputeFuelHoursFromCounter(next.meCounterRh, prev?.meCounterRh);
       next = { ...next, meHours: h };
+    } else if (partial.meHours !== undefined && partial.meCounterRh === undefined) {
+      const c = recomputeFuelCounterFromHours(prev?.meCounterRh, next.meHours);
+      if (c != null) next = { ...next, meCounterRh: c };
     }
-    if (partial.ae1CounterRh !== undefined) {
+    if (partial.ae1CounterRh !== undefined && partial.ae1Hours === undefined) {
       const h = recomputeFuelHoursFromCounter(next.ae1CounterRh, prev?.ae1CounterRh);
       next = { ...next, ae1Hours: h };
+    } else if (partial.ae1Hours !== undefined && partial.ae1CounterRh === undefined) {
+      const c = recomputeFuelCounterFromHours(prev?.ae1CounterRh, next.ae1Hours);
+      if (c != null) next = { ...next, ae1CounterRh: c };
     }
-    if (partial.ae2CounterRh !== undefined) {
+    if (partial.ae2CounterRh !== undefined && partial.ae2Hours === undefined) {
       const h = recomputeFuelHoursFromCounter(next.ae2CounterRh, prev?.ae2CounterRh);
       next = { ...next, ae2Hours: h };
+    } else if (partial.ae2Hours !== undefined && partial.ae2CounterRh === undefined) {
+      const c = recomputeFuelCounterFromHours(prev?.ae2CounterRh, next.ae2Hours);
+      if (c != null) next = { ...next, ae2CounterRh: c };
     }
-    if (partial.ae3CounterRh !== undefined) {
+    if (partial.ae3CounterRh !== undefined && partial.ae3Hours === undefined) {
       const h = recomputeFuelHoursFromCounter(next.ae3CounterRh, prev?.ae3CounterRh);
       next = { ...next, ae3Hours: h };
+    } else if (partial.ae3Hours !== undefined && partial.ae3CounterRh === undefined) {
+      const c = recomputeFuelCounterFromHours(prev?.ae3CounterRh, next.ae3Hours);
+      if (c != null) next = { ...next, ae3CounterRh: c };
     }
-    if (partial.boilerCounterRh !== undefined) {
+    if (partial.boilerCounterRh !== undefined && partial.boilerHours === undefined) {
       const h = recomputeFuelHoursFromCounter(next.boilerCounterRh, prev?.boilerCounterRh);
       next = { ...next, boilerHours: h };
+    } else if (partial.boilerHours !== undefined && partial.boilerCounterRh === undefined) {
+      const c = recomputeFuelCounterFromHours(prev?.boilerCounterRh, next.boilerHours);
+      if (c != null) next = { ...next, boilerCounterRh: c };
     }
 
     // Hrs edit moves the clock (±0.1 h = 6 min). Do not touch date/time if caller set them.
@@ -827,7 +1035,50 @@ export class FuelComponent {
     }
 
     if (partial.rawEvent != null) next.kind = classifyFuelEvent(partial.rawEvent);
-    this.fuelStore.updateEvent(id, next);
+
+    // Data edits demote synced/ready → draft (Write gate).
+    const keys = Object.keys(partial).filter((k) => k !== 'writeStatus');
+    if (keys.length > 0 && next.writeStatus !== 'draft') {
+      next = { ...next, writeStatus: 'draft' };
+    }
+
+    // Keep ROB in sync for app-added rows (tank picks from Add); Excel rows unchanged.
+    const merged = editEvents.map((e) => (e.id === id ? next : e));
+    const shouldCascadeRob =
+      Object.keys(consumptionPatch).length > 0 ||
+      partial.date !== undefined ||
+      partial.time !== undefined ||
+      partial.meRobTank !== undefined ||
+      partial.aeRobTank !== undefined ||
+      partial.boilerRobTank !== undefined;
+    this.fuelStore.replaceEditEvents(
+      shouldCascadeRob ? cascadeAppAddedFuelRob(merged) : merged,
+    );
+  }
+
+  /** Toggle draft ↔ ready (synced rows stay until edited). */
+  protected toggleWriteReady(e: FuelLogEvent, ev?: Event): void {
+    ev?.stopPropagation();
+    if (!this.canEdit()) return;
+    if (e.writeStatus === 'synced') {
+      this.toast.show('Already in the Excel file — edit the row to change it', 'info');
+      return;
+    }
+    if (e.writeStatus === 'ready') {
+      this.fuelStore.updateEvent(e.id, { writeStatus: 'draft' });
+      return;
+    }
+    if (!fuelEventReadyForWrite(e)) {
+      this.toast.showError('Fill date, time, place and event before marking ready');
+      return;
+    }
+    this.fuelStore.updateEvent(e.id, { writeStatus: 'ready' });
+  }
+
+  protected writeStatusTitle(status: FuelWriteStatus): string {
+    if (status === 'synced') return 'In Excel file';
+    if (status === 'ready') return 'Ready to Write — click to hold as draft';
+    return 'Draft — click when finished to mark ready for Write';
   }
 
   protected onCellText(id: string, field: 'place' | 'rawEvent' | 'time', value: string): void {
@@ -848,7 +1099,7 @@ export class FuelComponent {
     this.patchEvent(id, { [field]: Math.round(n * 10) / 10 } as Partial<FuelLogEvent>);
   }
 
-  /** ↑/↓ ±0.1; Enter blurs. Hrs↔Time stay linked. */
+  /** ↑/↓ ±0.1 (nums) / cycle Place / nudge Time; Enter blurs. */
   protected onCellKeydown(e: FuelDisplayEvent, col: FuelColumnDef, event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -930,6 +1181,14 @@ export class FuelComponent {
     });
   }
 
+  protected onPlaceCommit(id: string, value: string): void {
+    this.onCellText(id, 'place', value);
+  }
+
+  protected onRawEventCommit(id: string, value: string): void {
+    this.onCellText(id, 'rawEvent', value);
+  }
+
   private canLiveCommit(col: FuelColumnDef, raw: string): boolean {
     const s = String(raw ?? '').trim();
     if (!s) return false;
@@ -940,7 +1199,7 @@ export class FuelComponent {
     return true;
   }
 
-  /** Derived columns (Excel formulas / side-effects) — yellow highlight. */
+  /** Derived columns (Excel formulas / side-effects) — yellow highlight; Tab skips them. */
   protected isAutoCalcCol(col: FuelColumnDef): boolean {
     return (
       col.id === 'totalM3' ||
@@ -954,6 +1213,182 @@ export class FuelComponent {
       col.id === 'ae3Hours' ||
       col.id === 'boilerHours'
     );
+  }
+
+  /** ME/AE FM must increase vs previous — red when ≤ previous counter. */
+  protected isFmInvalid(e: FuelDisplayEvent): boolean {
+    if (e.fmMeAe == null || !Number.isFinite(e.fmMeAe)) return false;
+    const prev = findPreviousFuelEvent(
+      this.canEdit() ? this.library().editEvents : this.library().events,
+      e.date,
+      e.time,
+      e.id,
+    );
+    if (prev?.fmMeAe == null || !Number.isFinite(prev.fmMeAe)) return false;
+    return e.fmMeAe <= prev.fmMeAe;
+  }
+
+  protected onTotalMtPointerDown(e: FuelDisplayEvent, event: PointerEvent): void {
+    if (!this.canEdit() || event.button !== 0) return;
+    event.preventDefault();
+    this.hideFloatingTips();
+    const density = resolveFuelDensity(e, null, this.library().lastDensity);
+    const anchorX = event.clientX;
+    const anchorY = event.clientY;
+    this.densityDrag = {
+      eventId: e.id,
+      startDensity: density,
+      pointerId: event.pointerId,
+      accumY: 0,
+    };
+    // Fixed HUD position for the whole drag — do not follow the mouse.
+    this.densityHud.set({
+      eventId: e.id,
+      density,
+      x: anchorX,
+      y: anchorY,
+      mode: 'drag',
+    });
+    document.documentElement.classList.add('fuel-density-dragging');
+    const el = event.target as HTMLElement;
+    el.setPointerCapture?.(event.pointerId);
+    // Pointer lock: movementY keeps working at screen edges (cursor stays put / hidden).
+    try {
+      void el.requestPointerLock?.();
+    } catch {
+      /* ignore — fall back to unlocked movementY */
+    }
+  }
+
+  protected onTotalMtContextMenu(e: FuelDisplayEvent, event: MouseEvent): void {
+    if (!this.canEdit()) return;
+    event.preventDefault();
+    this.hideFloatingTips();
+    this.clearDensityDragCursor();
+    const density = resolveFuelDensity(e, null, this.library().lastDensity);
+    this.densityDrag = null;
+    this.densityHud.set({
+      eventId: e.id,
+      density,
+      x: event.clientX,
+      y: event.clientY,
+      mode: 'menu',
+    });
+  }
+
+  @HostListener('document:pointermove', ['$event'])
+  protected onDensityPointerMove(event: PointerEvent): void {
+    const drag = this.densityDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    // Accumulate movement (works past screen edges when pointer is locked).
+    drag.accumY += event.movementY;
+    // Drag up = denser; ~40 px per 0.001. HUD stays at start x/y.
+    const steps = Math.round(-drag.accumY / 40);
+    const next =
+      normalizeFuelDensity(Math.round((drag.startDensity + steps * 0.001) * 1000) / 1000) ??
+      drag.startDensity;
+    const hud = this.densityHud();
+    this.densityHud.set({
+      eventId: drag.eventId,
+      density: next,
+      x: hud?.x ?? event.clientX,
+      y: hud?.y ?? event.clientY,
+      mode: 'drag',
+    });
+    this.applyDensity(drag.eventId, next, false);
+  }
+
+  @HostListener('document:pointerup', ['$event'])
+  protected onDensityPointerUp(event: PointerEvent): void {
+    const drag = this.densityDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const hud = this.densityHud();
+    if (hud) this.applyDensity(drag.eventId, hud.density, true);
+    this.densityDrag = null;
+    this.closeDensityHud();
+  }
+
+  /** RMB density menu — close when clicking anywhere outside the HUD. */
+  @HostListener('document:pointerdown', ['$event'])
+  protected onDensityMenuOutside(event: PointerEvent): void {
+    const hud = this.densityHud();
+    if (!hud || hud.mode !== 'menu') return;
+    const t = event.target;
+    if (t instanceof Element && t.closest('.fuel-density-hud')) return;
+    this.commitDensityHud();
+  }
+
+  /** RMB menu: ↑ / ↓ adjust density by 0.001. */
+  @HostListener('document:keydown', ['$event'])
+  protected onDensityMenuKeydown(event: KeyboardEvent): void {
+    const hud = this.densityHud();
+    if (!hud || hud.mode !== 'menu') return;
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.nudgeDensityHud(1);
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.nudgeDensityHud(-1);
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeDensityHud();
+    }
+  }
+
+  protected onDensityHudInput(raw: string): void {
+    const hud = this.densityHud();
+    if (!hud) return;
+    const n = normalizeFuelDensity(raw);
+    if (n == null) return;
+    this.densityHud.set({ ...hud, density: n });
+    this.applyDensity(hud.eventId, n, false);
+  }
+
+  protected nudgeDensityHud(dir: 1 | -1): void {
+    const hud = this.densityHud();
+    if (!hud) return;
+    const next =
+      normalizeFuelDensity(Math.round((hud.density + dir * 0.001) * 1000) / 1000) ?? hud.density;
+    this.densityHud.set({ ...hud, density: next });
+    this.applyDensity(hud.eventId, next, false);
+  }
+
+  protected commitDensityHud(): void {
+    const hud = this.densityHud();
+    if (!hud) return;
+    this.applyDensity(hud.eventId, hud.density, true);
+    this.closeDensityHud();
+  }
+
+  protected closeDensityHud(): void {
+    this.densityDrag = null;
+    this.clearDensityDragCursor();
+    this.densityHud.set(null);
+  }
+
+  private clearDensityDragCursor(): void {
+    document.documentElement.classList.remove('fuel-density-dragging');
+    if (document.pointerLockElement) {
+      try {
+        document.exitPointerLock();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  /** Drop hover tips so the density HUD is not covered. */
+  private hideFloatingTips(): void {
+    document.querySelectorAll('.dg-hint-tooltip').forEach((el) => el.remove());
+  }
+
+  private applyDensity(eventId: string, density: number, persistLast: boolean): void {
+    this.patchEvent(eventId, { density });
+    if (persistLast) this.fuelStore.setLastDensity(density);
   }
 
   /** Hover tip only — what the field is / how it auto-updates (no keyboard chrome). */
@@ -1030,16 +1465,26 @@ export class FuelComponent {
         this.toast.showError(res.error || 'Could not read Excel');
         return;
       }
-      const draft = this.library().editEvents;
-      const nextBytes = await writeFuelLogToExcelBytes(base64ToBytes(res.base64), draft);
-      const write = await api.writeFileBase64(path, bytesToBase64(nextBytes));
+      const ready = this.library().editEvents.filter((e) => e.writeStatus === 'ready');
+      if (!ready.length) {
+        this.toast.showError('No rows marked ready — click ✓ on a draft row first');
+        return;
+      }
+      const result = await writeFuelLogToExcelBytes(base64ToBytes(res.base64), ready);
+      const write = await api.writeFileBase64(path, bytesToBase64(result.bytes));
       if (!write.ok) {
         this.toast.showError(write.error || 'Could not write Excel');
         return;
       }
-      this.fuelStore.markEditWritten(draft);
+      this.fuelStore.markEditPartialWritten(result.written);
       this.pendingInheritedByEvent.set(new Map());
-      this.toast.show('Saved to Excel file', 'success');
+      const left = this.library().editEvents.filter((e) => e.writeStatus !== 'synced').length;
+      this.toast.show(
+        left
+          ? `Wrote ${result.written.length} row(s) — ${left} draft(s) kept in app`
+          : `Wrote ${result.written.length} row(s) to Excel`,
+        'success',
+      );
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Save failed');
     } finally {

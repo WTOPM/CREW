@@ -13,6 +13,7 @@ function row(
     fmMeAe: null,
     totalM3: null,
     totalMt: null,
+    density: null,
     meMt: null,
     aeMt: null,
     boilerMt: null,
@@ -50,6 +51,7 @@ function row(
     boilerConsM3: null,
     boilerConsMt: null,
     sourceRow: 1,
+    writeStatus: 'synced',
     rolledFromCount: 1,
     ...partial,
   };

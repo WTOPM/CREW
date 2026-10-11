@@ -146,7 +146,7 @@ export class EtaComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.commitGpsPanel();
-    this.etaStore.flushPersist('silent');
+    // Draft stays in memory until SAVE; tab switch / close still flush via App shell.
   }
 
   protected setFromPort(value: string): void {

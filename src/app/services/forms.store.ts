@@ -1,9 +1,9 @@
-// Feature store for the small per-document form domains: cash advance, crew money list,
+﻿// Feature store for the small per-document form domains: cash advance, crew money list,
 // narcotic list, port-of-call settings, ship stores, crew effect, nil list, ship money,
 // and port-call history. Each is a small slice of form state edited in its settings modal.
 //
 // State is shared via AppStateStore. Read selectors (cashAdvanceForm, narcoticListForm,
-// …) stay on StorageService for backward compatibility; this store owns the mutations.
+// вЂ¦) stay on StorageService for backward compatibility; this store owns the mutations.
 
 import { Injectable, inject } from '@angular/core';
 import {
@@ -67,7 +67,7 @@ export class FormsStore {
       ...d,
       cashAdvanceForm: normalizeCashAdvanceForm({ ...d.cashAdvanceForm, ...partial }),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updateCashAdvanceCrewAmount(crewId: string, partial: { usd?: string; eur?: string }): void {
@@ -82,7 +82,7 @@ export class FormsStore {
         }),
       };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updateCrewMoneyListCrewAmount(
@@ -100,7 +100,7 @@ export class FormsStore {
         }),
       };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updateNarcoticListEntry(id: string, partial: Partial<Omit<NarcoticMedicineEntry, 'id'>>): void {
@@ -109,7 +109,7 @@ export class FormsStore {
       const entries = form.entries.map((e) => (e.id === id ? { ...e, ...partial } : e));
       return { ...d, narcoticListForm: { entries } };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   addNarcoticListEntry(partial?: Partial<Omit<NarcoticMedicineEntry, 'id'>>): void {
@@ -122,7 +122,7 @@ export class FormsStore {
         }),
       };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   removeNarcoticListEntry(id: string): void {
@@ -135,7 +135,7 @@ export class FormsStore {
         }),
       };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updatePortOfCallSettings(partial: Partial<AppData['portOfCall']>): void {
@@ -143,7 +143,7 @@ export class FormsStore {
       ...d,
       portOfCall: normalizePortOfCallSettings({ ...d.portOfCall, ...partial }),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updateShipStoresSettingsDocId(docId: ShipStoresDocId): void {
@@ -151,7 +151,7 @@ export class FormsStore {
       ...d,
       shipStoresSettingsDocId: normalizeShipStoresDocId(docId),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updateShipStoresPlaceOfStorage(docId: ShipStoresDocId, placeOfStorage: string): void {
@@ -173,7 +173,7 @@ export class FormsStore {
       }
       return next;
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   /**
@@ -208,7 +208,7 @@ export class FormsStore {
         },
       };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     return stats;
   }
 
@@ -271,7 +271,7 @@ export class FormsStore {
         }),
       };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   removeNilListPhrase(id: string): void {
@@ -280,7 +280,7 @@ export class FormsStore {
       const phrases = form.phrases.filter((p) => p.id !== id);
       return { ...d, nilListForm: normalizeNilListForm({ phrases }) };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   updateShipMoneyEntry(id: string, partial: { amount?: string; currency?: string }): void {
@@ -289,7 +289,7 @@ export class FormsStore {
       const entries = form.entries.map((e) => (e.id === id ? { ...e, ...partial } : e));
       return { ...d, shipMoneyForm: normalizeShipMoneyForm({ entries }) };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   addShipMoneyEntry(amount: string, currency: string): void {
@@ -302,7 +302,7 @@ export class FormsStore {
         }),
       };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   removeShipMoneyEntry(id: string): void {
@@ -311,7 +311,7 @@ export class FormsStore {
       const entries = form.entries.filter((e) => e.id !== id);
       return { ...d, shipMoneyForm: normalizeShipMoneyForm({ entries }) };
     });
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   private crewEffectNormalize(
@@ -361,7 +361,7 @@ export class FormsStore {
       `d-${rowIndex}-1`,
       `d-${rowIndex}-2`,
     ]);
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   reorderShipStoresRows(
@@ -388,13 +388,13 @@ export class FormsStore {
       rows.splice(currentIndex, 0, moved);
       return { ...d, [field]: normalize({ ...form, rows }) };
     });
-    // Row order changed — drop all article overlay cells so PDF follows form rows.
+    // Row order changed вЂ” drop all article overlay cells so PDF follows form rows.
     const keys: string[] = [];
     for (let i = 0; i < rowCount; i++) {
       keys.push(`d-${i}-0`, `d-${i}-1`, `d-${i}-2`);
     }
     this.clearShipStoresOverlayKeys(docId, keys);
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   /** Clear frozen HTML overlay keys for Form 01/02 so live settings win. */
@@ -432,13 +432,13 @@ export class FormsStore {
       ...d,
       [field]: normalize({ ...d[field], ...partial }),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
   }
 
   addPortCallEntry(entry?: Partial<PortCallHistoryEntry>): PortCallHistoryEntry {
     const newEntry = { ...createEmptyPortCallEntry(), ...entry };
     this.data.update((d) => ({ ...d, portCallHistory: [newEntry, ...d.portCallHistory] }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     this.toast.showPortAdded();
     return newEntry;
   }
@@ -483,7 +483,7 @@ export class FormsStore {
       ...d,
       portCallHistory: d.portCallHistory.filter((e) => e.id !== id),
     }));
-    void this.state.persist('silent');
+    void this.state.persist('memory');
     this.toast.showPortDeleted();
   }
 }

@@ -2,7 +2,7 @@
   <div
     class="modal modal-wide pkg-modal"
     appClickOutside
-    (appClickOutside)="close()"
+    (appClickOutside)="close('backdrop')"
     (click)="$event.stopPropagation()"
   >
     <header class="pkg-head">
