@@ -20,6 +20,11 @@ export interface EtaLeg {
   etaUtcOffsetHours: number | null;
   /** Optional GPS at this leg's TO (intermediate waypoint). */
   toGps: EtaGpsCoords | null;
+  /**
+   * Fuel log Excel event at this leg's TO (e.g. BOSP, EOSP, FWE).
+   * Empty = skip this waypoint when exporting the voyage to Fuel Edit.
+   */
+  fuelRawEvent: string;
 }
 
 export interface EtaPlan {
@@ -45,6 +50,11 @@ export interface EtaPlan {
   fromGps: EtaGpsCoords | null;
   /** Optional GPS at arrival port (TO of last leg). */
   toGps: EtaGpsCoords | null;
+  /**
+   * Fuel log Excel event at departure (FROM), e.g. SBE.
+   * Empty = skip departure row when exporting to Fuel Edit.
+   */
+  departureFuelRawEvent: string;
   legs: EtaLeg[];
   createdAt: string;
   updatedAt: string;
@@ -70,6 +80,11 @@ export interface EtaLibrarySettings {
    * Display order = array index + 1; drag-reorder reassigns numbers.
    */
   waypoints: EtaWaypointGpsEntry[];
+  /**
+   * Ship local time as UTC offset hours (e.g. 2 for UTC+2).
+   * Used when exporting ETA → Fuel (Noon at 12:00 LT, event clocks in ship time).
+   */
+  shipUtcOffsetHours: number;
 }
 
 import { truncateSpeedKnotsTenths } from '../utils/eta-speed-input.util';
@@ -180,6 +195,7 @@ export function createEtaLeg(partial: Partial<EtaLeg> = {}): EtaLeg {
     toLabel: (partial.toLabel ?? '').trim(),
     etaUtcOffsetHours: normalizeOptionalUtcOffsetHours(partial.etaUtcOffsetHours),
     toGps: normalizeEtaGpsCoords(partial.toGps),
+    fuelRawEvent: (partial.fuelRawEvent ?? '').trim(),
   };
 }
 
@@ -200,7 +216,8 @@ export function createDefaultEtaPlan(name = 'New voyage'): EtaPlan {
     arrivalUtcOffsetHours: 0,
     fromGps: null,
     toGps: null,
-    legs: [createEtaLeg()],
+    departureFuelRawEvent: 'SBE',
+    legs: [createEtaLeg({ fuelRawEvent: 'FWE' })],
     createdAt: now,
     updatedAt: now,
   };
@@ -212,6 +229,7 @@ export function createDefaultEtaLibrary(): EtaLibrarySettings {
     plans: [],
     activePlanId: null,
     waypoints: [],
+    shipUtcOffsetHours: 0,
   };
 }
 
@@ -542,6 +560,7 @@ function normalizeLeg(
     toLabel: r?.toLabel,
     etaUtcOffsetHours,
     toGps: r?.toGps,
+    fuelRawEvent: typeof r?.fuelRawEvent === 'string' ? r.fuelRawEvent : '',
   });
 }
 
@@ -610,6 +629,8 @@ function normalizePlan(raw: unknown, fallbackName: string): EtaPlan {
     ? r.intermediatePorts.map((p) => String(p ?? '').trim())
     : [];
   const legs = applyLegacyIntermediatePorts(legsRaw, intermediatePorts);
+  const departureFuelRawEvent =
+    typeof r?.departureFuelRawEvent === 'string' ? r.departureFuelRawEvent.trim() : 'SBE';
   return {
     id: (r?.id ?? '').trim() || crypto.randomUUID(),
     name: (r?.name ?? '').trim() || fallbackName,
@@ -622,6 +643,7 @@ function normalizePlan(raw: unknown, fallbackName: string): EtaPlan {
     arrivalUtcOffsetHours,
     fromGps: normalizeEtaGpsCoords(r?.fromGps),
     toGps: normalizeEtaGpsCoords(r?.toGps),
+    departureFuelRawEvent,
     legs,
     createdAt: (r?.createdAt ?? '').trim() || now,
     updatedAt: (r?.updatedAt ?? '').trim() || now,
@@ -648,6 +670,7 @@ export function normalizeEtaLibrary(raw: unknown): EtaLibrarySettings {
     plans,
     activePlanId: activePlanId && plans.some((p) => p.id === activePlanId) ? activePlanId : null,
     waypoints,
+    shipUtcOffsetHours: normalizeUtcOffsetHours(r.shipUtcOffsetHours, defaults.shipUtcOffsetHours),
   };
 }
 

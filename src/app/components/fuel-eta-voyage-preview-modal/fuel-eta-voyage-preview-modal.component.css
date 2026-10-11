@@ -1,0 +1,397 @@
+.fuel-eta-voyage-backdrop {
+  z-index: 1400;
+  padding: 0.75rem;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.fuel-eta-voyage-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(64rem, 100%);
+  max-height: min(94vh, 52rem);
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #fdba74;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow:
+    0 28px 64px rgb(15 23 42 / 28%),
+    0 0 0 1px rgb(255 255 255 / 55%) inset;
+}
+
+.fuel-eta-voyage-modal__head {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  padding: 1rem 1.15rem 0.9rem;
+  background: linear-gradient(180deg, #fff7ed 0%, #fffaf5 70%, #fff 100%);
+  border-bottom: 1px solid #ffedd5;
+}
+
+.fuel-eta-voyage-modal__icon {
+  flex: 0 0 auto;
+  width: 2.4rem;
+  height: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.fuel-eta-voyage-modal__icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.fuel-eta-voyage-modal__intro {
+  min-width: 0;
+}
+
+.fuel-eta-voyage-modal__intro h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: #7c2d12;
+}
+
+.fuel-eta-voyage-modal__intro p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #78716c;
+}
+
+.fuel-eta-voyage-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.85rem 1.1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.fuel-eta-voyage-prev__label {
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 0.3rem;
+}
+
+.fuel-eta-voyage-prev__card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.fuel-eta-voyage-prev__when {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.fuel-eta-voyage-prev__event {
+  font-weight: 800;
+  color: #c2410c;
+}
+
+.fuel-eta-voyage-prev__place {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.fuel-eta-voyage-prev--empty {
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.fuel-eta-voyage-banner {
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.fuel-eta-voyage-banner--dup {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+
+.fuel-eta-voyage-banner--time {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.fuel-eta-voyage-banner--warn {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.fuel-eta-voyage-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.fuel-eta-voyage-tool {
+  border: 1px solid #e7e5e4;
+  background: #fff;
+  color: #44403c;
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fuel-eta-voyage-tool:hover:not(:disabled) {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.fuel-eta-voyage-tool--accent {
+  border-color: #fdba74;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.fuel-eta-voyage-tool:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.fuel-eta-voyage-table-wrap {
+  border: 1px solid #e7e5e4;
+  border-radius: 12px;
+  overflow: auto;
+}
+
+.fuel-eta-voyage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.fuel-eta-voyage-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 0.5rem 0.55rem;
+  background: #fafaf9;
+  color: #78716c;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e7e5e4;
+  white-space: nowrap;
+}
+
+.fuel-eta-voyage-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #f5f5f4;
+  vertical-align: middle;
+}
+
+.fuel-eta-voyage-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.fuel-eta-voyage-row--off {
+  background: #fafaf9;
+}
+
+.fuel-eta-voyage-row--before {
+  background: #fef2f2;
+}
+
+.fuel-eta-voyage-row--dup:not(.fuel-eta-voyage-row--before) {
+  background: #fffbeb;
+}
+
+.fuel-eta-voyage-col-on {
+  width: 2.6rem;
+  text-align: center;
+}
+
+.fuel-eta-voyage-col-gap {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #57534e;
+}
+
+.fuel-eta-voyage-gap--neg {
+  color: #dc2626;
+}
+
+.fuel-eta-voyage-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.fuel-eta-voyage-check input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: #ea580c;
+  cursor: pointer;
+}
+
+.fuel-eta-voyage-input {
+  width: 8.5rem;
+  max-width: 100%;
+  padding: 0.28rem 0.35rem;
+  border: 1px solid #e7e5e4;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #fff;
+}
+
+.fuel-eta-voyage-input--time {
+  width: 6.2rem;
+}
+
+.fuel-eta-voyage-input:disabled {
+  opacity: 0.55;
+  background: #fafaf9;
+}
+
+.fuel-eta-voyage-event {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.fuel-eta-voyage-event strong {
+  font-weight: 800;
+  color: #1c1917;
+}
+
+.fuel-eta-voyage-event--strike,
+.fuel-eta-voyage-event--strike strong {
+  text-decoration: line-through;
+  color: #a8a29e;
+}
+
+.fuel-eta-voyage-place {
+  color: #57534e;
+}
+
+.fuel-eta-voyage-kind {
+  display: inline-flex;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.fuel-eta-voyage-kind[data-kind='departure'] {
+  background: #ffedd5;
+  border-color: #fdba74;
+  color: #c2410c;
+}
+
+.fuel-eta-voyage-kind[data-kind='start_sea'] {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.fuel-eta-voyage-kind[data-kind='end_sea'] {
+  background: #f3e8ff;
+  border-color: #d8b4fe;
+  color: #7e22ce;
+}
+
+.fuel-eta-voyage-kind[data-kind='arrival'] {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.fuel-eta-voyage-kind[data-kind='noon'] {
+  background: #fef9c3;
+  border-color: #fde047;
+  color: #a16207;
+}
+
+.fuel-eta-voyage-notes {
+  min-width: 8rem;
+}
+
+.fuel-eta-voyage-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.fuel-eta-voyage-note small {
+  font-weight: 600;
+  color: #78716c;
+}
+
+.fuel-eta-voyage-note--dup {
+  color: #b45309;
+}
+
+.fuel-eta-voyage-note--time {
+  color: #dc2626;
+}
+
+.fuel-eta-voyage-note-empty {
+  color: #d6d3d1;
+}
+
+.fuel-eta-voyage-modal__foot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.75rem 1.1rem 0.9rem;
+  border-top: 1px solid #ffedd5;
+  background: rgba(255, 247, 237, 0.55);
+}
+
+.fuel-eta-voyage-modal__count {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #78716c;
+}
+
+.fuel-eta-voyage-modal__actions {
+  display: flex;
+  gap: 0.45rem;
+}

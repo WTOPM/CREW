@@ -23,6 +23,33 @@
   white-space: nowrap;
 }
 
+.eta-ship-lt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 0.35rem;
+  background: var(--surface-2, #f8fafc);
+}
+
+.eta-ship-lt__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+}
+
+.eta-ship-lt__input {
+  width: 3.6rem;
+  padding: 0.2rem 0.35rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 .eta-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 270px);
@@ -97,6 +124,31 @@
   appearance: textfield;
 }
 
+.eta-col-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.35rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+}
+
+.eta-col-tag--nm {
+  color: #0f766e;
+  background: #ccfbf1;
+  border: 1px solid #5eead4;
+}
+
+.eta-col-tag--kn {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+}
+
 .eta-col-kn {
   width: 6.25rem;
   min-width: 6.25rem;
@@ -131,6 +183,48 @@
   text-align: center;
 }
 
+/* Distance (NM) — teal / grounded */
+.eta-input--nm {
+  text-align: center;
+  font-weight: 800;
+  color: #0f766e;
+  background: linear-gradient(180deg, #f0fdfa 0%, #ecfdf5 100%);
+  border-color: #5eead4;
+  box-shadow: inset 3px 0 0 #14b8a6;
+}
+
+.eta-input--nm:hover {
+  border-color: #2dd4bf;
+  background: #f0fdfa;
+}
+
+.eta-input--nm:focus {
+  outline: 2px solid #99f6e4;
+  border-color: #0d9488;
+  background: #fff;
+}
+
+/* Speed (kn) — blue / motion */
+.eta-input--speed-kn {
+  text-align: center;
+  font-weight: 800;
+  color: #1d4ed8;
+  background: linear-gradient(180deg, #eff6ff 0%, #e0e7ff 100%);
+  border-color: #93c5fd;
+  box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+.eta-input--speed-kn:hover {
+  border-color: #60a5fa;
+  background: #eff6ff;
+}
+
+.eta-input--speed-kn:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: #2563eb;
+  background: #fff;
+}
+
 .eta-computed-inline--kn {
   display: block;
   width: 100%;
@@ -142,9 +236,10 @@
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
   color: #1d4ed8;
-  background: #eff6ff;
+  background: linear-gradient(180deg, #eff6ff 0%, #e0e7ff 100%);
   border: 1px solid #93c5fd;
   border-radius: 6px;
+  box-shadow: inset 3px 0 0 #3b82f6;
 }
 
 .eta-input--num::-webkit-outer-spin-button,
@@ -358,7 +453,10 @@
 }
 
 .eta-legs-table th {
-  font-size: 0.72rem;
+  font-size: 0.88rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  color: #334155;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -375,11 +473,16 @@
 }
 
 .eta-col-nm {
-  width: 4.5rem;
-  min-width: 4.5rem;
+  width: 4.75rem;
+  min-width: 4.75rem;
 }
 
 .eta-col-nm .eta-input--num {
+  text-align: center;
+}
+
+.eta-legs-table th.eta-col-nm,
+.eta-legs-table th.eta-col-kn {
   text-align: center;
 }
 
@@ -496,6 +599,301 @@
   color: #1d4ed8;
   background: #dbeafe;
   transform: translateY(-1px);
+}
+
+.eta-fuel-pin {
+  flex: 0 0 auto;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  padding: 0 0.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.eta-fuel-pin svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+}
+
+.eta-fuel-pin__tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  max-width: 2.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eta-fuel-pin:hover {
+  color: #ea580c;
+  background: #fff7ed;
+}
+
+.eta-fuel-pin--set {
+  color: #ea580c;
+}
+
+.eta-fuel-pin--open {
+  color: #c2410c;
+  background: #ffedd5;
+  transform: translateY(-1px);
+}
+
+.eta-fuel-toast {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 10061;
+  width: min(22rem, calc(100vw - 2rem));
+  pointer-events: auto;
+  animation: eta-gps-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.eta-fuel-toast__inner {
+  border-radius: 16px;
+  border: 1px solid #fdba74;
+  background: linear-gradient(165deg, #fffaf5 0%, #ffffff 42%, #f8fafc 100%);
+  box-shadow:
+    0 18px 40px rgba(154, 52, 18, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.eta-fuel-toast__head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.85rem 1rem 0.7rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.eta-fuel-toast__pin {
+  flex: 0 0 auto;
+  width: 2.1rem;
+  height: 2.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.eta-fuel-toast__pin svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.eta-fuel-toast__titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.eta-fuel-toast__titles strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eta-fuel-toast__titles span {
+  font-size: 0.78rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eta-fuel-toast__hint {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.eta-fuel-toast__body {
+  padding: 0 0.85rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: min(22rem, calc(100vh - 10rem));
+  overflow: auto;
+}
+
+.eta-fuel-toast__section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  padding: 0.15rem 0.15rem 0;
+}
+
+.eta-fuel-toast__chips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.eta-fuel-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  padding: 0.55rem 0.55rem 0.5rem;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.eta-fuel-chip:hover {
+  border-color: #fb923c;
+  background: #fff7ed;
+  transform: translateY(-1px);
+}
+
+.eta-fuel-chip--active {
+  border-color: #ea580c;
+  background: linear-gradient(180deg, #ffedd5 0%, #fff7ed 100%);
+  box-shadow: inset 0 0 0 1px rgba(234, 88, 12, 0.2);
+}
+
+.eta-fuel-chip__code {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #c2410c;
+}
+
+.eta-fuel-chip__kind {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #78716c;
+}
+
+.eta-fuel-toast__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.eta-fuel-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.48rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.eta-fuel-list-item:hover {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.eta-fuel-list-item--active {
+  background: #ffedd5;
+  border-color: #fdba74;
+}
+
+.eta-fuel-list-item__code {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #1c1917;
+}
+
+.eta-fuel-list-item__kind {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #78716c;
+}
+
+.eta-fuel-toast__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  padding: 0.65rem 0.85rem 0.85rem;
+  border-top: 1px solid #ffedd5;
+  background: rgba(255, 247, 237, 0.45);
+}
+
+.eta-fuel-toast__clear,
+.eta-fuel-toast__done {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.eta-fuel-toast__clear {
+  background: transparent;
+  color: #78716c;
+}
+
+.eta-fuel-toast__clear:hover:not(:disabled) {
+  color: #c2410c;
+  background: #ffedd5;
+}
+
+.eta-fuel-toast__clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.eta-fuel-toast__done {
+  background: #ea580c;
+  color: #fff;
+}
+
+.eta-fuel-toast__done:hover {
+  background: #c2410c;
 }
 
 .eta-gps-toast {

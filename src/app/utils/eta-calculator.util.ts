@@ -388,6 +388,8 @@ export const ETA_FIELD_TOOLTIPS = {
   toPort: 'Destination port',
   departureUtc: 'UTC offset at departure. ↑↓ ±1 h, Enter to confirm',
   arrivalUtc: 'UTC offset at arrival. ↑↓ ±1 h, Enter to confirm',
+  shipUtc:
+    'Ship local time (UTC offset). Used when exporting this voyage to Fuel — Noon at 12:00 LT and event clocks',
   routeDepBlock: 'Departure side: port and local UTC offset',
   routeArrBlock: 'Arrival side: port and local UTC offset',
   departureDate: 'Departure date (local time)',
@@ -401,5 +403,9 @@ export const ETA_FIELD_TOOLTIPS = {
   legDuration: 'Leg duration: distance ÷ speed',
   legEta: 'ETA at end of leg (local time). Use ± to step timezone between departure and arrival ports',
   legEtaTz: 'Step this leg ETA timezone through the range between departure and arrival UTC offsets',
+  departureFuel:
+    'Fuel log event at departure (FROM), e.g. SBE. Used when adding the voyage into Fuel Edit',
+  legFuel:
+    'Fuel log event at this waypoint (TO), e.g. BOSP / EOSP / FWE. Empty = skip when exporting to Fuel',
   addLeg: 'Add another distance / speed segment',
 } as const;

@@ -75,12 +75,30 @@ export class EtaStore {
   }
 
   addLeg(): void {
+    this.updateLibrary((lib) => {
+      const prev = lib.draft.legs;
+      // Previous last was arrival (FWE) — become intermediate (EOSP); new last = FWE.
+      const adjusted = prev.map((leg, i) => {
+        if (i !== prev.length - 1) return leg;
+        if (!leg.fuelRawEvent.trim() || leg.fuelRawEvent.trim() === 'FWE') {
+          return { ...leg, fuelRawEvent: 'EOSP' };
+        }
+        return leg;
+      });
+      return {
+        ...lib,
+        draft: this.touchDraft({
+          ...lib.draft,
+          legs: [...adjusted, createEtaLeg({ fuelRawEvent: 'FWE' })],
+        }),
+      };
+    });
+  }
+
+  setShipUtcOffsetHours(hours: number): void {
     this.updateLibrary((lib) => ({
       ...lib,
-      draft: this.touchDraft({
-        ...lib.draft,
-        legs: [...lib.draft.legs, createEtaLeg()],
-      }),
+      shipUtcOffsetHours: hours,
     }));
   }
 
@@ -100,7 +118,10 @@ export class EtaStore {
   updateLeg(
     legId: string,
     partial: Partial<
-      Pick<EtaLeg, 'distanceNm' | 'speedKnots' | 'toLabel' | 'etaUtcOffsetHours' | 'toGps'>
+      Pick<
+        EtaLeg,
+        'distanceNm' | 'speedKnots' | 'toLabel' | 'etaUtcOffsetHours' | 'toGps' | 'fuelRawEvent'
+      >
     >,
   ): void {
     this.updateLibrary((lib) => ({

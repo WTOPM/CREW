@@ -15,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { FuelDisplayModalsComponent } from '../../components/fuel-display-modals/fuel-display-modals.component';
+import { FuelEtaVoyagePreviewModalComponent } from '../../components/fuel-eta-voyage-preview-modal/fuel-eta-voyage-preview-modal.component';
 import { FuelEventEditModalComponent } from '../../components/fuel-event-edit-modal/fuel-event-edit-modal.component';
 import { RefChoiceSuggestComponent } from '../../components/ref-choice-suggest/ref-choice-suggest.component';
 import { PlainTooltipDirective } from '../../directives/plain-tooltip.directive';
@@ -95,6 +96,12 @@ import {
   importFuelLogFromExcelBytes,
   writeFuelLogToExcelBytes,
 } from '../../utils/fuel-excel-import.util';
+import {
+  buildEtaFuelVoyagePreview,
+  etaFuelVoyagePreviewRowsToEvents,
+  type EtaFuelVoyagePreview,
+  type EtaFuelVoyagePreviewRow,
+} from '../../utils/eta-to-fuel-voyage.util';
 import { formatDisplayDate } from '../../utils/date.util';
 
 const ALL_KINDS = Object.keys(FUEL_EVENT_KIND_LABELS) as FuelEventKind[];
@@ -185,6 +192,7 @@ interface FuelPathSegment {
     FormsModule,
     DatePickerComponent,
     FuelEventEditModalComponent,
+    FuelEtaVoyagePreviewModalComponent,
     FuelDisplayModalsComponent,
     RefChoiceSuggestComponent,
     PlainTooltipDirective,
@@ -217,6 +225,8 @@ export class FuelComponent {
   protected readonly showAddModal = signal(false);
   /** Stable seed for Add modal (new object only when opening — avoids draft reset). */
   protected readonly addModalSeed = signal<Partial<FuelLogEvent> | null>(null);
+  /** ETA → Fuel Edit voyage preview (include/exclude + time tools). */
+  protected readonly etaVoyagePreview = signal<EtaFuelVoyagePreview | null>(null);
   /** Floating density editor on Total t (D click or right-click). */
   protected readonly densityHud = signal<FuelDensityHud | null>(null);
   /** Floating ROB-tank picker on ME / AE / Boiler t (F badge). */
@@ -825,6 +835,77 @@ export class FuelComponent {
       density: this.library().lastDensity ?? FUEL_DEFAULT_DENSITY,
     });
     this.showAddModal.set(true);
+  }
+
+  /**
+   * Open ETA → Fuel Edit preview (gaps, duplicates, time tools) before committing rows.
+   */
+  protected addVoyageFromEta(): void {
+    if (!this.canEdit()) {
+      this.toast.showError('Switch to the Edit tab to add a voyage');
+      return;
+    }
+    const etaLib = this.storage.etaLibrary();
+    const preview = buildEtaFuelVoyagePreview(
+      etaLib.draft,
+      etaLib.shipUtcOffsetHours,
+      this.library().editEvents,
+    );
+    if (!preview.rows.length) {
+      this.toast.showError(
+        preview.warnings[0] || 'No Fuel events — set Fuel labels on the ETA plan first',
+      );
+      return;
+    }
+    this.etaVoyagePreview.set(preview);
+  }
+
+  protected closeEtaVoyagePreview(): void {
+    this.etaVoyagePreview.set(null);
+  }
+
+  protected applyEtaVoyagePreview(rows: EtaFuelVoyagePreviewRow[]): void {
+    const preview = this.etaVoyagePreview();
+    this.etaVoyagePreview.set(null);
+    const seeds = etaFuelVoyagePreviewRowsToEvents(
+      rows,
+      this.library().lastDensity ?? FUEL_DEFAULT_DENSITY,
+    );
+    if (!seeds.length) {
+      this.toast.showError('No events selected to add');
+      return;
+    }
+    let editEvents = [...this.library().editEvents];
+    const pendingMap = new Map(this.pendingInheritedByEvent());
+    let added = 0;
+    for (const seed of seeds) {
+      const prev = findPreviousFuelEvent(editEvents, seed.date, seed.time, seed.id);
+      const { patch, inheritedFields } = inheritFuelFieldsFromPrevious(prev);
+      const fill: Partial<FuelLogEvent> = {};
+      const pending: FuelInheritableField[] = [];
+      for (const field of inheritedFields) {
+        if (field === 'meRobTank' || field === 'aeRobTank' || field === 'boilerRobTank') continue;
+        const cur = seed[field];
+        const empty = cur == null || (typeof cur === 'string' && !String(cur).trim());
+        if (!empty) continue;
+        (fill as Record<string, unknown>)[field] = patch[field];
+        pending.push(field);
+      }
+      const before = findFuelEventBeforePrevious(editEvents, prev);
+      const next = createEmptyFuelLogEvent(
+        applyFuelEventAutoCalcs({ ...seed, ...fill }, prev, before, this.library().lastDensity),
+      );
+      editEvents = [...editEvents.filter((e) => e.id !== next.id), next];
+      if (pending.length) pendingMap.set(next.id, new Set(pending));
+      added++;
+    }
+    this.fuelStore.replaceEditEvents(cascadeAppAddedFuelRob(editEvents));
+    this.pendingInheritedByEvent.set(pendingMap);
+    const extra = preview?.warnings.length ? ` · ${preview.warnings[0]}` : '';
+    this.toast.show(
+      `Added ${added} draft row(s) from ETA — fill fuel, mark ✓, then Write${extra}`,
+      'success',
+    );
   }
 
   protected closeAddModal(): void {

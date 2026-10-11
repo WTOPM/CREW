@@ -502,6 +502,21 @@
       @if (activeTab() === 'edit') {
         <button
           type="button"
+          class="fuel-add-btn fuel-add-btn--voyage"
+          [class.fuel-add-btn--ready]="canEdit()"
+          [class.fuel-add-btn--locked]="!canEdit()"
+          (click)="addVoyageFromEta()"
+          [disabled]="!canEdit()"
+          [attr.aria-disabled]="!canEdit()"
+          title="Add the open ETA voyage as Fuel draft rows (Ship LT + auto Noon)"
+        >
+          <span class="fuel-add-btn__text">
+            <span class="fuel-add-btn__label">Add voyage</span>
+            <span class="fuel-add-btn__sub">from ETA</span>
+          </span>
+        </button>
+        <button
+          type="button"
           class="fuel-add-btn"
           [class.fuel-add-btn--ready]="canEdit()"
           [class.fuel-add-btn--locked]="!canEdit()"
@@ -843,6 +858,14 @@
     [preferredDensity]="library().lastDensity"
     (save)="onAddSave($event)"
     (cancel)="closeAddModal()"
+  />
+}
+
+@if (etaVoyagePreview(); as voyagePreview) {
+  <app-fuel-eta-voyage-preview-modal
+    [preview]="voyagePreview"
+    (confirm)="applyEtaVoyagePreview($event)"
+    (cancel)="closeEtaVoyagePreview()"
   />
 }
 

@@ -1,0 +1,218 @@
+<div class="modal-backdrop fuel-eta-voyage-backdrop" (click)="onCancel()">
+  <div
+    class="modal fuel-eta-voyage-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="fuel-eta-voyage-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="fuel-eta-voyage-modal__head">
+      <div class="fuel-eta-voyage-modal__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path
+            fill="currentColor"
+            d="M12 3c-1.2 2.4-3.8 5.2-3.8 8.2A3.8 3.8 0 0 0 12 15a3.8 3.8 0 0 0 3.8-3.8C15.8 8.2 13.2 5.4 12 3zm0 14.5c-3.4 0-6.2-2.2-6.2-5.3 0-.4.1-.8.2-1.2C4.5 12.3 3.5 14.2 3.5 16.2 3.5 19.4 6.7 22 12 22s8.5-2.6 8.5-5.8c0-2-.9-3.8-2.5-5.1.1.4.2.8.2 1.2 0 3.1-2.8 5.2-6.2 5.2z"
+          />
+        </svg>
+      </div>
+      <div class="fuel-eta-voyage-modal__intro">
+        <h3 id="fuel-eta-voyage-title">Add voyage from ETA</h3>
+        <p>
+          {{ preview().routeLabel }} · Ship LT {{ shipOffsetLabel() }} · review
+          events before they land in Edit
+        </p>
+      </div>
+    </header>
+
+    <div class="fuel-eta-voyage-modal__body">
+      @if (preview().previousEvent; as prev) {
+        <div class="fuel-eta-voyage-prev">
+          <div class="fuel-eta-voyage-prev__label">Previous Fuel event</div>
+          <div class="fuel-eta-voyage-prev__card">
+            <span class="fuel-eta-voyage-prev__when"
+              >{{ formatDate(prev.date) }} · {{ prev.time || '—' }}</span
+            >
+            <span class="fuel-eta-voyage-prev__event">{{ prev.rawEvent || '—' }}</span>
+            <span class="fuel-eta-voyage-kind" [attr.data-kind]="prev.kind">{{
+              kindLabel(prev.kind)
+            }}</span>
+            @if (prev.place) {
+              <span class="fuel-eta-voyage-prev__place">{{ prev.place }}</span>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="fuel-eta-voyage-prev fuel-eta-voyage-prev--empty">
+          No previous Fuel Edit event — voyage will start a new chain.
+        </div>
+      }
+
+      @if (hasDuplicates()) {
+        <div class="fuel-eta-voyage-banner fuel-eta-voyage-banner--dup" role="status">
+          Some labels were already added after the previous Fuel event. They stay
+          listed but are struck out by default — toggle them back on if you still want
+          a copy. Older voyages are ignored.
+        </div>
+      }
+
+      @if (hasTimeConflict()) {
+        <div class="fuel-eta-voyage-banner fuel-eta-voyage-banner--time" role="alert">
+          Included events fall <strong>before</strong> the previous Fuel event. Adjust
+          date/time, exclude rows, or shift the voyage after the previous event.
+        </div>
+      }
+
+      @if (preview().warnings.length) {
+        <div class="fuel-eta-voyage-banner fuel-eta-voyage-banner--warn">
+          {{ preview().warnings[0] }}
+        </div>
+      }
+
+      <div class="fuel-eta-voyage-tools">
+        <button type="button" class="fuel-eta-voyage-tool" (click)="excludeAllDuplicates()">
+          Exclude duplicates
+        </button>
+        <button type="button" class="fuel-eta-voyage-tool" (click)="includeAll()">
+          Include all
+        </button>
+        <button type="button" class="fuel-eta-voyage-tool" (click)="excludeAll()">
+          Exclude all
+        </button>
+        @if (preview().previousEvent) {
+          <button
+            type="button"
+            class="fuel-eta-voyage-tool fuel-eta-voyage-tool--accent"
+            [disabled]="!hasTimeConflict()"
+            (click)="shiftAfterPrevious()"
+            title="Move included events so the first starts 1 minute after the previous Fuel event"
+          >
+            Shift after previous
+          </button>
+        }
+      </div>
+
+      <div class="fuel-eta-voyage-table-wrap">
+        <table class="fuel-eta-voyage-table">
+          <thead>
+            <tr>
+              <th class="fuel-eta-voyage-col-on">Add</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Event</th>
+              <th>Place</th>
+              <th class="fuel-eta-voyage-col-gap" title="From previous row / previous Fuel event">
+                Gap
+              </th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of annotated(); track row.key) {
+              <tr
+                [class.fuel-eta-voyage-row--off]="!row.included"
+                [class.fuel-eta-voyage-row--before]="row.included && row.beforePrevious"
+                [class.fuel-eta-voyage-row--dup]="!!row.duplicateOf"
+              >
+                <td class="fuel-eta-voyage-col-on">
+                  <label class="fuel-eta-voyage-check">
+                    <input
+                      type="checkbox"
+                      [checked]="row.included"
+                      (change)="toggleRow(row.key)"
+                    />
+                  </label>
+                </td>
+                <td>
+                  <input
+                    type="date"
+                    class="fuel-eta-voyage-input"
+                    [ngModel]="row.date"
+                    (ngModelChange)="onDateChange(row.key, $event)"
+                    [disabled]="!row.included"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="time"
+                    class="fuel-eta-voyage-input fuel-eta-voyage-input--time"
+                    [ngModel]="row.time"
+                    (ngModelChange)="onTimeChange(row.key, $event)"
+                    [disabled]="!row.included"
+                  />
+                </td>
+                <td>
+                  <div class="fuel-eta-voyage-event" [class.fuel-eta-voyage-event--strike]="!row.included">
+                    <strong>{{ row.rawEvent }}</strong>
+                    <span class="fuel-eta-voyage-kind" [attr.data-kind]="row.kind">{{
+                      kindLabel(row.kind)
+                    }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span
+                    class="fuel-eta-voyage-place"
+                    [class.fuel-eta-voyage-event--strike]="!row.included"
+                    >{{ row.place || '—' }}</span
+                  >
+                </td>
+                <td
+                  class="fuel-eta-voyage-col-gap"
+                  [class.fuel-eta-voyage-gap--neg]="
+                    row.gapFromPrevHours != null && row.gapFromPrevHours < 0
+                  "
+                >
+                  {{ row.gapLabel }}
+                </td>
+                <td class="fuel-eta-voyage-notes">
+                  @if (row.duplicateOf; as dup) {
+                    <span
+                      class="fuel-eta-voyage-note fuel-eta-voyage-note--dup"
+                      [title]="
+                        'Already in Edit: ' +
+                        formatDate(dup.date) +
+                        ' ' +
+                        (dup.time || '') +
+                        ' · ' +
+                        (dup.place || dup.rawEvent)
+                      "
+                    >
+                      Already have {{ dup.rawEvent }}
+                      <small
+                        >{{ formatDate(dup.date) }} {{ dup.time }}</small
+                      >
+                    </span>
+                  }
+                  @if (row.included && row.beforePrevious) {
+                    <span class="fuel-eta-voyage-note fuel-eta-voyage-note--time"
+                      >Before previous</span
+                    >
+                  }
+                  @if (!row.duplicateOf && !(row.included && row.beforePrevious)) {
+                    <span class="fuel-eta-voyage-note-empty">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer class="fuel-eta-voyage-modal__foot">
+      <span class="fuel-eta-voyage-modal__count">
+        {{ includedCount() }} of {{ annotated().length }} will be added
+      </span>
+      <div class="fuel-eta-voyage-modal__actions">
+        <button type="button" class="btn btn--ghost" (click)="onCancel()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="!includedCount()"
+          (click)="onConfirm()"
+        >
+          Add {{ includedCount() }} event{{ includedCount() === 1 ? '' : 's' }}
+        </button>
+      </div>
+    </footer>
+  </div>
+</div>

@@ -1833,6 +1833,16 @@
   opacity: 1;
 }
 
+.fuel-add-btn--voyage {
+  border-color: #38bdf8;
+  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  color: #0369a1;
+}
+
+.fuel-add-btn--voyage .fuel-add-btn__sub {
+  color: #0284c7;
+}
+
 .fuel-add-btn--ready:hover:not(:disabled) {
   border-color: #10b981;
   transform: translateY(-1px);

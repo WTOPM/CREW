@@ -5,6 +5,19 @@
       <h1>ETA Calculator</h1>
     </div>
     <div class="eta-page-actions dg-page-actions">
+      <label class="eta-ship-lt" [title]="etaTips.shipUtc">
+        <span class="eta-ship-lt__label">Ship LT</span>
+        <input
+          type="text"
+          class="eta-input eta-input--tz eta-ship-lt__input"
+          inputmode="decimal"
+          [ngModel]="shipUtcOffsetModel()"
+          (ngModelChange)="onShipUtcOffsetChange($event)"
+          (blur)="onShipUtcOffsetBlur()"
+          (keydown)="onShipUtcOffsetKeydown($event)"
+          placeholder="+2"
+        />
+      </label>
       <a routerLink="/eta/timezones" class="btn btn-secondary btn-sm eta-tz-link" title="Browse world timezones">
         World timezones
       </a>
@@ -247,6 +260,7 @@
         </div>
         <p class="eta-hint">
           Time = distance ÷ speed (NM ÷ kn). ETA = departure + time. Name intermediate legs yourself if needed.
+          Fuel event = Excel label for Fuel Edit (SBE / BOSP / EOSP / FWE…). Noon at 12:00 Ship LT is added automatically on export.
         </p>
 
         <div class="table-wrap eta-table-wrap">
@@ -256,8 +270,8 @@
                 <th class="eta-col-no">#</th>
                 <th class="eta-col-route" [title]="etaTips.fromPort">From</th>
                 <th class="eta-col-route" [title]="etaTips.toPort">To</th>
-                <th class="eta-col-nm" [title]="etaTips.legDistance">NM</th>
-                <th class="eta-col-kn" [title]="etaTips.legSpeed">kn</th>
+                <th class="eta-col-nm" [title]="etaTips.legDistance"><span class="eta-col-tag eta-col-tag--nm">NM</span></th>
+                <th class="eta-col-kn" [title]="etaTips.legSpeed"><span class="eta-col-tag eta-col-tag--kn">kn</span></th>
                 <th class="eta-col-duration" [title]="etaTips.legDuration">Dur.</th>
                 <th class="eta-col-eta" [title]="etaTips.legEta">ETA</th>
                 <th class="eta-col-actions" aria-label="Actions"></th>
@@ -274,6 +288,7 @@
                     <div class="eta-route-cell">
                       <span class="eta-route-end">{{ calculation().legs[i]?.fromLabel || '—' }}</span>
                       @if (i === 0) {
+                        @let depFuel = departureFuelTarget();
                         <button
                           type="button"
                           class="eta-gps-pin"
@@ -288,6 +303,31 @@
                               d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
                             />
                           </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="eta-fuel-pin"
+                          [class.eta-fuel-pin--set]="hasFuelEvent(depFuel)"
+                          [class.eta-fuel-pin--open]="isFuelPanelOpen(depFuel)"
+                          [title]="etaTips.departureFuel"
+                          [attr.aria-label]="
+                            hasFuelEvent(depFuel)
+                              ? 'Fuel event ' + fuelEventValue(depFuel)
+                              : 'Choose Fuel event for departure'
+                          "
+                          (click)="toggleFuelEventPanel(depFuel, $event)"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path
+                              fill="currentColor"
+                              d="M12 3c-1.2 2.4-3.8 5.2-3.8 8.2A3.8 3.8 0 0 0 12 15a3.8 3.8 0 0 0 3.8-3.8C15.8 8.2 13.2 5.4 12 3zm0 14.5c-3.4 0-6.2-2.2-6.2-5.3 0-.4.1-.8.2-1.2C4.5 12.3 3.5 14.2 3.5 16.2 3.5 19.4 6.7 22 12 22s8.5-2.6 8.5-5.8c0-2-.9-3.8-2.5-5.1.1.4.2.8.2 1.2 0 3.1-2.8 5.2-6.2 5.2z"
+                            />
+                          </svg>
+                          @if (hasFuelEvent(depFuel)) {
+                            <span class="eta-fuel-pin__tag">{{
+                              fuelEventShort(fuelEventValue(depFuel))
+                            }}</span>
+                          }
                         </button>
                       }
                     </div>
@@ -306,6 +346,7 @@
                           [title]="etaTips.legWaypoint"
                           [ngModel]="leg.toLabel"
                           (ngModelChange)="onLegToLabel(leg.id, $event)"
+                          (keydown.enter)="blurOnEnter($event)"
                           placeholder="Intermediate point"
                         />
                       }
@@ -332,16 +373,48 @@
                           />
                         </svg>
                       </button>
+                      @let legFuel = legFuelTarget(
+                        leg.id,
+                        calculation().legs[i]?.toLabel || leg.toLabel || ''
+                      );
+                      <button
+                        type="button"
+                        class="eta-fuel-pin"
+                        [class.eta-fuel-pin--set]="hasFuelEvent(legFuel)"
+                        [class.eta-fuel-pin--open]="isFuelPanelOpen(legFuel)"
+                        [title]="etaTips.legFuel"
+                        [attr.aria-label]="
+                          hasFuelEvent(legFuel)
+                            ? 'Fuel event ' + fuelEventValue(legFuel)
+                            : 'Choose Fuel event for this waypoint'
+                        "
+                        (click)="toggleFuelEventPanel(legFuel, $event)"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <path
+                            fill="currentColor"
+                            d="M12 3c-1.2 2.4-3.8 5.2-3.8 8.2A3.8 3.8 0 0 0 12 15a3.8 3.8 0 0 0 3.8-3.8C15.8 8.2 13.2 5.4 12 3zm0 14.5c-3.4 0-6.2-2.2-6.2-5.3 0-.4.1-.8.2-1.2C4.5 12.3 3.5 14.2 3.5 16.2 3.5 19.4 6.7 22 12 22s8.5-2.6 8.5-5.8c0-2-.9-3.8-2.5-5.1.1.4.2.8.2 1.2 0 3.1-2.8 5.2-6.2 5.2z"
+                          />
+                        </svg>
+                        @if (hasFuelEvent(legFuel)) {
+                          <span class="eta-fuel-pin__tag">{{
+                            fuelEventShort(fuelEventValue(legFuel))
+                          }}</span>
+                        }
+                      </button>
                     </div>
                   </td>
                   <td class="eta-col-nm" [title]="etaTips.legDistance">
                     <input
                       type="number"
-                      class="eta-input eta-input--num"
+                      class="eta-input eta-input--num eta-input--nm"
                       min="0"
                       step="0.1"
                       [ngModel]="leg.distanceNm || ''"
                       (ngModelChange)="onLegDistance(leg.id, $event)"
+                      (mousedown)="onNmMouseDown($event)"
+                      (focus)="onNmFocus($event)"
+                      (keydown.enter)="blurOnEnter($event)"
                     />
                   </td>
                   <td class="eta-col-kn" [title]="etaTips.legSpeed">
@@ -722,4 +795,94 @@
     </div>
   </div>
   }
+}
+
+@if (fuelEventPanel(); as fuel) {
+  <div class="eta-fuel-toast" role="dialog" aria-label="Fuel event">
+    <div class="eta-fuel-toast__inner">
+      <button
+        type="button"
+        class="eta-fuel-toast__head"
+        tabindex="-1"
+        (click)="dismissFuelEventPanel()"
+        title="Hide"
+      >
+        <span class="eta-fuel-toast__pin" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path
+              fill="currentColor"
+              d="M12 3c-1.2 2.4-3.8 5.2-3.8 8.2A3.8 3.8 0 0 0 12 15a3.8 3.8 0 0 0 3.8-3.8C15.8 8.2 13.2 5.4 12 3zm0 14.5c-3.4 0-6.2-2.2-6.2-5.3 0-.4.1-.8.2-1.2C4.5 12.3 3.5 14.2 3.5 16.2 3.5 19.4 6.7 22 12 22s8.5-2.6 8.5-5.8c0-2-.9-3.8-2.5-5.1.1.4.2.8.2 1.2 0 3.1-2.8 5.2-6.2 5.2z"
+            />
+          </svg>
+        </span>
+        <span class="eta-fuel-toast__titles">
+          <strong>{{ fuel.target.label }}</strong>
+          <span>{{
+            fuel.selected
+              ? fuel.selected + ' · ' + fuelEventKindLabel(fuel.selected)
+              : 'Choose Fuel event'
+          }}</span>
+        </span>
+        <span class="eta-fuel-toast__hint">hide</span>
+      </button>
+
+      <div class="eta-fuel-toast__body">
+        <div class="eta-fuel-toast__section-label">Common</div>
+        <div class="eta-fuel-toast__chips" role="listbox" aria-label="Common Fuel events">
+          @for (opt of fuelPickerPrimary().primary; track opt) {
+            <button
+              type="button"
+              class="eta-fuel-chip"
+              [class.eta-fuel-chip--active]="fuel.selected === opt"
+              role="option"
+              [attr.aria-selected]="fuel.selected === opt"
+              (click)="selectFuelEvent(opt)"
+            >
+              <span class="eta-fuel-chip__code">{{ opt }}</span>
+              <span class="eta-fuel-chip__kind">{{ fuelEventKindLabel(opt) }}</span>
+            </button>
+          }
+        </div>
+
+        @if (fuelPickerPrimary().rest.length) {
+          <div class="eta-fuel-toast__section-label">More</div>
+          <div class="eta-fuel-toast__list" role="listbox" aria-label="More Fuel events">
+            @for (opt of fuelPickerPrimary().rest; track opt) {
+              <button
+                type="button"
+                class="eta-fuel-list-item"
+                [class.eta-fuel-list-item--active]="fuel.selected === opt"
+                role="option"
+                [attr.aria-selected]="fuel.selected === opt"
+                (click)="selectFuelEvent(opt)"
+              >
+                <span class="eta-fuel-list-item__code">{{ opt }}</span>
+                <span class="eta-fuel-list-item__kind">{{ fuelEventKindLabel(opt) }}</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="eta-fuel-toast__foot">
+        <button
+          type="button"
+          class="eta-fuel-toast__clear"
+          tabindex="-1"
+          [disabled]="!fuel.selected"
+          (click)="clearFuelEvent()"
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          class="eta-fuel-toast__done"
+          tabindex="-1"
+          (click)="dismissFuelEventPanel()"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
 }

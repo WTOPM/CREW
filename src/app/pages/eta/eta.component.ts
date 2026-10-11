@@ -9,6 +9,12 @@ import { DatePickerComponent } from '../../components/date-picker/date-picker.co
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
 import { TimeInputComponent } from '../../components/time-input/time-input.component';
 import {
+  classifyFuelEvent,
+  FUEL_EVENT_KIND_LABELS,
+  FUEL_RAW_EVENT_OPTIONS,
+  type FuelEventKind,
+} from '../../models/fuel.models';
+import {
   EtaScenario,
   legEtaUtcOffsetRange,
   normalizeUtcOffsetHours,
@@ -63,7 +69,15 @@ type EtaGpsTarget =
   | { key: 'toPort'; label: string }
   | { key: `leg:${string}`; legId: string; label: string };
 
+/** Fuel event picker target — departure FROM or a leg's TO. */
+type EtaFuelTarget =
+  | { key: 'departure'; label: string }
+  | { key: `leg:${string}`; legId: string; label: string };
+
 type EtaGpsDmsFieldIdx = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+/** Preferred order in the Fuel picker (then the rest of FUEL_RAW_EVENT_OPTIONS). */
+const ETA_FUEL_PICKER_PRIMARY = ['SBE', 'BOSP', 'EOSP', 'FWE', 'FEW', 'Noon'] as const;
 
 @Component({
   selector: 'app-eta',
@@ -120,6 +134,23 @@ export class EtaComponent implements OnDestroy {
   private readonly unsubGpsFloat: Array<() => void> = [];
 
   protected readonly etaTips = ETA_FIELD_TOOLTIPS;
+  protected readonly fuelEventPanel = signal<{
+    target: EtaFuelTarget;
+    selected: string;
+  } | null>(null);
+  protected readonly fuelPickerPrimary = computed(() => {
+    const set = new Set<string>(ETA_FUEL_PICKER_PRIMARY);
+    const primary = ETA_FUEL_PICKER_PRIMARY.filter((o) =>
+      (FUEL_RAW_EVENT_OPTIONS as readonly string[]).includes(o),
+    );
+    const rest = FUEL_RAW_EVENT_OPTIONS.filter((o) => !set.has(o));
+    return { primary, rest };
+  });
+  protected readonly shipUtcOffsetHours = computed(() => this.etaLibrary().shipUtcOffsetHours);
+  protected readonly shipUtcOffsetLabel = computed(() =>
+    formatUtcOffsetLabel(this.shipUtcOffsetHours()),
+  );
+  private readonly shipUtcOffsetEdit = signal<string | null>(null);
 
   constructor() {
     const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
@@ -147,6 +178,112 @@ export class EtaComponent implements OnDestroy {
   ngOnDestroy(): void {
     this.commitGpsPanel();
     // Draft stays in memory until SAVE; tab switch / close still flush via App shell.
+  }
+
+  protected departureFuelTarget(): EtaFuelTarget {
+    const from = this.draft().fromPort.trim() || 'Departure';
+    return { key: 'departure', label: from };
+  }
+
+  protected legFuelTarget(legId: string, label: string): EtaFuelTarget {
+    return { key: `leg:${legId}`, legId, label: label.trim() || 'Waypoint' };
+  }
+
+  protected fuelEventValue(target: EtaFuelTarget): string {
+    if (target.key === 'departure') return this.draft().departureFuelRawEvent ?? '';
+    const leg = this.draft().legs.find((l) => l.id === target.legId);
+    return leg?.fuelRawEvent ?? '';
+  }
+
+  protected hasFuelEvent(target: EtaFuelTarget): boolean {
+    return !!this.fuelEventValue(target).trim();
+  }
+
+  protected isFuelPanelOpen(target: EtaFuelTarget): boolean {
+    return this.fuelEventPanel()?.target.key === target.key;
+  }
+
+  protected fuelEventShort(raw: string): string {
+    const t = raw.trim();
+    if (!t) return '';
+    // Show first token (SBE, BOSP, Noon…)
+    return t.split(/[\s/]+/)[0]!.slice(0, 4).toUpperCase();
+  }
+
+  protected fuelEventKindLabel(raw: string): string {
+    const kind = classifyFuelEvent(raw) as FuelEventKind;
+    return FUEL_EVENT_KIND_LABELS[kind] ?? 'Other';
+  }
+
+  protected toggleFuelEventPanel(target: EtaFuelTarget, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    // Close GPS panel so only one floating card is open.
+    if (this.gpsPanel()) this.dismissGpsPanel();
+    const open = this.fuelEventPanel();
+    if (open?.target.key === target.key) {
+      this.fuelEventPanel.set(null);
+      return;
+    }
+    this.fuelEventPanel.set({ target, selected: this.fuelEventValue(target) });
+  }
+
+  protected selectFuelEvent(raw: string): void {
+    const open = this.fuelEventPanel();
+    if (!open) return;
+    const value = raw.trim();
+    if (open.target.key === 'departure') {
+      this.etaStore.setDraftField('departureFuelRawEvent', value);
+    } else {
+      this.etaStore.updateLeg(open.target.legId, { fuelRawEvent: value });
+    }
+    this.fuelEventPanel.set(null);
+  }
+
+  protected clearFuelEvent(): void {
+    this.selectFuelEvent('');
+  }
+
+  protected dismissFuelEventPanel(): void {
+    this.fuelEventPanel.set(null);
+  }
+
+  protected shipUtcOffsetModel(): string {
+    const edit = this.shipUtcOffsetEdit();
+    if (edit != null) return edit;
+    return formatUtcOffsetLabel(this.shipUtcOffsetHours());
+  }
+
+  protected onShipUtcOffsetChange(raw: string): void {
+    this.shipUtcOffsetEdit.set(raw);
+  }
+
+  protected onShipUtcOffsetBlur(): void {
+    this.commitShipUtcOffset();
+  }
+
+  protected onShipUtcOffsetKeydown(event: KeyboardEvent): void {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      const dir = event.key === 'ArrowUp' ? 1 : -1;
+      const next = stepUtcOffsetHours(this.shipUtcOffsetHours(), dir);
+      this.etaStore.setShipUtcOffsetHours(next);
+      this.shipUtcOffsetEdit.set(null);
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.commitShipUtcOffset();
+      (event.target as HTMLInputElement).blur();
+    }
+  }
+
+  private commitShipUtcOffset(): void {
+    const edit = this.shipUtcOffsetEdit();
+    if (edit == null) return;
+    const next = normalizeUtcOffsetHours(edit, this.shipUtcOffsetHours());
+    this.etaStore.setShipUtcOffsetHours(next);
+    this.shipUtcOffsetEdit.set(null);
   }
 
   protected setFromPort(value: string): void {
@@ -352,6 +489,27 @@ export class EtaComponent implements OnDestroy {
     this.etaStore.removeLeg(legId);
   }
 
+  /** Select all on click/focus so typing replaces the distance immediately. */
+  protected onNmMouseDown(event: MouseEvent): void {
+    const el = event.target as HTMLInputElement;
+    if (document.activeElement !== el) {
+      event.preventDefault();
+      el.focus();
+      el.select();
+    }
+  }
+
+  protected onNmFocus(event: FocusEvent): void {
+    const el = event.target as HTMLInputElement;
+    queueMicrotask(() => el.select());
+  }
+
+  /** Enter commits (already via ngModel) and leaves the field. */
+  protected blurOnEnter(event: Event): void {
+    event.preventDefault();
+    (event.target as HTMLInputElement).blur();
+  }
+
   protected onLegDistance(legId: string, raw: string): void {
     const distanceNm = parseFloat(raw);
     this.etaStore.updateLeg(legId, { distanceNm: isFinite(distanceNm) ? distanceNm : 0 });
@@ -419,6 +577,7 @@ export class EtaComponent implements OnDestroy {
   protected toggleGpsPanel(target: EtaGpsTarget, event?: Event): void {
     event?.preventDefault();
     event?.stopPropagation();
+    this.dismissFuelEventPanel();
     const open = this.gpsPanel();
     if (open?.target.key === target.key) {
       this.dismissGpsPanel();
