@@ -166,7 +166,8 @@ export class DocumentSettingsStore {
         outputSettings: normalizeOutputSettings(next),
       };
     });
-    void this.state.persistOutputSettings(notify);
+    // RAM until tab leave / minimize — avoid read+write on every toggle over a slow share.
+    void this.state.persist(notify === 'saved' ? 'saved' : 'memory');
   }
 
   /** Update save-folder prefs for one tab (Home / DG / Reefer). */
@@ -188,7 +189,7 @@ export class DocumentSettingsStore {
         }),
       };
     });
-    void this.state.persistOutputSettings(notify);
+    void this.state.persist(notify === 'saved' ? 'saved' : 'memory');
   }
 
   /** Remember a folder path and make it the active output target for a tab. */
@@ -212,7 +213,7 @@ export class DocumentSettingsStore {
         }),
       };
     });
-    void this.state.persistOutputSettings('saved');
+    void this.state.persist('memory');
   }
 
   removeSavedPath(section: OutputFolderSection, path: string): void {
@@ -235,7 +236,7 @@ export class DocumentSettingsStore {
         }),
       };
     });
-    void this.state.persistOutputSettings('silent');
+    void this.state.persist('memory');
   }
 
   setPrinterName(printerName: string): void {
@@ -249,7 +250,7 @@ export class DocumentSettingsStore {
       ...d,
       customDocuments: [...d.customDocuments, { id: crypto.randomUUID(), name: n, dataBase64 }],
     }));
-    void this.state.persist('saved');
+    void this.state.persist('memory');
   }
 
   removeCustomDocument(id: string): void {
@@ -268,7 +269,7 @@ export class DocumentSettingsStore {
       if (d.printPackages.some((pkg) => pkg.port === p)) return d;
       return { ...d, printPackages: [...d.printPackages, { port: p, authorities: [] }] };
     });
-    void this.state.persist('saved');
+    void this.state.persist('memory');
   }
 
   removePortPackage(port: string): void {

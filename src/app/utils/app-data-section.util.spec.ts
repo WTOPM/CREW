@@ -20,12 +20,14 @@ describe('app-data-section.util', () => {
   });
 
   it('DG / ETA / FUEL / Phone are lock-exempt', () => {
+    // Exclusive locks disabled — every section is treated as shared/exempt.
     expect(SECTION_LOCK_EXEMPT.has('dg')).toBe(true);
     expect(SECTION_LOCK_EXEMPT.has('eta')).toBe(true);
     expect(SECTION_LOCK_EXEMPT.has('fuel')).toBe(true);
     expect(SECTION_LOCK_EXEMPT.has('phone')).toBe(true);
-    expect(SECTION_LOCK_EXEMPT.has('home')).toBe(false);
-    expect(SECTION_LOCK_EXEMPT.has('reefer')).toBe(false);
+    expect(SECTION_LOCK_EXEMPT.has('home')).toBe(true);
+    expect(SECTION_LOCK_EXEMPT.has('reefer')).toBe(true);
+    expect(SECTION_LOCK_EXEMPT.has('settings')).toBe(true);
   });
 
   it('mergeSectionForSave writes ETA / DG from any PC into the shared file', () => {

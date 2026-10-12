@@ -40,6 +40,16 @@
     >
       EDIT
     </button>
+    <button
+      type="button"
+      class="fuel-page-tab fuel-page-tab--cyl"
+      [class.fuel-page-tab--active]="activeTab() === 'cyl'"
+      [attr.aria-selected]="activeTab() === 'cyl'"
+      title="Cyl. Oil Consump. — cylinder oil log"
+      (click)="setActiveTab('cyl')"
+    >
+      CYL
+    </button>
   </nav>
 
   <section class="fuel-toolbar card">
@@ -89,6 +99,35 @@
             {{ busy() ? 'Loading…' : library().events.length ? 'Update from file' : 'Upload' }}
           </button>
         </span>
+        @if (activeTab() === 'cyl') {
+          <div
+            class="fuel-sync"
+            [class.fuel-sync--dirty]="dirty() && canWriteExcel"
+            [class.fuel-sync--idle]="!dirty() || !canWriteExcel"
+            [class.fuel-sync--busy]="busy()"
+            [attr.title]="cylSyncTitle()"
+          >
+            <div class="fuel-sync__face">
+              <button
+                type="button"
+                class="fuel-sync__write"
+                [disabled]="busy() || !cylHasReady() || !canWriteExcel"
+                (click)="confirmWriteCylinder($event)"
+              >
+                Write CYL{{ cylHasReady() ? ' · ' + cylReadyCount() : '' }}
+              </button>
+              <button
+                type="button"
+                class="fuel-sync__discard"
+                [disabled]="busy() || !dirty()"
+                (click)="confirmDiscardCylinder($event)"
+                title="Discard CYL draft"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        }
         @if (activeTab() === 'edit') {
           <div
             class="fuel-sync"
@@ -176,6 +215,153 @@
     </div>
   </section>
 
+  @if (activeTab() === 'cyl') {
+    <section class="fuel-filters card section-readonly-allow">
+      <div class="fuel-filters-head">
+        <h2 class="fuel-section-title">
+          Cyl. Oil Consump.
+          <span class="fuel-section-title__mode">· CYL</span>
+        </h2>
+        <div class="fuel-cyl-factor">
+          <label>
+            <span>FM→L factor</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              [ngModel]="cylLibrary().fmToLitersFactor"
+              (ngModelChange)="onCylFactor($event)"
+              title="Excel F formula: ((ΔFM)×factor)/1000"
+            />
+          </label>
+        </div>
+      </div>
+      <p class="fuel-cyl-hint">
+        Same sheet as Excel <em>Cyl. Oil Consump.</em> — edit Position / FM / Used L / Receive; Hours,
+        Calc L and ROB follow the sheet formulas. Mark ✓ then Write CYL.
+      </p>
+    </section>
+
+    <section class="fuel-table-card card">
+      <div class="fuel-table-toolbar">
+        <span class="fuel-edit-tab-badge" title="CYL draft writes to Cyl. Oil Consump. sheet">
+          <span class="fuel-edit-tab-badge__label">CYL edit</span>
+          <span class="fuel-edit-tab-badge__sub">{{ cylRows().length }} rows</span>
+        </span>
+        <button
+          type="button"
+          class="btn btn-primary fuel-add-btn"
+          (click)="addCylRow()"
+          [disabled]="busy()"
+        >
+          + Add day
+        </button>
+      </div>
+
+      @if (!cylRows().length) {
+        <div class="fuel-empty">
+          <strong>No cylinder oil rows</strong>
+          <p>Update from file to load Cyl. Oil Consump., or Add day.</p>
+        </div>
+      } @else {
+        <div class="fuel-table-wrap fuel-cyl-wrap">
+          <table class="fuel-table fuel-cyl-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Date</th>
+                <th>Position</th>
+                <th class="num">HR</th>
+                <th class="num">FM</th>
+                <th class="num">Calc L</th>
+                <th class="num">Used L</th>
+                <th class="num">ROB</th>
+                <th class="num">Receive</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of cylRows(); track r.id) {
+                <tr [class.fuel-row--draft]="r.writeStatus === 'draft'" [class.fuel-row--ready]="r.writeStatus === 'ready'">
+                  <td>
+                    <button
+                      type="button"
+                      class="fuel-ready-btn"
+                      [class.fuel-ready-btn--on]="r.writeStatus === 'ready'"
+                      [title]="cylStatusLabel(r.writeStatus) + ' — click to cycle'"
+                      (click)="toggleCylReady(r)"
+                    >
+                      ✓
+                    </button>
+                  </td>
+                  <td>
+                    <app-date-picker
+                      size="sm"
+                      [value]="r.date"
+                      (valueChange)="patchCylRow(r, { date: $event })"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      [ngModel]="r.place"
+                      (ngModelChange)="patchCylRow(r, { place: $event })"
+                      list="fuel-cyl-places"
+                    />
+                  </td>
+                  <td class="num fuel-cyl-ro">{{ r.hours == null ? '—' : r.hours }}</td>
+                  <td class="num">
+                    <input
+                      class="fuel-cyl-num"
+                      [ngModel]="r.flowmeter ?? ''"
+                      (ngModelChange)="onCylNum(r, 'flowmeter', $event)"
+                      inputmode="decimal"
+                    />
+                  </td>
+                  <td class="num fuel-cyl-ro">
+                    {{ r.litersCalc == null ? '—' : (r.litersCalc | number: '1.0-3') }}
+                  </td>
+                  <td class="num">
+                    <input
+                      class="fuel-cyl-num"
+                      [ngModel]="r.litersUsed ?? ''"
+                      (ngModelChange)="onCylNum(r, 'litersUsed', $event)"
+                      inputmode="decimal"
+                    />
+                  </td>
+                  <td class="num fuel-cyl-ro fuel-cyl-rob">
+                    {{ r.robLiters == null ? '—' : (r.robLiters | number: '1.0-1') }}
+                  </td>
+                  <td class="num">
+                    <input
+                      class="fuel-cyl-num"
+                      [ngModel]="r.receiveLiters ?? ''"
+                      (ngModelChange)="onCylNum(r, 'receiveLiters', $event)"
+                      inputmode="decimal"
+                      title="Bunker / receive liters (col I)"
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      class="fuel-cyl-del"
+                      title="Remove row"
+                      (click)="removeCylRow(r)"
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <datalist id="fuel-cyl-places">
+            @for (p of placeChoices(); track p) {
+              <option [value]="p"></option>
+            }
+          </datalist>
+        </div>
+      }
+    </section>
+  } @else {
   <section class="fuel-filters card section-readonly-allow">
     <div class="fuel-filters-head">
       <h2 class="fuel-section-title">
@@ -859,9 +1045,10 @@
       </div>
     }
   </section>
+  }
 </div>
 
-@if (hScrollActive()) {
+@if (hScrollActive() && activeTab() !== 'cyl') {
   <div
     class="fuel-hscroll-dock section-readonly-allow"
     #hDock
@@ -975,7 +1162,7 @@
   <app-fuel-updated-handoff-modal
     [handoff]="updatedHandoff()"
     [masterSummary]="library().masterSummary"
-    [mode]="activeTab()"
+    [mode]="activeTab() === 'edit' ? 'edit' : 'view'"
     [placeChoices]="placeChoices()"
     (close)="showUpdatedHandoffModal.set(false)"
   />

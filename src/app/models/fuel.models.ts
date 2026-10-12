@@ -737,7 +737,7 @@ export interface FuelViewPrefs {
   limitCount: number;
 }
 
-export type FuelPageTab = 'view' | 'edit';
+export type FuelPageTab = 'view' | 'edit' | 'cyl';
 
 /**
  * Per-tab filter/layout on this PC (View and Edit are independent).
@@ -827,8 +827,48 @@ export interface FuelLibrarySettings {
    * View marks needs update + date/port; Edit fills values and marks done.
    */
   updatedHandoff: FuelUpdatedHandoff;
+  /**
+   * Cyl. Oil Consump. sheet — independent of Fuel Log MASTER/CENG.
+   * View snapshot + Edit draft (same pattern as events / editEvents).
+   */
+  fuelCylinder: FuelCylinderLibrary;
   /** Last density used on Add / density HUD — default for new rows. */
   lastDensity: number | null;
+}
+
+/** Excel FO-VPC Cyl. Oil Consump. FM→liters factor (hardcoded in sheet F formula). */
+export const DEFAULT_FUEL_CYLINDER_FM_FACTOR = 0.5345379;
+
+/** One row from sheet “Cyl. Oil Consump.” (data from row 3). */
+export interface FuelCylinderRow {
+  id: string;
+  /** Excel row number (≥ 3). 0 = app-added, not yet on sheet. */
+  sourceRow: number;
+  date: string;
+  time: string;
+  place: string;
+  /** Col C — hours between dates (computed). */
+  hours: number | null;
+  /** Col D — cylinder oil flowmeter counter (input). */
+  flowmeter: number | null;
+  /** Col F — liters from FM delta × factor (computed). */
+  litersCalc: number | null;
+  /** Col G — actual liters used (input). */
+  litersUsed: number | null;
+  /** Col H — ROB liters (computed). */
+  robLiters: number | null;
+  /** Col I — bunker / receive liters (input, rare). */
+  receiveLiters: number | null;
+  writeStatus: FuelWriteStatus;
+}
+
+export interface FuelCylinderLibrary {
+  rows: FuelCylinderRow[];
+  editRows: FuelCylinderRow[];
+  editBaseline: FuelCylinderRow[];
+  editDirty: boolean;
+  /** FM delta → liters: ((ΔD)×factor)/1000 — Excel default 0.5345379. */
+  fmToLitersFactor: number;
 }
 
 /** Excel-style Updated banner status between View (request) and Edit (fill). */
@@ -978,6 +1018,155 @@ export function createDefaultFuelUpdatedHandoff(): FuelUpdatedHandoff {
   };
 }
 
+export function createDefaultFuelCylinderLibrary(): FuelCylinderLibrary {
+  return {
+    rows: [],
+    editRows: [],
+    editBaseline: [],
+    editDirty: false,
+    fmToLitersFactor: DEFAULT_FUEL_CYLINDER_FM_FACTOR,
+  };
+}
+
+export function createEmptyFuelCylinderRow(
+  partial: Partial<FuelCylinderRow> = {},
+): FuelCylinderRow {
+  const sourceRow =
+    typeof partial.sourceRow === 'number' && Number.isFinite(partial.sourceRow)
+      ? Math.max(0, Math.floor(partial.sourceRow))
+      : 0;
+  return {
+    id: String(partial.id ?? '').trim() || `cyl-${Date.now()}`,
+    sourceRow,
+    date: String(partial.date ?? '').trim(),
+    time: String(partial.time ?? '').trim() || '12:00',
+    place: String(partial.place ?? '').trim(),
+    hours: numOrNull(partial.hours),
+    flowmeter: numOrNull(partial.flowmeter),
+    litersCalc: numOrNull(partial.litersCalc),
+    litersUsed: numOrNull(partial.litersUsed),
+    robLiters: numOrNull(partial.robLiters),
+    receiveLiters: numOrNull(partial.receiveLiters),
+      writeStatus:
+      partial.writeStatus === 'ready' ||
+      partial.writeStatus === 'draft' ||
+      partial.writeStatus === 'synced'
+        ? partial.writeStatus
+        : sourceRow >= 3
+          ? 'synced'
+          : 'draft',
+  };
+}
+
+export function cloneFuelCylinderList(rows: readonly FuelCylinderRow[]): FuelCylinderRow[] {
+  return rows.map((r) => createEmptyFuelCylinderRow(r));
+}
+
+export function normalizeFuelCylinderFactor(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_FUEL_CYLINDER_FM_FACTOR;
+  return n;
+}
+
+export function normalizeFuelCylinderRowList(raw: unknown): FuelCylinderRow[] {
+  if (!Array.isArray(raw)) return [];
+  const out: FuelCylinderRow[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    out.push(createEmptyFuelCylinderRow(item as Partial<FuelCylinderRow>));
+  }
+  return out;
+}
+
+/**
+ * Recompute C / F / H like Excel Cyl. Oil Consump.
+ * hours = Δdate×24; litersCalc = (ΔFM×factor)/1000; ROB = prevROB − used + receive.
+ */
+export function recomputeFuelCylinderChain(
+  rows: readonly FuelCylinderRow[],
+  factor: number = DEFAULT_FUEL_CYLINDER_FM_FACTOR,
+): FuelCylinderRow[] {
+  const f = normalizeFuelCylinderFactor(factor);
+  let prevDateMs: number | null = null;
+  let prevFm: number | null = null;
+  let prevRob: number | null = null;
+  return rows.map((row, idx) => {
+    const dateMs = fuelCylinderDateMs(row.date, row.time);
+    let hours: number | null = null;
+    if (idx === 0) {
+      hours = row.hours;
+    } else if (dateMs != null && prevDateMs != null && dateMs >= prevDateMs) {
+      hours = Math.round(((dateMs - prevDateMs) / 3_600_000) * 100) / 100;
+    }
+    let litersCalc: number | null = null;
+    if (idx === 0) {
+      litersCalc = row.litersCalc;
+    } else if (
+      row.flowmeter != null &&
+      prevFm != null &&
+      Number.isFinite(row.flowmeter) &&
+      row.flowmeter - prevFm > 0
+    ) {
+      litersCalc = Math.round((((row.flowmeter - prevFm) * f) / 1000) * 1_000_000) / 1_000_000;
+    }
+    const used = row.litersUsed;
+    const recv = row.receiveLiters != null && row.receiveLiters > 0 ? row.receiveLiters : 0;
+    let robLiters: number | null = null;
+    if (idx === 0) {
+      robLiters = row.robLiters;
+    } else if (prevRob != null && used != null && Number.isFinite(used)) {
+      robLiters = Math.round((prevRob - used + recv) * 10) / 10;
+    } else if (prevRob != null && (used == null || !Number.isFinite(used))) {
+      robLiters = Math.round((prevRob + recv) * 10) / 10;
+    }
+    if (dateMs != null) prevDateMs = dateMs;
+    if (row.flowmeter != null && Number.isFinite(row.flowmeter)) prevFm = row.flowmeter;
+    if (robLiters != null) prevRob = robLiters;
+    else if (idx === 0 && row.robLiters != null) prevRob = row.robLiters;
+    return createEmptyFuelCylinderRow({
+      ...row,
+      hours,
+      litersCalc,
+      robLiters,
+    });
+  });
+}
+
+function fuelCylinderDateMs(date: string, time: string): number | null {
+  const d = String(date ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+  const tm = String(time ?? '').trim() || '12:00';
+  const m = tm.match(/^(\d{1,2}):(\d{2})$/);
+  const hh = m ? Number(m[1]) : 12;
+  const mm = m ? Number(m[2]) : 0;
+  const ms = Date.parse(`${d}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+export function normalizeFuelCylinderLibrary(
+  raw: Partial<FuelCylinderLibrary> | null | undefined,
+): FuelCylinderLibrary {
+  const defaults = createDefaultFuelCylinderLibrary();
+  const factor = normalizeFuelCylinderFactor(raw?.fmToLitersFactor);
+  const rows = recomputeFuelCylinderChain(normalizeFuelCylinderRowList(raw?.rows), factor);
+  const hasEdit = Array.isArray(raw?.editRows);
+  const editRaw = hasEdit
+    ? normalizeFuelCylinderRowList(raw?.editRows)
+    : cloneFuelCylinderList(rows);
+  const editRows = recomputeFuelCylinderChain(editRaw, factor);
+  const hasBaseline = Array.isArray(raw?.editBaseline);
+  const editBaseline = hasBaseline
+    ? recomputeFuelCylinderChain(normalizeFuelCylinderRowList(raw?.editBaseline), factor)
+    : cloneFuelCylinderList(editRows);
+  return {
+    rows,
+    editRows,
+    editBaseline,
+    editDirty: raw?.editDirty === true,
+    fmToLitersFactor: factor,
+  };
+}
+
 export function createDefaultFuelLibrary(): FuelLibrarySettings {
   return {
     sourcePath: '',
@@ -992,6 +1181,7 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
     displayPresets: [],
     masterSummary: null,
     updatedHandoff: createDefaultFuelUpdatedHandoff(),
+    fuelCylinder: createDefaultFuelCylinderLibrary(),
     lastDensity: FUEL_DEFAULT_DENSITY,
   };
 }
@@ -1293,6 +1483,11 @@ export function normalizeFuelLibrary(
         ? (raw as FuelLibrarySettings).updatedHandoff
         : undefined,
     ),
+    fuelCylinder: normalizeFuelCylinderLibrary(
+      raw && 'fuelCylinder' in raw
+        ? (raw as FuelLibrarySettings).fuelCylinder
+        : undefined,
+    ),
   };
 }
 
@@ -1388,7 +1583,10 @@ export function normalizeFuelLocalUiPrefs(
     tabsRaw && typeof tabsRaw === 'object' ? (tabsRaw as FuelLocalUiPrefs['tabs']).edit : null,
     legacyCols,
   );
-  const activeTab: FuelPageTab = raw?.activeTab === 'edit' ? 'edit' : 'view';
+  const activeTab: FuelPageTab =
+    raw?.activeTab === 'edit' || raw?.activeTab === 'cyl' || raw?.activeTab === 'view'
+      ? raw.activeTab
+      : 'view';
   return {
     visibleColumns: [...viewTab.visibleColumns],
     hoursAsHm: raw?.hoursAsHm === true,

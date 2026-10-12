@@ -196,8 +196,8 @@ export class SettingsComponent {
     input.value = normalized;
     this.clearMetresDraft(field);
     if (this.ship()[field] === normalized) return;
-    // Persist immediately on leave / Enter — value stays until the next edit.
-    this.storage.updateShip({ [field]: normalized }, 'saved', shipFieldUpdatedMessage(field));
+    // RAM only — shared folder write waits for tab leave / minimize / close.
+    this.storage.updateShip({ [field]: normalized }, 'memory', shipFieldUpdatedMessage(field));
   }
 
   private clearMetresDraft(field: ShipMetresField): void {

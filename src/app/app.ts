@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -22,8 +22,7 @@ import { DgUnReferenceStore } from './services/dg-un-reference.store';
 import { ElectronLocalPrefsService } from './services/electron-local-prefs.service';
 import { NetworkForceQuitService } from './services/network-force-quit.service';
 import { SectionLockService } from './services/section-lock.service';
-import { SectionReadonlyDomService } from './services/section-readonly-dom.service';
-import { sectionFromRoutePath, AppSection } from './utils/app-data-section.util';
+import { sectionFromRoutePath } from './utils/app-data-section.util';
 import {
   getOutputFolderPrefs,
   outputFolderSectionFromRoute,
@@ -73,8 +72,7 @@ export class App implements OnInit {
   private readonly unReference = inject(DgUnReferenceStore);
   private readonly localPrefs = inject(ElectronLocalPrefsService);
   private readonly networkForceQuit = inject(NetworkForceQuitService);
-  protected readonly sectionLock = inject(SectionLockService);
-  private readonly sectionReadonlyDom = inject(SectionReadonlyDomService);
+  private readonly sectionLock = inject(SectionLockService);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
   private folderHoldTriggered = false;
 
@@ -129,23 +127,8 @@ export class App implements OnInit {
     { initialValue: !this.isStandaloneInventoryRoute() },
   );
 
-  protected readonly sectionLockBanner = this.sectionLock.lockBanner;
-  protected readonly sectionReadOnly = computed(
-    () => this.sectionLock.readOnly() || !!this.sectionLock.displacedBy(),
-  );
-  protected readonly cooperativeSharing = this.sectionLock.cooperativeMode;
   protected readonly refreshBusy = signal(false);
-  protected readonly takeOverBusy = signal(false);
   protected readonly dataSetup = signal<{ reason: AppInitResult } | null>(null);
-
-  constructor() {
-    effect(() => {
-      const tick = this.sectionLock.lockLostTick();
-      if (tick > 0) {
-        void this.reloadCurrentSectionAfterLockLost();
-      }
-    });
-  }
 
   ngOnInit(): void {
     void this.localPrefs.load();
@@ -195,8 +178,9 @@ export class App implements OnInit {
     window.addEventListener('pagehide', () => void this.flushPendingToDisk());
   }
 
-  /** Write RAM edits to the shared/local data file (no toast). */
+  /** Write RAM edits to the shared/local data file only when dirty (no toast). */
   private async flushPendingToDisk(): Promise<void> {
+    if (!this.appState.hasPendingPersist()) return;
     try {
       await this.appState.flushPersist('silent');
     } catch {
@@ -380,26 +364,11 @@ export class App implements OnInit {
     if (folderSection) {
       this.folderAccess.setSection(folderSection);
     }
-    // Flush coalesced edits before leaving; then pull peers' section from disk.
-    if (this.hasElectron) {
+    // Write only when leaving with unsaved edits — no auto-reload (use Refresh).
+    if (this.hasElectron && this.appState.hasPendingPersist()) {
       await this.appState.flushPersist('silent');
     }
-    if (section && this.hasElectron && !this.shouldSkipSectionReload(section)) {
-      await this.appState.reloadSectionFromDisk(section);
-    }
     await this.sectionLock.onNavigate(section);
-  }
-
-  protected navLockTooltip(section: AppSection): string {
-    return this.sectionLock.navLockTooltip(section);
-  }
-
-  protected navLockBadge(section: AppSection): string | null {
-    return this.sectionLock.navLockBadge(section);
-  }
-
-  protected navLockState(section: AppSection): string {
-    return this.sectionLock.navLockState(section);
   }
 
   protected async refreshFromDisk(): Promise<void> {
@@ -410,11 +379,12 @@ export class App implements OnInit {
       this.toast.show('Cannot refresh while an archive snapshot is loaded', 'warning');
       return;
     }
+    if (this.appState.hasPendingPersist()) {
+      await this.appState.flushPersist('silent');
+    }
     this.refreshBusy.set(true);
     try {
       await this.appState.reloadSectionFromDisk(section);
-      await this.sectionLock.refreshPeerLocks();
-      await this.sectionLock.refreshCurrentLockState();
       this.toast.show('Data refreshed from shared folder', 'success');
     } catch (err) {
       console.error(err);
@@ -427,48 +397,14 @@ export class App implements OnInit {
   private async onRestoredFromTray(): Promise<void> {
     if (!this.hasElectron) return;
     try {
+      if (this.appState.hasPendingPersist()) {
+        await this.appState.flushPersist('silent');
+      }
       await this.appState.reloadAllFromDisk();
-      await this.sectionLock.refreshPeerLocks();
-      await this.sectionLock.refreshCurrentLockState();
       this.toast.show('Data refreshed from shared folder', 'success');
     } catch (err) {
       console.error(err);
       this.toast.showError('Could not refresh data');
-    }
-  }
-
-  protected async takeOverSection(): Promise<void> {
-    if (!this.hasElectron || this.takeOverBusy()) return;
-    this.takeOverBusy.set(true);
-    try {
-      const ok = await this.sectionLock.takeOverControl();
-      if (!ok) {
-        this.toast.showError('Could not take over this section');
-        return;
-      }
-      const section = sectionFromRoutePath(this.router.url);
-      if (section && !this.shouldSkipSectionReload(section)) {
-        await this.appState.reloadSectionFromDisk(section);
-      }
-      this.toast.show('You now have control of this section', 'success');
-    } catch (err) {
-      console.error(err);
-      this.toast.showError('Could not take over this section');
-    } finally {
-      this.takeOverBusy.set(false);
-    }
-  }
-
-  private async reloadCurrentSectionAfterLockLost(): Promise<void> {
-    if (!this.hasElectron) return;
-    const section = sectionFromRoutePath(this.router.url);
-    if (!section || this.shouldSkipSectionReload(section)) return;
-    try {
-      await this.appState.reloadSectionFromDisk(section);
-      await this.sectionLock.refreshPeerLocks();
-      this.toast.show('Another user took control — your view was refreshed', 'warning');
-    } catch (err) {
-      console.error(err);
     }
   }
 }

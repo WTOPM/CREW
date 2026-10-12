@@ -69,7 +69,7 @@ export class ReferenceListsStore {
       ports.splice(currentIndex, 0, moved);
       return { ...d, ports };
     });
-    void this.state.persist('saved');
+    void this.state.persist('memory');
   }
 
   addRank(name: string): void {
@@ -93,7 +93,7 @@ export class ReferenceListsStore {
       ranks.splice(currentIndex, 0, moved);
       return { ...d, ranks };
     });
-    void this.state.persist('saved');
+    void this.state.persist('memory');
   }
 
   addNationality(name: string): void {
@@ -117,6 +117,6 @@ export class ReferenceListsStore {
       nationalities.splice(currentIndex, 0, moved);
       return { ...d, nationalities };
     });
-    void this.state.persist('saved');
+    void this.state.persist('memory');
   }
 }

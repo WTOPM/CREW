@@ -74,11 +74,11 @@ export class ElectronLocalPrefsService {
 
   async updateActiveTabPrefs(partial: Partial<FuelTabLocalPrefs>): Promise<void> {
     const ui = this.fuelUi();
-    const tab: FuelPageTab = ui.activeTab === 'edit' ? 'edit' : 'view';
+    const tab: 'view' | 'edit' = ui.activeTab === 'edit' ? 'edit' : 'view';
     await this.updateTabPrefs(tab, partial);
   }
 
-  async updateTabPrefs(tab: FuelPageTab, partial: Partial<FuelTabLocalPrefs>): Promise<void> {
+  async updateTabPrefs(tab: 'view' | 'edit', partial: Partial<FuelTabLocalPrefs>): Promise<void> {
     const ui = this.fuelUi();
     const cur = ui.tabs[tab];
     const nextTab = createDefaultFuelTabLocalPrefs(
@@ -186,7 +186,9 @@ export class ElectronLocalPrefsService {
             ? next.fuelUtcOffsetHours
             : prevUi.utcOffsetHours,
         activeTab:
-          next.fuelActiveTab === 'edit' || next.fuelActiveTab === 'view'
+          next.fuelActiveTab === 'edit' ||
+          next.fuelActiveTab === 'view' ||
+          next.fuelActiveTab === 'cyl'
             ? next.fuelActiveTab
             : prevUi.activeTab,
         tabs: tabsFromDisk as FuelLocalUiPrefs['tabs'],

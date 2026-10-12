@@ -11,6 +11,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
@@ -66,12 +67,16 @@ import {
   fuelElapsedHours,
   parseFuelHoursInput,
   shiftFuelDateTime,
+  createEmptyFuelCylinderRow,
+  recomputeFuelCylinderChain,
   type FuelColumnDef,
   type FuelColumnId,
+  type FuelCylinderRow,
   type FuelDisplayEvent,
   type FuelEventKind,
   type FuelInheritableField,
   type FuelLogEvent,
+  type FuelPageTab,
   type FuelRobTankId,
   type FuelWriteStatus,
 } from '../../models/fuel.models';
@@ -104,6 +109,10 @@ import {
   importFuelLogFromExcelBytes,
   writeFuelLogToExcelBytes,
 } from '../../utils/fuel-excel-import.util';
+import {
+  importFuelCylinderFromExcelBytes,
+  writeFuelCylinderToExcelBytes,
+} from '../../utils/fuel-cylinder-excel.util';
 import {
   buildEtaFuelVoyagePreview,
   etaFuelVoyagePreviewRowsToEvents,
@@ -204,6 +213,7 @@ interface FuelPathSegment {
   imports: [
     RouterLink,
     FormsModule,
+    DecimalPipe,
     DatePickerComponent,
     FuelEventEditModalComponent,
     FuelEtaVoyagePreviewModalComponent,
@@ -234,10 +244,11 @@ export class FuelComponent {
   protected readonly canWriteExcel = !!window.electronAPI?.writeFileBase64;
   protected readonly library = this.storage.fuelLibrary;
   protected readonly busy = signal(false);
-  /** View / Edit — local prefs (survives navigation + app restart). No section lock. */
-  protected readonly activeTab = computed((): 'view' | 'edit' =>
-    this.localPrefs.fuelUi().activeTab === 'edit' ? 'edit' : 'view',
-  );
+  /** View / Edit / CYL — local prefs (survives navigation + app restart). */
+  protected readonly activeTab = computed((): FuelPageTab => {
+    const t = this.localPrefs.fuelUi().activeTab;
+    return t === 'edit' || t === 'cyl' ? t : 'view';
+  });
   protected readonly showAddModal = signal(false);
   /** Stable seed for Add modal (new object only when opening — avoids draft reset). */
   protected readonly addModalSeed = signal<Partial<FuelLogEvent> | null>(null);
@@ -308,11 +319,27 @@ export class FuelComponent {
   protected readonly utcPressing = signal(false);
   private utcPressTimer: ReturnType<typeof setTimeout> | null = null;
   private utcLongPressHandled = false;
-  /** Editing is only on the Edit tab (FUEL has no cooperative lock). */
+  /** Fuel Log editing is only on the Edit tab. */
   protected readonly canEdit = computed(() => this.activeTab() === 'edit');
+  /** Cyl. Oil editing on the CYL tab. */
+  protected readonly canEditCyl = computed(() => this.activeTab() === 'cyl');
 
-  /** Unsaved Edit draft (persisted in AppData — survives restart). */
-  protected readonly dirty = computed(() => this.library().editDirty);
+  /** Unsaved Edit draft (Fuel Log or CYL, depending on tab). */
+  protected readonly dirty = computed(() =>
+    this.activeTab() === 'cyl'
+      ? this.library().fuelCylinder.editDirty
+      : this.library().editDirty,
+  );
+
+  protected readonly cylLibrary = computed(() => this.library().fuelCylinder);
+  protected readonly cylRows = computed(() => {
+    const cyl = this.cylLibrary();
+    return this.canEditCyl() ? cyl.editRows : cyl.rows;
+  });
+  protected readonly cylReadyCount = computed(
+    () => this.cylLibrary().editRows.filter((r) => r.writeStatus === 'ready').length,
+  );
+  protected readonly cylHasReady = computed(() => this.cylReadyCount() > 0);
 
   /** Rows marked ready — only these go to Excel on Write. */
   protected readonly readyCount = computed(
@@ -869,7 +896,7 @@ export class FuelComponent {
     return shiftFuelDateTime(date, time, this.utcOffsetHours());
   }
 
-  protected setActiveTab(tab: 'view' | 'edit'): void {
+  protected setActiveTab(tab: FuelPageTab): void {
     // Persist on this PC — stays after leave Fuel / close app. Draft is never discarded.
     if (tab === this.localPrefs.fuelUi().activeTab) {
       this.closeMenus();
@@ -1763,6 +1790,165 @@ export class FuelComponent {
     }
   }
 
+  protected cylSyncTitle(): string {
+    if (!this.canWriteExcel) return 'Save to file needs the desktop app';
+    if (this.cylHasReady()) {
+      return `Write ${this.cylReadyCount()} ready CYL row(s) to Cyl. Oil Consump.`;
+    }
+    if (!this.cylLibrary().editDirty) return 'No unsaved CYL edits';
+    return 'Mark a CYL row ready (✓) to Write';
+  }
+
+  protected async confirmWriteCylinder(ev?: Event): Promise<void> {
+    ev?.stopPropagation();
+    if (this.busy() || !this.cylHasReady() || !this.canWriteExcel) return;
+    const n = this.cylReadyCount();
+    const ok = await this.confirmDialog.confirm({
+      title: 'Write CYL rows to Excel?',
+      message: `Write ${n} ready row(s) into sheet “Cyl. Oil Consump.”?\n\nFuel Log MASTER is not changed.`,
+      confirmLabel: 'Write',
+      cancelLabel: 'Keep editing',
+    });
+    if (!ok) return;
+    await this.saveCylinderToFile();
+  }
+
+  protected async confirmDiscardCylinder(ev?: Event): Promise<void> {
+    ev?.stopPropagation();
+    if (this.busy() || !this.cylLibrary().editDirty) return;
+    const ok = await this.confirmDialog.confirm({
+      title: 'Discard CYL draft?',
+      message: 'Revert Cyl. Oil draft to the last clean snapshot.\nExcel file is not changed.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    this.fuelStore.discardCylinderDraft();
+    this.toast.show('CYL draft discarded', 'success');
+  }
+
+  protected async saveCylinderToFile(): Promise<void> {
+    const path = this.pathDraft().trim() || this.library().sourcePath.trim();
+    const api = window.electronAPI;
+    if (!api?.readFileBase64 || !api.writeFileBase64 || !/[\\/]/.test(path)) {
+      this.toast.showError('Save to file needs the desktop app and a full Excel path');
+      return;
+    }
+    this.busy.set(true);
+    try {
+      const res = await api.readFileBase64(path);
+      if (!res.ok || !res.base64) {
+        this.toast.showError(res.error || 'Could not read Excel');
+        return;
+      }
+      const ready = this.cylLibrary().editRows.filter((r) => r.writeStatus === 'ready');
+      if (!ready.length) {
+        this.toast.showError('No CYL rows marked ready');
+        return;
+      }
+      const result = await writeFuelCylinderToExcelBytes(
+        base64ToBytes(res.base64),
+        ready,
+        this.cylLibrary().fmToLitersFactor,
+      );
+      const write = await api.writeFileBase64(path, bytesToBase64(result.bytes));
+      if (!write.ok) {
+        this.toast.showError(write.error || 'Could not write Excel');
+        return;
+      }
+      this.fuelStore.markCylinderPartialWritten(result.written);
+      const left = this.cylLibrary().editRows.filter((r) => r.writeStatus !== 'synced').length;
+      this.toast.show(
+        left
+          ? `Wrote ${result.written.length} CYL row(s) — ${left} draft(s) kept`
+          : `Wrote ${result.written.length} CYL row(s) to Excel`,
+        'success',
+      );
+    } catch (err) {
+      this.toast.showError(err instanceof Error ? err.message : 'CYL save failed');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected onCylFactor(raw: string): void {
+    const n = Number(String(raw).replace(',', '.'));
+    if (!Number.isFinite(n) || n <= 0) return;
+    this.fuelStore.setCylinderFactor(n);
+  }
+
+  protected patchCylRow(
+    row: FuelCylinderRow,
+    partial: Partial<FuelCylinderRow>,
+  ): void {
+    if (!this.canEditCyl()) return;
+    this.fuelStore.updateCylinderRow(row.id, {
+      ...partial,
+      writeStatus: row.writeStatus === 'synced' ? 'draft' : row.writeStatus,
+    });
+  }
+
+  protected onCylNum(
+    row: FuelCylinderRow,
+    field: 'flowmeter' | 'litersUsed' | 'receiveLiters',
+    raw: string,
+  ): void {
+    const t = String(raw).trim().replace(',', '.');
+    if (!t) {
+      this.patchCylRow(row, { [field]: null });
+      return;
+    }
+    const n = Number(t);
+    if (!Number.isFinite(n)) return;
+    this.patchCylRow(row, { [field]: n });
+  }
+
+  protected addCylRow(): void {
+    if (!this.canEditCyl()) return;
+    const list = this.cylLibrary().editRows;
+    const last = list[list.length - 1];
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const row = createEmptyFuelCylinderRow({
+      id: `cyl-new-${Date.now()}`,
+      sourceRow: 0,
+      date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+      time: '12:00',
+      place: last?.place ?? 'Sea',
+      flowmeter: last?.flowmeter ?? null,
+      litersUsed: null,
+      robLiters: last?.robLiters ?? null,
+      writeStatus: 'draft',
+    });
+    this.fuelStore.replaceCylinderEditRows(
+      recomputeFuelCylinderChain([...list, row], this.cylLibrary().fmToLitersFactor),
+      true,
+    );
+  }
+
+  protected removeCylRow(row: FuelCylinderRow): void {
+    if (!this.canEditCyl()) return;
+    this.fuelStore.removeCylinderRow(row.id);
+  }
+
+  protected toggleCylReady(row: FuelCylinderRow): void {
+    if (!this.canEditCyl()) return;
+    const next: FuelWriteStatus =
+      row.writeStatus === 'synced'
+        ? 'draft'
+        : row.writeStatus === 'draft'
+          ? 'ready'
+          : 'draft';
+    this.fuelStore.updateCylinderRow(row.id, { writeStatus: next });
+  }
+
+  protected cylStatusLabel(status: FuelWriteStatus): string {
+    if (status === 'ready') return 'Ready';
+    if (status === 'draft') return 'Draft';
+    return 'Synced';
+  }
+
   private async loadFromPath(path: string): Promise<void> {
     const api = window.electronAPI;
     if (!api?.readFileBase64) {
@@ -1799,22 +1985,31 @@ export class FuelComponent {
   ): Promise<void> {
     try {
       const keptEdit = this.library().editDirty;
+      const keptCyl = this.library().fuelCylinder.editDirty;
       const result = await importFuelLogFromExcelBytes(bytes);
+      const cyl = await importFuelCylinderFromExcelBytes(bytes);
       this.fuelStore.replaceFromImport({
         events: result.events,
         sourcePath,
         sourceFileName: fileName,
         sheetName: result.sheetName,
         masterSummary: result.masterSummary,
+        cylinderRows: cyl.rows,
+        cylinderFactor: cyl.factor,
       });
-      const warn = result.warnings.length ? ` (${result.warnings.length} row warnings)` : '';
-      if (keptEdit) {
+      const warnParts = [
+        ...result.warnings,
+        ...cyl.warnings.filter((w) => !/not found/i.test(w)),
+      ];
+      const warn = warnParts.length ? ` (${warnParts.length} warnings)` : '';
+      const cylBit = cyl.rows.length ? ` · CYL ${cyl.rows.length}` : '';
+      if (keptEdit || keptCyl) {
         this.toast.show(
-          `View updated from Excel (${result.events.length} events)${warn}. Edit draft kept.`,
+          `View updated (${result.events.length} events${cylBit})${warn}. Draft(s) kept.`,
           'success',
         );
       } else {
-        this.toast.show(`Imported ${result.events.length} events${warn}`, 'success');
+        this.toast.show(`Imported ${result.events.length} events${cylBit}${warn}`, 'success');
       }
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Import failed');

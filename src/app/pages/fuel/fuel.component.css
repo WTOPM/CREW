@@ -122,6 +122,127 @@
   color: #c2410c;
 }
 
+.fuel-page-tab--cyl.fuel-page-tab--active {
+  border-color: #0d9488;
+  background: linear-gradient(135deg, #f0fdfa 0%, #fff 70%);
+  color: #0f766e;
+}
+
+.fuel-cyl-factor label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.fuel-cyl-factor span {
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.fuel-cyl-factor input {
+  width: 7.5rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.fuel-cyl-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.fuel-cyl-hint em {
+  font-style: normal;
+  font-weight: 700;
+  color: #475569;
+}
+
+.fuel-cyl-table .fuel-cyl-num {
+  width: 5.5rem;
+  max-width: 100%;
+  height: 1.9rem;
+  padding: 0 0.4rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.fuel-cyl-table td input:not(.fuel-cyl-num) {
+  width: 100%;
+  min-width: 5rem;
+  height: 1.9rem;
+  padding: 0 0.45rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.fuel-cyl-ro {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #475569;
+}
+
+.fuel-cyl-rob {
+  color: #0f766e;
+}
+
+.fuel-cyl-del {
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 0;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fuel-cyl-del:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.fuel-ready-btn {
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #94a3b8;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fuel-ready-btn--on {
+  border-color: #22c55e;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.fuel-ready-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.fuel-row--draft td:first-child {
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+
+.fuel-row--ready td:first-child {
+  box-shadow: inset 3px 0 0 #22c55e;
+}
+
 .fuel-page-tab--locked,
 .fuel-page-tab:disabled {
   opacity: 0.55;

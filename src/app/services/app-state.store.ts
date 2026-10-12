@@ -224,13 +224,15 @@ export class AppStateStore {
 
   /**
    * Mark AppData dirty in memory. Does NOT write the shared/local file unless
-   * notify === 'saved' (immediate flush). Call flushPersist on Done / Save /
-   * tab switch / close / minimize.
+   * notify === 'saved' (immediate flush) and no settings modal session is open.
+   * Call flushPersist on Done / Save / tab switch / close / minimize.
    */
   async persist(notify: PersistNotify = 'memory', savedMessage?: string): Promise<void> {
-    if (this.formSessionActive && notify !== 'saved') {
+    // Settings modals: never hit the network until Done / Discard — even if a
+    // caller passes 'saved' (reorder ports, packages, etc.).
+    if (this.formSessionActive) {
       this.formSessionDirty = true;
-      this.queuePersist('silent', savedMessage);
+      this.queuePersist(notify === 'saved' ? 'saved' : 'silent', savedMessage);
       return;
     }
     if (notify === 'saved') {
@@ -370,8 +372,10 @@ export class AppStateStore {
     const section = this.sectionLock.activeSection();
 
     if (electron) {
+      // Always merge the active section into the on-disk blob so other PCs'
+      // edits to other tabs survive — without exclusive lock polling.
       let toWrite: AppData = memory;
-      if (this.sectionLock.cooperativeMode() && section) {
+      if (section) {
         const loaded = await electron.readData();
         const disk = normalizeAppData(loaded ?? createEmptyAppData());
         toWrite = mergeSectionForSave(disk, memory, section);

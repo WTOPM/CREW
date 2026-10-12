@@ -16,54 +16,14 @@
       </a>
 
       <div class="nav-links" aria-label="Main navigation">
-        <a
-          routerLink="/"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          class="nav-link--lockable"
-          [class.nav-link--lock-mine]="navLockState('home') === 'mine'"
-          [class.nav-link--lock-other]="navLockState('home') === 'other'"
-          [title]="navLockTooltip('home')"
-          >Home
-          @if (navLockBadge('home'); as badge) {
-            <span
-              class="nav-lock-badge"
-              [class.nav-lock-badge--mine]="navLockState('home') === 'mine'"
-              >{{ badge }}</span
-            >
-          }</a
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+          >Home</a
         >
         <a routerLink="/dg" routerLinkActive="active" class="nav-dg" title="DG">DG</a>
-        <a routerLink="/eta" routerLinkActive="active" class="nav-eta" title="ETA"
-          >ETA</a
-        >
-        <a routerLink="/fuel" routerLinkActive="active" class="nav-fuel" title="FUEL"
-          >FUEL</a
-        >
-        <a
-          routerLink="/phone"
-          routerLinkActive="active"
-          class="nav-phone nav-link--lockable"
-          [class.nav-link--lock-mine]="navLockState('phone') === 'mine'"
-          [class.nav-link--lock-other]="navLockState('phone') === 'other'"
-          [title]="navLockTooltip('phone')"
-          >PHONE
-          @if (navLockBadge('phone'); as badge) {
-            <span
-              class="nav-lock-badge"
-              [class.nav-lock-badge--mine]="navLockState('phone') === 'mine'"
-              >{{ badge }}</span
-            >
-          }</a
-        >
-        <a
-          routerLink="/settings"
-          routerLinkActive="active"
-          class="nav-settings nav-link--lockable"
-          [class.nav-link--lock-mine]="navLockState('settings') === 'mine'"
-          [class.nav-link--lock-other]="navLockState('settings') === 'other'"
-          [title]="navLockTooltip('settings')"
-        >
+        <a routerLink="/eta" routerLinkActive="active" class="nav-eta" title="ETA">ETA</a>
+        <a routerLink="/fuel" routerLinkActive="active" class="nav-fuel" title="FUEL">FUEL</a>
+        <a routerLink="/phone" routerLinkActive="active" class="nav-phone" title="PHONE">PHONE</a>
+        <a routerLink="/settings" routerLinkActive="active" class="nav-settings" title="Settings">
           <svg class="gear-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path
               fill="currentColor"
@@ -71,17 +31,10 @@
             />
           </svg>
           Settings
-          @if (navLockBadge('settings'); as badge) {
-            <span
-              class="nav-lock-badge"
-              [class.nav-lock-badge--mine]="navLockState('settings') === 'mine'"
-              >{{ badge }}</span
-            >
-          }
         </a>
       </div>
 
-      @if (cooperativeSharing()) {
+      @if (hasElectron) {
         <button
           type="button"
           class="nav-refresh-btn"
@@ -187,24 +140,7 @@
       }
     </div>
   </nav>
-  @if (sectionLockBanner(); as banner) {
-    <div
-      class="section-lock-banner"
-      [class.section-lock-banner--displaced]="banner.kind === 'displaced'"
-      role="status"
-    >
-      <span class="section-lock-banner__text">{{ banner.message }}</span>
-      <button
-        type="button"
-        class="section-lock-takeover-btn"
-        [disabled]="takeOverBusy()"
-        (click)="takeOverSection()"
-      >
-        TAKE OVER CONTROL
-      </button>
-    </div>
-  }
-  <main class="app-main" [class.app-main--readonly]="sectionReadOnly()">
+  <main class="app-main">
     <router-outlet />
   </main>
   <app-confirm-dialog />
