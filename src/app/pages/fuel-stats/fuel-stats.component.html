@@ -5,41 +5,14 @@
       <h1>Fuel statistics</h1>
       <p class="fuel-stats-header__meta">{{ scopeLabel() }}</p>
     </div>
-  </header>
-
-  <section class="card fuel-stats-scope" aria-label="Active filters">
-    <div class="fuel-stats-scope__grid">
-      <div class="fuel-stats-scope__item">
-        <span class="fuel-stats-scope__label">Period</span>
-        <strong>
-          @if (library().view.dateFrom || library().view.dateTo) {
-            {{ library().view.dateFrom || '…' }} → {{ library().view.dateTo || '…' }}
-          } @else {
-            All dates
-          }
-        </strong>
-      </div>
-      <div class="fuel-stats-scope__item">
-        <span class="fuel-stats-scope__label">Events</span>
-        <strong>{{ selectedKindsLabel() }}</strong>
-      </div>
-      <div class="fuel-stats-scope__item">
-        <span class="fuel-stats-scope__label">Show</span>
-        <strong>{{ limitLabel() }}</strong>
-      </div>
-      <div class="fuel-stats-scope__item">
-        <span class="fuel-stats-scope__label">Search</span>
-        <strong>{{ library().view.search.trim() || '—' }}</strong>
-      </div>
-    </div>
-    <div class="fuel-stats-scope__actions">
-      <div class="fuel-stats-utc" (click)="$event.stopPropagation()">
+    <div class="fuel-stats-header__tools" (click)="$event.stopPropagation()">
+      <div class="fuel-stats-utc">
         <button
           type="button"
           class="fuel-stats-utc-btn"
           [class.fuel-stats-utc-btn--on]="showUtc()"
           [class.fuel-stats-utc-btn--pressing]="utcPressing()"
-          title="Click: switch Local / UTC. Hold: change zone (+1 / −1)."
+          title="Click: Local / UTC. Hold: change zone (+1 / −1)."
           (pointerdown)="onUtcPointerDown($event)"
           (pointerup)="onUtcPointerUp()"
           (pointerleave)="onUtcPointerCancel()"
@@ -57,137 +30,776 @@
           </div>
         }
       </div>
-      <a routerLink="/fuel" class="btn btn-secondary btn-sm">Change filters on Fuel</a>
     </div>
-  </section>
+  </header>
 
   @if (summary().rowCount === 0) {
     <section class="card fuel-stats-empty">
-      <h2>No rows in scope</h2>
-      <p>Open Fuel, adjust Events / dates / Show / search, then come back here.</p>
+      <h2>No rows in this period</h2>
+      <p>
+        Adjust dates, Show, search or event types on the Fuel page, then open Statistics again.
+      </p>
       <a routerLink="/fuel" class="btn btn-primary">Back to Fuel</a>
     </section>
   } @else {
-    <section class="card fuel-stats-kpis" aria-label="Totals">
-      <h2 class="fuel-stats-section-title">Totals</h2>
-      <div class="fuel-stats-kpi-grid">
-        <article class="fuel-stats-kpi">
-          <span class="fuel-stats-kpi__label">Rows</span>
-          <strong class="fuel-stats-kpi__value">{{ summary().rowCount }}</strong>
-          <span class="fuel-stats-kpi__hint"
-            >{{ summary().sourceEventCount }} source events
+    <section class="card fuel-stats-hero" aria-label="Period overview">
+      <div class="fuel-stats-hero__main">
+        <div class="fuel-stats-hero__period">
+          <p class="fuel-stats-hero__eyebrow">Period covered by matching rows</p>
+          @if (rangeEnds(); as range) {
+            <h2 class="fuel-stats-hero__range">
+              <span class="fuel-stats-stamp">
+                <span class="fuel-stats-stamp__date">{{ range.from.date }}</span>
+                <span class="fuel-stats-stamp__time">{{ range.from.time }}</span>
+              </span>
+              <span class="fuel-stats-hero__arrow" aria-hidden="true">→</span>
+              <span class="fuel-stats-stamp">
+                <span class="fuel-stats-stamp__date">{{ range.to.date }}</span>
+                <span class="fuel-stats-stamp__time">{{ range.to.time }}</span>
+              </span>
+              <span class="fuel-stats-hero__zone">{{ range.zone }}</span>
+            </h2>
+          }
+          <p class="fuel-stats-hero__sub">
+            {{ summary().calendarDays == null ? '—' : summary().calendarDays + ' calendar days' }}
+            · {{ summary().rowCount }} rows
+            · {{ summary().sourceEventCount }} source events
             @if (summary().sourceEventCount !== summary().rowCount) {
-              (incl. rolled-up)
+              <span class="fuel-stats-hero__note">(rolled-up)</span>
             }
-          </span>
-        </article>
-        <article class="fuel-stats-kpi">
-          <span class="fuel-stats-kpi__label">From → To</span>
-          <strong class="fuel-stats-kpi__value fuel-stats-kpi__value--sm">
-            {{ rangeLabel() }}
+            · {{ summary().bunkerCount }} bunker{{ summary().bunkerCount === 1 ? '' : 's' }}
+          </p>
+        </div>
+        <div class="fuel-stats-hero__bounds" (click)="$event.stopPropagation()">
+          <label class="fuel-stats-bound">
+            <span>From event</span>
+            <select
+              [value]="effectiveStartId() ?? ''"
+              (change)="onBoundStart($event)"
+              title="First event of the statistics period (events on the start date)"
+            >
+              @for (e of startDayEvents(); track e.id) {
+                <option [value]="e.id">{{ eventBoundLabel(e) }}</option>
+              }
+            </select>
+          </label>
+          <label class="fuel-stats-bound">
+            <span>To event</span>
+            <select
+              [value]="effectiveEndId() ?? ''"
+              (change)="onBoundEnd($event)"
+              title="Last event of the statistics period (events on the end date)"
+            >
+              @for (e of endDayEvents(); track e.id) {
+                <option [value]="e.id">{{ eventBoundLabel(e) }}</option>
+              }
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="fuel-stats-hero__totals">
+        <article class="fuel-stats-hero-kpi fuel-stats-hero-kpi--fuel">
+          <span>Fuel burned</span>
+          <strong
+            >{{ fmtMt(summary().totalMt) }} <small>mt</small>
+            @if (summary().totalM3 != null) {
+              <em>· {{ summary().totalM3 | number: '1.0-1' }} m³</em>
+            }
           </strong>
         </article>
-        <article class="fuel-stats-kpi">
-          <span class="fuel-stats-kpi__label">Time used</span>
-          <strong class="fuel-stats-kpi__value">{{ fmtHours(summary().hours) }}</strong>
+        <article class="fuel-stats-hero-kpi">
+          <span>Working time</span>
+          <strong>{{ fmtHoursLong(summary().hours) }}</strong>
         </article>
-        <article class="fuel-stats-kpi fuel-stats-kpi--accent">
-          <span class="fuel-stats-kpi__label">Total fuel</span>
-          <strong class="fuel-stats-kpi__value">{{ fmtMt(summary().totalMt) }} <small>mt</small></strong>
-          <span class="fuel-stats-kpi__hint">
-            ME {{ fmtMt(summary().meMt) }} · AE {{ fmtMt(summary().aeMt) }} · Blr
-            {{ fmtMt(summary().boilerMt) }}
-          </span>
+        <article class="fuel-stats-hero-kpi fuel-stats-hero-kpi--bunker">
+          <span>Bunker received</span>
+          <strong>{{ fmtMt(summary().bunkerTotalMt) }} <small>mt</small></strong>
+          <em>
+            RMD/BIO {{ fmtMt(summary().bunkerRmdBioMt) }} · DMA
+            {{ fmtMt(summary().bunkerDmaMt) }}
+            · {{ summary().bunkerCount }} ops
+          </em>
         </article>
-        <article class="fuel-stats-kpi">
-          <span class="fuel-stats-kpi__label">Rate</span>
-          <strong class="fuel-stats-kpi__value">
+        <article class="fuel-stats-hero-kpi">
+          <span>Avg burn</span>
+          <strong>
             @if (summary().rateMtPerDay != null) {
-              {{ summary().rateMtPerDay | number: '1.0-1' }} <small>mt/day</small>
+              {{ summary().rateMtPerDay | number: '1.0-1' }} <small>mt / 24h</small>
             } @else {
               —
             }
           </strong>
-          <span class="fuel-stats-kpi__hint">
+          <em>
             @if (summary().rateMtPerHour != null) {
               {{ summary().rateMtPerHour | number: '1.0-2' }} mt/h
-            } @else {
-              Needs hours + total mt
             }
-          </span>
+            @if (summary().rateMtPerCalendarDay != null) {
+              · {{ summary().rateMtPerCalendarDay | number: '1.0-1' }} mt/cal-day
+            }
+          </em>
         </article>
-        <article class="fuel-stats-kpi">
-          <span class="fuel-stats-kpi__label">Bunker received</span>
-          <strong class="fuel-stats-kpi__value"
-            >{{ bunkerTotalLabel() }} <small>mt</small></strong
+      </div>
+    </section>
+
+    <section class="card fuel-stats-block" aria-label="Consumption split">
+      <h2 class="fuel-stats-section-title">Consumption split</h2>
+      <div class="fuel-stats-split">
+        <div class="fuel-stats-split__bars" aria-hidden="true">
+          <div class="fuel-stats-split__track">
+            <span
+              class="fuel-stats-split__seg fuel-stats-split__seg--me"
+              [style.width]="barWidth(summary().meSharePct)"
+            ></span>
+            <span
+              class="fuel-stats-split__seg fuel-stats-split__seg--ae"
+              [style.width]="barWidth(summary().aeSharePct)"
+            ></span>
+            <span
+              class="fuel-stats-split__seg fuel-stats-split__seg--blr"
+              [style.width]="barWidth(summary().boilerSharePct)"
+            ></span>
+          </div>
+        </div>
+        <div class="fuel-stats-split__grid">
+          <article class="fuel-stats-split-card fuel-stats-split-card--me">
+            <header>
+              <span>ME</span>
+              <strong>{{ summary().meSharePct == null ? '—' : summary().meSharePct + '%' }}</strong>
+            </header>
+            <p>{{ fmtMt(summary().meMt) }} mt</p>
+            <p class="muted">{{ fmtHours(summary().meHours) }} running</p>
+          </article>
+          <article class="fuel-stats-split-card fuel-stats-split-card--ae">
+            <header>
+              <span>AE</span>
+              <strong>{{ summary().aeSharePct == null ? '—' : summary().aeSharePct + '%' }}</strong>
+            </header>
+            <p>{{ fmtMt(summary().aeMt) }} mt</p>
+            <p class="muted">{{ fmtHours(summary().aeHours) }} running</p>
+          </article>
+          <article class="fuel-stats-split-card fuel-stats-split-card--blr">
+            <header>
+              <span>Boiler</span>
+              <strong
+                >{{ summary().boilerSharePct == null ? '—' : summary().boilerSharePct + '%' }}</strong
+              >
+            </header>
+            <p>{{ fmtMt(summary().boilerMt) }} mt</p>
+            <p class="muted">{{ fmtHours(summary().boilerHours) }} running</p>
+          </article>
+          <article class="fuel-stats-split-card fuel-stats-split-card--bunker">
+            <header>
+              <span>Bunker in</span>
+              <strong>{{ fmtMt(summary().bunkerTotalMt) }} <small>mt</small></strong>
+            </header>
+            <p>RMD/bio {{ fmtMt(summary().bunkerRmdBioMt) }}</p>
+            <p class="muted">DMA {{ fmtMt(summary().bunkerDmaMt) }} · {{ summary().bunkerCount }} ops</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="card fuel-stats-block" aria-label="Bunkering">
+      <div class="fuel-stats-section-head">
+        <h2 class="fuel-stats-section-title">Bunkering</h2>
+        <span class="fuel-stats-section-count">{{ summary().bunkerCount }}</span>
+      </div>
+      @if (summary().bunkerCount === 0) {
+        <p class="fuel-stats-section-hint">
+          No bunker received in this period (Bunker RMD/BIO / Bunker DMA columns are empty).
+        </p>
+      } @else {
+        <p class="fuel-stats-section-hint">
+          Received on operational rows (SBE / Noon / …). RMD/BIO goes to ROB RMD or B100 (F badge);
+          DMA always to ROB DMA.
+        </p>
+        <div class="fuel-stats-bunker-kpis">
+          <article>
+            <span>Total</span>
+            <strong>{{ fmtMt(summary().bunkerTotalMt) }} <small>mt</small></strong>
+          </article>
+          <article>
+            <span>RMD / BIO</span>
+            <strong>{{ fmtMt(summary().bunkerRmdBioMt) }} <small>mt</small></strong>
+          </article>
+          <article>
+            <span>DMA</span>
+            <strong>{{ fmtMt(summary().bunkerDmaMt) }} <small>mt</small></strong>
+          </article>
+          <article>
+            <span>Operations</span>
+            <strong>{{ summary().bunkerCount }}</strong>
+          </article>
+        </div>
+        <div class="fuel-stats-table-wrap">
+          <table class="fuel-stats-table">
+            <thead>
+              <tr>
+                <th>
+                  <button
+                    type="button"
+                    class="fuel-stats-th"
+                    [class.fuel-stats-th--asc]="
+                      sortMark(bunkerSort().key, 'date', bunkerSort().asc) === 'asc'
+                    "
+                    [class.fuel-stats-th--desc]="
+                      sortMark(bunkerSort().key, 'date', bunkerSort().asc) === 'desc'
+                    "
+                    (click)="sortBunker('date')"
+                  >
+                    Date
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    class="fuel-stats-th"
+                    [class.fuel-stats-th--asc]="
+                      sortMark(bunkerSort().key, 'time', bunkerSort().asc) === 'asc'
+                    "
+                    [class.fuel-stats-th--desc]="
+                      sortMark(bunkerSort().key, 'time', bunkerSort().asc) === 'desc'
+                    "
+                    (click)="sortBunker('time')"
+                  >
+                    Time
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    class="fuel-stats-th"
+                    [class.fuel-stats-th--asc]="
+                      sortMark(bunkerSort().key, 'place', bunkerSort().asc) === 'asc'
+                    "
+                    [class.fuel-stats-th--desc]="
+                      sortMark(bunkerSort().key, 'place', bunkerSort().asc) === 'desc'
+                    "
+                    (click)="sortBunker('place')"
+                  >
+                    Place
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    class="fuel-stats-th"
+                    [class.fuel-stats-th--asc]="
+                      sortMark(bunkerSort().key, 'rawEvent', bunkerSort().asc) === 'asc'
+                    "
+                    [class.fuel-stats-th--desc]="
+                      sortMark(bunkerSort().key, 'rawEvent', bunkerSort().asc) === 'desc'
+                    "
+                    (click)="sortBunker('rawEvent')"
+                  >
+                    Event
+                  </button>
+                </th>
+                <th class="num">
+                  <button
+                    type="button"
+                    class="fuel-stats-th"
+                    [class.fuel-stats-th--asc]="
+                      sortMark(bunkerSort().key, 'bunkerRmdBioMt', bunkerSort().asc) === 'asc'
+                    "
+                    [class.fuel-stats-th--desc]="
+                      sortMark(bunkerSort().key, 'bunkerRmdBioMt', bunkerSort().asc) === 'desc'
+                    "
+                    (click)="sortBunker('bunkerRmdBioMt')"
+                  >
+                    RMD/BIO
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    class="fuel-stats-th"
+                    [class.fuel-stats-th--asc]="
+                      sortMark(bunkerSort().key, 'bunkerRobTank', bunkerSort().asc) === 'asc'
+                    "
+                    [class.fuel-stats-th--desc]="
+                      sortMark(bunkerSort().key, 'bunkerRobTank', bunkerSort().asc) === 'desc'
+                    "
+                    (click)="sortBunker('bunkerRobTank')"
+                  >
+                    Into
+                  </button>
+                </th>
+                <th class="num">
+                  <button
+                    type="button"
+                    class="fuel-stats-th"
+                    [class.fuel-stats-th--asc]="
+                      sortMark(bunkerSort().key, 'bunkerDmaMt', bunkerSort().asc) === 'asc'
+                    "
+                    [class.fuel-stats-th--desc]="
+                      sortMark(bunkerSort().key, 'bunkerDmaMt', bunkerSort().asc) === 'desc'
+                    "
+                    (click)="sortBunker('bunkerDmaMt')"
+                  >
+                    DMA
+                  </button>
+                </th>
+                <th class="num">
+                  <button
+                    type="button"
+                    class="fuel-stats-th"
+                    [class.fuel-stats-th--asc]="
+                      sortMark(bunkerSort().key, 'bunkerTotalMt', bunkerSort().asc) === 'asc'
+                    "
+                    [class.fuel-stats-th--desc]="
+                      sortMark(bunkerSort().key, 'bunkerTotalMt', bunkerSort().asc) === 'desc'
+                    "
+                    (click)="sortBunker('bunkerTotalMt')"
+                  >
+                    Total
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (b of sortedBunkers(); track b.id) {
+                <tr>
+                  <td>{{ bunkerStampDate(b.date, b.time) }}</td>
+                  <td class="num-left">{{ bunkerStampTime(b.date, b.time) }}</td>
+                  <td>{{ b.place || '—' }}</td>
+                  <td>{{ b.rawEvent || kindLabel(b.kind) }}</td>
+                  <td class="num">{{ fmtMt(b.bunkerRmdBioMt) }}</td>
+                  <td>{{ bunkerTankLabel(b.bunkerRobTank) }}</td>
+                  <td class="num">{{ fmtMt(b.bunkerDmaMt) }}</td>
+                  <td class="num">{{ fmtMt(b.bunkerTotalMt) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <section class="card fuel-stats-block" aria-label="ROB change">
+      <h2 class="fuel-stats-section-title">ROB first → last</h2>
+      <p class="fuel-stats-section-hint">
+        Stock on the first matching row vs the last. Negative Δ = drawn down over the period.
+      </p>
+      <div class="fuel-stats-rob-grid">
+        <div class="fuel-stats-rob-card">
+          <h3>RMD</h3>
+          <p>
+            <span>{{ fmtMt(summary().firstRob?.robRmdMt) }}</span>
+            <span class="arrow">→</span>
+            <span>{{ fmtMt(summary().lastRob?.robRmdMt) }}</span>
+          </p>
+          <strong
+            class="delta"
+            [class.delta--down]="deltaTone(summary().robDelta?.robRmdMt) === 'down'"
+            [class.delta--up]="deltaTone(summary().robDelta?.robRmdMt) === 'up'"
+            >{{ fmtDelta(summary().robDelta?.robRmdMt) }} mt</strong
           >
-          <span class="fuel-stats-kpi__hint">
-            RMD/bio {{ fmtMt(summary().bunkerRmdBioMt) }} · DMA
-            {{ fmtMt(summary().bunkerDmaMt) }}
-          </span>
-        </article>
-      </div>
-    </section>
-
-    <section class="card fuel-stats-block" aria-label="Machinery hours">
-      <h2 class="fuel-stats-section-title">Machinery hours</h2>
-      <div class="fuel-stats-kv-grid">
-        <div class="fuel-stats-kv">
-          <span>ME</span>
-          <strong>{{ fmtHours(summary().meHours) }}</strong>
         </div>
-        <div class="fuel-stats-kv">
-          <span>AE (1–3)</span>
-          <strong>{{ fmtHours(summary().aeHours) }}</strong>
+        <div class="fuel-stats-rob-card">
+          <h3>B100</h3>
+          <p>
+            <span>{{ fmtMt(summary().firstRob?.robB100Mt) }}</span>
+            <span class="arrow">→</span>
+            <span>{{ fmtMt(summary().lastRob?.robB100Mt) }}</span>
+          </p>
+          <strong
+            class="delta"
+            [class.delta--down]="deltaTone(summary().robDelta?.robB100Mt) === 'down'"
+            [class.delta--up]="deltaTone(summary().robDelta?.robB100Mt) === 'up'"
+            >{{ fmtDelta(summary().robDelta?.robB100Mt) }} mt</strong
+          >
         </div>
-        <div class="fuel-stats-kv">
-          <span>Boiler</span>
-          <strong>{{ fmtHours(summary().boilerHours) }}</strong>
-        </div>
-      </div>
-    </section>
-
-    <section class="card fuel-stats-block" aria-label="ROB endpoints">
-      <h2 class="fuel-stats-section-title">ROB (first → last row)</h2>
-      <div class="fuel-stats-rob">
-        <div class="fuel-stats-rob__col">
-          <h3>First</h3>
-          <p>RMD {{ fmtMt(summary().firstRob?.robRmdMt) }} mt</p>
-          <p>B100 {{ fmtMt(summary().firstRob?.robB100Mt) }} mt</p>
-          <p>DMA {{ fmtMt(summary().firstRob?.robDmaMt) }} mt</p>
-        </div>
-        <div class="fuel-stats-rob__col">
-          <h3>Last</h3>
-          <p>RMD {{ fmtMt(summary().lastRob?.robRmdMt) }} mt</p>
-          <p>B100 {{ fmtMt(summary().lastRob?.robB100Mt) }} mt</p>
-          <p>DMA {{ fmtMt(summary().lastRob?.robDmaMt) }} mt</p>
+        <div class="fuel-stats-rob-card">
+          <h3>DMA</h3>
+          <p>
+            <span>{{ fmtMt(summary().firstRob?.robDmaMt) }}</span>
+            <span class="arrow">→</span>
+            <span>{{ fmtMt(summary().lastRob?.robDmaMt) }}</span>
+          </p>
+          <strong
+            class="delta"
+            [class.delta--down]="deltaTone(summary().robDelta?.robDmaMt) === 'down'"
+            [class.delta--up]="deltaTone(summary().robDelta?.robDmaMt) === 'up'"
+            >{{ fmtDelta(summary().robDelta?.robDmaMt) }} mt</strong
+          >
         </div>
       </div>
     </section>
 
     <section class="card fuel-stats-block" aria-label="By event type">
-      <h2 class="fuel-stats-section-title">By event type</h2>
+      <div class="fuel-stats-section-head">
+        <h2 class="fuel-stats-section-title">By event type</h2>
+        <span class="fuel-stats-section-count">{{ sortedKinds().length }}</span>
+      </div>
       <div class="fuel-stats-table-wrap">
         <table class="fuel-stats-table">
           <thead>
             <tr>
-              <th>Type</th>
-              <th class="num">Count</th>
-              <th class="num">Hours</th>
-              <th class="num">Total mt</th>
-              <th class="num">ME mt</th>
-              <th class="num">AE mt</th>
+              <th>
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(kindSort().key, 'label', kindSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(kindSort().key, 'label', kindSort().asc) === 'desc'"
+                  (click)="sortKind('label')"
+                >
+                  Type
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(kindSort().key, 'count', kindSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(kindSort().key, 'count', kindSort().asc) === 'desc'"
+                  (click)="sortKind('count')"
+                >
+                  Count
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(kindSort().key, 'hours', kindSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(kindSort().key, 'hours', kindSort().asc) === 'desc'"
+                  (click)="sortKind('hours')"
+                >
+                  Hours
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(kindSort().key, 'totalMt', kindSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(kindSort().key, 'totalMt', kindSort().asc) === 'desc'"
+                  (click)="sortKind('totalMt')"
+                >
+                  Total mt
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(kindSort().key, 'meMt', kindSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(kindSort().key, 'meMt', kindSort().asc) === 'desc'"
+                  (click)="sortKind('meMt')"
+                >
+                  ME
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(kindSort().key, 'aeMt', kindSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(kindSort().key, 'aeMt', kindSort().asc) === 'desc'"
+                  (click)="sortKind('aeMt')"
+                >
+                  AE
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(kindSort().key, 'boilerMt', kindSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(kindSort().key, 'boilerMt', kindSort().asc) === 'desc'"
+                  (click)="sortKind('boilerMt')"
+                >
+                  Blr
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(kindSort().key, 'sharePct', kindSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(kindSort().key, 'sharePct', kindSort().asc) === 'desc'"
+                  (click)="sortKind('sharePct')"
+                >
+                  Share
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
-            @for (k of summary().byKind; track k.kind) {
+            @for (k of sortedKinds(); track k.kind) {
               <tr>
-                <td>{{ k.label }}</td>
+                <td>
+                  <span class="fuel-stats-kind">{{ k.label }}</span>
+                  <span class="fuel-stats-share-bar" aria-hidden="true">
+                    <i [style.width]="barWidth(k.sharePct)"></i>
+                  </span>
+                </td>
                 <td class="num">{{ k.count }}</td>
-                <td class="num">{{ k.hours == null ? '—' : (k.hours | number: '1.0-1') }}</td>
-                <td class="num">{{ k.totalMt == null ? '—' : (k.totalMt | number: '1.0-1') }}</td>
-                <td class="num">{{ k.meMt == null ? '—' : (k.meMt | number: '1.0-1') }}</td>
-                <td class="num">{{ k.aeMt == null ? '—' : (k.aeMt | number: '1.0-1') }}</td>
+                <td class="num">{{ fmtHours(k.hours) }}</td>
+                <td class="num">{{ fmtMt(k.totalMt) }}</td>
+                <td class="num">{{ fmtMt(k.meMt) }}</td>
+                <td class="num">{{ fmtMt(k.aeMt) }}</td>
+                <td class="num">{{ fmtMt(k.boilerMt) }}</td>
+                <td class="num">{{ k.sharePct == null ? '—' : k.sharePct + '%' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card fuel-stats-block" aria-label="By day">
+      <div class="fuel-stats-section-head">
+        <h2 class="fuel-stats-section-title">By day</h2>
+        <span class="fuel-stats-section-count">{{ sortedDays().length }}</span>
+      </div>
+      <div class="fuel-stats-table-wrap">
+        <table class="fuel-stats-table">
+          <thead>
+            <tr>
+              <th>
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(daySort().key, 'date', daySort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(daySort().key, 'date', daySort().asc) === 'desc'"
+                  (click)="sortDay('date')"
+                >
+                  Date
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(daySort().key, 'count', daySort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(daySort().key, 'count', daySort().asc) === 'desc'"
+                  (click)="sortDay('count')"
+                >
+                  Events
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(daySort().key, 'hours', daySort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(daySort().key, 'hours', daySort().asc) === 'desc'"
+                  (click)="sortDay('hours')"
+                >
+                  Hours
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(daySort().key, 'totalMt', daySort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(daySort().key, 'totalMt', daySort().asc) === 'desc'"
+                  (click)="sortDay('totalMt')"
+                >
+                  Total mt
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(daySort().key, 'meMt', daySort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(daySort().key, 'meMt', daySort().asc) === 'desc'"
+                  (click)="sortDay('meMt')"
+                >
+                  ME
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(daySort().key, 'aeMt', daySort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(daySort().key, 'aeMt', daySort().asc) === 'desc'"
+                  (click)="sortDay('aeMt')"
+                >
+                  AE
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(daySort().key, 'boilerMt', daySort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(daySort().key, 'boilerMt', daySort().asc) === 'desc'"
+                  (click)="sortDay('boilerMt')"
+                >
+                  Blr
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of sortedDays(); track d.date) {
+              <tr>
+                <td>{{ fmtDate(d.date) }}</td>
+                <td class="num">{{ d.count }}</td>
+                <td class="num">{{ fmtHours(d.hours) }}</td>
+                <td class="num">{{ fmtMt(d.totalMt) }}</td>
+                <td class="num">{{ fmtMt(d.meMt) }}</td>
+                <td class="num">{{ fmtMt(d.aeMt) }}</td>
+                <td class="num">{{ fmtMt(d.boilerMt) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card fuel-stats-block" aria-label="Events detail">
+      <div class="fuel-stats-section-head">
+        <h2 class="fuel-stats-section-title">Events in scope</h2>
+        <span class="fuel-stats-section-count">{{ sortedEvents().length }}</span>
+      </div>
+      <div class="fuel-stats-table-wrap fuel-stats-table-wrap--tall">
+        <table class="fuel-stats-table fuel-stats-table--events">
+          <thead>
+            <tr>
+              <th>
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(eventSort().key, 'date', eventSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(eventSort().key, 'date', eventSort().asc) === 'desc'"
+                  (click)="sortEvent('date')"
+                >
+                  Date
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(eventSort().key, 'time', eventSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(eventSort().key, 'time', eventSort().asc) === 'desc'"
+                  (click)="sortEvent('time')"
+                >
+                  Time
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(eventSort().key, 'place', eventSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(eventSort().key, 'place', eventSort().asc) === 'desc'"
+                  (click)="sortEvent('place')"
+                >
+                  Place
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="
+                    sortMark(eventSort().key, 'rawEvent', eventSort().asc) === 'asc'
+                  "
+                  [class.fuel-stats-th--desc]="
+                    sortMark(eventSort().key, 'rawEvent', eventSort().asc) === 'desc'
+                  "
+                  (click)="sortEvent('rawEvent')"
+                >
+                  Event
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(eventSort().key, 'kind', eventSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(eventSort().key, 'kind', eventSort().asc) === 'desc'"
+                  (click)="sortEvent('kind')"
+                >
+                  Type
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(eventSort().key, 'hours', eventSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(eventSort().key, 'hours', eventSort().asc) === 'desc'"
+                  (click)="sortEvent('hours')"
+                >
+                  Hrs
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="
+                    sortMark(eventSort().key, 'totalMt', eventSort().asc) === 'asc'
+                  "
+                  [class.fuel-stats-th--desc]="
+                    sortMark(eventSort().key, 'totalMt', eventSort().asc) === 'desc'
+                  "
+                  (click)="sortEvent('totalMt')"
+                >
+                  Total
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(eventSort().key, 'meMt', eventSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(eventSort().key, 'meMt', eventSort().asc) === 'desc'"
+                  (click)="sortEvent('meMt')"
+                >
+                  ME
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="sortMark(eventSort().key, 'aeMt', eventSort().asc) === 'asc'"
+                  [class.fuel-stats-th--desc]="sortMark(eventSort().key, 'aeMt', eventSort().asc) === 'desc'"
+                  (click)="sortEvent('aeMt')"
+                >
+                  AE
+                </button>
+              </th>
+              <th class="num">
+                <button
+                  type="button"
+                  class="fuel-stats-th"
+                  [class.fuel-stats-th--asc]="
+                    sortMark(eventSort().key, 'boilerMt', eventSort().asc) === 'asc'
+                  "
+                  [class.fuel-stats-th--desc]="
+                    sortMark(eventSort().key, 'boilerMt', eventSort().asc) === 'desc'
+                  "
+                  (click)="sortEvent('boilerMt')"
+                >
+                  Blr
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of sortedEvents(); track e.id) {
+              <tr>
+                <td>{{ eventDateOnly(e) }}</td>
+                <td class="num-left">{{ eventTimeOnly(e) }}</td>
+                <td>{{ e.place || '—' }}</td>
+                <td>{{ e.rawEvent || '—' }}</td>
+                <td>{{ kindLabel(e.kind) }}</td>
+                <td class="num">{{ fmtHours(e.timeUsedHours) }}</td>
+                <td class="num">{{ fmtMt(e.totalMt) }}</td>
+                <td class="num">{{ fmtMt(e.meMt) }}</td>
+                <td class="num">{{ fmtMt(e.aeMt) }}</td>
+                <td class="num">{{ fmtMt(e.boilerMt) }}</td>
               </tr>
             }
           </tbody>

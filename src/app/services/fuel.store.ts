@@ -10,6 +10,7 @@ import {
   type FuelEventKind,
   type FuelLogEvent,
   type FuelMasterSummary,
+  type FuelUpdatedHandoff,
   type FuelViewPrefs,
 } from '../models/fuel.models';
 import { AppStateStore } from './app-state.store';
@@ -122,6 +123,24 @@ export class FuelStore {
       };
     });
     void this.state.persist('silent');
+  }
+
+  /** Shared View↔Edit “Updated” handoff (status / date / port / parameter list). */
+  setUpdatedHandoff(next: FuelUpdatedHandoff): void {
+    this.data.update((d) => {
+      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      return {
+        ...d,
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          updatedHandoff: {
+            ...next,
+            changedAt: new Date().toISOString(),
+          },
+        }),
+      };
+    });
+    void this.state.persist('saved');
   }
 
   updateView(partial: Partial<FuelViewPrefs>): void {

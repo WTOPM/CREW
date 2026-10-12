@@ -44,6 +44,31 @@ export interface ElectronLocalPrefs {
   /** Last FUEL View/Edit tab on this PC. */
   fuelActiveTab?: 'view' | 'edit';
   /**
+   * Per-tab Events / Columns / filters on this PC (View ≠ Edit).
+   * `fuelVisibleColumns` remains a View-tab mirror for older builds.
+   */
+  fuelTabPrefs?: {
+    view?: {
+      visibleKinds?: string[];
+      newestFirst?: boolean;
+      dateFrom?: string;
+      dateTo?: string;
+      search?: string;
+      limitCount?: number;
+      visibleColumns?: string[];
+    };
+    edit?: {
+      visibleKinds?: string[];
+      newestFirst?: boolean;
+      dateFrom?: string;
+      dateTo?: string;
+      search?: string;
+      limitCount?: number;
+      visibleColumns?: string[];
+    };
+    tabsReady?: boolean;
+  };
+  /**
    * @deprecated Migrated into shared fuelLibrary.displayPresets.
    * Still read once for migration, then cleared.
    */

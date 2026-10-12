@@ -519,11 +519,28 @@
 .fuel-kind-toggles {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
 }
 
 .fuel-kind-toggles {
   margin-top: 0.75rem;
+}
+
+/* Toolbar action chips: larger caps labels, clearer presence. */
+.fuel-filter-presets .fuel-chip {
+  padding: 0.48rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 6%);
+}
+
+.fuel-filter-presets .fuel-chip:hover {
+  box-shadow: 0 2px 8px rgb(15 23 42 / 10%);
 }
 
 .fuel-chip {
@@ -538,7 +555,8 @@
   transition:
     background 0.12s ease,
     border-color 0.12s ease,
-    color 0.12s ease;
+    color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .fuel-chip:hover {
@@ -623,16 +641,16 @@
 }
 
 .fuel-chip--summary {
-  background: #fff;
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
   border-color: #94a3b8;
-  color: #334155;
+  color: #0f172a;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
 }
 
 .fuel-chip--summary:hover:not(:disabled) {
-  background: #f8fafc;
+  background: #f1f5f9;
   border-color: #64748b;
+  color: #020617;
 }
 
 .fuel-chip--summary:disabled {
@@ -640,19 +658,94 @@
   cursor: not-allowed;
 }
 
+/* View↔Edit UPDATED handoff (Excel Updated / date–port idea). */
+.fuel-chip--updated {
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  border-color: #94a3b8;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.fuel-chip--updated:hover {
+  background: #f1f5f9;
+  border-color: #64748b;
+}
+
+.fuel-chip--updated-need {
+  background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.fuel-chip--updated-need:hover {
+  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #dc2626;
+  color: #7f1d1d;
+}
+
+.fuel-chip--updated-done {
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.fuel-chip--updated-done:hover {
+  background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #059669;
+  color: #064e3b;
+}
+
 .fuel-chip--stats {
-  background: #eff6ff;
-  border-color: #93c5fd;
-  color: #1d4ed8;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #60a5fa;
+  color: #1e3a8a;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
 }
 
 .fuel-chip--stats:hover {
-  background: #dbeafe;
-  border-color: #60a5fa;
+  background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #3b82f6;
   color: #1e40af;
+}
+
+/* Voyage FO forecast — own tone (not the Events/Columns green filter family). */
+.fuel-chip--forecast {
+  background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+  border-color: #a78bfa;
+  color: #4c1d95;
+}
+
+.fuel-chip--forecast:hover {
+  background: linear-gradient(180deg, #ede9fe 0%, #ddd6fe 100%);
+  border-color: #8b5cf6;
+  color: #5b21b6;
+}
+
+.fuel-filter-presets .fuel-chip--preset,
+.fuel-filter-presets .fuel-chip--filter-all,
+.fuel-filter-presets .fuel-chip--filter-partial,
+.fuel-filter-presets .fuel-chip--filter-none {
+  min-height: 2.15rem;
+}
+
+/* Separate tool chips (S1 / Stats / Forecast) from Events · Columns filters. */
+.fuel-filter-presets__tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.fuel-filter-presets__filters {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding-left: 0.7rem;
+  margin-left: 0.2rem;
+  border-left: 1px solid #cbd5e1;
 }
 
 .fuel-summary-backdrop {

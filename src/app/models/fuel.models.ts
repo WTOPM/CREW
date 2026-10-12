@@ -198,7 +198,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robRmd',
     label: 'ROB RMD',
-    tip: 'ROB of ULSFO / RMD (mt). Auto: previous ROB − ME/AE assigned to RMD.',
+    tip: 'ROB of ULSFO / RMD (mt). Auto: previous − ME/AE + bunker RMD when F→RMD.',
     type: 'num',
     field: 'robRmdMt',
     numeric: true,
@@ -206,7 +206,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robB100',
     label: 'ROB B100',
-    tip: 'ROB of biofuel blend B100 (mt). Auto: previous ROB − ME/AE assigned to B100.',
+    tip: 'ROB of biofuel blend B100 (mt). Auto: previous − ME/AE + bunker BIO when F→B100.',
     type: 'num',
     field: 'robB100Mt',
     numeric: true,
@@ -214,7 +214,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'bunkerRmdBio',
     label: 'Bunker RMD/BIO',
-    tip: 'Bunker received RMD/BIO (mt).',
+    tip: 'Bunker received RMD or BIO (mt). Added to ROB RMD or ROB B100 (F badge).',
     type: 'num',
     field: 'bunkerRmdBioMt',
     numeric: true,
@@ -222,7 +222,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'bunkerDma',
     label: 'Bunker DMA',
-    tip: 'Bunker received DMA (mt).',
+    tip: 'Bunker received DMA (mt). Added to ROB DMA automatically.',
     type: 'num',
     field: 'bunkerDmaMt',
     numeric: true,
@@ -230,7 +230,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robDma',
     label: 'ROB DMA',
-    tip: 'ROB of DMA / MGO (mt). Auto: previous ROB − DMA/Boiler consumption.',
+    tip: 'ROB of DMA / MGO (mt). Auto: previous − DMA/Boiler + bunker DMA.',
     type: 'num',
     field: 'robDmaMt',
     numeric: true,
@@ -663,6 +663,11 @@ export interface FuelLogEvent {
   meRobTank: FuelRobTankId | null;
   aeRobTank: FuelRobTankId | null;
   boilerRobTank: FuelRobTankId | null;
+  /**
+   * Which ROB tank receives Bunker RMD/BIO (rmd or b100).
+   * Null = infer from previous stock (B100 if on board, else RMD). DMA bunker always → DMA.
+   */
+  bunkerRobTank: FuelRobTankId | null;
   dmaConsM3: number | null;
   boilerFm: number | null;
   /** Optional machinery (from CENG when matched). */
@@ -732,8 +737,22 @@ export interface FuelViewPrefs {
   limitCount: number;
 }
 
+export type FuelPageTab = 'view' | 'edit';
+
+/**
+ * Per-tab filter/layout on this PC (View and Edit are independent).
+ * Not shared via the data folder.
+ */
+export interface FuelTabLocalPrefs extends FuelViewPrefs {
+  visibleColumns: FuelColumnId[];
+}
+
 /** Local-only UI prefs (per machine — not shared via data folder). */
 export interface FuelLocalUiPrefs {
+  /**
+   * @deprecated Prefer `tabs[activeTab].visibleColumns`. Kept as mirror of view-tab
+   * columns for older call sites / migration from a single shared layout.
+   */
   visibleColumns: FuelColumnId[];
   /** Show hour fields as H:MM instead of decimal (1.1 → 1:06). */
   hoursAsHm: boolean;
@@ -745,7 +764,14 @@ export interface FuelLocalUiPrefs {
    */
   utcOffsetHours: number;
   /** Last FUEL page tab on this PC (View / Edit). */
-  activeTab: 'view' | 'edit';
+  activeTab: FuelPageTab;
+  /** Independent Events / Columns / date / Show / search for View vs Edit. */
+  tabs: { view: FuelTabLocalPrefs; edit: FuelTabLocalPrefs };
+  /**
+   * True after one-time seed of `tabs` from shared `fuelLibrary.view`
+   * (so existing filters are not lost when switching to per-PC tabs).
+   */
+  tabsReady: boolean;
 }
 
 /** One saved column layout (Save / Load display) — shared via data folder. */
@@ -796,8 +822,33 @@ export interface FuelLibrarySettings {
   displayPresets: FuelDisplayPreset[];
   /** MASTER S1–AC4 snapshot (AUX / tanks) for read-only compare. */
   masterSummary: FuelMasterSummary | null;
+  /**
+   * Shared View↔Edit handoff (Excel “Updated” / date–port banner idea).
+   * View marks needs update + date/port; Edit fills values and marks done.
+   */
+  updatedHandoff: FuelUpdatedHandoff;
   /** Last density used on Add / density HUD — default for new rows. */
   lastDensity: number | null;
+}
+
+/** Excel-style Updated banner status between View (request) and Edit (fill). */
+export type FuelUpdatedHandoffStatus = 'idle' | 'needs_update' | 'done';
+
+export interface FuelUpdatedHandoffItem {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export interface FuelUpdatedHandoff {
+  status: FuelUpdatedHandoffStatus;
+  /** ISO date yyyy-mm-dd */
+  date: string;
+  port: string;
+  /** Parameter list (tanks / notes) — Edit fills, View can tweak. */
+  items: FuelUpdatedHandoffItem[];
+  note: string;
+  changedAt: string;
 }
 
 /** One AE line from MASTER S–V (KW / RH / KG). MT is a shared merged cell. */
@@ -841,13 +892,89 @@ export function createDefaultFuelViewPrefs(): FuelViewPrefs {
   };
 }
 
-export function createDefaultFuelLocalUiPrefs(): FuelLocalUiPrefs {
+export function createDefaultFuelTabLocalPrefs(
+  columns?: readonly FuelColumnId[],
+  view?: Partial<FuelViewPrefs>,
+): FuelTabLocalPrefs {
+  const base = createDefaultFuelViewPrefs();
+  const cols =
+    columns && columns.length ? normalizeFuelColumnIds(columns) : [...FUEL_DEFAULT_VISIBLE_COLUMNS];
   return {
-    visibleColumns: [...FUEL_DEFAULT_VISIBLE_COLUMNS],
+    visibleKinds: Array.isArray(view?.visibleKinds)
+      ? normalizeFuelVisibleKinds(view!.visibleKinds)
+      : [...base.visibleKinds],
+    newestFirst: view?.newestFirst !== false,
+    dateFrom: typeof view?.dateFrom === 'string' ? view.dateFrom : '',
+    dateTo: typeof view?.dateTo === 'string' ? view.dateTo : '',
+    search: typeof view?.search === 'string' ? view.search : '',
+    limitCount:
+      typeof view?.limitCount === 'number' && Number.isFinite(view.limitCount)
+        ? Math.max(0, Math.floor(view.limitCount))
+        : base.limitCount,
+    visibleColumns: cols,
+  };
+}
+
+export function createDefaultFuelLocalUiPrefs(): FuelLocalUiPrefs {
+  const cols = [...FUEL_DEFAULT_VISIBLE_COLUMNS];
+  const tab = createDefaultFuelTabLocalPrefs(cols);
+  return {
+    visibleColumns: [...cols],
     hoursAsHm: false,
     showUtc: false,
     utcOffsetHours: 0,
     activeTab: 'view',
+    tabs: { view: { ...tab, visibleColumns: [...cols] }, edit: { ...tab, visibleColumns: [...cols] } },
+    tabsReady: false,
+  };
+}
+
+export function fuelTabLocalPrefsAsView(tab: FuelTabLocalPrefs): FuelViewPrefs {
+  return {
+    visibleKinds: [...tab.visibleKinds],
+    newestFirst: tab.newestFirst,
+    dateFrom: tab.dateFrom,
+    dateTo: tab.dateTo,
+    search: tab.search,
+    limitCount: tab.limitCount,
+  };
+}
+
+function normalizeFuelColumnIds(raw: readonly unknown[]): FuelColumnId[] {
+  const mapped = raw.flatMap((id): FuelColumnId[] => {
+    if (id === 'event') return ['kind', 'rawEvent'];
+    return typeof id === 'string' && id in FUEL_COLUMN_BY_ID ? [id as FuelColumnId] : [];
+  });
+  const seen = new Set<FuelColumnId>();
+  const cols = mapped.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+  return cols.length ? cols : [...FUEL_DEFAULT_VISIBLE_COLUMNS];
+}
+
+function normalizeFuelVisibleKinds(raw: readonly unknown[]): FuelEventKind[] {
+  const out: FuelEventKind[] = [];
+  const seen = new Set<FuelEventKind>();
+  for (const k of raw) {
+    if (typeof k !== 'string' || !(k in FUEL_EVENT_KIND_LABELS)) continue;
+    const kind = k as FuelEventKind;
+    if (seen.has(kind)) continue;
+    seen.add(kind);
+    out.push(kind);
+  }
+  return out;
+}
+
+export function createDefaultFuelUpdatedHandoff(): FuelUpdatedHandoff {
+  return {
+    status: 'idle',
+    date: '',
+    port: '',
+    items: [],
+    note: '',
+    changedAt: '',
   };
 }
 
@@ -864,8 +991,69 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
     view: createDefaultFuelViewPrefs(),
     displayPresets: [],
     masterSummary: null,
+    updatedHandoff: createDefaultFuelUpdatedHandoff(),
     lastDensity: FUEL_DEFAULT_DENSITY,
   };
+}
+
+export function normalizeFuelUpdatedHandoff(
+  raw: Partial<FuelUpdatedHandoff> | null | undefined,
+): FuelUpdatedHandoff {
+  const defaults = createDefaultFuelUpdatedHandoff();
+  const statusRaw = raw?.status;
+  const status: FuelUpdatedHandoffStatus =
+    statusRaw === 'needs_update' || statusRaw === 'done' || statusRaw === 'idle'
+      ? statusRaw
+      : 'idle';
+  const itemsRaw = Array.isArray(raw?.items) ? raw!.items : [];
+  const items: FuelUpdatedHandoffItem[] = [];
+  for (const item of itemsRaw) {
+    if (!item || typeof item !== 'object') continue;
+    const label = String((item as FuelUpdatedHandoffItem).label ?? '').trim();
+    const value = String((item as FuelUpdatedHandoffItem).value ?? '').trim();
+    const id = String((item as FuelUpdatedHandoffItem).id ?? '').trim() || `upd-${items.length + 1}`;
+    if (!label && !value) continue;
+    items.push({ id, label: label || `Item ${items.length + 1}`, value });
+  }
+  return {
+    status,
+    date: String(raw?.date ?? '').trim(),
+    port: String(raw?.port ?? '').trim(),
+    items,
+    note: String(raw?.note ?? '').trim(),
+    changedAt: String(raw?.changedAt ?? '').trim(),
+  };
+}
+
+/** Seed empty handoff list from MASTER S1–AC4 tank / AUX rows (shared labels). */
+export function seedFuelUpdatedHandoffItemsFromMaster(
+  summary: FuelMasterSummary | null | undefined,
+): FuelUpdatedHandoffItem[] {
+  if (!summary) return [];
+  const out: FuelUpdatedHandoffItem[] = [];
+  summary.tankHeaders.forEach((h, i) => {
+    const label = String(h ?? '').trim();
+    if (!label) return;
+    out.push({
+      id: `tank-${i}`,
+      label,
+      value: String(summary.tankValues[i] ?? '').trim(),
+    });
+  });
+  if (summary.mt.trim()) {
+    out.push({ id: 'aux-mt', label: 'AUX MT', value: summary.mt.trim() });
+  }
+  for (const [i, row] of summary.aeRows.entries()) {
+    const label = String(row.label ?? '').trim();
+    if (!label) continue;
+    const bits = [row.kw, row.rh, row.kg].map((x) => String(x ?? '').trim()).filter(Boolean);
+    out.push({
+      id: `ae-${i}`,
+      label,
+      value: bits.join(' / '),
+    });
+  }
+  return out;
 }
 
 /** Clamp / parse density (Excel range ~0.5–1.2). Keeps up to 3 decimals (typed). */
@@ -1020,6 +1208,7 @@ export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLo
       meRobTank: partial?.meRobTank ?? null,
       aeRobTank: partial?.aeRobTank ?? null,
       boilerRobTank: partial?.boilerRobTank ?? null,
+      bunkerRobTank: partial?.bunkerRobTank ?? null,
       dmaConsM3: partial?.dmaConsM3 ?? null,
       boilerFm: partial?.boilerFm ?? null,
       meCounterRh: partial?.meCounterRh ?? null,
@@ -1099,6 +1288,11 @@ export function normalizeFuelLibrary(
     },
     displayPresets: normalizeFuelDisplayPresets(raw?.displayPresets),
     masterSummary: normalizeFuelMasterSummary(raw?.masterSummary),
+    updatedHandoff: normalizeFuelUpdatedHandoff(
+      raw && 'updatedHandoff' in raw
+        ? (raw as FuelLibrarySettings).updatedHandoff
+        : undefined,
+    ),
   };
 }
 
@@ -1170,30 +1364,40 @@ export function normalizeFuelMasterSummary(raw: unknown): FuelMasterSummary | nu
   };
 }
 
+function normalizeFuelTabLocalPrefs(
+  raw: Partial<FuelTabLocalPrefs> | null | undefined,
+  fallbackColumns: readonly FuelColumnId[],
+): FuelTabLocalPrefs {
+  const colsRaw = Array.isArray(raw?.visibleColumns) ? raw!.visibleColumns : fallbackColumns;
+  return createDefaultFuelTabLocalPrefs(colsRaw, raw ?? undefined);
+}
+
 export function normalizeFuelLocalUiPrefs(
   raw: Partial<FuelLocalUiPrefs> | null | undefined,
 ): FuelLocalUiPrefs {
   const defaults = createDefaultFuelLocalUiPrefs();
-  const colsRaw = Array.isArray(raw?.visibleColumns) ? raw!.visibleColumns : null;
-  const mapped = colsRaw
-    ? colsRaw.flatMap((id): FuelColumnId[] => {
-        if (id === ('event' as string)) return ['kind', 'rawEvent'];
-        return id in FUEL_COLUMN_BY_ID ? [id as FuelColumnId] : [];
-      })
+  const legacyCols = Array.isArray(raw?.visibleColumns)
+    ? normalizeFuelColumnIds(raw!.visibleColumns)
     : [...defaults.visibleColumns];
-  // Dedupe while keeping order
-  const seen = new Set<FuelColumnId>();
-  const cols = mapped.filter((id) => {
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
+  const tabsRaw = raw?.tabs;
+  const viewTab = normalizeFuelTabLocalPrefs(
+    tabsRaw && typeof tabsRaw === 'object' ? (tabsRaw as FuelLocalUiPrefs['tabs']).view : null,
+    legacyCols,
+  );
+  const editTab = normalizeFuelTabLocalPrefs(
+    tabsRaw && typeof tabsRaw === 'object' ? (tabsRaw as FuelLocalUiPrefs['tabs']).edit : null,
+    legacyCols,
+  );
+  const activeTab: FuelPageTab = raw?.activeTab === 'edit' ? 'edit' : 'view';
   return {
-    visibleColumns: cols.length ? cols : [...defaults.visibleColumns],
+    visibleColumns: [...viewTab.visibleColumns],
     hoursAsHm: raw?.hoursAsHm === true,
     showUtc: raw?.showUtc === true,
     utcOffsetHours: clampFuelUtcOffsetHours(raw?.utcOffsetHours),
-    activeTab: raw?.activeTab === 'edit' ? 'edit' : 'view',
+    activeTab,
+    tabs: { view: viewTab, edit: editTab },
+    // Only true after explicit seed/persist — do not infer from default empty tabs.
+    tabsReady: raw?.tabsReady === true,
   };
 }
 
@@ -1347,6 +1551,8 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
     meRobTank: isFuelRobTankId(e.meRobTank) ? e.meRobTank : null,
     aeRobTank: isFuelRobTankId(e.aeRobTank) ? e.aeRobTank : null,
     boilerRobTank: isFuelRobTankId(e.boilerRobTank) ? e.boilerRobTank : null,
+    bunkerRobTank:
+      e.bunkerRobTank === 'rmd' || e.bunkerRobTank === 'b100' ? e.bunkerRobTank : null,
     dmaConsM3: numOrNull(e.dmaConsM3),
     boilerFm: numOrNull(e.boilerFm),
     meCounterRh: numOrNull(e.meCounterRh),
@@ -1718,25 +1924,72 @@ function clampRobDebit(prev: number | null, debit: number): number | null {
   return roundFuelMt(Math.max(0, prev - debit));
 }
 
+function creditRob(prevAfterDebit: number | null, credit: number): number | null {
+  if (!(credit > 0)) return prevAfterDebit;
+  return roundFuelMt((prevAfterDebit ?? 0) + credit);
+}
+
 /**
- * Project ROB after period consumption using per-field tank assignment.
- * Debits are summed per tank; each tank is clamped at 0.
+ * Infer which ROB tank receives Bunker RMD/BIO.
+ * Excel practice: when B100 is on board, BIO bunkers raise ROB B100; otherwise RMD.
+ */
+export function resolveBunkerRobTank(
+  draft: Pick<FuelLogEvent, 'bunkerRobTank' | 'meRobTank'>,
+  previous: FuelLogEvent | null | undefined,
+): 'rmd' | 'b100' {
+  if (draft.bunkerRobTank === 'rmd' || draft.bunkerRobTank === 'b100') {
+    return draft.bunkerRobTank;
+  }
+  if (previous && (previous.robB100Mt ?? 0) > 0) return 'b100';
+  if (previous && (previous.robRmdMt ?? 0) > 0) return 'rmd';
+  if (draft.meRobTank === 'rmd' || draft.meRobTank === 'b100') return draft.meRobTank;
+  if (previous?.meRobTank === 'rmd' || previous?.meRobTank === 'b100') {
+    return previous.meRobTank;
+  }
+  return 'b100';
+}
+
+/**
+ * Project ROB after period consumption (+ optional bunker credits).
+ * Order matches Excel: previous − ME/AE/Boiler + bunker received.
+ * Debits clamped at 0 per tank; bunker then adds to the target tank.
  */
 export function projectFuelRobAfterConsumption(
   previous: FuelLogEvent,
   assignment: FuelRobTankAssignment,
-  amounts: { meMt: number; aeMt: number; boilerMt: number },
+  amounts: {
+    meMt: number;
+    aeMt: number;
+    boilerMt: number;
+    bunkerRmdBioMt?: number | null;
+    bunkerDmaMt?: number | null;
+    bunkerRobTank?: 'rmd' | 'b100';
+  },
 ): Pick<FuelLogEvent, 'robRmdMt' | 'robB100Mt' | 'robDmaMt'> {
   const debit: Record<FuelRobTankId, number> = { rmd: 0, b100: 0, dma: 0 };
   debit[assignment.me] += amounts.meMt > 0 ? amounts.meMt : 0;
   debit[assignment.ae] += amounts.aeMt > 0 ? amounts.aeMt : 0;
   debit[assignment.boiler] += amounts.boilerMt > 0 ? amounts.boilerMt : 0;
 
-  return {
-    robRmdMt: clampRobDebit(previous.robRmdMt, debit.rmd),
-    robB100Mt: clampRobDebit(previous.robB100Mt, debit.b100),
-    robDmaMt: clampRobDebit(previous.robDmaMt, debit.dma),
-  };
+  let robRmdMt = clampRobDebit(previous.robRmdMt, debit.rmd);
+  let robB100Mt = clampRobDebit(previous.robB100Mt, debit.b100);
+  let robDmaMt = clampRobDebit(previous.robDmaMt, debit.dma);
+
+  const creditBio =
+    amounts.bunkerRmdBioMt != null && amounts.bunkerRmdBioMt > 0 ? amounts.bunkerRmdBioMt : 0;
+  const creditDma =
+    amounts.bunkerDmaMt != null && amounts.bunkerDmaMt > 0 ? amounts.bunkerDmaMt : 0;
+  const bioTank = amounts.bunkerRobTank === 'rmd' ? 'rmd' : 'b100';
+
+  if (creditBio > 0) {
+    if (bioTank === 'b100') robB100Mt = creditRob(robB100Mt, creditBio);
+    else robRmdMt = creditRob(robRmdMt, creditBio);
+  }
+  if (creditDma > 0) {
+    robDmaMt = creditRob(robDmaMt, creditDma);
+  }
+
+  return { robRmdMt, robB100Mt, robDmaMt };
 }
 
 /**
@@ -1768,8 +2021,8 @@ export function fuelEventChronoKey(
 }
 
 /**
- * Stamp tank picks + ROB = previous − ME/AE/Boiler on those tanks.
- * Explicit Add-modal tanks always win over inference.
+ * Stamp tank picks + ROB = previous − ME/AE/Boiler + bunker on those tanks.
+ * Explicit tank picks always win over inference.
  */
 export function projectFuelRobForEvent(
   event: FuelLogEvent,
@@ -1777,11 +2030,16 @@ export function projectFuelRobForEvent(
   beforePrevious?: FuelLogEvent | null,
 ): FuelLogEvent {
   const assignment = resolveFuelRobTankAssignment(event, previous, beforePrevious);
+  const bunkerTank = resolveBunkerRobTank(event, previous);
   let next: FuelLogEvent = {
     ...event,
     meRobTank: assignment.me,
     aeRobTank: assignment.ae,
     boilerRobTank: assignment.boiler,
+    bunkerRobTank:
+      (event.bunkerRmdBioMt ?? 0) > 0 || event.bunkerRobTank != null
+        ? bunkerTank
+        : event.bunkerRobTank,
   };
   if (previous) {
     next = {
@@ -1790,6 +2048,9 @@ export function projectFuelRobForEvent(
         meMt: next.meMt ?? 0,
         aeMt: next.aeMt ?? 0,
         boilerMt: next.boilerMt ?? 0,
+        bunkerRmdBioMt: next.bunkerRmdBioMt,
+        bunkerDmaMt: next.bunkerDmaMt,
+        bunkerRobTank: bunkerTank,
       }),
     };
   }

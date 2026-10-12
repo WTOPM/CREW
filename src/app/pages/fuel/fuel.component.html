@@ -185,22 +185,45 @@
         </span>
       </h2>
       <div class="fuel-filter-presets">
-        <button
-          type="button"
-          class="fuel-chip fuel-chip--summary section-readonly-allow"
-          [disabled]="!library().masterSummary"
-          title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
-          (click)="showMasterSummaryModal.set(true)"
-        >
-          S1–AC4
-        </button>
-        <a
-          routerLink="/fuel/stats"
-          class="fuel-chip fuel-chip--stats section-readonly-allow"
-          title="Statistics for the current period, events, search and Show limit"
-        >
-          Stats
-        </a>
+        <div class="fuel-filter-presets__tools">
+          <button
+            type="button"
+            class="fuel-chip fuel-chip--summary section-readonly-allow"
+            [disabled]="!library().masterSummary"
+            title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
+            (click)="showMasterSummaryModal.set(true)"
+          >
+            S1–AC4
+          </button>
+          <button
+            type="button"
+            class="fuel-chip fuel-chip--updated section-readonly-allow"
+            [class.fuel-chip--updated-need]="updatedChipTone() === 'need'"
+            [class.fuel-chip--updated-done]="updatedChipTone() === 'done'"
+            title="UPDATED handoff — View: Needs update + date/port · Edit: fill values + Done"
+            (click)="showUpdatedHandoffModal.set(true)"
+          >
+            {{ updatedChipLabel() }}
+          </button>
+          @if (activeTab() === 'view') {
+            <a
+              routerLink="/fuel/stats"
+              class="fuel-chip fuel-chip--stats section-readonly-allow"
+              title="Statistics for the View log (current period, events, search and Show)"
+            >
+              STATS
+            </a>
+            <button
+              type="button"
+              class="fuel-chip fuel-chip--forecast section-readonly-allow"
+              title="Forecast FO burn from ETA nm/kn (Excel Fuel-Distance Calc. principle)"
+              (click)="openDistanceForecast()"
+            >
+              FORECAST
+            </button>
+          }
+        </div>
+        <div class="fuel-filter-presets__filters">
         <div class="fuel-dropdown" (click)="$event.stopPropagation()">
           <button
             type="button"
@@ -211,7 +234,7 @@
             [class.fuel-chip--menu-open]="eventsMenuOpen()"
             (click)="toggleEventsMenu($event)"
           >
-            Events · {{ selectedKindsLabel() }}
+            EVENTS - {{ eventsChipSuffix() }}
           </button>
           @if (eventsMenuOpen() && menuAnchor(); as anchor) {
             <div
@@ -262,7 +285,7 @@
             [class.fuel-chip--menu-open]="columnsMenuOpen()"
             (click)="toggleColumnsMenu($event)"
           >
-            Columns · {{ visibleColumnDefs().length }}
+            COLUMNS - {{ columnsChipSuffix() }}
           </button>
           @if (columnsMenuOpen() && menuAnchor(); as anchor) {
             <div
@@ -331,6 +354,7 @@
             </div>
           }
         </div>
+        </div>
       </div>
     </div>
 
@@ -339,7 +363,7 @@
         <span>From</span>
         <app-date-picker
           size="sm"
-          [value]="library().view.dateFrom"
+          [value]="tabUi().dateFrom"
           (valueChange)="onDateFrom($event)"
         />
       </label>
@@ -347,7 +371,7 @@
         <span>To</span>
         <app-date-picker
           size="sm"
-          [value]="library().view.dateTo"
+          [value]="tabUi().dateTo"
           (valueChange)="onDateTo($event)"
         />
       </label>
@@ -355,9 +379,9 @@
         <span>Show</span>
         <span class="fuel-show-wrap">
           <select
-            [ngModel]="library().view.limitCount"
+            [ngModel]="tabUi().limitCount"
             (ngModelChange)="onLimitCount($event)"
-            title="How many latest matching events to show"
+            title="How many latest matching events to show (this tab, this PC)"
           >
             @for (opt of limitOptions; track opt.value) {
               <option [ngValue]="opt.value">{{ opt.label }}</option>
@@ -372,7 +396,7 @@
         <span>Search</span>
         <input
           type="search"
-          [ngModel]="library().view.search"
+          [ngModel]="tabUi().search"
           (ngModelChange)="onSearch($event)"
           placeholder="Port / event"
         />
@@ -869,6 +893,15 @@
   />
 }
 
+@if (distanceForecast(); as forecast) {
+  <app-fuel-distance-forecast-modal
+    [seedLegs]="forecast.legs"
+    [seedStartRobMt]="forecast.startRobMt"
+    [planName]="forecast.planName"
+    (close)="closeDistanceForecast()"
+  />
+}
+
 @if (densityHud(); as hud) {
   <div
     class="fuel-density-hud"
@@ -909,8 +942,10 @@
     role="listbox"
     [attr.aria-label]="'ROB tank for ' + menu.field"
   >
-    <div class="fuel-rob-menu__title">From ROB</div>
-    @for (tank of robTankOptions(); track tank) {
+    <div class="fuel-rob-menu__title">
+      {{ menu.mode === 'bunker' ? 'Into ROB' : 'From ROB' }}
+    </div>
+    @for (tank of robMenuOptions(menu); track tank) {
       <button
         type="button"
         class="fuel-rob-menu__item"
@@ -935,6 +970,16 @@
   (closeSave)="showDisplaySaveModal.set(false)"
   (closeLoad)="showDisplayLoadModal.set(false)"
 />
+
+@if (showUpdatedHandoffModal()) {
+  <app-fuel-updated-handoff-modal
+    [handoff]="updatedHandoff()"
+    [masterSummary]="library().masterSummary"
+    [mode]="activeTab()"
+    [placeChoices]="placeChoices()"
+    (close)="showUpdatedHandoffModal.set(false)"
+  />
+}
 
 @if (showMasterSummaryModal() && library().masterSummary; as summary) {
   <div class="modal-backdrop fuel-summary-backdrop" (click)="showMasterSummaryModal.set(false)">

@@ -21,6 +21,7 @@ import {
   recomputeFuelCounterFromHours,
   recomputeFuelHoursFromCounter,
   projectFuelRobAfterConsumption,
+  projectFuelRobForEvent,
   recomputeFuelFmFromTotalM3,
   recomputeFuelTotalM3FromFm,
   recomputeFuelTotalMtFromM3,
@@ -548,6 +549,79 @@ describe('applyFuelEventAutoCalcs', () => {
     expect(projected.robRmdMt).toBe(49.5);
     expect(projected.robDmaMt).toBe(19.8);
   });
+
+  it('credits bunker RMD/BIO into B100 (or RMD) and DMA into DMA after consumption', () => {
+    const prev = ev({
+      id: '1',
+      kind: 'noon',
+      date: '2026-09-01',
+      time: '12:00',
+      robRmdMt: 0,
+      robB100Mt: 291,
+      robDmaMt: 67.1,
+    });
+    const toB100 = projectFuelRobAfterConsumption(
+      prev,
+      { me: 'b100', ae: 'b100', boiler: 'dma' },
+      {
+        meMt: 0,
+        aeMt: 0,
+        boilerMt: 0,
+        bunkerRmdBioMt: 9,
+        bunkerDmaMt: 0.6,
+        bunkerRobTank: 'b100',
+      },
+    );
+    expect(toB100.robB100Mt).toBe(300);
+    expect(toB100.robDmaMt).toBe(67.7);
+    expect(toB100.robRmdMt).toBe(0);
+
+    const toRmd = projectFuelRobAfterConsumption(
+      prev,
+      { me: 'b100', ae: 'b100', boiler: 'dma' },
+      {
+        meMt: 0.2,
+        aeMt: 0,
+        boilerMt: 0.1,
+        bunkerRmdBioMt: 9,
+        bunkerDmaMt: 0.6,
+        bunkerRobTank: 'rmd',
+      },
+    );
+    expect(toRmd.robB100Mt).toBe(290.8);
+    expect(toRmd.robRmdMt).toBe(9);
+    expect(toRmd.robDmaMt).toBe(67.6);
+  });
+
+  it('infers bunker tank from previous B100 stock and applies via projectFuelRobForEvent', () => {
+    const prev = ev({
+      id: '1',
+      kind: 'departure',
+      date: '2026-10-06',
+      time: '05:00',
+      robRmdMt: 0,
+      robB100Mt: 291,
+      robDmaMt: 67.1,
+    });
+    const next = projectFuelRobForEvent(
+      ev({
+        id: '2',
+        kind: 'noon',
+        date: '2026-10-06',
+        time: '12:00',
+        meMt: 0,
+        aeMt: 0,
+        boilerMt: 0,
+        bunkerRmdBioMt: 9,
+        bunkerDmaMt: 0.6,
+        sourceRow: 0,
+      }),
+      prev,
+    );
+    expect(next.bunkerRobTank).toBe('b100');
+    expect(next.robB100Mt).toBe(300);
+    expect(next.robDmaMt).toBe(67.7);
+  });
 });
 
 describe('applyFuelConsumptionSideEffects', () => {
@@ -832,6 +906,26 @@ describe('normalizeFuelLibrary edit draft', () => {
     expect(lib.editEvents[0].place).toBe('EditPort');
     expect(lib.editBaseline[0].place).toBe('Base');
     expect(lib.editDirty).toBe(true);
+  });
+
+  it('normalizes shared UPDATED handoff (additive default)', () => {
+    const empty = normalizeFuelLibrary({});
+    expect(empty.updatedHandoff.status).toBe('idle');
+    expect(empty.updatedHandoff.items).toEqual([]);
+
+    const lib = normalizeFuelLibrary({
+      updatedHandoff: {
+        status: 'needs_update',
+        date: '2026-09-13',
+        port: 'HAMBURG',
+        items: [{ id: 't0', label: 'RMD', value: '439,5' }],
+        note: '',
+        changedAt: '2026-09-13T10:00:00.000Z',
+      },
+    });
+    expect(lib.updatedHandoff.status).toBe('needs_update');
+    expect(lib.updatedHandoff.port).toBe('HAMBURG');
+    expect(lib.updatedHandoff.items[0]).toMatchObject({ label: 'RMD', value: '439,5' });
   });
 });
 

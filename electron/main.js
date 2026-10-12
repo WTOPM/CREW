@@ -626,6 +626,10 @@ function readLocalPrefs() {
           ? parsed.fuelUtcOffsetHours
           : undefined,
       fuelActiveTab: parsed.fuelActiveTab === 'edit' ? 'edit' : parsed.fuelActiveTab === 'view' ? 'view' : undefined,
+      fuelTabPrefs:
+        parsed.fuelTabPrefs && typeof parsed.fuelTabPrefs === 'object'
+          ? parsed.fuelTabPrefs
+          : undefined,
       fuelDisplayPresets: Array.isArray(parsed.fuelDisplayPresets)
         ? parsed.fuelDisplayPresets
         : undefined,
@@ -2204,6 +2208,9 @@ ipcMain.handle('set-local-prefs', (_event, patch) => {
   }
   if (patch?.fuelActiveTab === 'view' || patch?.fuelActiveTab === 'edit') {
     next.fuelActiveTab = patch.fuelActiveTab;
+  }
+  if (patch?.fuelTabPrefs && typeof patch.fuelTabPrefs === 'object') {
+    next.fuelTabPrefs = patch.fuelTabPrefs;
   }
   if (Array.isArray(patch?.fuelDisplayPresets)) {
     next.fuelDisplayPresets = patch.fuelDisplayPresets;

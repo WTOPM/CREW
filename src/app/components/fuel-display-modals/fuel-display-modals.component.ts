@@ -32,7 +32,7 @@ export class FuelDisplayModalsComponent {
   constructor() {
     effect(() => {
       if (this.showSave()) {
-        const n = untracked(() => this.localPrefs.fuelUi().visibleColumns.length);
+        const n = untracked(() => this.localPrefs.activeTabPrefs().visibleColumns.length);
         this.saveLabel.set(`Columns · ${n}`);
       }
     });
@@ -48,7 +48,8 @@ export class FuelDisplayModalsComponent {
       this.toast.showError('Enter a display name');
       return;
     }
-    const layout = this.localPrefs.fuelUi();
+    const tab = this.localPrefs.activeTabPrefs();
+    const hoursAsHm = this.localPrefs.fuelUi().hoursAsHm;
     const existing = this.fuelStore.findDisplayPresetByName(name);
     if (existing) {
       const ok = await this.confirmDialog.confirm({
@@ -62,14 +63,14 @@ export class FuelDisplayModalsComponent {
       if (!ok) return;
       this.fuelStore.saveDisplayPreset(
         name,
-        { visibleColumns: layout.visibleColumns, hoursAsHm: layout.hoursAsHm },
+        { visibleColumns: tab.visibleColumns, hoursAsHm },
         existing.id,
       );
       this.toast.show(`Updated "${name}"`, 'success');
     } else {
       this.fuelStore.saveDisplayPreset(name, {
-        visibleColumns: layout.visibleColumns,
-        hoursAsHm: layout.hoursAsHm,
+        visibleColumns: tab.visibleColumns,
+        hoursAsHm,
       });
       this.toast.show(`Saved "${name}"`, 'success');
     }
@@ -86,10 +87,10 @@ export class FuelDisplayModalsComponent {
       this.toast.showError('Display not found');
       return;
     }
-    await this.localPrefs.setFuelUi({
+    await this.localPrefs.updateActiveTabPrefs({
       visibleColumns: [...preset.visibleColumns],
-      hoursAsHm: preset.hoursAsHm,
     });
+    await this.localPrefs.setFuelHoursAsHm(preset.hoursAsHm);
     this.toast.show(`Loaded "${preset.name}"`, 'info');
     this.closeLoad.emit();
   }

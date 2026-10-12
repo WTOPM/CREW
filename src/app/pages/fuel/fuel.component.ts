@@ -15,8 +15,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { FuelDisplayModalsComponent } from '../../components/fuel-display-modals/fuel-display-modals.component';
+import { FuelDistanceForecastModalComponent } from '../../components/fuel-distance-forecast-modal/fuel-distance-forecast-modal.component';
 import { FuelEtaVoyagePreviewModalComponent } from '../../components/fuel-eta-voyage-preview-modal/fuel-eta-voyage-preview-modal.component';
 import { FuelEventEditModalComponent } from '../../components/fuel-event-edit-modal/fuel-event-edit-modal.component';
+import { FuelUpdatedHandoffModalComponent } from '../../components/fuel-updated-handoff-modal/fuel-updated-handoff-modal.component';
 import { RefChoiceSuggestComponent } from '../../components/ref-choice-suggest/ref-choice-suggest.component';
 import { PlainTooltipDirective } from '../../directives/plain-tooltip.directive';
 import {
@@ -42,6 +44,7 @@ import {
   formatFuelTimeDisplay,
   formatFuelUtcOffsetLabel,
   fuelEventReadyForWrite,
+  fuelTabLocalPrefsAsView,
   splitFuelHoursHm,
   applyFuelConsumptionSideEffects,
   inheritFuelFieldsFromPrevious,
@@ -56,6 +59,7 @@ import {
   recomputeFuelTotalM3FromFm,
   recomputeFuelTotalMtFromM3,
   syncFuelBoilerDmaPeriod,
+  resolveBunkerRobTank,
   resolveFuelDensity,
   resolveFuelRobTankAssignment,
   dateTimeFromFuelHrsEdit,
@@ -80,12 +84,16 @@ interface FuelDensityHud {
 }
 
 /** F-badge menu: pick which ROB tank ME / AE / Boiler consumption debits. */
+type FuelRobTankMenuField = 'meRobTank' | 'aeRobTank' | 'boilerRobTank' | 'bunkerRobTank';
+
 interface FuelRobTankMenu {
   eventId: string;
-  field: 'meRobTank' | 'aeRobTank' | 'boilerRobTank';
+  field: FuelRobTankMenuField;
   selected: FuelRobTankId;
   x: number;
   y: number;
+  /** Bunker RMD/BIO only offers RMD + B100. */
+  mode: 'consume' | 'bunker';
 }
 import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
@@ -102,6 +110,12 @@ import {
   type EtaFuelVoyagePreview,
   type EtaFuelVoyagePreviewRow,
 } from '../../utils/eta-to-fuel-voyage.util';
+import {
+  buildFuelDistanceLegsFromEtaPlan,
+  createEmptyFuelDistanceLeg,
+  foRobMtFromFuelEvent,
+  type FuelDistanceForecastLeg,
+} from '../../utils/fuel-distance-forecast.util';
 import { formatDisplayDate } from '../../utils/date.util';
 
 const ALL_KINDS = Object.keys(FUEL_EVENT_KIND_LABELS) as FuelEventKind[];
@@ -193,7 +207,9 @@ interface FuelPathSegment {
     DatePickerComponent,
     FuelEventEditModalComponent,
     FuelEtaVoyagePreviewModalComponent,
+    FuelDistanceForecastModalComponent,
     FuelDisplayModalsComponent,
+    FuelUpdatedHandoffModalComponent,
     RefChoiceSuggestComponent,
     PlainTooltipDirective,
   ],
@@ -227,6 +243,12 @@ export class FuelComponent {
   protected readonly addModalSeed = signal<Partial<FuelLogEvent> | null>(null);
   /** ETA → Fuel Edit voyage preview (include/exclude + time tools). */
   protected readonly etaVoyagePreview = signal<EtaFuelVoyagePreview | null>(null);
+  /** View-only FO distance / burn forecast (Excel Fuel-Distance Calc.). */
+  protected readonly distanceForecast = signal<{
+    legs: FuelDistanceForecastLeg[];
+    startRobMt: number | null;
+    planName: string;
+  } | null>(null);
   /** Floating density editor on Total t (D click or right-click). */
   protected readonly densityHud = signal<FuelDensityHud | null>(null);
   /** Floating ROB-tank picker on ME / AE / Boiler t (F badge). */
@@ -245,6 +267,7 @@ export class FuelComponent {
   protected readonly showDisplaySaveModal = signal(false);
   protected readonly showDisplayLoadModal = signal(false);
   protected readonly showMasterSummaryModal = signal(false);
+  protected readonly showUpdatedHandoffModal = signal(false);
   protected readonly eventsMenuOpen = signal(false);
   protected readonly columnsMenuOpen = signal(false);
   /** Viewport coords for fixed Events/Columns menus (avoids overflow clipping). */
@@ -272,6 +295,11 @@ export class FuelComponent {
   private kindPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly fuelUi = this.localPrefs.fuelUi;
+  /** Events / columns / filters for the active tab (this PC only). */
+  protected readonly tabUi = computed(() => {
+    const ui = this.fuelUi();
+    return ui.tabs[ui.activeTab === 'edit' ? 'edit' : 'view'];
+  });
   protected readonly hoursAsHm = computed(() => this.fuelUi().hoursAsHm);
   protected readonly showUtc = computed(() => this.fuelUi().showUtc);
   protected readonly utcOffsetHours = computed(() => this.fuelUi().utcOffsetHours);
@@ -293,7 +321,7 @@ export class FuelComponent {
 
   protected readonly hasReadyToWrite = computed(() => this.readyCount() > 0);
 
-  /** Unique Place values for the dropdown (Sea + Edit table, first-seen). */
+  /** Unique Place values for the dropdown (Sea + View/Edit tables, first-seen). */
   protected readonly placeChoices = computed(() => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -306,7 +334,11 @@ export class FuelComponent {
       out.push(v);
     };
     add('Sea');
-    for (const e of this.library().editEvents) add(e.place);
+    const lib = this.library();
+    for (const e of lib.editEvents) add(e.place);
+    for (const e of lib.events) add(e.place);
+    const port = lib.updatedHandoff.port;
+    if (port) add(port);
     return out;
   });
 
@@ -334,55 +366,86 @@ export class FuelComponent {
   });
 
   protected readonly visibleColumnDefs = computed(() => {
-    const ids = new Set(this.fuelUi().visibleColumns);
+    const ids = new Set(this.tabUi().visibleColumns);
     return FUEL_COLUMNS.filter((c) => ids.has(c.id));
   });
 
   protected readonly visibleEvents = computed(() => {
-    const lib = this.library();
-    return filterFuelEvents(this.activeEvents(), lib.view);
+    return filterFuelEvents(this.activeEvents(), fuelTabLocalPrefsAsView(this.tabUi()));
   });
 
   protected readonly matchCountBeforeLimit = computed(() => {
-    const lib = this.library();
-    return filterFuelEvents(this.activeEvents(), { ...lib.view, limitCount: 0 }).length;
+    return filterFuelEvents(this.activeEvents(), {
+      ...fuelTabLocalPrefsAsView(this.tabUi()),
+      limitCount: 0,
+    }).length;
   });
 
   protected readonly pathSegments = computed(() => parseFuelPathSegments(this.pathDraft()));
 
   protected readonly selectedKindsLabel = computed(() => {
-    const n = this.library().view.visibleKinds.length;
+    const n = this.tabUi().visibleKinds.length;
     if (n === 0) return 'No events';
     if (n === ALL_KINDS.length) return 'All events';
     if (
       n === FUEL_DEFAULT_VISIBLE_KINDS.length &&
-      FUEL_DEFAULT_VISIBLE_KINDS.every((k) => this.library().view.visibleKinds.includes(k))
+      FUEL_DEFAULT_VISIBLE_KINDS.every((k) => this.tabUi().visibleKinds.includes(k))
     ) {
       return 'VPS events';
     }
     return `${n} event types`;
   });
 
+  /** Toolbar chip: EVENTS - ALL / EVENTS - 11 / EVENTS - 0 */
+  protected readonly eventsChipSuffix = computed(() => {
+    const n = this.tabUi().visibleKinds.length;
+    if (n >= ALL_KINDS.length) return 'ALL';
+    return String(n);
+  });
+
+  /** Toolbar chip: COLUMNS - ALL / COLUMNS - 42 */
+  protected readonly columnsChipSuffix = computed(() => {
+    const n = this.tabUi().visibleColumns.length;
+    if (n >= FUEL_COLUMNS.length) return 'ALL';
+    return String(n);
+  });
+
   /** Filter chip color: all = green, partial = yellow, none = red. */
   protected readonly eventsFilterTone = computed((): 'all' | 'partial' | 'none' => {
-    const n = this.library().view.visibleKinds.length;
+    const n = this.tabUi().visibleKinds.length;
     if (n <= 0) return 'none';
     if (n >= ALL_KINDS.length) return 'all';
     return 'partial';
   });
 
   protected readonly columnsFilterTone = computed((): 'all' | 'partial' | 'none' => {
-    const n = this.fuelUi().visibleColumns.length;
+    const n = this.tabUi().visibleColumns.length;
     if (n <= 0) return 'none';
     if (n >= FUEL_COLUMNS.length) return 'all';
     return 'partial';
   });
 
+  /** Shared UPDATED chip (Excel-style View↔Edit handoff). */
+  protected readonly updatedHandoff = computed(() => this.library().updatedHandoff);
+  protected readonly updatedChipTone = computed((): 'idle' | 'need' | 'done' => {
+    const s = this.updatedHandoff().status;
+    if (s === 'needs_update') return 'need';
+    if (s === 'done') return 'done';
+    return 'idle';
+  });
+  protected readonly updatedChipLabel = computed(() => {
+    const h = this.updatedHandoff();
+    if (h.status === 'needs_update') return 'UPDATE · NEED';
+    if (h.status === 'done') return 'UPDATED · OK';
+    return 'UPDATED';
+  });
+
   constructor() {
-    void this.localPrefs.load().then(() => {
+    void this.localPrefs.load().then(async () => {
       const legacy = this.localPrefs.takeLegacyFuelDisplayPresets();
       if (legacy.length) this.fuelStore.importDisplayPresetsIfEmpty(legacy);
-      // activeTab is computed from fuelUi — load()/apply() already restored it.
+      // One-time: seed View/Edit local prefs from former shared library.view.
+      await this.localPrefs.ensureFuelTabsSeeded(this.library().view);
     });
 
     afterNextRender(() => {
@@ -516,27 +579,27 @@ export class FuelComponent {
   }
 
   protected kindOn(kind: FuelEventKind): boolean {
-    return this.library().view.visibleKinds.includes(kind);
+    return this.tabUi().visibleKinds.includes(kind);
   }
 
   protected toggleKind(kind: FuelEventKind): void {
-    this.fuelStore.toggleKind(kind);
+    void this.localPrefs.toggleKindOnActiveTab(kind);
   }
 
   protected selectAllKinds(): void {
-    this.fuelStore.setVisibleKinds([...ALL_KINDS]);
+    void this.localPrefs.setVisibleKindsOnActiveTab([...ALL_KINDS]);
   }
 
   protected clearAllKinds(): void {
-    this.fuelStore.setVisibleKinds([]);
+    void this.localPrefs.setVisibleKindsOnActiveTab([]);
   }
 
   protected columnOn(id: FuelColumnId): boolean {
-    return this.fuelUi().visibleColumns.includes(id);
+    return this.tabUi().visibleColumns.includes(id);
   }
 
   protected async toggleColumn(id: FuelColumnId): Promise<void> {
-    const set = new Set(this.fuelUi().visibleColumns);
+    const set = new Set(this.tabUi().visibleColumns);
     if (set.has(id)) set.delete(id);
     else set.add(id);
     const next = FUEL_COLUMNS.map((c) => c.id).filter((c) => set.has(c));
@@ -613,7 +676,7 @@ export class FuelComponent {
   }
 
   private async hideColumnByHold(col: FuelColumnDef): Promise<void> {
-    const visible = this.fuelUi().visibleColumns;
+    const visible = this.tabUi().visibleColumns;
     if (visible.length <= 1) {
       this.toast.showError('Keep at least one column visible');
       return;
@@ -653,13 +716,13 @@ export class FuelComponent {
   }
 
   private hideKindByHold(kind: FuelEventKind): void {
-    const visible = this.library().view.visibleKinds;
+    const visible = this.tabUi().visibleKinds;
     if (!visible.includes(kind)) return;
     if (visible.length <= 1) {
       this.toast.showError('Keep at least one event type visible');
       return;
     }
-    this.fuelStore.setVisibleKinds(visible.filter((k) => k !== kind));
+    void this.localPrefs.setVisibleKindsOnActiveTab(visible.filter((k) => k !== kind));
     this.toast.show(`Hidden “${this.kindLabels[kind]}” — restore via Events`, 'success');
   }
 
@@ -715,25 +778,25 @@ export class FuelComponent {
   }
 
   protected onSearch(value: string): void {
-    this.fuelStore.updateView({ search: value });
+    void this.localPrefs.updateActiveTabPrefs({ search: value });
   }
 
   protected onDateFrom(value: string): void {
-    this.fuelStore.updateView({ dateFrom: value });
+    void this.localPrefs.updateActiveTabPrefs({ dateFrom: value });
   }
 
   protected onDateTo(value: string): void {
-    this.fuelStore.updateView({ dateTo: value });
+    void this.localPrefs.updateActiveTabPrefs({ dateTo: value });
   }
 
   protected onLimitCount(value: string | number): void {
     const n = typeof value === 'number' ? value : Number(value);
-    this.fuelStore.updateView({ limitCount: Number.isFinite(n) ? n : 20 });
+    void this.localPrefs.updateActiveTabPrefs({ limitCount: Number.isFinite(n) ? n : 20 });
   }
 
-  /** Reset From / To / Show (Last 20) / Search. */
+  /** Reset From / To / Show (Last 20) / Search for the active tab (this PC). */
   protected clearFilters(): void {
-    this.fuelStore.updateView({
+    void this.localPrefs.updateActiveTabPrefs({
       dateFrom: '',
       dateTo: '',
       search: '',
@@ -862,6 +925,29 @@ export class FuelComponent {
 
   protected closeEtaVoyagePreview(): void {
     this.etaVoyagePreview.set(null);
+  }
+
+  /**
+   * View: open FO distance forecast (nm/kn → hours × mt/h → Est. ROB).
+   * Prefills legs from the ETA draft; start ROB from the latest View FO stock.
+   */
+  protected openDistanceForecast(): void {
+    const etaLib = this.storage.etaLibrary();
+    const plan = etaLib.draft;
+    let legs = buildFuelDistanceLegsFromEtaPlan(plan);
+    if (!legs.length) {
+      legs = [createEmptyFuelDistanceLeg({ fromPort: plan.fromPort, toPort: plan.toPort })];
+    }
+    const latest = findLatestFuelEvent(this.library().events);
+    this.distanceForecast.set({
+      legs,
+      startRobMt: foRobMtFromFuelEvent(latest),
+      planName: (plan.name || '').trim() || 'ETA draft',
+    });
+  }
+
+  protected closeDistanceForecast(): void {
+    this.distanceForecast.set(null);
   }
 
   protected applyEtaVoyagePreview(rows: EtaFuelVoyagePreviewRow[]): void {
@@ -1085,13 +1171,16 @@ export class FuelComponent {
       next = { ...next, ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'boilerMt') };
     }
 
-    // ROB = previous − ME/AE/Boiler on F-picked tanks.
+    // ROB = previous − ME/AE/Boiler + bunker on F-picked tanks.
     // Must run after density/FM/m³ / boiler-DMA may have rewritten amounts.
     const shouldProjectRob =
       Object.keys(consumptionPatch).length > 0 ||
       partial.meRobTank !== undefined ||
       partial.aeRobTank !== undefined ||
       partial.boilerRobTank !== undefined ||
+      partial.bunkerRobTank !== undefined ||
+      partial.bunkerRmdBioMt !== undefined ||
+      partial.bunkerDmaMt !== undefined ||
       partial.fmMeAe !== undefined ||
       partial.density !== undefined ||
       partial.totalM3 !== undefined ||
@@ -1397,12 +1486,11 @@ export class FuelComponent {
   }
 
   /** Column → ROB tank field for the F badge (ME / AE / Boiler t). */
-  protected consumptionRobField(
-    col: FuelColumnDef,
-  ): 'meRobTank' | 'aeRobTank' | 'boilerRobTank' | null {
+  protected consumptionRobField(col: FuelColumnDef): FuelRobTankMenuField | null {
     if (col.id === 'meMt') return 'meRobTank';
     if (col.id === 'aeMt') return 'aeRobTank';
     if (col.id === 'dmaConsMt') return 'boilerRobTank';
+    if (col.id === 'bunkerRmdBio') return 'bunkerRobTank';
     return null;
   }
 
@@ -1410,13 +1498,13 @@ export class FuelComponent {
     return this.consumptionRobField(col) != null;
   }
 
-  /** Resolved ROB tank for this consumption cell (explicit or inferred). */
-  protected resolvedRobTank(
-    e: FuelDisplayEvent,
-    field: 'meRobTank' | 'aeRobTank' | 'boilerRobTank',
-  ): FuelRobTankId {
+  /** Resolved ROB tank for this consumption / bunker cell (explicit or inferred). */
+  protected resolvedRobTank(e: FuelDisplayEvent, field: FuelRobTankMenuField): FuelRobTankId {
     const events = this.canEdit() ? this.library().editEvents : this.library().events;
     const prev = findPreviousFuelEvent(events, e.date, e.time, e.id);
+    if (field === 'bunkerRobTank') {
+      return resolveBunkerRobTank(e, prev);
+    }
     const before = findFuelEventBeforePrevious(events, prev);
     const assignment = resolveFuelRobTankAssignment(e, prev, before);
     if (field === 'meRobTank') return assignment.me;
@@ -1438,12 +1526,14 @@ export class FuelComponent {
       selected: this.resolvedRobTank(e, field),
       x: event.clientX,
       y: event.clientY,
+      mode: field === 'bunkerRobTank' ? 'bunker' : 'consume',
     });
   }
 
   protected selectRobTank(tank: FuelRobTankId): void {
     const menu = this.robTankMenu();
     if (!menu) return;
+    if (menu.mode === 'bunker' && tank !== 'rmd' && tank !== 'b100') return;
     this.patchEvent(menu.eventId, { [menu.field]: tank });
     this.closeRobTankMenu();
   }
@@ -1452,10 +1542,18 @@ export class FuelComponent {
     this.robTankMenu.set(null);
   }
 
+  protected robMenuOptions(menu: FuelRobTankMenu): FuelRobTankId[] {
+    if (menu.mode === 'bunker') return ['rmd', 'b100'];
+    return this.robTankOptions();
+  }
+
   protected robBadgeTip(e: FuelDisplayEvent, col: FuelColumnDef): string {
     const field = this.consumptionRobField(col);
-    if (!field) return 'From ROB';
+    if (!field) return 'ROB tank';
     const tank = this.resolvedRobTank(e, field);
+    if (field === 'bunkerRobTank') {
+      return `Into ROB ${FUEL_ROB_TANK_LABELS[tank]} — click to choose RMD or B100`;
+    }
     return `From ROB ${FUEL_ROB_TANK_LABELS[tank]} — click to change`;
   }
 
@@ -1837,6 +1935,10 @@ export class FuelComponent {
 
   @HostListener('document:keydown.escape')
   protected onEscape(): void {
+    if (this.showUpdatedHandoffModal()) {
+      this.showUpdatedHandoffModal.set(false);
+      return;
+    }
     if (this.showMasterSummaryModal()) {
       this.showMasterSummaryModal.set(false);
     }

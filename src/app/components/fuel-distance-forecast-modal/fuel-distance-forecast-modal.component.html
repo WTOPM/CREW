@@ -1,0 +1,155 @@
+<div class="modal-backdrop fuel-fd-backdrop">
+  <div
+    class="modal fuel-fd-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="fuel-fd-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="fuel-fd-modal__head">
+      <div class="fuel-fd-modal__intro">
+        <h3 id="fuel-fd-title">FO distance forecast</h3>
+        <p>
+          Same principle as Excel <em>Fuel-Distance Calc.</em>: hours = nm ÷ kn, burn = hours × mt/h,
+          Est. ROB = start − burn.
+          @if (planName()) {
+            <span> · ETA: {{ planName() }}</span>
+          }
+        </p>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="close.emit()">Close</button>
+    </header>
+
+    <div class="fuel-fd-modal__body">
+      <div class="fuel-fd-toolbar">
+        <label class="fuel-fd-field">
+          <span>Start FO ROB (mt)</span>
+          <input
+            type="text"
+            inputmode="decimal"
+            [ngModel]="startRobMt() ?? ''"
+            (ngModelChange)="onStartRob($event)"
+            placeholder="RMD + B100"
+            title="From last View log row (ROB RMD + B100). DMA not included."
+          />
+        </label>
+        <div class="fuel-fd-totals">
+          <div class="fuel-fd-kpi fuel-fd-kpi--dist">
+            <span>Distance</span>
+            <strong>{{ summary().totalDistanceNm | number: '1.0-1' }} <small>nm</small></strong>
+          </div>
+          <div class="fuel-fd-kpi fuel-fd-kpi--time">
+            <span>Steaming</span>
+            <strong>{{ fmtHours(summary().totalHours) }}</strong>
+          </div>
+          <div class="fuel-fd-kpi fuel-fd-kpi--burn">
+            <span>Burn</span>
+            <strong
+              >{{ summary().totalConsMt == null ? '—' : (summary().totalConsMt | number: '1.0-2') }}
+              <small>mt</small></strong
+            >
+          </div>
+          <div class="fuel-fd-kpi fuel-fd-kpi--rob">
+            <span>Est. end ROB</span>
+            <strong
+              >{{ summary().endRobMt == null ? '—' : (summary().endRobMt | number: '1.0-1') }}
+              <small>mt</small></strong
+            >
+          </div>
+        </div>
+      </div>
+
+      <p class="fuel-fd-hint">
+        Rate defaults: ≤6 kn → 0.3 mt/h (canal), else 1.2 mt/h (sea) — as in your FO-VPC sheet. Edit
+        any cell; change kn and rate refreshes if still on the default.
+      </p>
+
+      <div class="fuel-fd-table-wrap">
+        <table class="fuel-fd-table">
+          <thead>
+            <tr>
+              <th>From</th>
+              <th>To</th>
+              <th class="num">nm</th>
+              <th class="num">kn</th>
+              <th class="num">mt/h</th>
+              <th class="num">Hours</th>
+              <th class="num">Burn mt</th>
+              <th class="num">Est. ROB</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (leg of summary().legs; track leg.id) {
+              <tr>
+                <td>
+                  <input
+                    [ngModel]="leg.fromPort"
+                    (ngModelChange)="patchLeg(leg.id, { fromPort: $event })"
+                  />
+                </td>
+                <td>
+                  <input
+                    [ngModel]="leg.toPort"
+                    (ngModelChange)="patchLeg(leg.id, { toPort: $event })"
+                  />
+                </td>
+                <td class="num">
+                  <input
+                    class="fuel-fd-num"
+                    [ngModel]="leg.distanceNm || ''"
+                    (ngModelChange)="onNum(leg.id, 'distanceNm', $event)"
+                    inputmode="decimal"
+                  />
+                </td>
+                <td class="num">
+                  <input
+                    class="fuel-fd-num"
+                    [ngModel]="leg.speedKnots || ''"
+                    (ngModelChange)="onNum(leg.id, 'speedKnots', $event)"
+                    inputmode="decimal"
+                  />
+                </td>
+                <td class="num">
+                  <input
+                    class="fuel-fd-num"
+                    [ngModel]="leg.rateMtPerHour || ''"
+                    (ngModelChange)="onNum(leg.id, 'rateMtPerHour', $event)"
+                    inputmode="decimal"
+                    title="FO Consum. mt/h"
+                  />
+                </td>
+                <td class="num fuel-fd-ro fuel-fd-ro--time">{{ fmtHours(leg.hours) }}</td>
+                <td class="num fuel-fd-ro fuel-fd-ro--burn">
+                  {{ leg.consMt == null ? '—' : (leg.consMt | number: '1.0-2') }}
+                </td>
+                <td class="num fuel-fd-ro fuel-fd-ro--rob">
+                  {{ leg.estRobMt == null ? '—' : (leg.estRobMt | number: '1.0-1') }}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="fuel-fd-remove"
+                    title="Remove leg"
+                    (click)="removeLeg(leg.id)"
+                    [disabled]="summary().legs.length <= 1"
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer class="fuel-fd-modal__actions">
+      <button type="button" class="btn btn-secondary" (click)="resetFromSeed()">
+        Reload from ETA
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="addLeg()">Add leg</button>
+      <button type="button" class="btn btn-primary" (click)="close.emit()">Done</button>
+    </footer>
+  </div>
+</div>

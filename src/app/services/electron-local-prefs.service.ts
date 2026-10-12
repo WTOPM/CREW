@@ -2,11 +2,17 @@ import { Injectable, signal } from '@angular/core';
 import type { ElectronLocalPrefs } from '../../electron';
 import {
   createDefaultFuelLocalUiPrefs,
+  createDefaultFuelTabLocalPrefs,
+  fuelTabLocalPrefsAsView,
   normalizeFuelDisplayPresets,
   normalizeFuelLocalUiPrefs,
   type FuelColumnId,
   type FuelDisplayPreset,
+  type FuelEventKind,
   type FuelLocalUiPrefs,
+  type FuelPageTab,
+  type FuelTabLocalPrefs,
+  type FuelViewPrefs,
 } from '../models/fuel.models';
 
 const LS_KEY = 'crew-fuel-local-ui';
@@ -55,8 +61,73 @@ export class ElectronLocalPrefsService {
     await this.persistFuelUi(next);
   }
 
+  /** Active tab’s Events / Columns / date / Show / search (this PC only). */
+  activeTabPrefs(): FuelTabLocalPrefs {
+    const ui = this.fuelUi();
+    return ui.tabs[ui.activeTab === 'edit' ? 'edit' : 'view'];
+  }
+
+  /** View-tab prefs as `FuelViewPrefs` (Stats always follows View). */
+  viewTabAsViewPrefs(): FuelViewPrefs {
+    return fuelTabLocalPrefsAsView(this.fuelUi().tabs.view);
+  }
+
+  async updateActiveTabPrefs(partial: Partial<FuelTabLocalPrefs>): Promise<void> {
+    const ui = this.fuelUi();
+    const tab: FuelPageTab = ui.activeTab === 'edit' ? 'edit' : 'view';
+    await this.updateTabPrefs(tab, partial);
+  }
+
+  async updateTabPrefs(tab: FuelPageTab, partial: Partial<FuelTabLocalPrefs>): Promise<void> {
+    const ui = this.fuelUi();
+    const cur = ui.tabs[tab];
+    const nextTab = createDefaultFuelTabLocalPrefs(
+      partial.visibleColumns ?? cur.visibleColumns,
+      { ...fuelTabLocalPrefsAsView(cur), ...partial },
+    );
+    const tabs = { ...ui.tabs, [tab]: nextTab };
+    await this.setFuelUi({
+      tabs,
+      tabsReady: true,
+      // Keep deprecated mirror in sync with View tab columns.
+      visibleColumns: [...tabs.view.visibleColumns],
+    });
+  }
+
   async setFuelVisibleColumns(columns: FuelColumnId[]): Promise<void> {
-    await this.setFuelUi({ visibleColumns: columns });
+    await this.updateActiveTabPrefs({ visibleColumns: columns });
+  }
+
+  async toggleKindOnActiveTab(kind: FuelEventKind): Promise<void> {
+    const cur = this.activeTabPrefs();
+    const set = new Set(cur.visibleKinds);
+    if (set.has(kind)) set.delete(kind);
+    else set.add(kind);
+    await this.updateActiveTabPrefs({ visibleKinds: [...set] });
+  }
+
+  async setVisibleKindsOnActiveTab(kinds: FuelEventKind[]): Promise<void> {
+    await this.updateActiveTabPrefs({ visibleKinds: [...kinds] });
+  }
+
+  /**
+   * One-time: copy shared `fuelLibrary.view` + current columns into both local tabs
+   * so existing filters are not lost when moving to per-PC / per-tab prefs.
+   */
+  async ensureFuelTabsSeeded(sharedView: FuelViewPrefs): Promise<void> {
+    const ui = this.fuelUi();
+    if (ui.tabsReady) return;
+    const cols = ui.visibleColumns.length
+      ? ui.visibleColumns
+      : ui.tabs.view.visibleColumns;
+    const seeded = createDefaultFuelTabLocalPrefs(cols, sharedView);
+    const tabView = { ...seeded, visibleColumns: [...seeded.visibleColumns] };
+    const tabEdit = { ...seeded, visibleColumns: [...seeded.visibleColumns] };
+    await this.setFuelUi({
+      tabs: { view: tabView, edit: tabEdit },
+      visibleColumns: [...tabView.visibleColumns],
+      tabsReady: true,
+    });
   }
 
   async setFuelHoursAsHm(enabled: boolean): Promise<void> {
@@ -66,11 +137,16 @@ export class ElectronLocalPrefsService {
   private async persistFuelUi(next: FuelLocalUiPrefs): Promise<void> {
     if (this.available) {
       const prefs = await window.electronAPI!.setLocalPrefs({
-        fuelVisibleColumns: next.visibleColumns,
+        fuelVisibleColumns: next.tabs.view.visibleColumns,
         fuelHoursAsHm: next.hoursAsHm,
         fuelShowUtc: next.showUtc,
         fuelUtcOffsetHours: next.utcOffsetHours,
         fuelActiveTab: next.activeTab,
+        fuelTabPrefs: {
+          view: next.tabs.view,
+          edit: next.tabs.edit,
+          tabsReady: next.tabsReady,
+        },
         // Clear legacy shared-looking field so it is not re-imported forever.
         fuelDisplayPresets: [],
       });
@@ -89,8 +165,15 @@ export class ElectronLocalPrefsService {
     this.prefs.set(next);
     this.minimizeToTray.set(!!next.minimizeToTray);
     // Preserve in-memory fuel UI when Electron omits a field (partial prefs / older files).
-    // Otherwise `activeTab: undefined` was normalized to 'view' and wiped Edit after save.
     const prevUi = this.fuelUi();
+    const tabBundle = next.fuelTabPrefs;
+    const tabsFromDisk =
+      tabBundle && typeof tabBundle === 'object'
+        ? {
+            view: tabBundle.view,
+            edit: tabBundle.edit,
+          }
+        : prevUi.tabs;
     this.fuelUi.set(
       normalizeFuelLocalUiPrefs({
         visibleColumns:
@@ -106,6 +189,9 @@ export class ElectronLocalPrefsService {
           next.fuelActiveTab === 'edit' || next.fuelActiveTab === 'view'
             ? next.fuelActiveTab
             : prevUi.activeTab,
+        tabs: tabsFromDisk as FuelLocalUiPrefs['tabs'],
+        tabsReady:
+          typeof tabBundle?.tabsReady === 'boolean' ? tabBundle.tabsReady : prevUi.tabsReady,
       }),
     );
     const legacy = normalizeFuelDisplayPresets(next.fuelDisplayPresets);
