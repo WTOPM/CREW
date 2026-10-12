@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AppStateStore } from './app-state.store';
 import { EtaStore } from './eta.store';
-import { SectionLockService } from './section-lock.service';
 import { ToastService } from './toast.service';
 
 /**
@@ -11,13 +10,13 @@ import { ToastService } from './toast.service';
  */
 @Injectable({ providedIn: 'root' })
 export class NetworkForceQuitService {
-  private static readonly POLL_MS = 3_000;
+  /** Soft poll — weak shares should not be hit every few seconds. */
+  private static readonly POLL_MS = 30_000;
   /** Ignore signals created before this process started (safe restart after update). */
   private static readonly START_SKEW_MS = 5_000;
 
   private readonly state = inject(AppStateStore);
   private readonly etaStore = inject(EtaStore);
-  private readonly sectionLock = inject(SectionLockService);
   private readonly toast = inject(ToastService);
 
   private readonly startedAt = Date.now();
@@ -76,11 +75,8 @@ export class NetworkForceQuitService {
     );
 
     try {
-      // Flush whatever this session is allowed to write (skip if view-only).
-      // Does not wipe peers’ already-saved data — cooperative merge / lock guard.
       this.etaStore.flushPersist('silent');
       await this.state.flushPersist('silent');
-      await this.sectionLock.releaseCurrent();
     } catch {
       /* still quit */
     }

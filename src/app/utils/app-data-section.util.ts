@@ -1,21 +1,10 @@
 import { APP_DATA_SCHEMA_VERSION } from '../data/empty-app-data';
 import { AppData } from '../models/crew.models';
 
-/** Main nav sections (merge-on-save slices). Exclusive edit locks are disabled. */
+/** Main nav sections (merge-on-save slices). */
 export type AppSection = 'home' | 'dg' | 'reefer' | 'eta' | 'fuel' | 'phone' | 'settings';
 
 export const APP_SECTIONS: AppSection[] = ['home', 'dg', 'reefer', 'eta', 'fuel', 'phone', 'settings'];
-
-/** @deprecated Locks disabled — kept for older tests / callers. */
-export const SECTION_LOCK_EXEMPT: ReadonlySet<AppSection> = new Set([
-  'home',
-  'dg',
-  'reefer',
-  'eta',
-  'fuel',
-  'phone',
-  'settings',
-]);
 
 export const APP_SECTION_LABELS: Record<AppSection, string> = {
   home: 'Home',

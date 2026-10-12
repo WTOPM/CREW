@@ -523,9 +523,6 @@ function guardShrinkBeforeWrite(data) {
   }
 }
 
-/** Exclusive edit locks — DG/ETA/FUEL/Phone share without locks (reload on tab / Save). */
-const SECTION_LOCK_IDS = ['home', 'reefer', 'settings'];
-const LOCK_STALE_MS = 90_000;
 /** Shared-folder signal: close every running CREW instance (for exe replace). */
 const FORCE_QUIT_FILE = 'force-quit.json';
 const FORCE_QUIT_TTL_MS = 120_000;
@@ -567,40 +564,6 @@ function writeForceQuitSignal(by) {
   };
   fs.writeFileSync(getForceQuitPath(), JSON.stringify(signal, null, 2), 'utf-8');
   return signal;
-}
-
-function getLocksDir() {
-  return path.join(getDataDir(), 'locks');
-}
-
-function sectionLockPath(section) {
-  return path.join(getLocksDir(), `${section}.lock.json`);
-}
-
-function readSectionLock(section) {
-  const p = sectionLockPath(section);
-  if (!fs.existsSync(p)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(p, 'utf-8'));
-  } catch {
-    return null;
-  }
-}
-
-function isSectionLockStale(lock) {
-  if (!lock || typeof lock.heartbeatAt !== 'number') return true;
-  return Date.now() - lock.heartbeatAt > LOCK_STALE_MS;
-}
-
-function clearStaleSectionLock(section) {
-  const lock = readSectionLock(section);
-  if (lock && isSectionLockStale(lock)) {
-    try {
-      fs.unlinkSync(sectionLockPath(section));
-    } catch {
-      /* ignore */
-    }
-  }
 }
 
 /** Per-PC preferences (not in shared crew-data.json). */
@@ -921,111 +884,6 @@ ipcMain.handle('write-data', (_event, data) => {
   guardShrinkBeforeWrite(data);
   createMachineJsonBackup('pre-write');
   writeDataFile(data);
-});
-
-ipcMain.handle('get-client-info', () => {
-  let userName = '';
-  try {
-    userName = os.userInfo().username || '';
-  } catch {
-    userName = '';
-  }
-  return {
-    hostName: os.hostname(),
-    userName,
-  };
-});
-
-ipcMain.handle('acquire-section-lock', (_event, section, clientId, displayName) => {
-  if (!SECTION_LOCK_IDS.includes(section)) {
-    return { ok: false, error: 'invalid section' };
-  }
-  ensureDataDir();
-  fs.mkdirSync(getLocksDir(), { recursive: true });
-  clearStaleSectionLock(section);
-  const existing = readSectionLock(section);
-  const now = Date.now();
-  if (existing && existing.clientId !== clientId && !isSectionLockStale(existing)) {
-    return { ok: false, heldBy: existing };
-  }
-  const lock = {
-    section,
-    clientId,
-    displayName: String(displayName || 'User'),
-    acquiredAt: existing?.clientId === clientId ? (existing.acquiredAt ?? now) : now,
-    heartbeatAt: now,
-  };
-  fs.writeFileSync(sectionLockPath(section), JSON.stringify(lock, null, 2), 'utf-8');
-  return { ok: true, lock };
-});
-
-ipcMain.handle('force-acquire-section-lock', (_event, section, clientId, displayName) => {
-  if (!SECTION_LOCK_IDS.includes(section)) {
-    return { ok: false, error: 'invalid section' };
-  }
-  ensureDataDir();
-  fs.mkdirSync(getLocksDir(), { recursive: true });
-  clearStaleSectionLock(section);
-  const previousHolder = readSectionLock(section);
-  const now = Date.now();
-  const lock = {
-    section,
-    clientId,
-    displayName: String(displayName || 'User'),
-    acquiredAt: now,
-    heartbeatAt: now,
-  };
-  fs.writeFileSync(sectionLockPath(section), JSON.stringify(lock, null, 2), 'utf-8');
-  return {
-    ok: true,
-    lock,
-    previousHolder:
-      previousHolder && previousHolder.clientId !== clientId ? previousHolder : undefined,
-  };
-});
-
-ipcMain.handle('renew-section-lock', (_event, section, clientId) => {
-  if (!SECTION_LOCK_IDS.includes(section)) return { ok: false };
-  const existing = readSectionLock(section);
-  if (!existing || existing.clientId !== clientId || isSectionLockStale(existing)) {
-    return { ok: false };
-  }
-  existing.heartbeatAt = Date.now();
-  fs.writeFileSync(sectionLockPath(section), JSON.stringify(existing, null, 2), 'utf-8');
-  return { ok: true };
-});
-
-ipcMain.handle('release-section-lock', (_event, section, clientId) => {
-  if (!SECTION_LOCK_IDS.includes(section)) return { ok: true };
-  const existing = readSectionLock(section);
-  if (existing && existing.clientId === clientId) {
-    try {
-      fs.unlinkSync(sectionLockPath(section));
-    } catch {
-      /* ignore */
-    }
-  }
-  return { ok: true };
-});
-
-ipcMain.handle('read-section-lock', (_event, section) => {
-  if (!SECTION_LOCK_IDS.includes(section)) return null;
-  clearStaleSectionLock(section);
-  const lock = readSectionLock(section);
-  if (!lock || isSectionLockStale(lock)) return null;
-  return lock;
-});
-
-ipcMain.handle('list-section-locks', () => {
-  const locks = {};
-  for (const section of SECTION_LOCK_IDS) {
-    clearStaleSectionLock(section);
-    const lock = readSectionLock(section);
-    if (lock && !isSectionLockStale(lock)) {
-      locks[section] = lock;
-    }
-  }
-  return locks;
 });
 
 ipcMain.handle('get-data-path', () => getDataFilePath());

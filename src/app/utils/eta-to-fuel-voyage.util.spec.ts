@@ -6,10 +6,23 @@ import {
   annotateEtaFuelVoyagePreviewRows,
   buildEtaFuelVoyagePoints,
   buildEtaFuelVoyagePreview,
+  fuelPlaceForEtaEvent,
   insertShipNoonPoints,
   shiftEtaFuelVoyagePreviewAfterPrevious,
   utcMsToShipDateTime,
 } from './eta-to-fuel-voyage.util';
+
+describe('fuelPlaceForEtaEvent', () => {
+  it('maps sea / port places like the Fuel log', () => {
+    expect(fuelPlaceForEtaEvent('BOSP', 'Pilot drop')).toBe('Sea');
+    expect(fuelPlaceForEtaEvent('EOSP', 'Pilot pick')).toBe('Sea');
+    expect(fuelPlaceForEtaEvent('Noon', 'Anywhere')).toBe('Sea');
+    expect(fuelPlaceForEtaEvent('SBE', 'Antwerp')).toBe('Antwerp');
+    expect(fuelPlaceForEtaEvent('FWE', 'Hamburg')).toBe('Hamburg');
+    expect(fuelPlaceForEtaEvent('Departure', 'Riga')).toBe('Riga');
+    expect(fuelPlaceForEtaEvent('Arrival', 'Tallinn')).toBe('Tallinn');
+  });
+});
 
 describe('utcMsToShipDateTime', () => {
   it('converts UTC instant to ship-local ISO date/time', () => {
@@ -26,13 +39,14 @@ describe('insertShipNoonPoints', () => {
     const b = wallClockToUtcMs('2026-10-07', '18:00', ship)!;
     const out = insertShipNoonPoints(
       [
-        { utcMs: a, place: 'Pilot A', rawEvent: 'BOSP' },
-        { utcMs: b, place: 'Pilot B', rawEvent: 'EOSP' },
+        { utcMs: a, place: 'Sea', rawEvent: 'BOSP' },
+        { utcMs: b, place: 'Sea', rawEvent: 'EOSP' },
       ],
       ship,
     );
     const noons = out.filter((p) => p.rawEvent === 'Noon');
     expect(noons).toHaveLength(2);
+    expect(noons.every((n) => n.place === 'Sea')).toBe(true);
     expect(utcMsToShipDateTime(noons[0]!.utcMs, ship)).toEqual({
       date: '2026-10-06',
       time: '12:00',
@@ -82,6 +96,11 @@ describe('buildEtaFuelVoyagePoints', () => {
     expect(labels).toContain('EOSP');
     expect(labels[labels.length - 1]).toBe('FWE');
     expect(labels).toContain('Noon');
+    expect(points.find((p) => p.rawEvent === 'SBE')!.place).toBe('Antwerp');
+    expect(points.find((p) => p.rawEvent === 'BOSP')!.place).toBe('Sea');
+    expect(points.find((p) => p.rawEvent === 'EOSP')!.place).toBe('Sea');
+    expect(points.find((p) => p.rawEvent === 'FWE')!.place).toBe('Hamburg');
+    expect(points.filter((p) => p.rawEvent === 'Noon').every((p) => p.place === 'Sea')).toBe(true);
   });
 });
 
@@ -137,16 +156,14 @@ describe('buildEtaFuelVoyagePreview', () => {
     ];
     const preview = buildEtaFuelVoyagePreview(plan, 2, existing);
     expect(preview.previousEvent?.rawEvent).toBe('FWE/Shifting');
-    expect(preview.hasDuplicates).toBe(false);
     for (const label of ['SBE', 'BOSP', 'EOSP']) {
       const row = preview.rows.find((r) => r.rawEvent === label);
       expect(row?.rawEvent).toBe(label);
       expect(row!.included).toBe(true);
-      expect(row!.duplicateOf).toBeNull();
     }
   });
 
-  it('flags a label already added at/after the previous event', () => {
+  it('still includes a label already present at/after the previous event', () => {
     const plan = createDefaultEtaPlan('Dup');
     plan.fromPort = 'A';
     plan.toPort = 'B';
@@ -175,12 +192,9 @@ describe('buildEtaFuelVoyagePreview', () => {
     const preview = buildEtaFuelVoyagePreview(plan, 2, existing);
     const sbe = preview.rows.find((r) => r.rawEvent === 'SBE');
     expect(sbe).toBeTruthy();
-    expect(sbe!.included).toBe(false);
-    expect(sbe!.duplicateOf?.rawEvent).toBe('SBE');
-    expect(preview.hasDuplicates).toBe(true);
+    expect(sbe!.included).toBe(true);
     const bosp = preview.rows.find((r) => r.rawEvent === 'BOSP');
     expect(bosp!.included).toBe(true);
-    expect(bosp!.duplicateOf).toBeNull();
   });
 
   it('flags included rows that are before the previous Fuel event', () => {

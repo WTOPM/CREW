@@ -22,6 +22,7 @@ import {
   stepLegEtaUtcOffsetHours,
   stepUtcOffsetHours,
 } from '../../models/eta.models';
+import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
 import { EtaStore } from '../../services/eta.store';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
@@ -98,6 +99,7 @@ const ETA_FUEL_PICKER_PRIMARY = ['SBE', 'BOSP', 'EOSP', 'FWE', 'FEW', 'Noon'] as
 export class EtaComponent implements OnDestroy {
   private readonly storage = inject(StorageService);
   private readonly etaStore = inject(EtaStore);
+  private readonly localPrefs = inject(ElectronLocalPrefsService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -267,7 +269,7 @@ export class EtaComponent implements OnDestroy {
       event.preventDefault();
       const dir = event.key === 'ArrowUp' ? 1 : -1;
       const next = stepUtcOffsetHours(this.shipUtcOffsetHours(), dir);
-      this.etaStore.setShipUtcOffsetHours(next);
+      this.applySharedShipUtcOffset(next);
       this.shipUtcOffsetEdit.set(null);
       return;
     }
@@ -282,8 +284,14 @@ export class EtaComponent implements OnDestroy {
     const edit = this.shipUtcOffsetEdit();
     if (edit == null) return;
     const next = normalizeUtcOffsetHours(edit, this.shipUtcOffsetHours());
-    this.etaStore.setShipUtcOffsetHours(next);
+    this.applySharedShipUtcOffset(next);
     this.shipUtcOffsetEdit.set(null);
+  }
+
+  /** Keep Fuel Ship Time in sync (same value on both pages). */
+  private applySharedShipUtcOffset(hours: number): void {
+    this.etaStore.setShipUtcOffsetHours(hours);
+    void this.localPrefs.setFuelUi({ utcOffsetHours: hours });
   }
 
   protected setFromPort(value: string): void {

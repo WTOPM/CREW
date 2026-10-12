@@ -350,16 +350,6 @@ export class AppStateStore {
   }
 
   private async writePersistNow(notify: PersistNotify, savedMessage?: string): Promise<void> {
-    if (!this.sectionLock.canPersist()) {
-      if (notify !== 'silent') {
-        this.toast.show(
-          'View only — another user is editing this section. Changes were not saved.',
-          'warning',
-        );
-      }
-      return;
-    }
-
     const electron = window.electronAPI;
     if (electron && !this.electronBootstrapComplete) {
       if (notify !== 'silent') {
@@ -372,8 +362,8 @@ export class AppStateStore {
     const section = this.sectionLock.activeSection();
 
     if (electron) {
-      // Always merge the active section into the on-disk blob so other PCs'
-      // edits to other tabs survive — without exclusive lock polling.
+      // Merge the active section into the on-disk blob so other PCs' edits
+      // to other tabs survive.
       let toWrite: AppData = memory;
       if (section) {
         const loaded = await electron.readData();
@@ -389,46 +379,7 @@ export class AppStateStore {
   }
 
   /**
-   * Save folder/printer output settings immediately — not tied to the active section lock
-   * (top-bar control is available on Home / DG / Reefer).
-   */
-  async persistOutputSettings(
-    notify: PersistNotify = 'silent',
-    savedMessage?: string,
-  ): Promise<void> {
-    const electron = window.electronAPI;
-    if (electron && !this.electronBootstrapComplete) {
-      if (notify !== 'silent') {
-        this.toast.showError('Database is not ready — complete setup first');
-      }
-      return;
-    }
-
-    // Flush coalesced AppData first so we don't clobber a pending section write.
-    await this.flushPersist('silent');
-
-    const memory = this.data();
-    if (electron) {
-      const loaded = await electron.readData();
-      const disk = normalizeAppData(loaded ?? createEmptyAppData());
-      const saved = await this.writeElectronData({
-        ...disk,
-        outputSettings: memory.outputSettings,
-        seedVersion: APP_DATA_SCHEMA_VERSION,
-      });
-      if (!saved) return;
-    } else {
-      writeLocalStorage(
-        STORAGE_KEY,
-        JSON.stringify({ ...memory, seedVersion: APP_DATA_SCHEMA_VERSION }),
-      );
-    }
-    this.afterPersist(notify, savedMessage);
-  }
-
-  /**
-   * Save FUEL column-display presets immediately — shared list in the data folder
-   * (FUEL has no cooperative lock).
+   * Save FUEL column-display presets immediately — shared list in the data folder.
    */
   async persistFuelDisplayPresets(
     notify: PersistNotify = 'silent',
@@ -470,16 +421,6 @@ export class AppStateStore {
 
   /** Save ship/voyage fields — Home edits stay in RAM until flush (tab/Save/close). */
   async persistShip(notify: PersistNotify = 'memory', savedMessage?: string): Promise<void> {
-    if (!this.sectionLock.canPersist()) {
-      if (notify === 'saved') {
-        this.toast.show(
-          'View only — another user is editing this section. Changes were not saved.',
-          'warning',
-        );
-      }
-      return;
-    }
-
     const electron = window.electronAPI;
     if (electron && !this.electronBootstrapComplete) {
       if (notify === 'saved') {

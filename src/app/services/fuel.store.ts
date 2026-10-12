@@ -309,7 +309,16 @@ export class FuelStore {
    */
   markEditPartialWritten(written: readonly FuelLogEvent[]): void {
     const writtenList = cloneFuelEventList(
-      written.map((e) => createEmptyFuelLogEvent({ ...e, writeStatus: 'synced' })),
+      written.map((e) =>
+        createEmptyFuelLogEvent({
+          ...e,
+          writeStatus: 'synced',
+          // Leave voyage link — Ready/Write clears chain membership for that row.
+          voyageChainId: null,
+          voyageChainIndex: null,
+          voyageChainPredict: false,
+        }),
+      ),
     );
     const byId = new Map(writtenList.map((e) => [e.id, e]));
     this.data.update((d) => {

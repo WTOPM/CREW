@@ -11,17 +11,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listJsonBackups: () => ipcRenderer.invoke('list-json-backups'),
   restoreJsonBackup: (fileName) => ipcRenderer.invoke('restore-json-backup', fileName),
   openJsonBackupsFolder: () => ipcRenderer.invoke('open-json-backups-folder'),
-  getClientInfo: () => ipcRenderer.invoke('get-client-info'),
-  acquireSectionLock: (section, clientId, displayName) =>
-    ipcRenderer.invoke('acquire-section-lock', section, clientId, displayName),
-  forceAcquireSectionLock: (section, clientId, displayName) =>
-    ipcRenderer.invoke('force-acquire-section-lock', section, clientId, displayName),
-  renewSectionLock: (section, clientId) =>
-    ipcRenderer.invoke('renew-section-lock', section, clientId),
-  releaseSectionLock: (section, clientId) =>
-    ipcRenderer.invoke('release-section-lock', section, clientId),
-  readSectionLock: (section) => ipcRenderer.invoke('read-section-lock', section),
-  listSectionLocks: () => ipcRenderer.invoke('list-section-locks'),
   requestForceQuitAll: () => ipcRenderer.invoke('request-force-quit-all'),
   readForceQuit: () => ipcRenderer.invoke('read-force-quit'),
   quitApp: () => ipcRenderer.invoke('quit-app'),

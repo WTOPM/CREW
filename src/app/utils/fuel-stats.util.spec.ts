@@ -63,6 +63,9 @@ function row(
     sourceRow: 1,
     cengSourceRow: 0,
     writeStatus: 'synced',
+    voyageChainId: null,
+    voyageChainIndex: null,
+    voyageChainPredict: false,
     rolledFromCount: 1,
     ...partial,
   };

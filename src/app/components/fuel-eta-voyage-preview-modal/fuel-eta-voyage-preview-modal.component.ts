@@ -1,4 +1,13 @@
-import { Component, computed, input, linkedSignal, output } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   FUEL_EVENT_KIND_LABELS,
@@ -10,7 +19,17 @@ import {
   type EtaFuelVoyagePreview,
   type EtaFuelVoyagePreviewRow,
 } from '../../utils/eta-to-fuel-voyage.util';
+import type {
+  EtaVoyageAddOptions,
+  EtaVoyageConfirmPayload,
+} from '../../utils/fuel-voyage-chain.util';
 import { formatDisplayDate } from '../../utils/date.util';
+import {
+  acquireModalScrollLock,
+  releaseModalScrollLock,
+} from '../../utils/modal-scroll-lock.util';
+
+export type { EtaVoyageConfirmPayload };
 
 @Component({
   selector: 'app-fuel-eta-voyage-preview-modal',
@@ -19,11 +38,23 @@ import { formatDisplayDate } from '../../utils/date.util';
   styleUrl: './fuel-eta-voyage-preview-modal.component.css',
 })
 export class FuelEtaVoyagePreviewModalComponent {
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    acquireModalScrollLock();
+    this.destroyRef.onDestroy(() => releaseModalScrollLock());
+  }
+
   readonly preview = input.required<EtaFuelVoyagePreview>();
-  readonly confirm = output<EtaFuelVoyagePreviewRow[]>();
+  readonly confirm = output<EtaVoyageConfirmPayload>();
   readonly cancel = output<void>();
 
   protected readonly kindLabels = FUEL_EVENT_KIND_LABELS;
+
+  /** Pre-fill FO burn / ROB / FM from hours × mt/h. */
+  protected readonly predictFo = signal(true);
+  /** Link added rows — editing an earlier time/fuel shifts later ones. */
+  protected readonly linkVoyage = signal(true);
 
   protected readonly rows = linkedSignal(() =>
     this.preview().rows.map((r) => ({ ...r })),
@@ -39,10 +70,6 @@ export class FuelEtaVoyagePreviewModalComponent {
 
   protected readonly hasTimeConflict = computed(() =>
     this.annotated().some((r) => r.included && r.beforePrevious),
-  );
-
-  protected readonly hasDuplicates = computed(() =>
-    this.annotated().some((r) => !!r.duplicateOf),
   );
 
   protected readonly shipOffsetLabel = computed(() => {
@@ -76,12 +103,6 @@ export class FuelEtaVoyagePreviewModalComponent {
     );
   }
 
-  protected excludeAllDuplicates(): void {
-    this.rows.update((list) =>
-      list.map((r) => (r.duplicateOf ? { ...r, included: false } : r)),
-    );
-  }
-
   protected includeAll(): void {
     this.rows.update((list) => list.map((r) => ({ ...r, included: true })));
   }
@@ -105,6 +126,12 @@ export class FuelEtaVoyagePreviewModalComponent {
 
   protected onConfirm(): void {
     if (!this.includedCount()) return;
-    this.confirm.emit(this.annotated());
+    this.confirm.emit({
+      rows: this.annotated(),
+      options: {
+        predictFo: this.predictFo(),
+        linkVoyage: this.linkVoyage(),
+      },
+    });
   }
 }

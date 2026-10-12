@@ -1,35 +1,11 @@
 import { AppData } from './app/models/crew.models';
 import type { CrewDocumentType } from './app/models/crew.models';
 import type { ShipAssetKind } from './app/models/document-overlay.models';
-import type { AppSection } from './app/utils/app-data-section.util';
 import type {
   DataPathDebugInfo,
   DataStoreActionResult,
   JsonBackupsListResult,
 } from './app/services/app-state.store';
-
-export interface SectionLockRecord {
-  section: AppSection;
-  clientId: string;
-  displayName: string;
-  acquiredAt: number;
-  heartbeatAt: number;
-}
-
-export interface AcquireSectionLockResult {
-  ok: boolean;
-  lock?: SectionLockRecord;
-  heldBy?: SectionLockRecord;
-  previousHolder?: SectionLockRecord;
-  error?: string;
-}
-
-export type SectionLockBannerKind = 'view-only' | 'displaced';
-
-export interface SectionLockBanner {
-  kind: SectionLockBannerKind;
-  message: string;
-}
 
 export interface ElectronLocalPrefs {
   minimizeToTray: boolean;
@@ -96,21 +72,6 @@ declare global {
       listJsonBackups: () => Promise<JsonBackupsListResult>;
       restoreJsonBackup: (fileName: string) => Promise<DataStoreActionResult>;
       openJsonBackupsFolder: () => Promise<{ ok: boolean; error?: string; path?: string }>;
-      getClientInfo: () => Promise<{ hostName: string; userName: string }>;
-      acquireSectionLock: (
-        section: AppSection,
-        clientId: string,
-        displayName: string,
-      ) => Promise<AcquireSectionLockResult>;
-      forceAcquireSectionLock: (
-        section: AppSection,
-        clientId: string,
-        displayName: string,
-      ) => Promise<AcquireSectionLockResult>;
-      renewSectionLock: (section: AppSection, clientId: string) => Promise<{ ok: boolean }>;
-      releaseSectionLock: (section: AppSection, clientId: string) => Promise<{ ok: boolean }>;
-      readSectionLock: (section: AppSection) => Promise<SectionLockRecord | null>;
-      listSectionLocks: () => Promise<Partial<Record<AppSection, SectionLockRecord>>>;
       /** Write shared-folder signal so every CREW instance using this data folder quits. */
       requestForceQuitAll: () => Promise<{ id: string; at: number; by: string }>;
       readForceQuit: () => Promise<{ id: string; at: number; by: string } | null>;

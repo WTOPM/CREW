@@ -29,13 +29,6 @@ export interface EtaFuelVoyagePreviousRef {
   kind: FuelEventKind;
 }
 
-export interface EtaFuelVoyageDuplicateRef {
-  date: string;
-  time: string;
-  place: string;
-  rawEvent: string;
-}
-
 /** Editable preview row before committing ETA → Fuel Edit. */
 export interface EtaFuelVoyagePreviewRow {
   key: string;
@@ -46,8 +39,6 @@ export interface EtaFuelVoyagePreviewRow {
   kind: FuelEventKind;
   /** User can strike out — excluded rows are not added. */
   included: boolean;
-  /** Same rawEvent already exists in Fuel Edit (default excluded). */
-  duplicateOf: EtaFuelVoyageDuplicateRef | null;
   /** Chronologically before the previous Fuel Edit event (when included). */
   beforePrevious: boolean;
   /** Hours from previous context / previous included row (negative = before). */
@@ -61,8 +52,26 @@ export interface EtaFuelVoyagePreview {
   previousEvent: EtaFuelVoyagePreviousRef | null;
   rows: EtaFuelVoyagePreviewRow[];
   warnings: string[];
-  hasDuplicates: boolean;
   hasTimeConflict: boolean;
+}
+
+/** Fuel log place for sea-passage / noon rows (not ETA waypoint labels). */
+export const FUEL_VOYAGE_SEA_PLACE = 'Sea';
+
+/**
+ * Map ETA Fuel label → Fuel Place.
+ * BOSP / EOSP / Noon → "Sea"; Arrival / Departure / Shifting → port name.
+ * Do not reuse ETA waypoint labels (Pilot drop, …) as Fuel places.
+ */
+export function fuelPlaceForEtaEvent(rawEvent: string, portName: string): string {
+  const kind = classifyFuelEvent(rawEvent);
+  if (kind === 'start_sea' || kind === 'end_sea' || kind === 'noon') {
+    return FUEL_VOYAGE_SEA_PLACE;
+  }
+  if (kind === 'arrival' || kind === 'departure' || kind === 'shifting') {
+    return portName.trim();
+  }
+  return portName.trim() || FUEL_VOYAGE_SEA_PLACE;
 }
 
 /** Format UTC instant as ship-local ISO date (yyyy-MM-dd) + HH:mm. */
@@ -101,7 +110,7 @@ export function buildEtaFuelVoyagePoints(
   if (depEvent) {
     points.push({
       utcMs: calc.departureUtcMs,
-      place: (plan.fromPort ?? '').trim(),
+      place: fuelPlaceForEtaEvent(depEvent, plan.fromPort ?? ''),
       rawEvent: depEvent,
     });
   } else {
@@ -118,10 +127,15 @@ export function buildEtaFuelVoyagePoints(
       warnings.push(`Leg ${i + 1} has no ETA — skipped Fuel event “${raw}”.`);
       continue;
     }
-    const place =
-      (legRes?.toLabel ?? '').trim() ||
-      (i === plan.legs.length - 1 ? (plan.toPort ?? '').trim() : (leg.toLabel ?? '').trim());
-    points.push({ utcMs, place, rawEvent: raw });
+    const portHint =
+      i === plan.legs.length - 1
+        ? (plan.toPort ?? '').trim() || (legRes?.toLabel ?? '').trim() || (leg.toLabel ?? '').trim()
+        : (legRes?.toLabel ?? '').trim() || (leg.toLabel ?? '').trim() || (plan.toPort ?? '').trim();
+    points.push({
+      utcMs,
+      place: fuelPlaceForEtaEvent(raw, portHint),
+      rawEvent: raw,
+    });
   }
 
   points.sort((a, b) => a.utcMs - b.utcMs || a.rawEvent.localeCompare(b.rawEvent));
@@ -144,7 +158,7 @@ export function insertShipNoonPoints(
     const cur = points[i]!;
     if (i > 0) {
       const prev = points[i - 1]!;
-      out.push(...shipNoonsBetween(prev.utcMs, cur.utcMs, shipUtcOffsetHours, prev.place));
+      out.push(...shipNoonsBetween(prev.utcMs, cur.utcMs, shipUtcOffsetHours));
     }
     out.push(cur);
   }
@@ -155,7 +169,6 @@ function shipNoonsBetween(
   fromUtcMs: number,
   toUtcMs: number,
   shipUtcOffsetHours: number,
-  place: string,
 ): EtaFuelVoyagePoint[] {
   if (!(toUtcMs > fromUtcMs)) return [];
   const start = utcMsToShipDateTime(fromUtcMs, shipUtcOffsetHours);
@@ -169,7 +182,7 @@ function shipNoonsBetween(
     if (noonUtc != null && noonUtc > fromUtcMs && noonUtc < toUtcMs) {
       out.push({
         utcMs: noonUtc,
-        place: place.trim() || 'At sea',
+        place: FUEL_VOYAGE_SEA_PLACE,
         rawEvent: 'Noon',
       });
     }
@@ -243,44 +256,9 @@ function normalizeRawEventKey(raw: string): string {
 }
 
 /**
- * Same label already present in the *current* open chain — i.e. at/after the
- * latest Fuel Edit event. Older voyage labels (previous SBE/BOSP/…) are ignored.
- */
-function findDuplicateExisting(
-  existing: readonly FuelLogEvent[],
-  rawEvent: string,
-  notBefore: EtaFuelVoyagePreviousRef | null,
-): EtaFuelVoyageDuplicateRef | null {
-  const key = normalizeRawEventKey(rawEvent);
-  if (!key) return null;
-  const floorMs =
-    notBefore != null ? fuelDateTimeMs(notBefore.date, notBefore.time) : null;
-  // Prefer the chronologically latest match of the same label in-range.
-  let best: FuelLogEvent | null = null;
-  let bestMs = Number.NEGATIVE_INFINITY;
-  for (const e of existing) {
-    if (normalizeRawEventKey(e.rawEvent) !== key) continue;
-    const ms = fuelDateTimeMs(e.date, e.time);
-    if (ms == null) continue;
-    // Before the previous (latest) event → prior voyage; not a duplicate for this add.
-    if (floorMs != null && ms < floorMs) continue;
-    if (!best || ms >= bestMs) {
-      best = e;
-      bestMs = ms;
-    }
-  }
-  if (!best) return null;
-  return {
-    date: best.date,
-    time: best.time,
-    place: best.place,
-    rawEvent: best.rawEvent,
-  };
-}
-
-/**
  * Build an interactive preview of ETA → Fuel Edit rows against the current Edit log.
- * Duplicate labels default to excluded (still listed); time-before-previous is flagged.
+ * All proposed events are included by default (even if the same label already exists).
+ * Time-before-previous is flagged.
  */
 export function buildEtaFuelVoyagePreview(
   plan: EtaPlan,
@@ -304,11 +282,6 @@ export function buildEtaFuelVoyagePreview(
   const draftRows: Array<Omit<EtaFuelVoyagePreviewRow, 'beforePrevious' | 'gapFromPrevHours' | 'gapLabel'>> =
     points.map((p, i) => {
       const dt = utcMsToShipDateTime(p.utcMs, shipUtcOffsetHours);
-      const duplicateOf = findDuplicateExisting(
-        existingEditEvents,
-        p.rawEvent,
-        previousEvent,
-      );
       return {
         key: `eta-${i}-${p.utcMs}-${normalizeRawEventKey(p.rawEvent).replace(/\W+/g, '_')}`,
         date: dt.date,
@@ -316,8 +289,7 @@ export function buildEtaFuelVoyagePreview(
         place: p.place,
         rawEvent: p.rawEvent,
         kind: classifyFuelEvent(p.rawEvent),
-        included: !duplicateOf,
-        duplicateOf,
+        included: true,
       };
     });
 
@@ -328,7 +300,6 @@ export function buildEtaFuelVoyagePreview(
     previousEvent,
     rows,
     warnings,
-    hasDuplicates: rows.some((r) => !!r.duplicateOf),
     hasTimeConflict: rows.some((r) => r.included && r.beforePrevious),
   };
 }

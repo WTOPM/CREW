@@ -102,6 +102,7 @@ interface FuelRobTankMenu {
 }
 import { ElectronLocalPrefsService } from '../../services/electron-local-prefs.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { EtaStore } from '../../services/eta.store';
 import { FuelStore } from '../../services/fuel.store';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
@@ -117,7 +118,6 @@ import {
   buildEtaFuelVoyagePreview,
   etaFuelVoyagePreviewRowsToEvents,
   type EtaFuelVoyagePreview,
-  type EtaFuelVoyagePreviewRow,
 } from '../../utils/eta-to-fuel-voyage.util';
 import {
   buildFuelDistanceLegsFromEtaPlan,
@@ -125,9 +125,25 @@ import {
   foRobMtFromFuelEvent,
   type FuelDistanceForecastLeg,
 } from '../../utils/fuel-distance-forecast.util';
+import {
+  applyVoyageChainFuelCascade,
+  applyVoyageChainTimeShift,
+  clearVoyageChainOnEvent,
+  predictFuelVoyageEventFromPrevious,
+  stampVoyageChain,
+  type EtaVoyageAddOptions,
+  type EtaVoyageConfirmPayload,
+} from '../../utils/fuel-voyage-chain.util';
 import { formatDisplayDate } from '../../utils/date.util';
 
 const ALL_KINDS = Object.keys(FUEL_EVENT_KIND_LABELS) as FuelEventKind[];
+
+function etaVoyageOptionsToast(options: EtaVoyageAddOptions, count: number): string {
+  const bits: string[] = [];
+  if (options.predictFo) bits.push('FO predicted');
+  if (options.linkVoyage && count >= 2) bits.push('voyage linked');
+  return bits.length ? ` · ${bits.join(' · ')}` : '';
+}
 
 interface FuelColumnGroup {
   id: string;
@@ -229,6 +245,7 @@ interface FuelPathSegment {
 export class FuelComponent {
   private readonly storage = inject(StorageService);
   private readonly fuelStore = inject(FuelStore);
+  private readonly etaStore = inject(EtaStore);
   private readonly toast = inject(ToastService);
   private readonly localPrefs = inject(ElectronLocalPrefsService);
   private readonly confirmDialog = inject(ConfirmDialogService);
@@ -313,7 +330,10 @@ export class FuelComponent {
   });
   protected readonly hoursAsHm = computed(() => this.fuelUi().hoursAsHm);
   protected readonly showUtc = computed(() => this.fuelUi().showUtc);
-  protected readonly utcOffsetHours = computed(() => this.fuelUi().utcOffsetHours);
+  /** Shared with ETA Ship Time (etaLibrary.shipUtcOffsetHours). */
+  protected readonly utcOffsetHours = computed(
+    () => this.storage.etaLibrary().shipUtcOffsetHours,
+  );
   protected readonly utcOffsetLabel = computed(() => formatFuelUtcOffsetLabel(this.utcOffsetHours()));
   protected readonly utcOffsetMenuOpen = signal(false);
   protected readonly utcPressing = signal(false);
@@ -473,6 +493,11 @@ export class FuelComponent {
       if (legacy.length) this.fuelStore.importDisplayPresetsIfEmpty(legacy);
       // One-time: seed View/Edit local prefs from former shared library.view.
       await this.localPrefs.ensureFuelTabsSeeded(this.library().view);
+      // Mirror shared ETA Ship Time into local Fuel prefs (display uses ETA).
+      const ship = this.storage.etaLibrary().shipUtcOffsetHours;
+      if (this.fuelUi().utcOffsetHours !== ship) {
+        await this.localPrefs.setFuelUi({ utcOffsetHours: ship });
+      }
     });
 
     afterNextRender(() => {
@@ -874,6 +899,7 @@ export class FuelComponent {
 
   protected async nudgeUtcOffset(delta: number): Promise<void> {
     const next = this.utcOffsetHours() + delta;
+    this.etaStore.setShipUtcOffsetHours(next);
     await this.localPrefs.setFuelUi({ utcOffsetHours: next });
   }
 
@@ -928,7 +954,7 @@ export class FuelComponent {
   }
 
   /**
-   * Open ETA → Fuel Edit preview (gaps, duplicates, time tools) before committing rows.
+   * Open ETA → Fuel Edit preview (gaps, time tools) before committing rows.
    */
   protected addVoyageFromEta(): void {
     if (!this.canEdit()) {
@@ -977,46 +1003,61 @@ export class FuelComponent {
     this.distanceForecast.set(null);
   }
 
-  protected applyEtaVoyagePreview(rows: EtaFuelVoyagePreviewRow[]): void {
+  protected applyEtaVoyagePreview(payload: EtaVoyageConfirmPayload): void {
+    const { rows, options } = payload;
     const preview = this.etaVoyagePreview();
     this.etaVoyagePreview.set(null);
-    const seeds = etaFuelVoyagePreviewRowsToEvents(
-      rows,
-      this.library().lastDensity ?? FUEL_DEFAULT_DENSITY,
-    );
+    const density = this.library().lastDensity ?? FUEL_DEFAULT_DENSITY;
+    const seeds = etaFuelVoyagePreviewRowsToEvents(rows, density);
     if (!seeds.length) {
       this.toast.showError('No events selected to add');
       return;
     }
     let editEvents = [...this.library().editEvents];
     const pendingMap = new Map(this.pendingInheritedByEvent());
-    let added = 0;
+    const addedBatch: FuelLogEvent[] = [];
     for (const seed of seeds) {
       const prev = findPreviousFuelEvent(editEvents, seed.date, seed.time, seed.id);
-      const { patch, inheritedFields } = inheritFuelFieldsFromPrevious(prev);
-      const fill: Partial<FuelLogEvent> = {};
-      const pending: FuelInheritableField[] = [];
-      for (const field of inheritedFields) {
-        if (field === 'meRobTank' || field === 'aeRobTank' || field === 'boilerRobTank') continue;
-        const cur = seed[field];
-        const empty = cur == null || (typeof cur === 'string' && !String(cur).trim());
-        if (!empty) continue;
-        (fill as Record<string, unknown>)[field] = patch[field];
-        pending.push(field);
+      let next: FuelLogEvent;
+      if (options.predictFo) {
+        next = predictFuelVoyageEventFromPrevious(seed, prev, density);
+      } else {
+        const { patch, inheritedFields } = inheritFuelFieldsFromPrevious(prev);
+        const fill: Partial<FuelLogEvent> = {};
+        const pending: FuelInheritableField[] = [];
+        for (const field of inheritedFields) {
+          if (field === 'meRobTank' || field === 'aeRobTank' || field === 'boilerRobTank') {
+            continue;
+          }
+          const cur = seed[field];
+          const empty = cur == null || (typeof cur === 'string' && !String(cur).trim());
+          if (!empty) continue;
+          (fill as Record<string, unknown>)[field] = patch[field];
+          pending.push(field);
+        }
+        const before = findFuelEventBeforePrevious(editEvents, prev);
+        next = createEmptyFuelLogEvent(
+          applyFuelEventAutoCalcs({ ...seed, ...fill }, prev, before, density),
+        );
+        if (pending.length) pendingMap.set(next.id, new Set(pending));
       }
-      const before = findFuelEventBeforePrevious(editEvents, prev);
-      const next = createEmptyFuelLogEvent(
-        applyFuelEventAutoCalcs({ ...seed, ...fill }, prev, before, this.library().lastDensity),
-      );
       editEvents = [...editEvents.filter((e) => e.id !== next.id), next];
-      if (pending.length) pendingMap.set(next.id, new Set(pending));
-      added++;
+      addedBatch.push(next);
     }
+
+    if (options.linkVoyage && addedBatch.length >= 2) {
+      const chainId = `voyage-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const stamped = stampVoyageChain(addedBatch, chainId, options.predictFo);
+      const byId = new Map(stamped.map((e) => [e.id, e]));
+      editEvents = editEvents.map((e) => byId.get(e.id) ?? e);
+    }
+
     this.fuelStore.replaceEditEvents(cascadeAppAddedFuelRob(editEvents));
     this.pendingInheritedByEvent.set(pendingMap);
     const extra = preview?.warnings.length ? ` · ${preview.warnings[0]}` : '';
+    const flags = etaVoyageOptionsToast(options, addedBatch.length);
     this.toast.show(
-      `Added ${added} draft row(s) from ETA — fill fuel, mark ✓, then Write${extra}`,
+      `Added ${addedBatch.length} draft row(s) from ETA${flags} — mark ✓, then Write${extra}`,
       'success',
     );
   }
@@ -1294,17 +1335,45 @@ export class FuelComponent {
     }
 
     // Keep ROB in sync for app-added rows; this row already projected above.
-    const merged = editEvents.map((e) => (e.id === id ? next : e));
-    const shouldCascadeRob =
-      shouldProjectRob ||
-      partial.date !== undefined ||
-      partial.time !== undefined;
-    this.fuelStore.replaceEditEvents(
-      shouldCascadeRob ? cascadeAppAddedFuelRob(merged) : merged,
-    );
+    let merged = editEvents.map((e) => (e.id === id ? next : e));
+    const density = this.library().lastDensity;
+    const clockMoved = next.date !== current.date || next.time !== current.time;
+
+    if (current.voyageChainId != null && clockMoved) {
+      // Link voyage: shift later chain times by the same delta (+ re-predict FO if stamped).
+      merged = applyVoyageChainTimeShift(
+        merged,
+        id,
+        current.date,
+        current.time,
+        density,
+      );
+    } else if (
+      current.voyageChainId != null &&
+      (Object.keys(consumptionPatch).length > 0 ||
+        partial.fmMeAe !== undefined ||
+        partial.density !== undefined ||
+        partial.totalM3 !== undefined ||
+        partial.totalMt !== undefined ||
+        partial.timeUsedHours !== undefined ||
+        partial.boilerFm !== undefined ||
+        partial.dmaConsM3 !== undefined ||
+        partial.boilerMt !== undefined)
+    ) {
+      merged = applyVoyageChainFuelCascade(merged, id, density);
+    } else {
+      const shouldCascadeRob =
+        shouldProjectRob ||
+        partial.date !== undefined ||
+        partial.time !== undefined ||
+        clockMoved;
+      if (shouldCascadeRob) merged = cascadeAppAddedFuelRob(merged);
+    }
+
+    this.fuelStore.replaceEditEvents(merged);
   }
 
-  /** Toggle draft ↔ ready (synced rows stay until edited). */
+  /** Toggle draft ↔ ready (synced rows stay until edited). Ready clears voyage link on that row. */
   protected toggleWriteReady(e: FuelLogEvent, ev?: Event): void {
     ev?.stopPropagation();
     if (!this.canEdit()) return;
@@ -1320,7 +1389,13 @@ export class FuelComponent {
       this.toast.showError('Fill date, time, place and event before marking ready');
       return;
     }
-    this.fuelStore.updateEvent(e.id, { writeStatus: 'ready' });
+    const cleared = clearVoyageChainOnEvent(e);
+    this.fuelStore.updateEvent(e.id, {
+      writeStatus: 'ready',
+      voyageChainId: cleared.voyageChainId,
+      voyageChainIndex: cleared.voyageChainIndex,
+      voyageChainPredict: cleared.voyageChainPredict,
+    });
   }
 
   protected writeStatusTitle(status: FuelWriteStatus): string {

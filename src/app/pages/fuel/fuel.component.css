@@ -1421,6 +1421,53 @@
   filter: brightness(0.99);
 }
 
+/* Linked voyage batch (Add voyage → Link voyage): nearest → farther tint. */
+.fuel-table tbody tr.fuel-row--voyage-linked {
+  box-shadow: inset 3px 0 0 #ea580c;
+  background: linear-gradient(
+    90deg,
+    rgba(234, 88, 12, calc(0.14 - min(var(--voyage-i, 0), 8) * 0.012)) 0,
+    rgba(255, 247, 237, 0.55) 2.5rem,
+    transparent 7rem
+  );
+}
+
+.fuel-table tbody tr.fuel-row--voyage-linked[data-voyage-index='0'] {
+  --voyage-i: 0;
+  box-shadow: inset 3px 0 0 #c2410c;
+}
+
+.fuel-table tbody tr.fuel-row--voyage-linked[data-voyage-index='1'] {
+  --voyage-i: 1;
+  box-shadow: inset 3px 0 0 #ea580c;
+}
+
+.fuel-table tbody tr.fuel-row--voyage-linked[data-voyage-index='2'] {
+  --voyage-i: 2;
+  box-shadow: inset 3px 0 0 #f97316;
+}
+
+.fuel-table tbody tr.fuel-row--voyage-linked[data-voyage-index='3'],
+.fuel-table tbody tr.fuel-row--voyage-linked[data-voyage-index='4'],
+.fuel-table tbody tr.fuel-row--voyage-linked[data-voyage-index='5'] {
+  --voyage-i: 4;
+  box-shadow: inset 3px 0 0 #fb923c;
+}
+
+.fuel-table tbody tr.fuel-row--voyage-linked[data-voyage-index]:not([data-voyage-index='0']):not(
+    [data-voyage-index='1']
+  ):not([data-voyage-index='2']):not([data-voyage-index='3']):not([data-voyage-index='4']):not(
+    [data-voyage-index='5']
+  ) {
+  --voyage-i: 6;
+  box-shadow: inset 3px 0 0 #fdba74;
+}
+
+.fuel-row-status--linked:not(.fuel-row-status--synced):not(.fuel-row-status--ready) {
+  outline: 2px solid rgba(234, 88, 12, 0.45);
+  outline-offset: 1px;
+}
+
 .fuel-table .num {
   text-align: right;
   font-variant-numeric: tabular-nums;

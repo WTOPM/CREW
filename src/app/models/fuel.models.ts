@@ -709,6 +709,15 @@ export interface FuelLogEvent {
    * - ready — user marked OK to write (purple date)
    */
   writeStatus: FuelWriteStatus;
+  /**
+   * ETA voyage chain (app-only). Same id links rows added together with
+   * “Link voyage”; cleared on Ready / Write for that row only.
+   */
+  voyageChainId: string | null;
+  /** 0 = earliest in the chain. */
+  voyageChainIndex: number | null;
+  /** True when FO predict was applied at add (re-predict after linked time shifts). */
+  voyageChainPredict: boolean;
 }
 
 /** Minimum fields before a draft may be marked ready to Write. */
@@ -1429,6 +1438,9 @@ export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLo
       writeStatus:
         partial?.writeStatus ??
         defaultFuelWriteStatus(partial?.sourceRow ?? 0),
+      voyageChainId: partial?.voyageChainId ?? null,
+      voyageChainIndex: partial?.voyageChainIndex ?? null,
+      voyageChainPredict: partial?.voyageChainPredict === true,
     },
     0,
   )!;
@@ -1787,6 +1799,15 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
       if (isFuelWriteStatus(e.writeStatus)) return e.writeStatus;
       return defaultFuelWriteStatus(sourceRow);
     })(),
+    voyageChainId:
+      typeof e.voyageChainId === 'string' && e.voyageChainId.trim()
+        ? e.voyageChainId.trim()
+        : null,
+    voyageChainIndex:
+      typeof e.voyageChainIndex === 'number' && Number.isFinite(e.voyageChainIndex)
+        ? Math.max(0, Math.floor(e.voyageChainIndex))
+        : null,
+    voyageChainPredict: e.voyageChainPredict === true,
   };
 }
 

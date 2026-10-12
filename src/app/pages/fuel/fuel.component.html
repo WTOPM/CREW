@@ -54,7 +54,7 @@
 
   <section class="fuel-toolbar card">
     <div class="fuel-toolbar__source">
-      <div class="fuel-path-field section-readonly-allow">
+      <div class="fuel-path-field">
         <span class="fuel-path-field__label">Excel path</span>
         <div class="fuel-path-crumbs" [class.fuel-path-crumbs--empty]="!pathSegments().length">
           @if (pathSegments().length) {
@@ -79,7 +79,7 @@
         </div>
       </div>
       <div class="fuel-source-actions">
-        <span class="section-readonly-allow fuel-source-actions__readonly">
+        <span class=" fuel-source-actions__readonly">
           @if (hasElectronPicker) {
             <button type="button" class="btn btn-secondary" (click)="pickExcel()" [disabled]="busy()">
               Browse…
@@ -216,7 +216,7 @@
   </section>
 
   @if (activeTab() === 'cyl') {
-    <section class="fuel-filters card section-readonly-allow">
+    <section class="fuel-filters card">
       <div class="fuel-filters-head">
         <h2 class="fuel-section-title">
           Cyl. Oil Consump.
@@ -362,7 +362,7 @@
       }
     </section>
   } @else {
-  <section class="fuel-filters card section-readonly-allow">
+  <section class="fuel-filters card">
     <div class="fuel-filters-head">
       <h2 class="fuel-section-title">
         Fuel log
@@ -374,7 +374,7 @@
         <div class="fuel-filter-presets__tools">
           <button
             type="button"
-            class="fuel-chip fuel-chip--summary section-readonly-allow"
+            class="fuel-chip fuel-chip--summary"
             [disabled]="!library().masterSummary"
             title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
             (click)="showMasterSummaryModal.set(true)"
@@ -383,7 +383,7 @@
           </button>
           <button
             type="button"
-            class="fuel-chip fuel-chip--updated section-readonly-allow"
+            class="fuel-chip fuel-chip--updated"
             [class.fuel-chip--updated-need]="updatedChipTone() === 'need'"
             [class.fuel-chip--updated-done]="updatedChipTone() === 'done'"
             title="UPDATED handoff — View: Needs update + date/port · Edit: fill values + Done"
@@ -394,14 +394,14 @@
           @if (activeTab() === 'view') {
             <a
               routerLink="/fuel/stats"
-              class="fuel-chip fuel-chip--stats section-readonly-allow"
+              class="fuel-chip fuel-chip--stats"
               title="Statistics for the View log (current period, events, search and Show)"
             >
               STATS
             </a>
             <button
               type="button"
-              class="fuel-chip fuel-chip--forecast section-readonly-allow"
+              class="fuel-chip fuel-chip--forecast"
               title="Forecast FO burn from ETA nm/kn (Excel Fuel-Distance Calc. principle)"
               (click)="openDistanceForecast()"
             >
@@ -610,7 +610,7 @@
         </span>
       }
 
-      <span class="section-readonly-allow fuel-table-toolbar__view">
+      <span class=" fuel-table-toolbar__view">
         <button
           type="button"
           class="fuel-mode-btn fuel-mode-btn--hours"
@@ -814,7 +814,17 @@
             </thead>
             <tbody>
               @for (e of visibleEvents(); track e.id) {
-                <tr [attr.data-kind]="e.kind">
+                <tr
+                  [attr.data-kind]="e.kind"
+                  [class.fuel-row--voyage-linked]="!!e.voyageChainId"
+                  [attr.data-voyage-chain]="e.voyageChainId || null"
+                  [attr.data-voyage-index]="e.voyageChainIndex != null ? e.voyageChainIndex : null"
+                  [attr.title]="
+                    e.voyageChainId
+                      ? 'Linked voyage · editing this row shifts later linked events until Ready / Write'
+                      : null
+                  "
+                >
                   @if (canEdit()) {
                     <td class="fuel-col-actions">
                       <div class="fuel-col-actions__btns">
@@ -824,7 +834,13 @@
                           [class.fuel-row-status--synced]="e.writeStatus === 'synced'"
                           [class.fuel-row-status--ready]="e.writeStatus === 'ready'"
                           [class.fuel-row-status--draft]="e.writeStatus === 'draft'"
-                          [attr.title]="writeStatusTitle(e.writeStatus)"
+                          [class.fuel-row-status--linked]="!!e.voyageChainId"
+                          [attr.title]="
+                            e.voyageChainId
+                              ? writeStatusTitle(e.writeStatus) +
+                                ' · Linked voyage (Ready clears link on this row)'
+                              : writeStatusTitle(e.writeStatus)
+                          "
                           [attr.aria-label]="writeStatusTitle(e.writeStatus)"
                           (click)="toggleWriteReady(e, $event)"
                         >
@@ -1050,7 +1066,7 @@
 
 @if (hScrollActive() && activeTab() !== 'cyl') {
   <div
-    class="fuel-hscroll-dock section-readonly-allow"
+    class="fuel-hscroll-dock"
     #hDock
     [style.left.px]="hDockLeft()"
     [style.width.px]="hDockWidth()"

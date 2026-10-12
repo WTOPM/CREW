@@ -376,13 +376,57 @@
 .fuel-eta-voyage-modal__foot {
   flex: 0 0 auto;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 0.65rem;
   padding: 0.75rem 1.1rem 0.9rem;
   border-top: 1px solid #ffedd5;
   background: rgba(255, 247, 237, 0.55);
+}
+
+.fuel-eta-voyage-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+}
+
+.fuel-eta-voyage-opt {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  max-width: 22rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fuel-eta-voyage-opt input {
+  margin-top: 0.2rem;
+  accent-color: #ea580c;
+}
+
+.fuel-eta-voyage-opt span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  line-height: 1.25;
+}
+
+.fuel-eta-voyage-opt strong {
+  font-size: 0.84rem;
+  color: #9a3412;
+}
+
+.fuel-eta-voyage-opt small {
+  font-size: 0.72rem;
+  color: #a8a29e;
+  font-weight: 600;
+}
+
+.fuel-eta-voyage-modal__foot-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
 }
 
 .fuel-eta-voyage-modal__count {
