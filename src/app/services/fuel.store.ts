@@ -1,21 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  cloneFuelCylinderList,
   cloneFuelEventList,
   createDefaultFuelLibrary,
-  createEmptyFuelCylinderRow,
   createEmptyFuelLogEvent,
   fillMissingPeriodTotals,
   mergeMissingFuelPeriodFields,
-  normalizeFuelCylinderFactor,
   normalizeFuelLibrary,
-  recomputeFuelCylinderChain,
-  type FuelCylinderRow,
   type FuelDisplayPreset,
   type FuelEventKind,
   type FuelLogEvent,
   type FuelMasterSummary,
-  type FuelUpdatedHandoff,
   type FuelViewPrefs,
 } from '../models/fuel.models';
 import { AppStateStore } from './app-state.store';
@@ -35,8 +29,6 @@ export class FuelStore {
     sourceFileName: string;
     sheetName: string;
     masterSummary?: FuelMasterSummary | null;
-    cylinderRows?: FuelCylinderRow[];
-    cylinderFactor?: number;
   }): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
@@ -46,18 +38,6 @@ export class FuelStore {
       const editEvents = keepEdit
         ? fillMissingPeriodTotals(mergeMissingFuelPeriodFields(prev.editEvents, imported))
         : imported;
-      const prevCyl = prev.fuelCylinder;
-      const factor = normalizeFuelCylinderFactor(
-        partial.cylinderFactor ?? prevCyl.fmToLitersFactor,
-      );
-      const cylImported =
-        partial.cylinderRows != null
-          ? recomputeFuelCylinderChain(partial.cylinderRows, factor)
-          : prevCyl.rows;
-      const keepCylEdit = prevCyl.editDirty;
-      const cylEdit = keepCylEdit
-        ? recomputeFuelCylinderChain(prevCyl.editRows, factor)
-        : cloneFuelCylinderList(cylImported);
       return {
         ...d,
         fuelLibrary: normalizeFuelLibrary({
@@ -73,15 +53,6 @@ export class FuelStore {
           editEvents,
           editBaseline: keepEdit ? prev.editBaseline : cloneFuelEventList(imported),
           editDirty: keepEdit,
-          fuelCylinder: {
-            rows: cylImported,
-            editRows: cylEdit,
-            editBaseline: keepCylEdit
-              ? prevCyl.editBaseline
-              : cloneFuelCylinderList(cylImported),
-            editDirty: keepCylEdit,
-            fmToLitersFactor: factor,
-          },
         }),
       };
     });
@@ -138,7 +109,7 @@ export class FuelStore {
     void this.state.persist('silent');
   }
 
-  /** Remember last density used on Add / Total t drag (default for new rows). */
+  /** Remember last FO Total t density used on Add / density HUD. */
   setLastDensity(density: number | null): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
@@ -153,22 +124,19 @@ export class FuelStore {
     void this.state.persist('silent');
   }
 
-  /** Shared View↔Edit “Updated” handoff (status / date / port / parameter list). */
-  setUpdatedHandoff(next: FuelUpdatedHandoff): void {
+  /** Remember last DMA TOTAL CONS density (separate from FO). */
+  setLastDmaDensity(density: number | null): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
       return {
         ...d,
         fuelLibrary: normalizeFuelLibrary({
           ...prev,
-          updatedHandoff: {
-            ...next,
-            changedAt: new Date().toISOString(),
-          },
+          lastDmaDensity: density,
         }),
       };
     });
-    void this.state.persist('saved');
+    void this.state.persist('silent');
   }
 
   updateView(partial: Partial<FuelViewPrefs>): void {
@@ -447,144 +415,5 @@ export class FuelStore {
       };
     });
     void this.state.persistFuelDisplayPresets('silent');
-  }
-
-  setCylinderFactor(factor: number): void {
-    this.data.update((d) => {
-      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
-      const f = normalizeFuelCylinderFactor(factor);
-      const cyl = prev.fuelCylinder;
-      return {
-        ...d,
-        fuelLibrary: normalizeFuelLibrary({
-          ...prev,
-          fuelCylinder: {
-            ...cyl,
-            fmToLitersFactor: f,
-            rows: recomputeFuelCylinderChain(cyl.rows, f),
-            editRows: recomputeFuelCylinderChain(cyl.editRows, f),
-            editBaseline: recomputeFuelCylinderChain(cyl.editBaseline, f),
-          },
-        }),
-      };
-    });
-    void this.state.persist('silent');
-  }
-
-  replaceCylinderEditRows(rows: readonly FuelCylinderRow[], dirty = true): void {
-    this.data.update((d) => {
-      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
-      const cyl = prev.fuelCylinder;
-      const next = recomputeFuelCylinderChain(rows, cyl.fmToLitersFactor);
-      return {
-        ...d,
-        fuelLibrary: normalizeFuelLibrary({
-          ...prev,
-          fuelCylinder: {
-            ...cyl,
-            editRows: next,
-            editBaseline: dirty ? cyl.editBaseline : cloneFuelCylinderList(next),
-            editDirty: dirty,
-          },
-        }),
-      };
-    });
-    void this.state.persist(dirty ? 'memory' : 'saved');
-  }
-
-  upsertCylinderRow(row: FuelCylinderRow): void {
-    const cylLib = (this.data().fuelLibrary ?? createDefaultFuelLibrary()).fuelCylinder;
-    const normalized = createEmptyFuelCylinderRow(row);
-    const idx = cylLib.editRows.findIndex((r) => r.id === normalized.id);
-    const editRows =
-      idx >= 0
-        ? cylLib.editRows.map((r, i) => (i === idx ? normalized : r))
-        : [...cylLib.editRows, normalized];
-    this.replaceCylinderEditRows(editRows, true);
-  }
-
-  updateCylinderRow(id: string, partial: Partial<FuelCylinderRow>): void {
-    const cylLib = (this.data().fuelLibrary ?? createDefaultFuelLibrary()).fuelCylinder;
-    const editRows = cylLib.editRows.map((r) =>
-      r.id === id ? createEmptyFuelCylinderRow({ ...r, ...partial, id: r.id }) : r,
-    );
-    this.replaceCylinderEditRows(editRows, true);
-  }
-
-  removeCylinderRow(id: string): void {
-    const cylLib = (this.data().fuelLibrary ?? createDefaultFuelLibrary()).fuelCylinder;
-    this.replaceCylinderEditRows(
-      cylLib.editRows.filter((r) => r.id !== id),
-      true,
-    );
-  }
-
-  discardCylinderDraft(): void {
-    this.data.update((d) => {
-      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
-      const cyl = prev.fuelCylinder;
-      const restored = recomputeFuelCylinderChain(cyl.editBaseline, cyl.fmToLitersFactor);
-      return {
-        ...d,
-        fuelLibrary: normalizeFuelLibrary({
-          ...prev,
-          fuelCylinder: {
-            ...cyl,
-            editRows: restored,
-            editDirty: false,
-          },
-        }),
-      };
-    });
-    void this.state.persist('saved');
-  }
-
-  markCylinderPartialWritten(written: readonly FuelCylinderRow[]): void {
-    const writtenList = recomputeFuelCylinderChain(
-      written.map((r) => createEmptyFuelCylinderRow({ ...r, writeStatus: 'synced' })),
-      (this.data().fuelLibrary ?? createDefaultFuelLibrary()).fuelCylinder.fmToLitersFactor,
-    );
-    const byId = new Map(writtenList.map((r) => [r.id, r]));
-    this.data.update((d) => {
-      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
-      const cyl = prev.fuelCylinder;
-      const factor = cyl.fmToLitersFactor;
-      const editRows = recomputeFuelCylinderChain(
-        cyl.editRows.map((r) => byId.get(r.id) ?? r),
-        factor,
-      );
-      let rows = recomputeFuelCylinderChain(
-        cyl.rows.map((r) => byId.get(r.id) ?? r),
-        factor,
-      );
-      for (const w of writtenList) {
-        if (!rows.some((r) => r.id === w.id)) rows = [...rows, w];
-      }
-      rows = recomputeFuelCylinderChain(rows, factor);
-      let editBaseline = recomputeFuelCylinderChain(
-        cyl.editBaseline.map((r) => byId.get(r.id) ?? r),
-        factor,
-      );
-      for (const w of writtenList) {
-        if (!editBaseline.some((r) => r.id === w.id)) {
-          editBaseline = [...editBaseline, w];
-        }
-      }
-      editBaseline = recomputeFuelCylinderChain(editBaseline, factor);
-      return {
-        ...d,
-        fuelLibrary: normalizeFuelLibrary({
-          ...prev,
-          fuelCylinder: {
-            ...cyl,
-            rows,
-            editRows,
-            editBaseline,
-            editDirty: editRows.some((r) => r.writeStatus !== 'synced'),
-          },
-        }),
-      };
-    });
-    void this.state.persist('saved');
   }
 }

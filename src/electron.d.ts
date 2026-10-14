@@ -17,8 +17,8 @@ export interface ElectronLocalPrefs {
   fuelShowUtc?: boolean;
   /** Ship local = UTC+N (hours). */
   fuelUtcOffsetHours?: number;
-  /** Last FUEL View/Edit/CYL tab on this PC. */
-  fuelActiveTab?: 'view' | 'edit' | 'cyl';
+  /** Last FUEL View/Edit tab on this PC. */
+  fuelActiveTab?: 'view' | 'edit';
   /**
    * Per-tab Events / Columns / filters on this PC (View ≠ Edit).
    * `fuelVisibleColumns` remains a View-tab mirror for older builds.
@@ -84,6 +84,8 @@ declare global {
       setWindowAlwaysOnTop: (enabled: boolean) => Promise<{ ok: boolean; enabled?: boolean }>;
       getWindowActive: () => Promise<boolean>;
       onAppWindowActive: (callback: (active: boolean) => void) => () => void;
+      /** Fired on full Quit — flush pending writes, then main writes the on-close backup. */
+      onPrepareQuit: (callback: () => void | Promise<void>) => () => void;
       openGpsFloat: (payload: {
         targetKey: string;
         legId?: string;

@@ -40,16 +40,6 @@
     >
       EDIT
     </button>
-    <button
-      type="button"
-      class="fuel-page-tab fuel-page-tab--cyl"
-      [class.fuel-page-tab--active]="activeTab() === 'cyl'"
-      [attr.aria-selected]="activeTab() === 'cyl'"
-      title="Cyl. Oil Consump. — cylinder oil log"
-      (click)="setActiveTab('cyl')"
-    >
-      CYL
-    </button>
   </nav>
 
   <section class="fuel-toolbar card">
@@ -99,35 +89,6 @@
             {{ busy() ? 'Loading…' : library().events.length ? 'Update from file' : 'Upload' }}
           </button>
         </span>
-        @if (activeTab() === 'cyl') {
-          <div
-            class="fuel-sync"
-            [class.fuel-sync--dirty]="dirty() && canWriteExcel"
-            [class.fuel-sync--idle]="!dirty() || !canWriteExcel"
-            [class.fuel-sync--busy]="busy()"
-            [attr.title]="cylSyncTitle()"
-          >
-            <div class="fuel-sync__face">
-              <button
-                type="button"
-                class="fuel-sync__write"
-                [disabled]="busy() || !cylHasReady() || !canWriteExcel"
-                (click)="confirmWriteCylinder($event)"
-              >
-                Write CYL{{ cylHasReady() ? ' · ' + cylReadyCount() : '' }}
-              </button>
-              <button
-                type="button"
-                class="fuel-sync__discard"
-                [disabled]="busy() || !dirty()"
-                (click)="confirmDiscardCylinder($event)"
-                title="Discard CYL draft"
-              >
-                Discard
-              </button>
-            </div>
-          </div>
-        }
         @if (activeTab() === 'edit') {
           <div
             class="fuel-sync"
@@ -215,153 +176,6 @@
     </div>
   </section>
 
-  @if (activeTab() === 'cyl') {
-    <section class="fuel-filters card">
-      <div class="fuel-filters-head">
-        <h2 class="fuel-section-title">
-          Cyl. Oil Consump.
-          <span class="fuel-section-title__mode">· CYL</span>
-        </h2>
-        <div class="fuel-cyl-factor">
-          <label>
-            <span>FM→L factor</span>
-            <input
-              type="text"
-              inputmode="decimal"
-              [ngModel]="cylLibrary().fmToLitersFactor"
-              (ngModelChange)="onCylFactor($event)"
-              title="Excel F formula: ((ΔFM)×factor)/1000"
-            />
-          </label>
-        </div>
-      </div>
-      <p class="fuel-cyl-hint">
-        Same sheet as Excel <em>Cyl. Oil Consump.</em> — edit Position / FM / Used L / Receive; Hours,
-        Calc L and ROB follow the sheet formulas. Mark ✓ then Write CYL.
-      </p>
-    </section>
-
-    <section class="fuel-table-card card">
-      <div class="fuel-table-toolbar">
-        <span class="fuel-edit-tab-badge" title="CYL draft writes to Cyl. Oil Consump. sheet">
-          <span class="fuel-edit-tab-badge__label">CYL edit</span>
-          <span class="fuel-edit-tab-badge__sub">{{ cylRows().length }} rows</span>
-        </span>
-        <button
-          type="button"
-          class="btn btn-primary fuel-add-btn"
-          (click)="addCylRow()"
-          [disabled]="busy()"
-        >
-          + Add day
-        </button>
-      </div>
-
-      @if (!cylRows().length) {
-        <div class="fuel-empty">
-          <strong>No cylinder oil rows</strong>
-          <p>Update from file to load Cyl. Oil Consump., or Add day.</p>
-        </div>
-      } @else {
-        <div class="fuel-table-wrap fuel-cyl-wrap">
-          <table class="fuel-table fuel-cyl-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Date</th>
-                <th>Position</th>
-                <th class="num">HR</th>
-                <th class="num">FM</th>
-                <th class="num">Calc L</th>
-                <th class="num">Used L</th>
-                <th class="num">ROB</th>
-                <th class="num">Receive</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (r of cylRows(); track r.id) {
-                <tr [class.fuel-row--draft]="r.writeStatus === 'draft'" [class.fuel-row--ready]="r.writeStatus === 'ready'">
-                  <td>
-                    <button
-                      type="button"
-                      class="fuel-ready-btn"
-                      [class.fuel-ready-btn--on]="r.writeStatus === 'ready'"
-                      [title]="cylStatusLabel(r.writeStatus) + ' — click to cycle'"
-                      (click)="toggleCylReady(r)"
-                    >
-                      ✓
-                    </button>
-                  </td>
-                  <td>
-                    <app-date-picker
-                      size="sm"
-                      [value]="r.date"
-                      (valueChange)="patchCylRow(r, { date: $event })"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      [ngModel]="r.place"
-                      (ngModelChange)="patchCylRow(r, { place: $event })"
-                      list="fuel-cyl-places"
-                    />
-                  </td>
-                  <td class="num fuel-cyl-ro">{{ r.hours == null ? '—' : r.hours }}</td>
-                  <td class="num">
-                    <input
-                      class="fuel-cyl-num"
-                      [ngModel]="r.flowmeter ?? ''"
-                      (ngModelChange)="onCylNum(r, 'flowmeter', $event)"
-                      inputmode="decimal"
-                    />
-                  </td>
-                  <td class="num fuel-cyl-ro">
-                    {{ r.litersCalc == null ? '—' : (r.litersCalc | number: '1.0-3') }}
-                  </td>
-                  <td class="num">
-                    <input
-                      class="fuel-cyl-num"
-                      [ngModel]="r.litersUsed ?? ''"
-                      (ngModelChange)="onCylNum(r, 'litersUsed', $event)"
-                      inputmode="decimal"
-                    />
-                  </td>
-                  <td class="num fuel-cyl-ro fuel-cyl-rob">
-                    {{ r.robLiters == null ? '—' : (r.robLiters | number: '1.0-1') }}
-                  </td>
-                  <td class="num">
-                    <input
-                      class="fuel-cyl-num"
-                      [ngModel]="r.receiveLiters ?? ''"
-                      (ngModelChange)="onCylNum(r, 'receiveLiters', $event)"
-                      inputmode="decimal"
-                      title="Bunker / receive liters (col I)"
-                    />
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      class="fuel-cyl-del"
-                      title="Remove row"
-                      (click)="removeCylRow(r)"
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-          <datalist id="fuel-cyl-places">
-            @for (p of placeChoices(); track p) {
-              <option [value]="p"></option>
-            }
-          </datalist>
-        </div>
-      }
-    </section>
-  } @else {
   <section class="fuel-filters card">
     <div class="fuel-filters-head">
       <h2 class="fuel-section-title">
@@ -371,27 +185,17 @@
         </span>
       </h2>
       <div class="fuel-filter-presets">
-        <div class="fuel-filter-presets__tools">
-          <button
-            type="button"
-            class="fuel-chip fuel-chip--summary"
-            [disabled]="!library().masterSummary"
-            title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
-            (click)="showMasterSummaryModal.set(true)"
-          >
-            S1–AC4
-          </button>
-          <button
-            type="button"
-            class="fuel-chip fuel-chip--updated"
-            [class.fuel-chip--updated-need]="updatedChipTone() === 'need'"
-            [class.fuel-chip--updated-done]="updatedChipTone() === 'done'"
-            title="UPDATED handoff — View: Needs update + date/port · Edit: fill values + Done"
-            (click)="showUpdatedHandoffModal.set(true)"
-          >
-            {{ updatedChipLabel() }}
-          </button>
-          @if (activeTab() === 'view') {
+        @if (activeTab() === 'view') {
+          <div class="fuel-filter-presets__tools">
+            <button
+              type="button"
+              class="fuel-chip fuel-chip--summary"
+              [disabled]="!library().masterSummary"
+              title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
+              (click)="showMasterSummaryModal.set(true)"
+            >
+              S1–AC4
+            </button>
             <a
               routerLink="/fuel/stats"
               class="fuel-chip fuel-chip--stats"
@@ -407,139 +211,40 @@
             >
               FORECAST
             </button>
-          }
-        </div>
-        <div class="fuel-filter-presets__filters">
-        <div class="fuel-dropdown" (click)="$event.stopPropagation()">
+          </div>
+        }
+        <div
+          class="fuel-filter-presets__layouts"
+          [class.fuel-filter-presets__layouts--solo]="activeTab() !== 'view'"
+        >
           <button
             type="button"
-            class="fuel-chip fuel-chip--preset"
-            [class.fuel-chip--filter-all]="eventsFilterTone() === 'all'"
-            [class.fuel-chip--filter-partial]="eventsFilterTone() === 'partial'"
-            [class.fuel-chip--filter-none]="eventsFilterTone() === 'none'"
-            [class.fuel-chip--menu-open]="eventsMenuOpen()"
-            (click)="toggleEventsMenu($event)"
+            class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
+            title="Save current column layout on this computer"
+            (click)="openDisplaySave()"
           >
-            EVENTS - {{ eventsChipSuffix() }}
+            <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
+              />
+            </svg>
+            <span>Save</span>
           </button>
-          @if (eventsMenuOpen() && menuAnchor(); as anchor) {
-            <div
-              class="fuel-menu fuel-menu--events"
-              role="menu"
-              [style.top.px]="anchor.top"
-              [style.left.px]="anchor.left"
-              [style.width.px]="anchor.width"
-            >
-              <header class="fuel-menu__head">
-                <div class="fuel-menu__head-text">
-                  <span class="fuel-menu__title">Event types</span>
-                  <span class="fuel-menu__meta">{{ selectedKindsLabel() }}</span>
-                </div>
-                <div class="fuel-menu__actions">
-                  <button type="button" class="fuel-menu__action" (click)="selectAllKinds()">All</button>
-                  <button type="button" class="fuel-menu__action" (click)="clearAllKinds()">None</button>
-                </div>
-              </header>
-              <div class="fuel-menu__body">
-                <div class="fuel-menu__grid fuel-menu__grid--kinds">
-                  @for (kind of allKinds; track kind) {
-                    <button
-                      type="button"
-                      class="fuel-menu-chip"
-                      [class.fuel-menu-chip--on]="kindOn(kind)"
-                      [attr.data-kind]="kind"
-                      role="menuitemcheckbox"
-                      [attr.aria-checked]="kindOn(kind)"
-                      (click)="toggleKind(kind)"
-                    >
-                      <span class="fuel-menu-chip__dot" aria-hidden="true"></span>
-                      <span class="fuel-menu-chip__label">{{ kindLabels[kind] }}</span>
-                    </button>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-        </div>
-        <div class="fuel-dropdown" (click)="$event.stopPropagation()">
           <button
             type="button"
-            class="fuel-chip fuel-chip--preset"
-            [class.fuel-chip--filter-all]="columnsFilterTone() === 'all'"
-            [class.fuel-chip--filter-partial]="columnsFilterTone() === 'partial'"
-            [class.fuel-chip--filter-none]="columnsFilterTone() === 'none'"
-            [class.fuel-chip--menu-open]="columnsMenuOpen()"
-            (click)="toggleColumnsMenu($event)"
+            class="btn btn-secondary dg-page-action-btn dg-page-action-btn--load"
+            title="Load a saved column layout"
+            (click)="openDisplayLoad()"
           >
-            COLUMNS - {{ columnsChipSuffix() }}
+            <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
+              />
+            </svg>
+            <span>Load</span>
           </button>
-          @if (columnsMenuOpen() && menuAnchor(); as anchor) {
-            <div
-              class="fuel-menu fuel-menu--columns"
-              role="menu"
-              [style.top.px]="anchor.top"
-              [style.left.px]="anchor.left"
-              [style.width.px]="anchor.width"
-            >
-              <header class="fuel-menu__head">
-                <div class="fuel-menu__head-text">
-                  <span class="fuel-menu__title">Visible columns</span>
-                  <span class="fuel-menu__meta"
-                    >{{ visibleColumnDefs().length }} of {{ allColumns.length }}</span
-                  >
-                </div>
-                <div class="fuel-menu__actions">
-                  <button type="button" class="fuel-menu__action" (click)="selectAllColumns()">All</button>
-                </div>
-              </header>
-              <div class="fuel-menu__body">
-                @for (group of columnGroups; track group.id) {
-                  <section
-                    class="fuel-menu-group"
-                    [class.fuel-menu-group--me]="group.tone === 'me'"
-                    [class.fuel-menu-group--ae1]="group.tone === 'ae1'"
-                    [class.fuel-menu-group--ae2]="group.tone === 'ae2'"
-                    [class.fuel-menu-group--ae3]="group.tone === 'ae3'"
-                    [class.fuel-menu-group--boiler]="group.tone === 'boiler'"
-                  >
-                    <h3 class="fuel-menu-group__title">{{ group.title }}</h3>
-                    <div class="fuel-menu__grid fuel-menu__grid--cols">
-                      @for (col of group.columns; track col.id) {
-                        <button
-                          type="button"
-                          class="fuel-menu-chip"
-                          [class.fuel-menu-chip--on]="columnOn(col.id)"
-                          [class.fuel-menu-chip--me]="col.tone === 'me'"
-                          [class.fuel-menu-chip--ae]="col.tone === 'ae'"
-                          [class.fuel-menu-chip--ae1]="col.tone === 'ae1'"
-                          [class.fuel-menu-chip--ae2]="col.tone === 'ae2'"
-                          [class.fuel-menu-chip--ae3]="col.tone === 'ae3'"
-                          [class.fuel-menu-chip--boiler]="col.tone === 'boiler'"
-                          role="menuitemcheckbox"
-                          [attr.aria-checked]="columnOn(col.id)"
-                          [title]="col.tip"
-                          (click)="toggleColumn(col.id)"
-                        >
-                          <span class="fuel-menu-chip__check" aria-hidden="true">
-                            @if (columnOn(col.id)) {
-                              <svg viewBox="0 0 24 24" focusable="false">
-                                <path
-                                  fill="currentColor"
-                                  d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
-                                />
-                              </svg>
-                            }
-                          </span>
-                          <span class="fuel-menu-chip__label">{{ col.label }}</span>
-                        </button>
-                      }
-                    </div>
-                  </section>
-                }
-              </div>
-            </div>
-          }
-        </div>
         </div>
       </div>
     </div>
@@ -679,34 +384,148 @@
           }
         </div>
 
-        <button
-          type="button"
-          class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
-          title="Save current column layout on this computer"
-          (click)="openDisplaySave()"
-        >
-          <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path
-              fill="currentColor"
-              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
-            />
-          </svg>
-          <span>Save</span>
-        </button>
-        <button
-          type="button"
-          class="btn btn-secondary dg-page-action-btn dg-page-action-btn--load"
-          title="Load a saved column layout"
-          (click)="openDisplayLoad()"
-        >
-          <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path
-              fill="currentColor"
-              d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
-            />
-          </svg>
-          <span>Load</span>
-        </button>
+        <div class="fuel-scope-pair" aria-label="Table filters">
+          <div class="fuel-dropdown" (click)="$event.stopPropagation()">
+            <button
+              type="button"
+              class="fuel-scope-btn"
+              [class.fuel-scope-btn--all]="eventsFilterTone() === 'all'"
+              [class.fuel-scope-btn--partial]="eventsFilterTone() === 'partial'"
+              [class.fuel-scope-btn--none]="eventsFilterTone() === 'none'"
+              [class.fuel-scope-btn--open]="eventsMenuOpen()"
+              (click)="toggleEventsMenu($event)"
+            >
+              <span class="fuel-scope-btn__mark" aria-hidden="true">E</span>
+              <span class="fuel-scope-btn__body">
+                <span class="fuel-scope-btn__label">Events</span>
+                <span class="fuel-scope-btn__value">{{ eventsChipSuffix() }}</span>
+              </span>
+              <span class="fuel-scope-btn__chev" aria-hidden="true"></span>
+            </button>
+            @if (eventsMenuOpen() && menuAnchor(); as anchor) {
+              <div
+                class="fuel-menu fuel-menu--events"
+                role="menu"
+                [style.top.px]="anchor.top"
+                [style.left.px]="anchor.left"
+                [style.width.px]="anchor.width"
+              >
+                <header class="fuel-menu__head">
+                  <div class="fuel-menu__head-text">
+                    <span class="fuel-menu__title">Event types</span>
+                    <span class="fuel-menu__meta">{{ selectedKindsLabel() }}</span>
+                  </div>
+                  <div class="fuel-menu__actions">
+                    <button type="button" class="fuel-menu__action" (click)="selectAllKinds()">All</button>
+                    <button type="button" class="fuel-menu__action" (click)="clearAllKinds()">None</button>
+                  </div>
+                </header>
+                <div class="fuel-menu__body">
+                  <div class="fuel-menu__grid fuel-menu__grid--kinds">
+                    @for (kind of allKinds; track kind) {
+                      <button
+                        type="button"
+                        class="fuel-menu-chip"
+                        [class.fuel-menu-chip--on]="kindOn(kind)"
+                        [attr.data-kind]="kind"
+                        role="menuitemcheckbox"
+                        [attr.aria-checked]="kindOn(kind)"
+                        (click)="toggleKind(kind)"
+                      >
+                        <span class="fuel-menu-chip__dot" aria-hidden="true"></span>
+                        <span class="fuel-menu-chip__label">{{ kindLabels[kind] }}</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+          <div class="fuel-dropdown" (click)="$event.stopPropagation()">
+            <button
+              type="button"
+              class="fuel-scope-btn"
+              [class.fuel-scope-btn--all]="columnsFilterTone() === 'all'"
+              [class.fuel-scope-btn--partial]="columnsFilterTone() === 'partial'"
+              [class.fuel-scope-btn--none]="columnsFilterTone() === 'none'"
+              [class.fuel-scope-btn--open]="columnsMenuOpen()"
+              (click)="toggleColumnsMenu($event)"
+            >
+              <span class="fuel-scope-btn__mark" aria-hidden="true">C</span>
+              <span class="fuel-scope-btn__body">
+                <span class="fuel-scope-btn__label">Columns</span>
+                <span class="fuel-scope-btn__value">{{ columnsChipSuffix() }}</span>
+              </span>
+              <span class="fuel-scope-btn__chev" aria-hidden="true"></span>
+            </button>
+            @if (columnsMenuOpen() && menuAnchor(); as anchor) {
+              <div
+                class="fuel-menu fuel-menu--columns"
+                role="menu"
+                [style.top.px]="anchor.top"
+                [style.left.px]="anchor.left"
+                [style.width.px]="anchor.width"
+              >
+                <header class="fuel-menu__head">
+                  <div class="fuel-menu__head-text">
+                    <span class="fuel-menu__title">Visible columns</span>
+                    <span class="fuel-menu__meta"
+                      >{{ visibleColumnDefs().length }} of {{ allColumns.length }}</span
+                    >
+                  </div>
+                  <div class="fuel-menu__actions">
+                    <button type="button" class="fuel-menu__action" (click)="selectAllColumns()">All</button>
+                  </div>
+                </header>
+                <div class="fuel-menu__body">
+                  @for (group of columnGroups; track group.id) {
+                    <section
+                      class="fuel-menu-group"
+                      [class.fuel-menu-group--me]="group.tone === 'me'"
+                      [class.fuel-menu-group--ae1]="group.tone === 'ae1'"
+                      [class.fuel-menu-group--ae2]="group.tone === 'ae2'"
+                      [class.fuel-menu-group--ae3]="group.tone === 'ae3'"
+                      [class.fuel-menu-group--boiler]="group.tone === 'boiler'"
+                    >
+                      <h3 class="fuel-menu-group__title">{{ group.title }}</h3>
+                      <div class="fuel-menu__grid fuel-menu__grid--cols">
+                        @for (col of group.columns; track col.id) {
+                          <button
+                            type="button"
+                            class="fuel-menu-chip"
+                            [class.fuel-menu-chip--on]="columnOn(col.id)"
+                            [class.fuel-menu-chip--me]="col.tone === 'me'"
+                            [class.fuel-menu-chip--ae]="col.tone === 'ae'"
+                            [class.fuel-menu-chip--ae1]="col.tone === 'ae1'"
+                            [class.fuel-menu-chip--ae2]="col.tone === 'ae2'"
+                            [class.fuel-menu-chip--ae3]="col.tone === 'ae3'"
+                            [class.fuel-menu-chip--boiler]="col.tone === 'boiler'"
+                            role="menuitemcheckbox"
+                            [attr.aria-checked]="columnOn(col.id)"
+                            [title]="col.tip"
+                            (click)="toggleColumn(col.id)"
+                          >
+                            <span class="fuel-menu-chip__check" aria-hidden="true">
+                              @if (columnOn(col.id)) {
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                  <path
+                                    fill="currentColor"
+                                    d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+                                  />
+                                </svg>
+                              }
+                            </span>
+                            <span class="fuel-menu-chip__label">{{ col.label }}</span>
+                          </button>
+                        }
+                      </div>
+                    </section>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
       </span>
 
       @if (activeTab() === 'edit') {
@@ -973,13 +792,50 @@
                               D
                             </button>
                           </span>
+                        } @else if (col.id === 'dmaConsMt') {
+                          <span
+                            class="fuel-density-cell fuel-density-cell--dma"
+                            (contextmenu)="onDmaConsMtContextMenu(e, $event)"
+                          >
+                            <input
+                              class="fuel-cell-input fuel-cell-input--density fuel-cell-input--dma"
+                              [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
+                              [value]="editValue(e, col)"
+                              [attr.title]="dmaDensityCellTip(e)"
+                              autocomplete="off"
+                              spellcheck="false"
+                              (input)="onEditLive(e, col, $event)"
+                              (change)="onEditCommit(e, col, $any($event.target).value)"
+                              (keydown)="onCellKeydown(e, col, $event)"
+                              (contextmenu)="onDmaConsMtContextMenu(e, $event)"
+                            />
+                            <button
+                              type="button"
+                              class="fuel-density-badge fuel-density-badge--dma"
+                              [attr.title]="dmaDensityBadgeTip(e)"
+                              tabindex="-1"
+                              (click)="openDensityHud(e, $event, 'dma')"
+                              (contextmenu)="onDmaConsMtContextMenu(e, $event)"
+                            >
+                              D
+                            </button>
+                            <button
+                              type="button"
+                              class="fuel-rob-badge"
+                              [attr.title]="robBadgeTip(e, col)"
+                              tabindex="-1"
+                              (click)="openRobTankMenu(e, col, $event)"
+                            >
+                              F
+                            </button>
+                          </span>
                         } @else if (isConsumptionFuelCol(col)) {
                           <span class="fuel-density-cell">
                             <input
                               class="fuel-cell-input fuel-cell-input--density"
                               [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
                               [value]="editValue(e, col)"
-                              [appPlainTooltip]="cellTip(col)"
+                              [attr.title]="cellTip(col)"
                               autocomplete="off"
                               spellcheck="false"
                               (input)="onEditLive(e, col, $event)"
@@ -989,7 +845,7 @@
                             <button
                               type="button"
                               class="fuel-rob-badge"
-                              [appPlainTooltip]="robBadgeTip(e, col)"
+                              [attr.title]="robBadgeTip(e, col)"
                               tabindex="-1"
                               (click)="openRobTankMenu(e, col, $event)"
                             >
@@ -1061,10 +917,9 @@
       </div>
     }
   </section>
-  }
 </div>
 
-@if (hScrollActive() && activeTab() !== 'cyl') {
+@if (hScrollActive()) {
   <div
     class="fuel-hscroll-dock"
     #hDock
@@ -1083,6 +938,7 @@
     [allEvents]="library().editEvents"
     [hoursAsHm]="hoursAsHm()"
     [preferredDensity]="library().lastDensity"
+    [preferredDmaDensity]="library().lastDmaDensity"
     (save)="onAddSave($event)"
     (cancel)="closeAddModal()"
   />
@@ -1114,7 +970,9 @@
     (pointerdown)="$event.stopPropagation()"
     (wheel)="onDensityHudWheel($event)"
   >
-    <span class="fuel-density-hud__label">Density</span>
+    <span class="fuel-density-hud__label">{{
+      hud.target === 'dma' ? 'DMA density' : 'Density'
+    }}</span>
     <input
       class="fuel-density-hud__input"
       type="text"
@@ -1173,16 +1031,6 @@
   (closeSave)="showDisplaySaveModal.set(false)"
   (closeLoad)="showDisplayLoadModal.set(false)"
 />
-
-@if (showUpdatedHandoffModal()) {
-  <app-fuel-updated-handoff-modal
-    [handoff]="updatedHandoff()"
-    [masterSummary]="library().masterSummary"
-    [mode]="activeTab() === 'edit' ? 'edit' : 'view'"
-    [placeChoices]="placeChoices()"
-    (close)="showUpdatedHandoffModal.set(false)"
-  />
-}
 
 @if (showMasterSummaryModal() && library().masterSummary; as summary) {
   <div class="modal-backdrop fuel-summary-backdrop" (click)="showMasterSummaryModal.set(false)">

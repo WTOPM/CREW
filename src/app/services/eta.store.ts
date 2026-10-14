@@ -34,7 +34,7 @@ export class EtaStore {
 
   /**
    * Update etaLibrary in memory immediately. Disk write only on 'saved' (SAVE)
-   * or an explicit flushPersist (tab leave / close / minimize).
+   * or an explicit flushPersist (Save / Done / Quit).
    */
   private updateLibrary(
     mutator: (lib: EtaLibrarySettings) => EtaLibrarySettings,

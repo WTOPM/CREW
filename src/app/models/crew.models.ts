@@ -137,7 +137,7 @@ export interface ShipInfo {
 /**
  * Select / date fields that used to force an immediate disk write.
  * Kept for reference; Home now keeps all ship edits in memory until
- * Save / tab switch / close / minimize (see shipFieldPersistNotify).
+ * Save / Done / Quit (see shipFieldPersistNotify).
  */
 export const SHIP_FIELDS_SAVED_ON_CHANGE: readonly (keyof ShipInfo)[] = [
   'lastPortOfCall',

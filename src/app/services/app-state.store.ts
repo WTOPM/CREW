@@ -15,10 +15,10 @@ import { normalizeAppData } from './app-data-normalizer';
 import { normalizeFuelLibrary } from '../models/fuel.models';
 import { SectionLockService } from './section-lock.service';
 import {
-  AppSection,
-  mergeSectionForSave,
-  mergeSectionFromDisk,
   APP_SECTIONS,
+  AppSection,
+  mergeSectionFromDisk,
+  mergeSectionsForSave,
 } from '../utils/app-data-section.util';
 import { readLocalStorage, writeLocalStorage } from '../utils/browser-storage.util';
 
@@ -94,14 +94,25 @@ export class AppStateStore {
   private formSessionActive = false;
   private formSessionDirty = false;
   private formSessionSnapshot: AppData | null = null;
+  /** Unsaved section dirtiness that existed before the settings modal opened. */
+  private dirtyBeforeFormSession = false;
 
   /** Pending disk write — memory is already updated; disk waits for flushPersist. */
   private persistDirty = false;
+  /**
+   * Sections edited in RAM since last successful shared-folder write.
+   * Save / Quit must merge ALL of these (not only the active tab).
+   */
+  private readonly dirtySections = new Set<AppSection>();
   private pendingNotify: PersistNotify = 'silent';
   private pendingSavedMessage: string | undefined;
   private persistInFlight: Promise<void> | null = null;
   private persistQueuedAgain = false;
 
+  /**
+   * Load the full crew-data.json once into RAM (all sections: Home/DG/ETA/Fuel/…).
+   * Tab switches do not re-read the shared file.
+   */
   async init(): Promise<AppInitResult> {
     const electron = window.electronAPI;
     if (electron) {
@@ -112,7 +123,7 @@ export class AppStateStore {
           this.data.set(normalized);
           this.electronBootstrapComplete = true;
           if ((loaded.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
-            await this.flushPersist('silent');
+            await this.flushFullNormalizedToDisk();
           }
           return 'loaded';
         }
@@ -132,15 +143,15 @@ export class AppStateStore {
         const normalized = normalizeAppData(parsed);
         this.data.set(normalized);
         if ((parsed.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
-          await this.flushPersist('silent');
+          await this.flushFullNormalizedToDisk();
         }
       } catch {
         this.data.set(createEmptyAppData());
-        await this.flushPersist('silent');
+        await this.flushFullNormalizedToDisk();
       }
     } else {
       this.data.set(createEmptyAppData());
-      await this.flushPersist('silent');
+      await this.flushFullNormalizedToDisk();
     }
     return 'loaded';
   }
@@ -154,7 +165,7 @@ export class AppStateStore {
       return false;
     }
     this.data.set(createEmptyAppData());
-    await this.flushPersist('silent');
+    await this.flushFullNormalizedToDisk();
     this.electronBootstrapComplete = true;
     return true;
   }
@@ -187,7 +198,7 @@ export class AppStateStore {
       const normalized = normalizeAppData(loaded);
       this.data.set(normalized);
       if ((loaded.seedVersion ?? 0) < APP_DATA_SCHEMA_VERSION) {
-        await this.flushPersist('silent');
+        await this.flushFullNormalizedToDisk();
       }
       this.electronBootstrapComplete = true;
       return true;
@@ -208,24 +219,28 @@ export class AppStateStore {
     this.data.set(merged);
   }
 
-  /** Reload every section from disk (e.g. after restoring from system tray). */
+  /** Reload the full AppData blob from disk (one read — all sections). */
   async reloadAllFromDisk(): Promise<void> {
     const electron = window.electronAPI;
     if (!electron) return;
     const loaded = await electron.readData();
     if (!loaded) return;
-    const fromDisk = normalizeAppData(loaded);
-    let merged = this.data();
-    for (const section of APP_SECTIONS) {
-      merged = mergeSectionFromDisk(merged, fromDisk, section);
-    }
-    this.data.set(merged);
+    this.data.set(normalizeAppData(loaded));
+    // Memory now matches disk — drop stale dirty marks (callers must flush first).
+    this.persistDirty = false;
+    this.dirtySections.clear();
+    this.pendingNotify = 'silent';
+    this.pendingSavedMessage = undefined;
+    this.formSessionActive = false;
+    this.formSessionDirty = false;
+    this.formSessionSnapshot = null;
+    this.dirtyBeforeFormSession = false;
   }
 
   /**
    * Mark AppData dirty in memory. Does NOT write the shared/local file unless
    * notify === 'saved' (immediate flush) and no settings modal session is open.
-   * Call flushPersist on Done / Save / tab switch / close / minimize.
+   * Disk write: Save / Done / explicit flushPersist / full Quit.
    */
   async persist(notify: PersistNotify = 'memory', savedMessage?: string): Promise<void> {
     // Settings modals: never hit the network until Done / Discard — even if a
@@ -255,8 +270,8 @@ export class AppStateStore {
 
   /** Open a form-settings modal: snapshot memory so Discard can restore. */
   async beginFormSession(): Promise<void> {
-    // Write any prior Home/ETA edits first so Discard only reverts this modal.
-    await this.flushPersist('silent');
+    // Snapshot RAM only — no shared-folder write until Done / Quit (weak LAN).
+    this.dirtyBeforeFormSession = this.persistDirty || this.dirtySections.size > 0;
     this.formSessionActive = true;
     this.formSessionDirty = false;
     this.formSessionSnapshot = cloneAppData(this.data());
@@ -264,12 +279,17 @@ export class AppStateStore {
 
   /** Done — write to disk only if something changed. */
   async commitFormSession(savedMessage = 'Form changes saved'): Promise<void> {
-    const dirty = this.formSessionDirty || this.persistDirty;
+    const dirty = this.formSessionDirty || this.persistDirty || this.dirtyBeforeFormSession;
     this.formSessionActive = false;
     this.formSessionSnapshot = null;
     this.formSessionDirty = false;
+    this.dirtyBeforeFormSession = false;
     this.toast.cancelDebouncedSaved();
     if (!dirty) return;
+    // Modal edits usually belong to Settings (ports/ranks/packages/…).
+    this.dirtySections.add('settings');
+    const active = this.sectionLock.activeSection();
+    if (active) this.dirtySections.add(active);
     await this.flushPersist('saved', savedMessage);
   }
 
@@ -281,9 +301,16 @@ export class AppStateStore {
     this.formSessionActive = false;
     this.formSessionSnapshot = null;
     this.formSessionDirty = false;
-    this.persistDirty = false;
-    this.pendingNotify = 'silent';
-    this.pendingSavedMessage = undefined;
+    // Keep pre-modal unsaved section dirtiness (Home/Fuel/… edits still in RAM).
+    if (this.dirtyBeforeFormSession) {
+      this.persistDirty = true;
+    } else {
+      this.persistDirty = false;
+      this.dirtySections.clear();
+      this.pendingNotify = 'silent';
+      this.pendingSavedMessage = undefined;
+    }
+    this.dirtyBeforeFormSession = false;
     this.toast.cancelDebouncedSaved();
   }
 
@@ -292,24 +319,60 @@ export class AppStateStore {
     this.formSessionActive = false;
     this.formSessionSnapshot = null;
     this.formSessionDirty = false;
+    this.dirtyBeforeFormSession = false;
     this.toast.cancelDebouncedSaved();
   }
 
-  /** Write any pending changes now (navigation, quit, Done, Save). */
+  /**
+   * Schema upgrade / first localStorage seed: mark every section dirty so the
+   * normalized RAM blob is fully merged to disk (not only ship/outputSettings).
+   */
+  private async flushFullNormalizedToDisk(): Promise<void> {
+    for (const section of APP_SECTIONS) this.dirtySections.add(section);
+    this.persistDirty = true;
+    await this.flushPersist('silent');
+  }
+
+  /** Write any pending changes now (Done / Save / Quit / Refresh). */
   async flushPersist(notify?: PersistNotify, savedMessage?: string): Promise<void> {
     // Settings modal owns its write via commitFormSession — don't flush mid-edit
-    // (minimize/blur would otherwise persist before Done / Discard).
+    // (except full Quit — see flushPersistForQuit).
     if (this.formSessionActive && notify !== 'saved') {
       if (notify != null) this.queuePersist(notify, savedMessage);
       return;
     }
     if (notify != null) this.queuePersist(notify, savedMessage);
+    // dirtySections alone must still flush (hasPendingPersist can be true without
+    // persistDirty after a partial recovery path).
+    if (this.dirtySections.size > 0) this.persistDirty = true;
     if (!this.persistDirty && !this.persistInFlight) return;
     await this.runPersistCycle();
   }
 
+  /**
+   * Full Quit / force-quit: keep open settings-modal edits and write every
+   * dirty section to the shared folder before the on-close backup.
+   */
+  async flushPersistForQuit(): Promise<void> {
+    if (this.formSessionActive) {
+      this.formSessionActive = false;
+      this.formSessionSnapshot = null;
+      if (this.formSessionDirty || this.dirtyBeforeFormSession || this.persistDirty) {
+        this.dirtySections.add('settings');
+        const active = this.sectionLock.activeSection();
+        if (active) this.dirtySections.add(active);
+        this.persistDirty = true;
+      }
+      this.formSessionDirty = false;
+      this.dirtyBeforeFormSession = false;
+    }
+    await this.flushPersist('silent');
+  }
+
   private queuePersist(notify: PersistNotify, savedMessage?: string): void {
     this.persistDirty = true;
+    const section = this.sectionLock.activeSection();
+    if (section) this.dirtySections.add(section);
     const normalized = notify === 'memory' ? 'silent' : notify;
     this.pendingNotify = maxNotify(this.pendingNotify, normalized);
     if (savedMessage) this.pendingSavedMessage = savedMessage;
@@ -317,7 +380,7 @@ export class AppStateStore {
 
   /** True when memory has edits not yet written to disk. */
   hasPendingPersist(): boolean {
-    return this.persistDirty || !!this.persistInFlight;
+    return this.persistDirty || !!this.persistInFlight || this.dirtySections.size > 0;
   }
 
   private async runPersistCycle(): Promise<void> {
@@ -355,25 +418,32 @@ export class AppStateStore {
       if (notify !== 'silent') {
         this.toast.showError('Database is not ready — complete setup first');
       }
+      // Keep dirtiness — setup is not a successful write.
+      this.persistDirty = true;
       return;
     }
 
     const memory = { ...this.data(), seedVersion: APP_DATA_SCHEMA_VERSION };
-    const section = this.sectionLock.activeSection();
+    const sections = [...this.dirtySections];
+    const active = this.sectionLock.activeSection();
+    if (active && !sections.includes(active)) sections.push(active);
 
     if (electron) {
-      // Merge the active section into the on-disk blob so other PCs' edits
-      // to other tabs survive.
-      let toWrite: AppData = memory;
-      if (section) {
-        const loaded = await electron.readData();
-        const disk = normalizeAppData(loaded ?? createEmptyAppData());
-        toWrite = mergeSectionForSave(disk, memory, section);
-      }
+      // Merge every dirty section into the on-disk blob so edits made on
+      // other tabs before Save/Quit are not dropped (no tab-leave flush).
+      const loaded = await electron.readData();
+      const disk = normalizeAppData(loaded ?? createEmptyAppData());
+      const toWrite = mergeSectionsForSave(disk, memory, sections);
       const saved = await this.writeElectronData(toWrite);
-      if (!saved) return;
+      if (!saved) {
+        this.persistDirty = true;
+        return;
+      }
+      // Edits during the async write re-set persistDirty — keep their section marks.
+      if (!this.persistDirty) this.dirtySections.clear();
     } else {
       writeLocalStorage(STORAGE_KEY, JSON.stringify(memory));
+      if (!this.persistDirty) this.dirtySections.clear();
     }
     this.afterPersist(notify, savedMessage);
   }
@@ -476,7 +546,7 @@ export class AppStateStore {
       else this.toast.showSaved();
       return;
     }
-    // silent / debounced flushes (tab switch, minimize) — no toast spam
+    // silent flushes (Quit / Refresh) — no toast spam
   }
 
   /**

@@ -79,6 +79,8 @@ interface MasterFuelRow {
   robDmaMt: number | null;
   boilerMt: number | null;
   dmaConsM3: number | null;
+  /** From MASTER P formula ROUND(Q×d,1) or inferred mt/m³ — separate from FO H density. */
+  dmaDensity: number | null;
   boilerFm: number | null;
 }
 
@@ -123,7 +125,7 @@ function indexMasterRows(ws: ExcelJS.Worksheet): MasterIndex {
       fmMeAe,
       totalM3,
       totalMt,
-      density: densityFromTotalMtCell(row.getCell(8), totalMt, totalM3),
+      density: densityFromMtFormulaCell(row.getCell(8), totalMt, totalM3),
       meMt: periodNum(row.getCell(9), trustPeriodFormulas),
       aeMt: periodNum(row.getCell(10), trustPeriodFormulas),
       robRmdMt: cellNum1(row.getCell(11)),
@@ -133,6 +135,11 @@ function indexMasterRows(ws: ExcelJS.Worksheet): MasterIndex {
       robDmaMt: robNum(row.getCell(15), trustPeriodFormulas),
       boilerMt: periodNum(row.getCell(16), trustPeriodFormulas),
       dmaConsM3: periodNum(row.getCell(17), trustPeriodFormulas),
+      dmaDensity: densityFromMtFormulaCell(
+        row.getCell(16),
+        periodNum(row.getCell(16), trustPeriodFormulas),
+        periodNum(row.getCell(17), trustPeriodFormulas),
+      ),
       boilerFm: cellNum1(row.getCell(18)),
     };
     index.rows.push(entry);
@@ -186,9 +193,15 @@ function importFromCengSpine(
     const totalM3 = preferCeng(periodNum(row.getCell(7), trustPeriodFormulas), m?.totalM3);
     const totalMt = preferCeng(periodNum(row.getCell(8), trustPeriodFormulas), m?.totalMt);
     const density =
-      densityFromTotalMtCell(row.getCell(8), totalMt, totalM3) ??
+      densityFromMtFormulaCell(row.getCell(8), totalMt, totalM3) ??
       m?.density ??
       inferFuelDensityFromMtM3(totalMt, totalM3);
+    const boilerMt = preferCeng(periodNum(row.getCell(36), trustPeriodFormulas), m?.boilerMt);
+    const dmaConsM3 = m?.dmaConsM3 ?? null;
+    const dmaDensity =
+      m?.dmaDensity ??
+      densityFromMtFormulaCell(row.getCell(36), boilerMt, dmaConsM3) ??
+      inferFuelDensityFromMtM3(boilerMt, dmaConsM3);
 
     events.push(
       createEmptyFuelLogEvent({
@@ -211,8 +224,9 @@ function importFromCengSpine(
         bunkerRmdBioMt: m?.bunkerRmdBioMt ?? null,
         bunkerDmaMt: m?.bunkerDmaMt ?? null,
         robDmaMt: preferCeng(robNum(row.getCell(13), trustPeriodFormulas), m?.robDmaMt),
-        boilerMt: preferCeng(periodNum(row.getCell(36), trustPeriodFormulas), m?.boilerMt),
-        dmaConsM3: m?.dmaConsM3 ?? null,
+        boilerMt,
+        dmaDensity,
+        dmaConsM3,
         boilerFm: m?.boilerFm ?? null,
         meCounterRh: cellNum1(row.getCell(14)),
         meShapoliRev: cellNum1(row.getCell(15)),
@@ -269,6 +283,8 @@ function importFromMasterOnly(master: ExcelJS.Worksheet, warnings: string[]): Fu
     const trustPeriodFormulas = fmMeAe != null;
     const totalM3 = periodNum(row.getCell(7), trustPeriodFormulas);
     const totalMt = periodNum(row.getCell(8), trustPeriodFormulas);
+    const boilerMt = periodNum(row.getCell(16), trustPeriodFormulas);
+    const dmaConsM3 = periodNum(row.getCell(17), trustPeriodFormulas);
 
     events.push(
       createEmptyFuelLogEvent({
@@ -282,7 +298,7 @@ function importFromMasterOnly(master: ExcelJS.Worksheet, warnings: string[]): Fu
         fmMeAe,
         totalM3,
         totalMt,
-        density: densityFromTotalMtCell(row.getCell(8), totalMt, totalM3),
+        density: densityFromMtFormulaCell(row.getCell(8), totalMt, totalM3),
         meMt: periodNum(row.getCell(9), trustPeriodFormulas),
         aeMt: periodNum(row.getCell(10), trustPeriodFormulas),
         robRmdMt: cellNum1(row.getCell(11)),
@@ -290,8 +306,9 @@ function importFromMasterOnly(master: ExcelJS.Worksheet, warnings: string[]): Fu
         bunkerRmdBioMt: cellNum1(row.getCell(13)),
         bunkerDmaMt: cellNum1(row.getCell(14)),
         robDmaMt: robNum(row.getCell(15), trustPeriodFormulas),
-        boilerMt: periodNum(row.getCell(16), trustPeriodFormulas),
-        dmaConsM3: periodNum(row.getCell(17), trustPeriodFormulas),
+        boilerMt,
+        dmaDensity: densityFromMtFormulaCell(row.getCell(16), boilerMt, dmaConsM3),
+        dmaConsM3,
         boilerFm: cellNum1(row.getCell(18)),
         sourceRow: r,
       }),
@@ -334,6 +351,7 @@ function appendMasterOnlyRows(
         bunkerDmaMt: m.bunkerDmaMt,
         robDmaMt: m.robDmaMt,
         boilerMt: m.boilerMt,
+        dmaDensity: m.dmaDensity,
         dmaConsM3: m.dmaConsM3,
         boilerFm: m.boilerFm,
         sourceRow: m.sourceRow,
@@ -833,10 +851,10 @@ function flattenSharedFormulasOnRow(
 }
 
 /**
- * Parse density from Excel H formula `ROUND(G1094*0,88;1)` / `ROUND(G5*0.88,1)`,
- * else infer from mt/m³.
+ * Parse density from Excel mt formula `ROUND(G×0.88,1)` / `ROUND(Q×0.88,1)`
+ * (FO Total t H, or DMA TOTAL CONS P), else infer from mt/m³.
  */
-function densityFromTotalMtCell(
+function densityFromMtFormulaCell(
   cell: ExcelJS.Cell,
   totalMt: number | null,
   totalM3: number | null,

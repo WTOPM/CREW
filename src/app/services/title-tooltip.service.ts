@@ -86,7 +86,7 @@ export class TitleTooltipService {
         return null;
       }
       if (el.matches('input, textarea, select')) {
-        // Text fields may carry their own tip (e.g. Shift+F3 case cycle).
+        // Text fields may carry their own tip (density, column help, …).
         if (this.isTipTextField(el)) {
           const tip = el.getAttribute('title')?.trim() || el.dataset['appTip']?.trim();
           if (tip) return el;

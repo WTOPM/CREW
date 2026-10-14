@@ -12,8 +12,6 @@
   box-shadow: 0 4px 14px rgb(5 150 105 / 28%);
 }
 
-.data-backups-modal__lead,
-.data-backups-modal__target,
 .data-backups-modal__status {
   margin: 0.35rem 0 0;
   font-size: 0.82rem;
@@ -21,18 +19,16 @@
   line-height: 1.5;
 }
 
-.data-backups-modal__folder span {
-  display: block;
-  margin-top: 0.2rem;
-  word-break: break-all;
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 0.76rem;
+.data-backups-modal__folder {
+  margin: 0.35rem 0 0;
 }
 
-.data-backups-modal__target span {
+.data-backups-modal__folder span {
+  display: block;
   word-break: break-all;
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.76rem;
+  color: var(--text-muted);
 }
 
 .data-backups-modal__list {

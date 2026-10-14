@@ -22,7 +22,6 @@ export class DataBackupsModalComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
   protected readonly backups = signal<JsonBackupEntry[]>([]);
-  protected readonly dataFile = signal<string | null>(null);
   protected readonly backupsDir = signal<string | null>(null);
 
   ngOnInit(): void {
@@ -85,18 +84,15 @@ export class DataBackupsModalComponent implements OnInit {
 
   protected formatCategory(category?: string): string {
     switch (category) {
-      case 'pre-write-current':
-        return 'Pre-write · current hour';
-      case 'pre-write-previous':
-        return 'Pre-write · previous hour';
-      case 'pre-write':
-        return 'Pre-write';
       case 'on-close':
         return 'On close';
-      case 'on-tray':
-        return 'On tray';
       case 'safety':
         return 'Safety';
+      case 'pre-write':
+      case 'pre-write-current':
+      case 'pre-write-previous':
+      case 'on-tray':
+        return 'Legacy';
       default:
         return 'Backup';
     }
@@ -106,7 +102,6 @@ export class DataBackupsModalComponent implements OnInit {
     this.loading.set(true);
     try {
       const res = await this.backupsApi.list();
-      this.dataFile.set(res?.dataFile ?? null);
       this.backupsDir.set(res?.backupsDir ?? null);
       this.backups.set(res?.backups ?? []);
     } finally {

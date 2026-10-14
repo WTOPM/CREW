@@ -230,7 +230,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'robDma',
     label: 'ROB DMA',
-    tip: 'ROB of DMA / MGO (mt). Auto: previous − DMA/Boiler + bunker DMA.',
+    tip: 'ROB of DMA / MGO (mt). Auto: previous − DMA TOTAL CONS t (from F tank) + bunker DMA.',
     type: 'num',
     field: 'robDmaMt',
     numeric: true,
@@ -238,7 +238,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'dmaConsMt',
     label: 'DMA / Boiler t',
-    tip: 'DMA/Boiler consumption (mt). No density — t = m³. Linked to Boiler FM; debits ROB (F).',
+    tip: 'DMA TOTAL CONS mt = ROUND(m³ × density, 1) — default density 0.88 (D). Debits ROB via F.',
     type: 'num',
     field: 'boilerMt',
     tone: 'boiler',
@@ -247,7 +247,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'dmaConsM3',
     label: 'DMA m³',
-    tip: 'Period volume = this Boiler FM − previous (no density). Edit FM ↔ m³ ↔ t together.',
+    tip: 'DMA TOTAL CONS m³ = this Boiler FM − previous. Linked to FM ↔ mt via density.',
     type: 'num',
     field: 'dmaConsM3',
     tone: 'boiler',
@@ -256,7 +256,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'boilerFm',
     label: 'Boiler FM',
-    tip: 'Boiler flowmeter (MASTER R). Delta → DMA m³ and DMA/Boiler t (1:1, no density); ROB DMA falls.',
+    tip: 'Boiler flowmeter (MASTER R). Delta → DMA m³; mt = ROUND(m³ × density, 1); ROB falls (F).',
     type: 'num',
     field: 'boilerFm',
     tone: 'boiler',
@@ -649,8 +649,13 @@ export interface FuelLogEvent {
   density: number | null;
   meMt: number | null;
   aeMt: number | null;
-  /** DMA / boiler-side consumption mt (MASTER col P). */
+  /** DMA TOTAL CONS mt (MASTER col P) = ROUND(dmaConsM3 × dmaDensity, 1). */
   boilerMt: number | null;
+  /**
+   * Per-row density for DMA TOTAL CONS mt (Excel P ≈ ROUND(Q×density,1)).
+   * Separate from FO Total t density (H). Null → lastDmaDensity / default 0.88.
+   */
+  dmaDensity: number | null;
   robRmdMt: number | null;
   robB100Mt: number | null;
   bunkerRmdBioMt: number | null;
@@ -746,7 +751,7 @@ export interface FuelViewPrefs {
   limitCount: number;
 }
 
-export type FuelPageTab = 'view' | 'edit' | 'cyl';
+export type FuelPageTab = 'view' | 'edit';
 
 /**
  * Per-tab filter/layout on this PC (View and Edit are independent).
@@ -831,73 +836,10 @@ export interface FuelLibrarySettings {
   displayPresets: FuelDisplayPreset[];
   /** MASTER S1–AC4 snapshot (AUX / tanks) for read-only compare. */
   masterSummary: FuelMasterSummary | null;
-  /**
-   * Shared View↔Edit handoff (Excel “Updated” / date–port banner idea).
-   * View marks needs update + date/port; Edit fills values and marks done.
-   */
-  updatedHandoff: FuelUpdatedHandoff;
-  /**
-   * Cyl. Oil Consump. sheet — independent of Fuel Log MASTER/CENG.
-   * View snapshot + Edit draft (same pattern as events / editEvents).
-   */
-  fuelCylinder: FuelCylinderLibrary;
-  /** Last density used on Add / density HUD — default for new rows. */
+  /** Last FO Total t density used on Add / density HUD — default for new rows. */
   lastDensity: number | null;
-}
-
-/** Excel FO-VPC Cyl. Oil Consump. FM→liters factor (hardcoded in sheet F formula). */
-export const DEFAULT_FUEL_CYLINDER_FM_FACTOR = 0.5345379;
-
-/** One row from sheet “Cyl. Oil Consump.” (data from row 3). */
-export interface FuelCylinderRow {
-  id: string;
-  /** Excel row number (≥ 3). 0 = app-added, not yet on sheet. */
-  sourceRow: number;
-  date: string;
-  time: string;
-  place: string;
-  /** Col C — hours between dates (computed). */
-  hours: number | null;
-  /** Col D — cylinder oil flowmeter counter (input). */
-  flowmeter: number | null;
-  /** Col F — liters from FM delta × factor (computed). */
-  litersCalc: number | null;
-  /** Col G — actual liters used (input). */
-  litersUsed: number | null;
-  /** Col H — ROB liters (computed). */
-  robLiters: number | null;
-  /** Col I — bunker / receive liters (input, rare). */
-  receiveLiters: number | null;
-  writeStatus: FuelWriteStatus;
-}
-
-export interface FuelCylinderLibrary {
-  rows: FuelCylinderRow[];
-  editRows: FuelCylinderRow[];
-  editBaseline: FuelCylinderRow[];
-  editDirty: boolean;
-  /** FM delta → liters: ((ΔD)×factor)/1000 — Excel default 0.5345379. */
-  fmToLitersFactor: number;
-}
-
-/** Excel-style Updated banner status between View (request) and Edit (fill). */
-export type FuelUpdatedHandoffStatus = 'idle' | 'needs_update' | 'done';
-
-export interface FuelUpdatedHandoffItem {
-  id: string;
-  label: string;
-  value: string;
-}
-
-export interface FuelUpdatedHandoff {
-  status: FuelUpdatedHandoffStatus;
-  /** ISO date yyyy-mm-dd */
-  date: string;
-  port: string;
-  /** Parameter list (tanks / notes) — Edit fills, View can tweak. */
-  items: FuelUpdatedHandoffItem[];
-  note: string;
-  changedAt: string;
+  /** Last DMA TOTAL CONS density (separate from FO) — default for new rows. */
+  lastDmaDensity: number | null;
 }
 
 /** One AE line from MASTER S–V (KW / RH / KG). MT is a shared merged cell. */
@@ -1016,166 +958,6 @@ function normalizeFuelVisibleKinds(raw: readonly unknown[]): FuelEventKind[] {
   return out;
 }
 
-export function createDefaultFuelUpdatedHandoff(): FuelUpdatedHandoff {
-  return {
-    status: 'idle',
-    date: '',
-    port: '',
-    items: [],
-    note: '',
-    changedAt: '',
-  };
-}
-
-export function createDefaultFuelCylinderLibrary(): FuelCylinderLibrary {
-  return {
-    rows: [],
-    editRows: [],
-    editBaseline: [],
-    editDirty: false,
-    fmToLitersFactor: DEFAULT_FUEL_CYLINDER_FM_FACTOR,
-  };
-}
-
-export function createEmptyFuelCylinderRow(
-  partial: Partial<FuelCylinderRow> = {},
-): FuelCylinderRow {
-  const sourceRow =
-    typeof partial.sourceRow === 'number' && Number.isFinite(partial.sourceRow)
-      ? Math.max(0, Math.floor(partial.sourceRow))
-      : 0;
-  return {
-    id: String(partial.id ?? '').trim() || `cyl-${Date.now()}`,
-    sourceRow,
-    date: String(partial.date ?? '').trim(),
-    time: String(partial.time ?? '').trim() || '12:00',
-    place: String(partial.place ?? '').trim(),
-    hours: numOrNull(partial.hours),
-    flowmeter: numOrNull(partial.flowmeter),
-    litersCalc: numOrNull(partial.litersCalc),
-    litersUsed: numOrNull(partial.litersUsed),
-    robLiters: numOrNull(partial.robLiters),
-    receiveLiters: numOrNull(partial.receiveLiters),
-      writeStatus:
-      partial.writeStatus === 'ready' ||
-      partial.writeStatus === 'draft' ||
-      partial.writeStatus === 'synced'
-        ? partial.writeStatus
-        : sourceRow >= 3
-          ? 'synced'
-          : 'draft',
-  };
-}
-
-export function cloneFuelCylinderList(rows: readonly FuelCylinderRow[]): FuelCylinderRow[] {
-  return rows.map((r) => createEmptyFuelCylinderRow(r));
-}
-
-export function normalizeFuelCylinderFactor(raw: unknown): number {
-  const n = typeof raw === 'number' ? raw : Number(String(raw ?? '').replace(',', '.'));
-  if (!Number.isFinite(n) || n <= 0) return DEFAULT_FUEL_CYLINDER_FM_FACTOR;
-  return n;
-}
-
-export function normalizeFuelCylinderRowList(raw: unknown): FuelCylinderRow[] {
-  if (!Array.isArray(raw)) return [];
-  const out: FuelCylinderRow[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    out.push(createEmptyFuelCylinderRow(item as Partial<FuelCylinderRow>));
-  }
-  return out;
-}
-
-/**
- * Recompute C / F / H like Excel Cyl. Oil Consump.
- * hours = Δdate×24; litersCalc = (ΔFM×factor)/1000; ROB = prevROB − used + receive.
- */
-export function recomputeFuelCylinderChain(
-  rows: readonly FuelCylinderRow[],
-  factor: number = DEFAULT_FUEL_CYLINDER_FM_FACTOR,
-): FuelCylinderRow[] {
-  const f = normalizeFuelCylinderFactor(factor);
-  let prevDateMs: number | null = null;
-  let prevFm: number | null = null;
-  let prevRob: number | null = null;
-  return rows.map((row, idx) => {
-    const dateMs = fuelCylinderDateMs(row.date, row.time);
-    let hours: number | null = null;
-    if (idx === 0) {
-      hours = row.hours;
-    } else if (dateMs != null && prevDateMs != null && dateMs >= prevDateMs) {
-      hours = Math.round(((dateMs - prevDateMs) / 3_600_000) * 100) / 100;
-    }
-    let litersCalc: number | null = null;
-    if (idx === 0) {
-      litersCalc = row.litersCalc;
-    } else if (
-      row.flowmeter != null &&
-      prevFm != null &&
-      Number.isFinite(row.flowmeter) &&
-      row.flowmeter - prevFm > 0
-    ) {
-      litersCalc = Math.round((((row.flowmeter - prevFm) * f) / 1000) * 1_000_000) / 1_000_000;
-    }
-    const used = row.litersUsed;
-    const recv = row.receiveLiters != null && row.receiveLiters > 0 ? row.receiveLiters : 0;
-    let robLiters: number | null = null;
-    if (idx === 0) {
-      robLiters = row.robLiters;
-    } else if (prevRob != null && used != null && Number.isFinite(used)) {
-      robLiters = Math.round((prevRob - used + recv) * 10) / 10;
-    } else if (prevRob != null && (used == null || !Number.isFinite(used))) {
-      robLiters = Math.round((prevRob + recv) * 10) / 10;
-    }
-    if (dateMs != null) prevDateMs = dateMs;
-    if (row.flowmeter != null && Number.isFinite(row.flowmeter)) prevFm = row.flowmeter;
-    if (robLiters != null) prevRob = robLiters;
-    else if (idx === 0 && row.robLiters != null) prevRob = row.robLiters;
-    return createEmptyFuelCylinderRow({
-      ...row,
-      hours,
-      litersCalc,
-      robLiters,
-    });
-  });
-}
-
-function fuelCylinderDateMs(date: string, time: string): number | null {
-  const d = String(date ?? '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
-  const tm = String(time ?? '').trim() || '12:00';
-  const m = tm.match(/^(\d{1,2}):(\d{2})$/);
-  const hh = m ? Number(m[1]) : 12;
-  const mm = m ? Number(m[2]) : 0;
-  const ms = Date.parse(`${d}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`);
-  return Number.isFinite(ms) ? ms : null;
-}
-
-export function normalizeFuelCylinderLibrary(
-  raw: Partial<FuelCylinderLibrary> | null | undefined,
-): FuelCylinderLibrary {
-  const defaults = createDefaultFuelCylinderLibrary();
-  const factor = normalizeFuelCylinderFactor(raw?.fmToLitersFactor);
-  const rows = recomputeFuelCylinderChain(normalizeFuelCylinderRowList(raw?.rows), factor);
-  const hasEdit = Array.isArray(raw?.editRows);
-  const editRaw = hasEdit
-    ? normalizeFuelCylinderRowList(raw?.editRows)
-    : cloneFuelCylinderList(rows);
-  const editRows = recomputeFuelCylinderChain(editRaw, factor);
-  const hasBaseline = Array.isArray(raw?.editBaseline);
-  const editBaseline = hasBaseline
-    ? recomputeFuelCylinderChain(normalizeFuelCylinderRowList(raw?.editBaseline), factor)
-    : cloneFuelCylinderList(editRows);
-  return {
-    rows,
-    editRows,
-    editBaseline,
-    editDirty: raw?.editDirty === true,
-    fmToLitersFactor: factor,
-  };
-}
-
 export function createDefaultFuelLibrary(): FuelLibrarySettings {
   return {
     sourcePath: '',
@@ -1189,70 +971,9 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
     view: createDefaultFuelViewPrefs(),
     displayPresets: [],
     masterSummary: null,
-    updatedHandoff: createDefaultFuelUpdatedHandoff(),
-    fuelCylinder: createDefaultFuelCylinderLibrary(),
     lastDensity: FUEL_DEFAULT_DENSITY,
+    lastDmaDensity: FUEL_DEFAULT_DENSITY,
   };
-}
-
-export function normalizeFuelUpdatedHandoff(
-  raw: Partial<FuelUpdatedHandoff> | null | undefined,
-): FuelUpdatedHandoff {
-  const defaults = createDefaultFuelUpdatedHandoff();
-  const statusRaw = raw?.status;
-  const status: FuelUpdatedHandoffStatus =
-    statusRaw === 'needs_update' || statusRaw === 'done' || statusRaw === 'idle'
-      ? statusRaw
-      : 'idle';
-  const itemsRaw = Array.isArray(raw?.items) ? raw!.items : [];
-  const items: FuelUpdatedHandoffItem[] = [];
-  for (const item of itemsRaw) {
-    if (!item || typeof item !== 'object') continue;
-    const label = String((item as FuelUpdatedHandoffItem).label ?? '').trim();
-    const value = String((item as FuelUpdatedHandoffItem).value ?? '').trim();
-    const id = String((item as FuelUpdatedHandoffItem).id ?? '').trim() || `upd-${items.length + 1}`;
-    if (!label && !value) continue;
-    items.push({ id, label: label || `Item ${items.length + 1}`, value });
-  }
-  return {
-    status,
-    date: String(raw?.date ?? '').trim(),
-    port: String(raw?.port ?? '').trim(),
-    items,
-    note: String(raw?.note ?? '').trim(),
-    changedAt: String(raw?.changedAt ?? '').trim(),
-  };
-}
-
-/** Seed empty handoff list from MASTER S1–AC4 tank / AUX rows (shared labels). */
-export function seedFuelUpdatedHandoffItemsFromMaster(
-  summary: FuelMasterSummary | null | undefined,
-): FuelUpdatedHandoffItem[] {
-  if (!summary) return [];
-  const out: FuelUpdatedHandoffItem[] = [];
-  summary.tankHeaders.forEach((h, i) => {
-    const label = String(h ?? '').trim();
-    if (!label) return;
-    out.push({
-      id: `tank-${i}`,
-      label,
-      value: String(summary.tankValues[i] ?? '').trim(),
-    });
-  });
-  if (summary.mt.trim()) {
-    out.push({ id: 'aux-mt', label: 'AUX MT', value: summary.mt.trim() });
-  }
-  for (const [i, row] of summary.aeRows.entries()) {
-    const label = String(row.label ?? '').trim();
-    if (!label) continue;
-    const bits = [row.kw, row.rh, row.kg].map((x) => String(x ?? '').trim()).filter(Boolean);
-    out.push({
-      id: `ae-${i}`,
-      label,
-      value: bits.join(' / '),
-    });
-  }
-  return out;
 }
 
 /** Clamp / parse density (Excel range ~0.5–1.2). Keeps up to 3 decimals (typed). */
@@ -1312,6 +1033,31 @@ export function resolveFuelDensity(
     normalizeFuelDensity(preferred) ??
     FUEL_DEFAULT_DENSITY
   );
+}
+
+/**
+ * DMA TOTAL CONS density (MASTER P ≈ ROUND(Q×d,1)) — separate from FO H density.
+ */
+export function resolveDmaDensity(
+  row: Pick<FuelLogEvent, 'dmaDensity'> | null | undefined,
+  preferred?: number | null,
+): number {
+  return (
+    normalizeFuelDensity(row?.dmaDensity) ??
+    normalizeFuelDensity(preferred) ??
+    FUEL_DEFAULT_DENSITY
+  );
+}
+
+/** Reverse of Total/DMA t: m³ ≈ ROUND(mt / density, 1). */
+export function recomputeFuelM3FromMt(
+  totalMt: number | null | undefined,
+  density: number | null | undefined,
+): number | null {
+  if (totalMt == null || !Number.isFinite(totalMt)) return null;
+  const d = normalizeFuelDensity(density) ?? FUEL_DEFAULT_DENSITY;
+  if (d <= 0) return null;
+  return Math.round((totalMt / d) * 10) / 10;
 }
 
 /** Normalize a fuel-event list from persisted / import raw data. */
@@ -1399,6 +1145,7 @@ export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLo
       meMt: partial?.meMt ?? null,
       aeMt: partial?.aeMt ?? null,
       boilerMt: partial?.boilerMt ?? null,
+      dmaDensity: partial?.dmaDensity ?? null,
       robRmdMt: partial?.robRmdMt ?? null,
       robB100Mt: partial?.robB100Mt ?? null,
       bunkerRmdBioMt: partial?.bunkerRmdBioMt ?? null,
@@ -1475,6 +1222,8 @@ export function normalizeFuelLibrary(
     importedAt: String(raw?.importedAt ?? defaults.importedAt).trim(),
     lastDensity:
       normalizeFuelDensity(raw?.lastDensity) ?? defaults.lastDensity,
+    lastDmaDensity:
+      normalizeFuelDensity(raw?.lastDmaDensity) ?? defaults.lastDmaDensity,
     sheetName: String(raw?.sheetName ?? defaults.sheetName).trim(),
     events,
     editEvents,
@@ -1490,16 +1239,6 @@ export function normalizeFuelLibrary(
     },
     displayPresets: normalizeFuelDisplayPresets(raw?.displayPresets),
     masterSummary: normalizeFuelMasterSummary(raw?.masterSummary),
-    updatedHandoff: normalizeFuelUpdatedHandoff(
-      raw && 'updatedHandoff' in raw
-        ? (raw as FuelLibrarySettings).updatedHandoff
-        : undefined,
-    ),
-    fuelCylinder: normalizeFuelCylinderLibrary(
-      raw && 'fuelCylinder' in raw
-        ? (raw as FuelLibrarySettings).fuelCylinder
-        : undefined,
-    ),
   };
 }
 
@@ -1596,9 +1335,7 @@ export function normalizeFuelLocalUiPrefs(
     legacyCols,
   );
   const activeTab: FuelPageTab =
-    raw?.activeTab === 'edit' || raw?.activeTab === 'cyl' || raw?.activeTab === 'view'
-      ? raw.activeTab
-      : 'view';
+    raw?.activeTab === 'edit' ? 'edit' : 'view';
   return {
     visibleColumns: [...viewTab.visibleColumns],
     hoursAsHm: raw?.hoursAsHm === true,
@@ -1753,6 +1490,7 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
     meMt: numOrNull(e.meMt),
     aeMt: numOrNull(e.aeMt),
     boilerMt: numOrNull(e.boilerMt),
+    dmaDensity: normalizeFuelDensity(e.dmaDensity),
     robRmdMt: numOrNull(e.robRmdMt),
     robB100Mt: numOrNull(e.robB100Mt),
     bunkerRmdBioMt: numOrNull(e.bunkerRmdBioMt),
@@ -1995,46 +1733,104 @@ export function recomputeFuelFmFromTotalM3(
 }
 
 /**
- * Boiler / DMA period (no density): m³ = FMₙ − FMₙ₋₁, t = m³ (1:1).
- * Editing any side keeps FM ↔ m³ ↔ t in sync.
+ * Boiler / DMA period (Excel P/Q/R):
+ *   m³ = FMₙ − FMₙ₋₁
+ *   mt = ROUND(m³ × dmaDensity, 1)  — same idea as H = ROUND(G×0.88,1)
+ * Editing FM / m³ / mt / density keeps the chain in sync.
  */
 export function syncFuelBoilerDmaPeriod(
-  draft: Pick<FuelLogEvent, 'boilerFm' | 'dmaConsM3' | 'boilerMt'>,
+  draft: Pick<FuelLogEvent, 'boilerFm' | 'dmaConsM3' | 'boilerMt' | 'dmaDensity'>,
   previousBoilerFm: number | null | undefined,
-  edited: 'boilerFm' | 'dmaConsM3' | 'boilerMt',
-): Pick<FuelLogEvent, 'boilerFm' | 'dmaConsM3' | 'boilerMt'> {
+  edited: 'boilerFm' | 'dmaConsM3' | 'boilerMt' | 'dmaDensity',
+  preferredDensity?: number | null,
+): Pick<FuelLogEvent, 'boilerFm' | 'dmaConsM3' | 'boilerMt' | 'dmaDensity'> {
+  const dmaDensity = resolveDmaDensity(draft, preferredDensity);
+
+  if (edited === 'dmaDensity') {
+    const m3 = draft.dmaConsM3;
+    if (m3 == null) {
+      return {
+        boilerFm: draft.boilerFm,
+        dmaConsM3: draft.dmaConsM3,
+        boilerMt: draft.boilerMt,
+        dmaDensity,
+      };
+    }
+    return {
+      boilerFm: draft.boilerFm,
+      dmaConsM3: m3,
+      boilerMt: recomputeFuelTotalMtFromM3(m3, dmaDensity),
+      dmaDensity,
+    };
+  }
+
   if (edited === 'boilerFm') {
     if (draft.boilerFm == null) {
-      return { boilerFm: null, dmaConsM3: null, boilerMt: null };
+      return { boilerFm: null, dmaConsM3: null, boilerMt: null, dmaDensity };
     }
     const m3 = recomputeFuelTotalM3FromFm(draft.boilerFm, previousBoilerFm);
     if (m3 == null) {
-      return { boilerFm: draft.boilerFm, dmaConsM3: draft.dmaConsM3, boilerMt: draft.boilerMt };
+      return {
+        boilerFm: draft.boilerFm,
+        dmaConsM3: draft.dmaConsM3,
+        boilerMt: draft.boilerMt,
+        dmaDensity,
+      };
     }
-    return { boilerFm: draft.boilerFm, dmaConsM3: m3, boilerMt: m3 };
+    return {
+      boilerFm: draft.boilerFm,
+      dmaConsM3: m3,
+      boilerMt: recomputeFuelTotalMtFromM3(m3, dmaDensity),
+      dmaDensity,
+    };
   }
 
-  const period =
-    edited === 'dmaConsM3'
-      ? draft.dmaConsM3 == null
-        ? null
-        : roundFuelMt1(Math.max(0, draft.dmaConsM3))
-      : draft.boilerMt == null
-        ? null
-        : roundFuelMt1(Math.max(0, draft.boilerMt));
+  if (edited === 'dmaConsM3') {
+    const m3 =
+      draft.dmaConsM3 == null ? null : roundFuelMt1(Math.max(0, draft.dmaConsM3));
+    if (m3 == null) {
+      return {
+        boilerFm: draft.boilerFm,
+        dmaConsM3: null,
+        boilerMt: null,
+        dmaDensity,
+      };
+    }
+    const fm = recomputeFuelFmFromTotalM3(previousBoilerFm, m3);
+    return {
+      boilerFm: fm ?? draft.boilerFm,
+      dmaConsM3: m3,
+      boilerMt: recomputeFuelTotalMtFromM3(m3, dmaDensity),
+      dmaDensity,
+    };
+  }
 
-  if (period == null) {
+  // edited === 'boilerMt'
+  const mt =
+    draft.boilerMt == null ? null : roundFuelMt1(Math.max(0, draft.boilerMt));
+  if (mt == null) {
     return {
       boilerFm: draft.boilerFm,
       dmaConsM3: null,
       boilerMt: null,
+      dmaDensity,
     };
   }
-  const fm = recomputeFuelFmFromTotalM3(previousBoilerFm, period);
+  const m3 = recomputeFuelM3FromMt(mt, dmaDensity);
+  if (m3 == null) {
+    return {
+      boilerFm: draft.boilerFm,
+      dmaConsM3: draft.dmaConsM3,
+      boilerMt: mt,
+      dmaDensity,
+    };
+  }
+  const fm = recomputeFuelFmFromTotalM3(previousBoilerFm, m3);
   return {
     boilerFm: fm ?? draft.boilerFm,
-    dmaConsM3: period,
-    boilerMt: period,
+    dmaConsM3: m3,
+    boilerMt: recomputeFuelTotalMtFromM3(m3, dmaDensity) ?? mt,
+    dmaDensity,
   };
 }
 
@@ -2063,13 +1859,16 @@ export function fillMissingPeriodTotals(events: readonly FuelLogEvent[]): FuelLo
         next = { ...next, totalMt: mt, density: next.density ?? density };
       }
     }
-    // Boiler/DMA: no density — m³ = FM delta, t = m³.
+    // Boiler/DMA: m³ = FM delta; mt = ROUND(m³ × dmaDensity, 1).
+    const dmaDensity = resolveDmaDensity(next, null);
+    if (next.dmaDensity == null) next = { ...next, dmaDensity };
     if (next.dmaConsM3 == null) {
       const m3 = recomputeFuelTotalM3FromFm(next.boilerFm, prevBoilerFm);
       if (m3 != null) next = { ...next, dmaConsM3: m3 };
     }
     if (next.boilerMt == null && next.dmaConsM3 != null) {
-      next = { ...next, boilerMt: next.dmaConsM3 };
+      const mt = recomputeFuelTotalMtFromM3(next.dmaConsM3, dmaDensity);
+      if (mt != null) next = { ...next, boilerMt: mt };
     }
     patched.set(e.id, next === e ? e : createEmptyFuelLogEvent(next));
     if (next.fmMeAe != null) prevFm = next.fmMeAe;
@@ -2391,20 +2190,22 @@ function advanceFmFromConsumption(
   return { ...draft, fmMeAe: fm, totalM3: periodM3 };
 }
 
-/** Same idea for Boiler FM ↔ DMA period (t = m³, no density). */
+/** Advance Boiler FM from DMA period m³ (or mt÷density) when the meter still equals previous. */
 function advanceBoilerFmFromConsumption(
   draft: FuelLogEvent,
   previousBoilerFm: number | null | undefined,
+  preferredDmaDensity?: number | null,
 ): FuelLogEvent {
   if (previousBoilerFm == null || !Number.isFinite(previousBoilerFm)) return draft;
 
-  const period =
-    draft.dmaConsM3 != null && Number.isFinite(draft.dmaConsM3) && draft.dmaConsM3 > 0
-      ? draft.dmaConsM3
-      : draft.boilerMt != null && Number.isFinite(draft.boilerMt) && draft.boilerMt > 0
-        ? draft.boilerMt
-        : null;
-  if (period == null) return draft;
+  const dmaDensity = resolveDmaDensity(draft, preferredDmaDensity);
+  let periodM3: number | null = null;
+  if (draft.dmaConsM3 != null && Number.isFinite(draft.dmaConsM3) && draft.dmaConsM3 > 0) {
+    periodM3 = draft.dmaConsM3;
+  } else if (draft.boilerMt != null && Number.isFinite(draft.boilerMt) && draft.boilerMt > 0) {
+    periodM3 = recomputeFuelM3FromMt(draft.boilerMt, dmaDensity);
+  }
+  if (periodM3 == null) return draft;
 
   const fmDelta = recomputeFuelTotalM3FromFm(draft.boilerFm, previousBoilerFm);
   const fmStale =
@@ -2414,13 +2215,15 @@ function advanceBoilerFmFromConsumption(
     fmDelta === 0;
   if (!fmStale) return draft;
 
-  const fm = recomputeFuelFmFromTotalM3(previousBoilerFm, period);
+  const fm = recomputeFuelFmFromTotalM3(previousBoilerFm, periodM3);
   if (fm == null) return draft;
+  const mt = recomputeFuelTotalMtFromM3(periodM3, dmaDensity);
   return {
     ...draft,
     boilerFm: fm,
-    dmaConsM3: draft.dmaConsM3 ?? period,
-    boilerMt: draft.boilerMt ?? period,
+    dmaConsM3: draft.dmaConsM3 ?? periodM3,
+    boilerMt: draft.boilerMt ?? mt,
+    dmaDensity: draft.dmaDensity ?? dmaDensity,
   };
 }
 
@@ -2436,6 +2239,7 @@ export function applyFuelEventAutoCalcs(
   previous: FuelLogEvent | null | undefined,
   beforePrevious?: FuelLogEvent | null,
   preferredDensity?: number | null,
+  preferredDmaDensity?: number | null,
 ): FuelLogEvent {
   let next = { ...draft, kind: classifyFuelEvent(draft.rawEvent) };
   if (previous?.date && next.date) {
@@ -2463,16 +2267,22 @@ export function applyFuelEventAutoCalcs(
     }
   }
 
-  // Boiler/DMA: no density — period m³ = FM delta, t = m³.
-  // If Add set boiler t/m³ while Boiler FM still equals previous, advance FM.
-  next = advanceBoilerFmFromConsumption(next, previous?.boilerFm);
+  // Boiler/DMA: m³ = FM delta; mt = ROUND(m³ × dmaDensity, 1) — separate from FO density.
+  const preferredDma = preferredDmaDensity ?? preferredDensity;
+  next = {
+    ...next,
+    dmaDensity: next.dmaDensity ?? resolveDmaDensity(next, preferredDma),
+  };
+  next = advanceBoilerFmFromConsumption(next, previous?.boilerFm, preferredDma);
   if (next.dmaConsM3 == null || next.boilerMt == null) {
     const dmaM3 = recomputeFuelTotalM3FromFm(next.boilerFm, previous?.boilerFm);
     if (dmaM3 != null) {
+      const dmaD = resolveDmaDensity(next, preferredDma);
       next = {
         ...next,
         dmaConsM3: next.dmaConsM3 ?? dmaM3,
-        boilerMt: next.boilerMt ?? dmaM3,
+        boilerMt: next.boilerMt ?? recomputeFuelTotalMtFromM3(dmaM3, dmaD),
+        dmaDensity: next.dmaDensity ?? dmaD,
       };
     }
   }

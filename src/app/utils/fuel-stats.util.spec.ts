@@ -26,6 +26,7 @@ function row(
     meMt: null,
     aeMt: null,
     boilerMt: null,
+    dmaDensity: null,
     robRmdMt: null,
     robB100Mt: null,
     bunkerRmdBioMt: null,

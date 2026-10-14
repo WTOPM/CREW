@@ -28,6 +28,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('app-window-active', listener);
     return () => ipcRenderer.removeListener('app-window-active', listener);
   },
+  /** Full Quit: flush RAM to crew-data.json, then ack so main can copy the backup. */
+  onPrepareQuit: (callback) => {
+    const listener = () => {
+      Promise.resolve()
+        .then(() => callback())
+        .catch(() => undefined)
+        .finally(() => {
+          ipcRenderer.send('app-prepare-quit-done');
+        });
+    };
+    ipcRenderer.on('app-prepare-quit', listener);
+    return () => ipcRenderer.removeListener('app-prepare-quit', listener);
+  },
   openGpsFloat: (payload) => ipcRenderer.invoke('gps-float-open', payload),
   closeGpsFloat: () => ipcRenderer.invoke('gps-float-close'),
   isGpsFloatOpen: () => ipcRenderer.invoke('gps-float-is-open'),

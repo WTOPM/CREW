@@ -186,11 +186,11 @@ export class ElectronLocalPrefsService {
             ? next.fuelUtcOffsetHours
             : prevUi.utcOffsetHours,
         activeTab:
-          next.fuelActiveTab === 'edit' ||
-          next.fuelActiveTab === 'view' ||
-          next.fuelActiveTab === 'cyl'
-            ? next.fuelActiveTab
-            : prevUi.activeTab,
+          next.fuelActiveTab === 'edit'
+            ? 'edit'
+            : next.fuelActiveTab === 'view' || next.fuelActiveTab === 'cyl'
+              ? 'view'
+              : prevUi.activeTab,
         tabs: tabsFromDisk as FuelLocalUiPrefs['tabs'],
         tabsReady:
           typeof tabBundle?.tabsReady === 'boolean' ? tabBundle.tabsReady : prevUi.tabsReady,

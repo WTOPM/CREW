@@ -74,13 +74,16 @@ function registerAppProtocol() {
 }
 
 const DATA_FILE = 'crew-data.json';
-const BACKUP_PRE_WRITE_CURRENT = 'crew-data-pre-write-current-hour.json';
-const BACKUP_PRE_WRITE_PREVIOUS = 'crew-data-pre-write-previous-hour.json';
-const BACKUP_PRE_WRITE_META = '.pre-write-meta.json';
-const MAX_ON_CLOSE_BACKUPS = 10;
-const MAX_ON_TRAY_BACKUPS = 10;
+/** Local JSON copies kept only on full app quit (last N). */
+const MAX_ON_CLOSE_BACKUPS = 5;
+/** Rare safety copies (restore / shrink guard) — not routine autosaves. */
 const MAX_SAFETY_BACKUPS = 5;
-const QUIT_BACKUP_DELAY_MS = 1800;
+/**
+ * Wait for renderer flush before copying crew-data.json on quit.
+ * Shared-folder writes on a weak LAN can take many seconds — do not cut off
+ * early or the on-close backup may snapshot a stale file.
+ */
+const QUIT_FLUSH_TIMEOUT_MS = 45_000;
 
 /**
  * The folder that holds the .exe at runtime.
@@ -353,11 +356,6 @@ function getMachineBackupsDir() {
   return dir;
 }
 
-function backupHourKey(date = new Date()) {
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}`;
-}
-
 function backupTimestamp() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
@@ -377,8 +375,6 @@ function listBackupFiles(dir) {
 }
 
 function backupCategory(fileName) {
-  if (fileName === BACKUP_PRE_WRITE_CURRENT) return 'pre-write-current';
-  if (fileName === BACKUP_PRE_WRITE_PREVIOUS) return 'pre-write-previous';
   if (fileName.endsWith('-on-close.json') || fileName.endsWith('-on-quit.json')) {
     return 'on-close';
   }
@@ -388,10 +384,22 @@ function backupCategory(fileName) {
   if (fileName.includes('-pre-restore') || fileName.includes('-blocked-shrink')) {
     return 'safety';
   }
-  if (fileName.includes('-pre-write')) {
+  if (
+    fileName.includes('-pre-write') ||
+    fileName === 'crew-data-pre-write-current-hour.json' ||
+    fileName === 'crew-data-pre-write-previous-hour.json'
+  ) {
     return 'pre-write';
   }
   return 'other';
+}
+
+function unlinkQuiet(filePath) {
+  try {
+    fs.unlinkSync(filePath);
+  } catch {
+    /* ignore */
+  }
 }
 
 function pruneBackupsBySuffix(dir, suffix, maxCount) {
@@ -399,76 +407,27 @@ function pruneBackupsBySuffix(dir, suffix, maxCount) {
     .filter((f) => f.fileName.endsWith(suffix))
     .sort((a, b) => b.modifiedAt - a.modifiedAt);
   for (const file of files.slice(maxCount)) {
-    try {
-      fs.unlinkSync(file.path);
-    } catch {
-      /* ignore */
-    }
+    unlinkQuiet(file.path);
   }
 }
 
-function readPreWriteMeta(dir) {
-  const metaPath = path.join(dir, BACKUP_PRE_WRITE_META);
-  if (!fs.existsSync(metaPath)) return { hourKey: null, lastCopyAt: null };
-  try {
-    const raw = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-    return {
-      hourKey: typeof raw?.hourKey === 'string' ? raw.hourKey : null,
-      lastCopyAt: typeof raw?.lastCopyAt === 'number' ? raw.lastCopyAt : null,
-    };
-  } catch {
-    return { hourKey: null, lastCopyAt: null };
-  }
-}
-
-function writePreWriteMeta(dir, hourKey, lastCopyAt = Date.now()) {
-  const metaPath = path.join(dir, BACKUP_PRE_WRITE_META);
-  fs.writeFileSync(
-    metaPath,
-    JSON.stringify({ hourKey, lastCopyAt, updatedAt: Date.now() }, null, 2),
-    'utf-8',
-  );
-}
-
-function createPreWriteBackup(source) {
-  const dir = getMachineBackupsDir();
-  const hourKey = backupHourKey();
-  const currentPath = path.join(dir, BACKUP_PRE_WRITE_CURRENT);
-  const previousPath = path.join(dir, BACKUP_PRE_WRITE_PREVIOUS);
-  const meta = readPreWriteMeta(dir);
-  const now = Date.now();
-  // Typing can save often — don't copy multi‑MB file every time (90s on network shares).
-  const minIntervalMs = 90_000;
-  if (
-    meta.hourKey === hourKey &&
-    typeof meta.lastCopyAt === 'number' &&
-    now - meta.lastCopyAt < minIntervalMs &&
-    fs.existsSync(currentPath)
-  ) {
-    return currentPath;
-  }
-
-  if (meta.hourKey && meta.hourKey !== hourKey) {
-    if (fs.existsSync(currentPath)) {
-      fs.copyFileSync(currentPath, previousPath);
+/** Drop legacy pre-write / tray autosaves; keep only the newest on-close copies. */
+function pruneRoutineBackups(dir) {
+  for (const file of listBackupFiles(dir)) {
+    const cat = backupCategory(file.fileName);
+    if (cat === 'pre-write' || cat === 'on-tray') {
+      unlinkQuiet(file.path);
     }
   }
-
-  fs.copyFileSync(source, currentPath);
-  writePreWriteMeta(dir, hourKey, now);
-
-  for (const f of fs.readdirSync(dir)) {
-    if (f.startsWith('crew-data-') && f.endsWith('-pre-write.json')) {
-      try {
-        fs.unlinkSync(path.join(dir, f));
-      } catch {
-        /* ignore */
-      }
-    }
+  unlinkQuiet(path.join(dir, '.pre-write-meta.json'));
+  pruneBackupsBySuffix(dir, '-on-close.json', MAX_ON_CLOSE_BACKUPS);
+  // Old -on-quit.json renamed to on-close; drop leftovers beyond the limit.
+  const quitLegacy = listBackupFiles(dir)
+    .filter((f) => f.fileName.endsWith('-on-quit.json'))
+    .sort((a, b) => b.modifiedAt - a.modifiedAt);
+  for (const file of quitLegacy) {
+    unlinkQuiet(file.path);
   }
-
-  logDataPathDiagnostics(`backup:pre-write -> ${currentPath}`);
-  return currentPath;
 }
 
 function createTimedMachineJsonBackup(tag, maxCount) {
@@ -486,26 +445,26 @@ function createTimedMachineJsonBackup(tag, maxCount) {
   return dest;
 }
 
+/**
+ * Routine backup: only on full quit (`on-close`).
+ * Safety tags still used for restore / shrink guard.
+ */
 function createMachineJsonBackup(tag) {
   const source = getDataFilePath();
   if (!fs.existsSync(source)) return null;
   const stat = fs.statSync(source);
   if (stat.size < 4) return null;
 
-  if (tag === 'pre-write') {
-    return createPreWriteBackup(source);
-  }
   if (tag === 'on-close' || tag === 'on-quit') {
-    return createTimedMachineJsonBackup('on-close', MAX_ON_CLOSE_BACKUPS);
-  }
-  if (tag === 'on-tray') {
-    return createTimedMachineJsonBackup('on-tray', MAX_ON_TRAY_BACKUPS);
+    const dest = createTimedMachineJsonBackup('on-close', MAX_ON_CLOSE_BACKUPS);
+    pruneRoutineBackups(getMachineBackupsDir());
+    return dest;
   }
   if (tag === 'pre-restore' || tag === 'blocked-shrink') {
     return createTimedMachineJsonBackup(tag, MAX_SAFETY_BACKUPS);
   }
-
-  return createTimedMachineJsonBackup(tag, MAX_SAFETY_BACKUPS);
+  // Ignore pre-write / on-tray / unknown routine tags.
+  return null;
 }
 
 function guardShrinkBeforeWrite(data) {
@@ -589,9 +548,11 @@ function readLocalPrefs() {
           ? parsed.fuelUtcOffsetHours
           : undefined,
       fuelActiveTab:
-        parsed.fuelActiveTab === 'edit' || parsed.fuelActiveTab === 'view' || parsed.fuelActiveTab === 'cyl'
-          ? parsed.fuelActiveTab
-          : undefined,
+        parsed.fuelActiveTab === 'edit'
+          ? 'edit'
+          : parsed.fuelActiveTab === 'view' || parsed.fuelActiveTab === 'cyl'
+            ? 'view'
+            : undefined,
       fuelTabPrefs:
         parsed.fuelTabPrefs && typeof parsed.fuelTabPrefs === 'object'
           ? parsed.fuelTabPrefs
@@ -615,7 +576,38 @@ let mainWindow = null;
 let tray = null;
 let appIsQuitting = false;
 let quitBackupDone = false;
+let quitBackupInFlight = false;
 let minimizeToTrayEnabled = false;
+
+/**
+ * Ask the Angular app to flush pending RAM edits to crew-data.json before we
+ * copy the on-close backup. Window may already be hidden (tray Quit).
+ */
+function requestRendererFlushForQuit() {
+  return new Promise((resolve) => {
+    const win = mainWindow;
+    if (!win || win.isDestroyed() || !win.webContents || win.webContents.isDestroyed()) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      ipcMain.removeListener('app-prepare-quit-done', onDone);
+      resolve();
+    };
+    const onDone = () => finish();
+    const timer = setTimeout(finish, QUIT_FLUSH_TIMEOUT_MS);
+    ipcMain.once('app-prepare-quit-done', onDone);
+    try {
+      win.webContents.send('app-prepare-quit');
+    } catch {
+      finish();
+    }
+  });
+}
 /** Independent always-on-top GPS editor (not parented to main). */
 let gpsFloatWindow = null;
 let gpsFloatOwnerWebContentsId = null;
@@ -674,13 +666,9 @@ function applyMinimizeToTrayPref(enabled) {
   }
 }
 
-function hideMainWindowToTray(backupTag) {
+function hideMainWindowToTray() {
   if (!mainWindow || !minimizeToTrayEnabled) return;
-  try {
-    createMachineJsonBackup(backupTag);
-  } catch (err) {
-    console.error('Tray backup failed', err);
-  }
+  // No JSON backup here — copies are only taken on full Quit.
   mainWindow.hide();
   notifyMainWindowActive(mainWindow);
 }
@@ -707,13 +695,13 @@ function attachTrayWindowHandlers(win) {
     notifyMainWindowActive(win);
     if (!minimizeToTrayEnabled) return;
     event.preventDefault();
-    hideMainWindowToTray('on-tray');
+    hideMainWindowToTray();
   });
 
   win.on('close', (event) => {
     if (!minimizeToTrayEnabled || appIsQuitting) return;
     event.preventDefault();
-    hideMainWindowToTray('on-close');
+    hideMainWindowToTray();
   });
 
   win.on('restore', () => notifyMainWindowActive(win));
@@ -882,7 +870,6 @@ ipcMain.handle('read-data', () => {
 ipcMain.handle('write-data', (_event, data) => {
   ensureDataDir();
   guardShrinkBeforeWrite(data);
-  createMachineJsonBackup('pre-write');
   writeDataFile(data);
 });
 
@@ -957,6 +944,7 @@ ipcMain.handle('list-json-backups', () => {
   if (!fs.existsSync(dir)) {
     return { backupsDir: dir, dataFile: getDataFilePath(), backups: [] };
   }
+  pruneRoutineBackups(dir);
   const backups = listBackupFiles(dir)
     .map((f) => ({
       fileName: f.fileName,
@@ -1876,9 +1864,8 @@ ipcMain.handle('quit-app', () => {
   appIsQuitting = true;
   destroyTray();
   destroyGpsFloatWindow();
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) win.destroy();
-  }
+  // Keep the main BrowserWindow alive so before-quit can flush RAM → disk
+  // and write the on-close JSON backup before the process exits.
   app.quit();
   return { ok: true };
 });
@@ -2067,11 +2054,7 @@ ipcMain.handle('set-local-prefs', (_event, patch) => {
   if (typeof patch?.fuelUtcOffsetHours === 'number' && Number.isFinite(patch.fuelUtcOffsetHours)) {
     next.fuelUtcOffsetHours = patch.fuelUtcOffsetHours;
   }
-  if (
-    patch?.fuelActiveTab === 'view' ||
-    patch?.fuelActiveTab === 'edit' ||
-    patch?.fuelActiveTab === 'cyl'
-  ) {
+  if (patch?.fuelActiveTab === 'view' || patch?.fuelActiveTab === 'edit') {
     next.fuelActiveTab = patch.fuelActiveTab;
   }
   if (patch?.fuelTabPrefs && typeof patch.fuelTabPrefs === 'object') {
@@ -2112,12 +2095,20 @@ if (gotSingleInstanceLock) {
     appIsQuitting = true;
     if (quitBackupDone) return;
     event.preventDefault();
-    try {
-      createMachineJsonBackup('on-close');
-    } catch (err) {
-      console.error('Quit backup failed', err);
-    }
-    quitBackupDone = true;
-    setTimeout(() => app.quit(), QUIT_BACKUP_DELAY_MS);
+    if (quitBackupInFlight) return;
+    quitBackupInFlight = true;
+    void (async () => {
+      try {
+        // Let the renderer flush RAM → crew-data.json first, then copy locally.
+        await requestRendererFlushForQuit();
+        createMachineJsonBackup('on-close');
+      } catch (err) {
+        console.error('Quit backup failed', err);
+      } finally {
+        quitBackupDone = true;
+        quitBackupInFlight = false;
+        app.quit();
+      }
+    })();
   });
 }

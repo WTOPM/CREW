@@ -1,8 +1,5 @@
 import { Injectable, inject, DestroyRef, DOCUMENT } from '@angular/core';
-import {
-  TEXT_CASE_HOTKEY_HINT,
-  nextTextCase,
-} from '../utils/text-case.util';
+import { nextTextCase } from '../utils/text-case.util';
 
 const SKIP_INPUT_TYPES = new Set([
   'button',
@@ -24,9 +21,7 @@ const SKIP_INPUT_TYPES = new Set([
   'week',
 ]);
 
-/**
- * App-wide Shift+F3 case cycle for focused text fields + hover hint on those fields.
- */
+/** App-wide Shift+F3 case cycle for focused text fields (no UI chrome / footer tip). */
 @Injectable({ providedIn: 'root' })
 export class TextCaseHotkeyService {
   private readonly doc = inject(DOCUMENT);
@@ -38,29 +33,10 @@ export class TextCaseHotkeyService {
     this.installed = true;
 
     const onKey = (e: KeyboardEvent) => this.onKeyDown(e);
-    const onFocus = (e: FocusEvent) => this.onFocusIn(e);
     this.doc.addEventListener('keydown', onKey, true);
-    this.doc.addEventListener('focusin', onFocus, true);
     this.destroyRef.onDestroy(() => {
       this.doc.removeEventListener('keydown', onKey, true);
-      this.doc.removeEventListener('focusin', onFocus, true);
     });
-  }
-
-  private onFocusIn(event: FocusEvent): void {
-    const el = this.asTextField(event.target);
-    if (!el || el.dataset['caseHint'] === '1') return;
-    el.dataset['caseHint'] = '1';
-    const prev = (el.getAttribute('title') || el.dataset['appTip'] || '').trim();
-    const next = prev
-      ? prev.includes('Shift+F3')
-        ? prev
-        : `${prev} · ${TEXT_CASE_HOTKEY_HINT}`
-      : TEXT_CASE_HOTKEY_HINT;
-    el.setAttribute('title', next);
-    if (el.dataset['appTip'] != null) {
-      el.dataset['appTip'] = next;
-    }
   }
 
   private onKeyDown(event: KeyboardEvent): void {

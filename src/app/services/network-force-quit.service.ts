@@ -76,7 +76,7 @@ export class NetworkForceQuitService {
 
     try {
       this.etaStore.flushPersist('silent');
-      await this.state.flushPersist('silent');
+      await this.state.flushPersistForQuit();
     } catch {
       /* still quit */
     }

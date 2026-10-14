@@ -72,145 +72,72 @@
 .fuel-page-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.35rem;
   margin: 0 0 0.85rem;
-  padding: 0.2rem;
-  border: 1px solid #fde68a;
-  border-radius: 12px;
-  background: #fffbeb;
+  padding: 0.28rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f1f5f9;
+  box-shadow: inset 0 1px 2px rgb(15 23 42 / 4%);
 }
 
 .fuel-page-tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 5.5rem;
-  padding: 0.55rem 1.15rem;
+  min-width: 5.75rem;
+  padding: 0.58rem 1.2rem;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
-  color: #78716c;
+  color: #94a3b8;
   cursor: pointer;
   font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   line-height: 1;
   text-align: center;
+  opacity: 0.72;
   transition:
     background 0.12s ease,
     border-color 0.12s ease,
     color 0.12s ease,
-    box-shadow 0.12s ease;
+    box-shadow 0.12s ease,
+    opacity 0.12s ease,
+    transform 0.12s ease;
 }
 
-.fuel-page-tab:hover:not(:disabled) {
+.fuel-page-tab:hover:not(:disabled):not(.fuel-page-tab--active) {
   background: #fff;
-  border-color: #fcd34d;
-  color: #92400e;
+  border-color: #cbd5e1;
+  color: #64748b;
+  opacity: 1;
 }
 
 .fuel-page-tab--active {
-  background: #fff;
-  border-color: #f59e0b;
-  color: #92400e;
-  box-shadow: 0 1px 4px rgb(217 119 6 / 16%);
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 8px rgb(15 23 42 / 12%),
+    0 0 0 1px rgb(15 23 42 / 4%);
+}
+
+.fuel-page-tab--view.fuel-page-tab--active {
+  border-color: #0284c7;
+  background: linear-gradient(135deg, #e0f2fe 0%, #fff 68%);
+  color: #0369a1;
+  box-shadow:
+    0 2px 10px rgb(14 165 233 / 22%),
+    0 0 0 1px rgb(14 165 233 / 18%);
 }
 
 .fuel-page-tab--edit.fuel-page-tab--active {
   border-color: #ea580c;
-  background: linear-gradient(135deg, #fff7ed 0%, #fff 70%);
+  background: linear-gradient(135deg, #ffedd5 0%, #fff 68%);
   color: #c2410c;
-}
-
-.fuel-page-tab--cyl.fuel-page-tab--active {
-  border-color: #0d9488;
-  background: linear-gradient(135deg, #f0fdfa 0%, #fff 70%);
-  color: #0f766e;
-}
-
-.fuel-cyl-factor label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  margin: 0;
-}
-
-.fuel-cyl-factor span {
-  font-size: 0.66rem;
-  font-weight: 750;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.fuel-cyl-factor input {
-  width: 7.5rem;
-  height: 2rem;
-  padding: 0 0.5rem;
-  border: 1px solid #99f6e4;
-  border-radius: 8px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.fuel-cyl-hint {
-  margin: 0.55rem 0 0;
-  font-size: 0.82rem;
-  color: #64748b;
-  line-height: 1.4;
-}
-
-.fuel-cyl-hint em {
-  font-style: normal;
-  font-weight: 700;
-  color: #475569;
-}
-
-.fuel-cyl-table .fuel-cyl-num {
-  width: 5.5rem;
-  max-width: 100%;
-  height: 1.9rem;
-  padding: 0 0.4rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.fuel-cyl-table td input:not(.fuel-cyl-num) {
-  width: 100%;
-  min-width: 5rem;
-  height: 1.9rem;
-  padding: 0 0.45rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
-.fuel-cyl-ro {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: #475569;
-}
-
-.fuel-cyl-rob {
-  color: #0f766e;
-}
-
-.fuel-cyl-del {
-  width: 1.7rem;
-  height: 1.7rem;
-  border: 0;
-  border-radius: 8px;
-  background: #f1f5f9;
-  color: #64748b;
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.fuel-cyl-del:hover {
-  background: #fee2e2;
-  color: #b91c1c;
+  box-shadow:
+    0 2px 10px rgb(234 88 12 / 22%),
+    0 0 0 1px rgb(234 88 12 / 18%);
 }
 
 .fuel-ready-btn {
@@ -779,43 +706,6 @@
   cursor: not-allowed;
 }
 
-/* View↔Edit UPDATED handoff (Excel Updated / date–port idea). */
-.fuel-chip--updated {
-  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
-  border-color: #94a3b8;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-}
-
-.fuel-chip--updated:hover {
-  background: #f1f5f9;
-  border-color: #64748b;
-}
-
-.fuel-chip--updated-need {
-  background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
-  border-color: #ef4444;
-  color: #991b1b;
-}
-
-.fuel-chip--updated-need:hover {
-  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
-  border-color: #dc2626;
-  color: #7f1d1d;
-}
-
-.fuel-chip--updated-done {
-  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
-  border-color: #10b981;
-  color: #065f46;
-}
-
-.fuel-chip--updated-done:hover {
-  background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
-  border-color: #059669;
-  color: #064e3b;
-}
-
 .fuel-chip--stats {
   background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
   border-color: #60a5fa;
@@ -844,14 +734,7 @@
   color: #5b21b6;
 }
 
-.fuel-filter-presets .fuel-chip--preset,
-.fuel-filter-presets .fuel-chip--filter-all,
-.fuel-filter-presets .fuel-chip--filter-partial,
-.fuel-filter-presets .fuel-chip--filter-none {
-  min-height: 2.15rem;
-}
-
-/* Separate tool chips (S1 / Stats / Forecast) from Events · Columns filters. */
+/* Separate tool chips (S1 / Stats / Forecast) from Save · Load layouts. */
 .fuel-filter-presets__tools {
   display: inline-flex;
   flex-wrap: wrap;
@@ -859,14 +742,24 @@
   gap: 0.45rem;
 }
 
-.fuel-filter-presets__filters {
+.fuel-filter-presets__layouts {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   padding-left: 0.7rem;
   margin-left: 0.2rem;
   border-left: 1px solid #cbd5e1;
+}
+
+.fuel-filter-presets__layouts--solo {
+  padding-left: 0;
+  margin-left: 0;
+  border-left: 0;
+}
+
+.fuel-filter-presets__layouts .dg-page-action-btn {
+  min-height: 2.15rem;
 }
 
 .fuel-summary-backdrop {
@@ -1707,6 +1600,141 @@
   overflow: visible;
 }
 
+/* Events / Columns — table-scope controls (not pill chips). */
+.fuel-scope-pair {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  margin-left: 0.15rem;
+  padding: 0.2rem;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%);
+}
+
+.fuel-scope-pair .fuel-dropdown {
+  display: flex;
+}
+
+.fuel-scope-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 7.6rem;
+  margin: 0;
+  padding: 0.28rem 0.55rem 0.28rem 0.35rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.fuel-scope-pair .fuel-dropdown + .fuel-dropdown {
+  border-left: 1px solid #cbd5e1;
+  padding-left: 0.15rem;
+  margin-left: 0.15rem;
+}
+
+.fuel-scope-btn:hover {
+  background: #fff;
+  color: #0f172a;
+}
+
+.fuel-scope-btn--open {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #64748b;
+}
+
+.fuel-scope-btn__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 5px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  flex: 0 0 auto;
+}
+
+.fuel-scope-btn__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.02rem;
+  min-width: 0;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.fuel-scope-btn__label {
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.fuel-scope-btn__value {
+  font-size: 0.78rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.fuel-scope-btn__chev {
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: 0.1rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+  opacity: 0.55;
+  flex: 0 0 auto;
+}
+
+.fuel-scope-btn--open .fuel-scope-btn__chev {
+  transform: rotate(225deg) translateY(-1px);
+  opacity: 0.85;
+}
+
+.fuel-scope-btn--all .fuel-scope-btn__mark {
+  background: #0f766e;
+}
+
+.fuel-scope-btn--all {
+  color: #115e59;
+}
+
+.fuel-scope-btn--partial .fuel-scope-btn__mark {
+  background: #b45309;
+}
+
+.fuel-scope-btn--partial {
+  color: #9a3412;
+}
+
+.fuel-scope-btn--none .fuel-scope-btn__mark {
+  background: #b91c1c;
+}
+
+.fuel-scope-btn--none {
+  color: #991b1b;
+}
+
 .fuel-mode-btn {
   display: inline-flex;
   align-items: center;
@@ -2525,6 +2553,16 @@
   padding-right: 1.4rem;
   cursor: default;
   user-select: none;
+}
+
+.fuel-cell-input--dma {
+  padding-right: 2.7rem;
+  cursor: text;
+  user-select: text;
+}
+
+.fuel-density-badge--dma {
+  right: 1.4rem;
 }
 
 .fuel-density-badge {

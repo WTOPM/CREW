@@ -55,8 +55,10 @@ export class FuelEventEditModalComponent {
   readonly seed = input<Partial<FuelLogEvent> | null>(null);
   readonly allEvents = input<readonly FuelLogEvent[]>([]);
   readonly hoursAsHm = input(false);
-  /** Last density from library — default for new rows (~0.88). */
+  /** Last FO Total t density from library — default for new rows (~0.88). */
   readonly preferredDensity = input<number | null>(FUEL_DEFAULT_DENSITY);
+  /** Last DMA TOTAL CONS density — separate from FO (~0.88). */
+  readonly preferredDmaDensity = input<number | null>(FUEL_DEFAULT_DENSITY);
   readonly save = output<FuelLogEvent>();
   readonly cancel = output<void>();
 
@@ -75,16 +77,20 @@ export class FuelEventEditModalComponent {
     const preferred = untracked(
       () => this.preferredDensity() ?? FUEL_DEFAULT_DENSITY,
     );
+    const preferredDma = untracked(
+      () => this.preferredDmaDensity() ?? FUEL_DEFAULT_DENSITY,
+    );
     const base = createEmptyFuelLogEvent({
       id: seed.id ?? `fuel-new-${Date.now()}`,
       density: preferred,
+      dmaDensity: preferredDma,
       ...seed,
     });
     const events = untracked(() => this.allEvents());
     const prev = findPreviousFuelEvent(events, base.date, base.time, base.id);
     const before = findFuelEventBeforePrevious(events, prev);
     return createEmptyFuelLogEvent(
-      applyFuelEventAutoCalcs(base, prev, before, preferred),
+      applyFuelEventAutoCalcs(base, prev, before, preferred, preferredDma),
     );
   });
 
@@ -155,7 +161,13 @@ export class FuelEventEditModalComponent {
     const prev = findPreviousFuelEvent(this.allEvents(), next.date, next.time, next.id);
     const before = findFuelEventBeforePrevious(this.allEvents(), prev);
     return createEmptyFuelLogEvent(
-      applyFuelEventAutoCalcs(next, prev, before, this.preferredDensity()),
+      applyFuelEventAutoCalcs(
+        next,
+        prev,
+        before,
+        this.preferredDensity(),
+        this.preferredDmaDensity(),
+      ),
     );
   }
 
@@ -166,9 +178,12 @@ export class FuelEventEditModalComponent {
       key === 'date' ||
       key === 'time' ||
       key === 'density' ||
+      key === 'dmaDensity' ||
       key === 'meMt' ||
       key === 'aeMt' ||
       key === 'boilerMt' ||
+      key === 'dmaConsM3' ||
+      key === 'boilerFm' ||
       key === 'meRobTank' ||
       key === 'aeRobTank' ||
       key === 'boilerRobTank'

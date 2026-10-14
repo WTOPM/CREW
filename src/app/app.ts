@@ -1,6 +1,13 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  NavigationEnd,
+  RouteReuseStrategy,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
 import { PkgBarComponent } from './components/pkg-bar/pkg-bar.component';
@@ -22,6 +29,7 @@ import { DgUnReferenceStore } from './services/dg-un-reference.store';
 import { ElectronLocalPrefsService } from './services/electron-local-prefs.service';
 import { NetworkForceQuitService } from './services/network-force-quit.service';
 import { SectionLockService } from './services/section-lock.service';
+import { AppRouteReuseStrategy } from './routing/app-route-reuse.strategy';
 import { sectionFromRoutePath } from './utils/app-data-section.util';
 import {
   getOutputFolderPrefs,
@@ -29,6 +37,9 @@ import {
 } from './utils/output-folder-section.util';
 import type { OutputFolderSection } from './models/crew.models';
 import { uint8ToBase64 } from './utils/base64.util';
+
+/** Main nav pages — warmed once after startup so tab switches stay in RAM. */
+const MAIN_NAV_WARM_PATHS = ['/', '/dg', '/eta', '/fuel', '/phone', '/settings'] as const;
 
 interface FolderOption {
   id: string;
@@ -73,6 +84,7 @@ export class App implements OnInit {
   private readonly localPrefs = inject(ElectronLocalPrefsService);
   private readonly networkForceQuit = inject(NetworkForceQuitService);
   private readonly sectionLock = inject(SectionLockService);
+  private readonly routeReuse = inject(RouteReuseStrategy);
   private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
   private folderHoldTriggered = false;
 
@@ -167,24 +179,19 @@ export class App implements OnInit {
     window.electronAPI?.onAppRestoredFromTray?.(() => {
       void this.onRestoredFromTray();
     });
-    // Flush in-memory edits when the window is minimized / unfocused / closed.
-    window.electronAPI?.onAppWindowActive?.((active) => {
-      if (!active) void this.flushPendingToDisk();
-    });
-    const flushHidden = () => {
-      if (document.visibilityState === 'hidden') void this.flushPendingToDisk();
-    };
-    document.addEventListener('visibilitychange', flushHidden);
-    window.addEventListener('pagehide', () => void this.flushPendingToDisk());
+    // Full Quit only: write shared data, then main copies the local on-close backup.
+    // No flush on tab switch / blur / minimize / tray — slow on weak LAN.
+    window.electronAPI?.onPrepareQuit?.(() => this.flushPendingToDisk());
   }
 
   /** Write RAM edits to the shared/local data file only when dirty (no toast). */
   private async flushPendingToDisk(): Promise<void> {
     if (!this.appState.hasPendingPersist()) return;
     try {
-      await this.appState.flushPersist('silent');
+      // Quit path: keep open Settings-modal edits and merge every dirty section.
+      await this.appState.flushPersistForQuit();
     } catch {
-      /* ignore — quit/minimize path */
+      /* ignore — quit path */
     }
   }
 
@@ -202,6 +209,46 @@ export class App implements OnInit {
     this.appSnapshotArchive.restoreSession();
     this.networkForceQuit.startWatching();
     await this.onMainSectionNav(this.router.url);
+    // AppData is already fully in RAM from init(); warm page components so
+    // later tab clicks do not pay first-mount cost (Fuel/DG tables, etc.).
+    void this.warmMainNavRoutes();
+  }
+
+  /** While true, NavigationEnd must not move sectionLock (dirty-section tracking). */
+  private warmingRoutes = false;
+
+  /**
+   * Quietly visit each main nav route (URL bar unchanged) so RouteReuseStrategy
+   * keeps the pages ready. Runs after first paint of the current tab.
+   */
+  private async warmMainNavRoutes(): Promise<void> {
+    const returnUrl = this.router.url;
+    const currentPath = returnUrl.split('?')[0].split('#')[0] || '/';
+    this.warmingRoutes = true;
+    try {
+      for (const path of MAIN_NAV_WARM_PATHS) {
+        if (path === currentPath) continue;
+        try {
+          await this.router.navigateByUrl(path, { skipLocationChange: true });
+        } catch {
+          /* ignore failed warm nav */
+        }
+      }
+      try {
+        await this.router.navigateByUrl(returnUrl, { skipLocationChange: true });
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      this.warmingRoutes = false;
+      // Restore section lock to the visible tab after warm navigations.
+      await this.onMainSectionNav(this.router.url);
+    }
+  }
+
+  private clearCachedRoutes(): void {
+    const strategy = this.routeReuse;
+    if (strategy instanceof AppRouteReuseStrategy) strategy.clear();
   }
 
   /** Hidden iframe from an HTML form editor — build Excel and post bytes to the parent page. */
@@ -359,15 +406,14 @@ export class App implements OnInit {
   }
 
   private async onMainSectionNav(url: string): Promise<void> {
+    // Warm-up navigations must not rotate activeSection (dirty merge keys).
+    if (this.warmingRoutes) return;
     const section = sectionFromRoutePath(url);
     const folderSection = outputFolderSectionFromRoute(url);
     if (folderSection) {
       this.folderAccess.setSection(folderSection);
     }
-    // Write only when leaving with unsaved edits — no auto-reload (use Refresh).
-    if (this.hasElectron && this.appState.hasPendingPersist()) {
-      await this.appState.flushPersist('silent');
-    }
+    // No disk write on tab switch — Save / Done / Quit only (weak LAN).
     await this.sectionLock.onNavigate(section);
   }
 
@@ -380,11 +426,23 @@ export class App implements OnInit {
       return;
     }
     if (this.appState.hasPendingPersist()) {
-      await this.appState.flushPersist('silent');
+      // Include open Settings-modal edits; never reload over unsaved RAM.
+      await this.appState.flushPersistForQuit();
+      if (this.appState.hasPendingPersist()) {
+        this.toast.showError('Could not save pending edits — refresh cancelled');
+        return;
+      }
     }
     this.refreshBusy.set(true);
     try {
-      await this.appState.reloadSectionFromDisk(section);
+      // One shared-folder read → full AppData (all tabs stay in sync).
+      await this.appState.reloadAllFromDisk();
+      this.clearCachedRoutes();
+      await this.router.navigateByUrl(this.router.url, {
+        onSameUrlNavigation: 'reload',
+        skipLocationChange: true,
+      });
+      void this.warmMainNavRoutes();
       this.toast.show('Data refreshed from shared folder', 'success');
     } catch (err) {
       console.error(err);
@@ -397,10 +455,18 @@ export class App implements OnInit {
   private async onRestoredFromTray(): Promise<void> {
     if (!this.hasElectron) return;
     try {
+      // Keep unsaved RAM edits — do not write on tray restore (weak LAN).
       if (this.appState.hasPendingPersist()) {
-        await this.appState.flushPersist('silent');
+        this.toast.show('Unsaved edits kept in memory — use Save or Quit to write', 'info');
+        return;
       }
       await this.appState.reloadAllFromDisk();
+      this.clearCachedRoutes();
+      await this.router.navigateByUrl(this.router.url, {
+        onSameUrlNavigation: 'reload',
+        skipLocationChange: true,
+      });
+      void this.warmMainNavRoutes();
       this.toast.show('Data refreshed from shared folder', 'success');
     } catch (err) {
       console.error(err);

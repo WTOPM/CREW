@@ -1164,15 +1164,7 @@
 
 .settings-force-quit-card {
   margin-top: 1.25rem;
-}
-
-.settings-force-quit-card .section-desc {
-  margin: 0 0 0.85rem;
-  max-width: 40rem;
-}
-
-.settings-force-quit-card code {
-  font-size: 0.85em;
+  padding: 0.85rem 1rem;
 }
 
 .settings-force-quit-card .btn-danger {

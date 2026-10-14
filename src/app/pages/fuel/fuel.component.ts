@@ -19,7 +19,6 @@ import { FuelDisplayModalsComponent } from '../../components/fuel-display-modals
 import { FuelDistanceForecastModalComponent } from '../../components/fuel-distance-forecast-modal/fuel-distance-forecast-modal.component';
 import { FuelEtaVoyagePreviewModalComponent } from '../../components/fuel-eta-voyage-preview-modal/fuel-eta-voyage-preview-modal.component';
 import { FuelEventEditModalComponent } from '../../components/fuel-event-edit-modal/fuel-event-edit-modal.component';
-import { FuelUpdatedHandoffModalComponent } from '../../components/fuel-updated-handoff-modal/fuel-updated-handoff-modal.component';
 import { RefChoiceSuggestComponent } from '../../components/ref-choice-suggest/ref-choice-suggest.component';
 import { PlainTooltipDirective } from '../../directives/plain-tooltip.directive';
 import {
@@ -61,17 +60,15 @@ import {
   recomputeFuelTotalMtFromM3,
   syncFuelBoilerDmaPeriod,
   resolveBunkerRobTank,
+  resolveDmaDensity,
   resolveFuelDensity,
   resolveFuelRobTankAssignment,
   dateTimeFromFuelHrsEdit,
   fuelElapsedHours,
   parseFuelHoursInput,
   shiftFuelDateTime,
-  createEmptyFuelCylinderRow,
-  recomputeFuelCylinderChain,
   type FuelColumnDef,
   type FuelColumnId,
-  type FuelCylinderRow,
   type FuelDisplayEvent,
   type FuelEventKind,
   type FuelInheritableField,
@@ -86,6 +83,8 @@ interface FuelDensityHud {
   density: number;
   x: number;
   y: number;
+  /** FO Total t (H) vs DMA TOTAL CONS t (P) — separate densities. */
+  target: 'fo' | 'dma';
 }
 
 /** F-badge menu: pick which ROB tank ME / AE / Boiler consumption debits. */
@@ -110,10 +109,6 @@ import {
   importFuelLogFromExcelBytes,
   writeFuelLogToExcelBytes,
 } from '../../utils/fuel-excel-import.util';
-import {
-  importFuelCylinderFromExcelBytes,
-  writeFuelCylinderToExcelBytes,
-} from '../../utils/fuel-cylinder-excel.util';
 import {
   buildEtaFuelVoyagePreview,
   etaFuelVoyagePreviewRowsToEvents,
@@ -235,7 +230,6 @@ interface FuelPathSegment {
     FuelEtaVoyagePreviewModalComponent,
     FuelDistanceForecastModalComponent,
     FuelDisplayModalsComponent,
-    FuelUpdatedHandoffModalComponent,
     RefChoiceSuggestComponent,
     PlainTooltipDirective,
   ],
@@ -261,10 +255,10 @@ export class FuelComponent {
   protected readonly canWriteExcel = !!window.electronAPI?.writeFileBase64;
   protected readonly library = this.storage.fuelLibrary;
   protected readonly busy = signal(false);
-  /** View / Edit / CYL — local prefs (survives navigation + app restart). */
+  /** View / Edit — local prefs (survives navigation + app restart). */
   protected readonly activeTab = computed((): FuelPageTab => {
     const t = this.localPrefs.fuelUi().activeTab;
-    return t === 'edit' || t === 'cyl' ? t : 'view';
+    return t === 'edit' ? 'edit' : 'view';
   });
   protected readonly showAddModal = signal(false);
   /** Stable seed for Add modal (new object only when opening — avoids draft reset). */
@@ -295,7 +289,6 @@ export class FuelComponent {
   protected readonly showDisplaySaveModal = signal(false);
   protected readonly showDisplayLoadModal = signal(false);
   protected readonly showMasterSummaryModal = signal(false);
-  protected readonly showUpdatedHandoffModal = signal(false);
   protected readonly eventsMenuOpen = signal(false);
   protected readonly columnsMenuOpen = signal(false);
   /** Viewport coords for fixed Events/Columns menus (avoids overflow clipping). */
@@ -341,25 +334,9 @@ export class FuelComponent {
   private utcLongPressHandled = false;
   /** Fuel Log editing is only on the Edit tab. */
   protected readonly canEdit = computed(() => this.activeTab() === 'edit');
-  /** Cyl. Oil editing on the CYL tab. */
-  protected readonly canEditCyl = computed(() => this.activeTab() === 'cyl');
 
-  /** Unsaved Edit draft (Fuel Log or CYL, depending on tab). */
-  protected readonly dirty = computed(() =>
-    this.activeTab() === 'cyl'
-      ? this.library().fuelCylinder.editDirty
-      : this.library().editDirty,
-  );
-
-  protected readonly cylLibrary = computed(() => this.library().fuelCylinder);
-  protected readonly cylRows = computed(() => {
-    const cyl = this.cylLibrary();
-    return this.canEditCyl() ? cyl.editRows : cyl.rows;
-  });
-  protected readonly cylReadyCount = computed(
-    () => this.cylLibrary().editRows.filter((r) => r.writeStatus === 'ready').length,
-  );
-  protected readonly cylHasReady = computed(() => this.cylReadyCount() > 0);
+  /** Unsaved Edit draft. */
+  protected readonly dirty = computed(() => this.library().editDirty);
 
   /** Rows marked ready — only these go to Excel on Write. */
   protected readonly readyCount = computed(
@@ -384,8 +361,6 @@ export class FuelComponent {
     const lib = this.library();
     for (const e of lib.editEvents) add(e.place);
     for (const e of lib.events) add(e.place);
-    const port = lib.updatedHandoff.port;
-    if (port) add(port);
     return out;
   });
 
@@ -470,21 +445,6 @@ export class FuelComponent {
     if (n <= 0) return 'none';
     if (n >= FUEL_COLUMNS.length) return 'all';
     return 'partial';
-  });
-
-  /** Shared UPDATED chip (Excel-style View↔Edit handoff). */
-  protected readonly updatedHandoff = computed(() => this.library().updatedHandoff);
-  protected readonly updatedChipTone = computed((): 'idle' | 'need' | 'done' => {
-    const s = this.updatedHandoff().status;
-    if (s === 'needs_update') return 'need';
-    if (s === 'done') return 'done';
-    return 'idle';
-  });
-  protected readonly updatedChipLabel = computed(() => {
-    const h = this.updatedHandoff();
-    if (h.status === 'needs_update') return 'UPDATE · NEED';
-    if (h.status === 'done') return 'UPDATED · OK';
-    return 'UPDATED';
   });
 
   constructor() {
@@ -949,6 +909,7 @@ export class FuelComponent {
       time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
       place: latest?.place ?? '',
       density: this.library().lastDensity ?? FUEL_DEFAULT_DENSITY,
+      dmaDensity: this.library().lastDmaDensity ?? FUEL_DEFAULT_DENSITY,
     });
     this.showAddModal.set(true);
   }
@@ -1008,6 +969,7 @@ export class FuelComponent {
     const preview = this.etaVoyagePreview();
     this.etaVoyagePreview.set(null);
     const density = this.library().lastDensity ?? FUEL_DEFAULT_DENSITY;
+    const dmaDensity = this.library().lastDmaDensity ?? FUEL_DEFAULT_DENSITY;
     const seeds = etaFuelVoyagePreviewRowsToEvents(rows, density);
     if (!seeds.length) {
       this.toast.showError('No events selected to add');
@@ -1037,7 +999,13 @@ export class FuelComponent {
         }
         const before = findFuelEventBeforePrevious(editEvents, prev);
         next = createEmptyFuelLogEvent(
-          applyFuelEventAutoCalcs({ ...seed, ...fill }, prev, before, density),
+          applyFuelEventAutoCalcs(
+            { ...seed, ...fill },
+            prev,
+            before,
+            density,
+            dmaDensity,
+          ),
         );
         if (pending.length) pendingMap.set(next.id, new Set(pending));
       }
@@ -1121,6 +1089,7 @@ export class FuelComponent {
         prev,
         before,
         this.library().lastDensity,
+        this.library().lastDmaDensity,
       ),
     );
 
@@ -1135,6 +1104,7 @@ export class FuelComponent {
     const merged = [...editEvents.filter((e) => e.id !== next.id), next];
     this.fuelStore.replaceEditEvents(cascadeAppAddedFuelRob(merged));
     if (next.density != null) this.fuelStore.setLastDensity(next.density);
+    if (next.dmaDensity != null) this.fuelStore.setLastDmaDensity(next.dmaDensity);
     if (pendingKept.length) {
       const map = new Map(this.pendingInheritedByEvent());
       map.set(next.id, new Set(pendingKept));
@@ -1222,21 +1192,41 @@ export class FuelComponent {
       }
     }
 
-    // Boiler FM ↔ DMA m³ ↔ DMA/Boiler t (no density; t = m³ 1:1).
+    // Boiler FM ↔ DMA m³ ↔ DMA TOTAL CONS t (mt = ROUND(m³ × dmaDensity, 1)).
+    const lastDmaDensity = this.library().lastDmaDensity;
     if (
+      partial.dmaDensity !== undefined &&
+      partial.boilerFm === undefined &&
+      partial.dmaConsM3 === undefined &&
+      partial.boilerMt === undefined
+    ) {
+      next = {
+        ...next,
+        ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'dmaDensity', lastDmaDensity),
+      };
+    } else if (
       partial.boilerFm !== undefined &&
       partial.dmaConsM3 === undefined &&
       partial.boilerMt === undefined
     ) {
-      next = { ...next, ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'boilerFm') };
+      next = {
+        ...next,
+        ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'boilerFm', lastDmaDensity),
+      };
     } else if (partial.dmaConsM3 !== undefined && partial.boilerFm === undefined) {
-      next = { ...next, ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'dmaConsM3') };
+      next = {
+        ...next,
+        ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'dmaConsM3', lastDmaDensity),
+      };
     } else if (
       partial.boilerMt !== undefined &&
       partial.boilerFm === undefined &&
       partial.dmaConsM3 === undefined
     ) {
-      next = { ...next, ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'boilerMt') };
+      next = {
+        ...next,
+        ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'boilerMt', lastDmaDensity),
+      };
     }
 
     // ROB = previous − ME/AE/Boiler + bunker on F-picked tanks.
@@ -1251,6 +1241,7 @@ export class FuelComponent {
       partial.bunkerDmaMt !== undefined ||
       partial.fmMeAe !== undefined ||
       partial.density !== undefined ||
+      partial.dmaDensity !== undefined ||
       partial.totalM3 !== undefined ||
       partial.boilerFm !== undefined ||
       partial.dmaConsM3 !== undefined ||
@@ -1358,6 +1349,7 @@ export class FuelComponent {
         partial.timeUsedHours !== undefined ||
         partial.boilerFm !== undefined ||
         partial.dmaConsM3 !== undefined ||
+        partial.dmaDensity !== undefined ||
         partial.boilerMt !== undefined)
     ) {
       merged = applyVoyageChainFuelCascade(merged, id, density);
@@ -1567,24 +1559,36 @@ export class FuelComponent {
     return e.fmMeAe <= prev.fmMeAe;
   }
 
-  /** Open density HUD from the D badge (LMB) or anywhere on Total t (RMB). */
-  protected openDensityHud(e: FuelDisplayEvent, event: MouseEvent): void {
+  /** Open density HUD from the D badge (LMB) or anywhere on Total t / DMA t (RMB). */
+  protected openDensityHud(
+    e: FuelDisplayEvent,
+    event: MouseEvent,
+    target: 'fo' | 'dma' = 'fo',
+  ): void {
     if (!this.canEdit()) return;
     event.preventDefault();
     event.stopPropagation();
     this.closeRobTankMenu();
     this.hideFloatingTips();
-    const density = resolveFuelDensity(e, null, this.library().lastDensity);
+    const density =
+      target === 'dma'
+        ? resolveDmaDensity(e, this.library().lastDmaDensity)
+        : resolveFuelDensity(e, null, this.library().lastDensity);
     this.densityHud.set({
       eventId: e.id,
       density,
       x: event.clientX,
       y: event.clientY,
+      target,
     });
   }
 
   protected onTotalMtContextMenu(e: FuelDisplayEvent, event: MouseEvent): void {
-    this.openDensityHud(e, event);
+    this.openDensityHud(e, event, 'fo');
+  }
+
+  protected onDmaConsMtContextMenu(e: FuelDisplayEvent, event: MouseEvent): void {
+    this.openDensityHud(e, event, 'dma');
   }
 
   /** Column → ROB tank field for the F badge (ME / AE / Boiler t). */
@@ -1752,6 +1756,13 @@ export class FuelComponent {
   }
 
   private applyDensity(eventId: string, density: number, persistLast: boolean): void {
+    const hud = this.densityHud();
+    const target = hud?.target ?? 'fo';
+    if (target === 'dma') {
+      this.patchEvent(eventId, { dmaDensity: density });
+      if (persistLast) this.fuelStore.setLastDmaDensity(density);
+      return;
+    }
     this.patchEvent(eventId, { density });
     if (persistLast) this.fuelStore.setLastDensity(density);
   }
@@ -1761,16 +1772,27 @@ export class FuelComponent {
     return col.tip.trim();
   }
 
-  /** Tip on the Total t cell (replaces Shift+F3 noise on this readonly field). */
+  /** Tip on the Total t cell. */
   protected densityCellTip(e: Pick<FuelLogEvent, 'density'>): string {
     const d = resolveFuelDensity(e, null, this.library().lastDensity);
     return `Density ${d} — Excel H = ROUND(m³ × density, 1). Click D or right-click (↑↓ ±0.01, Shift ±0.1).`;
+  }
+
+  /** Tip on DMA TOTAL CONS t (separate density from FO). */
+  protected dmaDensityCellTip(e: Pick<FuelLogEvent, 'dmaDensity'>): string {
+    const d = resolveDmaDensity(e, this.library().lastDmaDensity);
+    return `DMA density ${d} — mt = ROUND(m³ × density, 1). Click D or right-click (↑↓ ±0.01, Shift ±0.1).`;
   }
 
   /** Short tip on the D badge only. */
   protected densityBadgeTip(e: Pick<FuelLogEvent, 'density'>): string {
     const d = resolveFuelDensity(e, null, this.library().lastDensity);
     return `Density = ${d}`;
+  }
+
+  protected dmaDensityBadgeTip(e: Pick<FuelLogEvent, 'dmaDensity'>): string {
+    const d = resolveDmaDensity(e, this.library().lastDmaDensity);
+    return `DMA density = ${d}`;
   }
 
   protected async onPathSegmentPress(seg: FuelPathSegment, event: MouseEvent): Promise<void> {
@@ -1865,165 +1887,6 @@ export class FuelComponent {
     }
   }
 
-  protected cylSyncTitle(): string {
-    if (!this.canWriteExcel) return 'Save to file needs the desktop app';
-    if (this.cylHasReady()) {
-      return `Write ${this.cylReadyCount()} ready CYL row(s) to Cyl. Oil Consump.`;
-    }
-    if (!this.cylLibrary().editDirty) return 'No unsaved CYL edits';
-    return 'Mark a CYL row ready (✓) to Write';
-  }
-
-  protected async confirmWriteCylinder(ev?: Event): Promise<void> {
-    ev?.stopPropagation();
-    if (this.busy() || !this.cylHasReady() || !this.canWriteExcel) return;
-    const n = this.cylReadyCount();
-    const ok = await this.confirmDialog.confirm({
-      title: 'Write CYL rows to Excel?',
-      message: `Write ${n} ready row(s) into sheet “Cyl. Oil Consump.”?\n\nFuel Log MASTER is not changed.`,
-      confirmLabel: 'Write',
-      cancelLabel: 'Keep editing',
-    });
-    if (!ok) return;
-    await this.saveCylinderToFile();
-  }
-
-  protected async confirmDiscardCylinder(ev?: Event): Promise<void> {
-    ev?.stopPropagation();
-    if (this.busy() || !this.cylLibrary().editDirty) return;
-    const ok = await this.confirmDialog.confirm({
-      title: 'Discard CYL draft?',
-      message: 'Revert Cyl. Oil draft to the last clean snapshot.\nExcel file is not changed.',
-      confirmLabel: 'Discard',
-      cancelLabel: 'Keep editing',
-      variant: 'danger',
-    });
-    if (!ok) return;
-    this.fuelStore.discardCylinderDraft();
-    this.toast.show('CYL draft discarded', 'success');
-  }
-
-  protected async saveCylinderToFile(): Promise<void> {
-    const path = this.pathDraft().trim() || this.library().sourcePath.trim();
-    const api = window.electronAPI;
-    if (!api?.readFileBase64 || !api.writeFileBase64 || !/[\\/]/.test(path)) {
-      this.toast.showError('Save to file needs the desktop app and a full Excel path');
-      return;
-    }
-    this.busy.set(true);
-    try {
-      const res = await api.readFileBase64(path);
-      if (!res.ok || !res.base64) {
-        this.toast.showError(res.error || 'Could not read Excel');
-        return;
-      }
-      const ready = this.cylLibrary().editRows.filter((r) => r.writeStatus === 'ready');
-      if (!ready.length) {
-        this.toast.showError('No CYL rows marked ready');
-        return;
-      }
-      const result = await writeFuelCylinderToExcelBytes(
-        base64ToBytes(res.base64),
-        ready,
-        this.cylLibrary().fmToLitersFactor,
-      );
-      const write = await api.writeFileBase64(path, bytesToBase64(result.bytes));
-      if (!write.ok) {
-        this.toast.showError(write.error || 'Could not write Excel');
-        return;
-      }
-      this.fuelStore.markCylinderPartialWritten(result.written);
-      const left = this.cylLibrary().editRows.filter((r) => r.writeStatus !== 'synced').length;
-      this.toast.show(
-        left
-          ? `Wrote ${result.written.length} CYL row(s) — ${left} draft(s) kept`
-          : `Wrote ${result.written.length} CYL row(s) to Excel`,
-        'success',
-      );
-    } catch (err) {
-      this.toast.showError(err instanceof Error ? err.message : 'CYL save failed');
-    } finally {
-      this.busy.set(false);
-    }
-  }
-
-  protected onCylFactor(raw: string): void {
-    const n = Number(String(raw).replace(',', '.'));
-    if (!Number.isFinite(n) || n <= 0) return;
-    this.fuelStore.setCylinderFactor(n);
-  }
-
-  protected patchCylRow(
-    row: FuelCylinderRow,
-    partial: Partial<FuelCylinderRow>,
-  ): void {
-    if (!this.canEditCyl()) return;
-    this.fuelStore.updateCylinderRow(row.id, {
-      ...partial,
-      writeStatus: row.writeStatus === 'synced' ? 'draft' : row.writeStatus,
-    });
-  }
-
-  protected onCylNum(
-    row: FuelCylinderRow,
-    field: 'flowmeter' | 'litersUsed' | 'receiveLiters',
-    raw: string,
-  ): void {
-    const t = String(raw).trim().replace(',', '.');
-    if (!t) {
-      this.patchCylRow(row, { [field]: null });
-      return;
-    }
-    const n = Number(t);
-    if (!Number.isFinite(n)) return;
-    this.patchCylRow(row, { [field]: n });
-  }
-
-  protected addCylRow(): void {
-    if (!this.canEditCyl()) return;
-    const list = this.cylLibrary().editRows;
-    const last = list[list.length - 1];
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const row = createEmptyFuelCylinderRow({
-      id: `cyl-new-${Date.now()}`,
-      sourceRow: 0,
-      date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
-      time: '12:00',
-      place: last?.place ?? 'Sea',
-      flowmeter: last?.flowmeter ?? null,
-      litersUsed: null,
-      robLiters: last?.robLiters ?? null,
-      writeStatus: 'draft',
-    });
-    this.fuelStore.replaceCylinderEditRows(
-      recomputeFuelCylinderChain([...list, row], this.cylLibrary().fmToLitersFactor),
-      true,
-    );
-  }
-
-  protected removeCylRow(row: FuelCylinderRow): void {
-    if (!this.canEditCyl()) return;
-    this.fuelStore.removeCylinderRow(row.id);
-  }
-
-  protected toggleCylReady(row: FuelCylinderRow): void {
-    if (!this.canEditCyl()) return;
-    const next: FuelWriteStatus =
-      row.writeStatus === 'synced'
-        ? 'draft'
-        : row.writeStatus === 'draft'
-          ? 'ready'
-          : 'draft';
-    this.fuelStore.updateCylinderRow(row.id, { writeStatus: next });
-  }
-
-  protected cylStatusLabel(status: FuelWriteStatus): string {
-    if (status === 'ready') return 'Ready';
-    if (status === 'draft') return 'Draft';
-    return 'Synced';
-  }
-
   private async loadFromPath(path: string): Promise<void> {
     const api = window.electronAPI;
     if (!api?.readFileBase64) {
@@ -2060,31 +1923,22 @@ export class FuelComponent {
   ): Promise<void> {
     try {
       const keptEdit = this.library().editDirty;
-      const keptCyl = this.library().fuelCylinder.editDirty;
       const result = await importFuelLogFromExcelBytes(bytes);
-      const cyl = await importFuelCylinderFromExcelBytes(bytes);
       this.fuelStore.replaceFromImport({
         events: result.events,
         sourcePath,
         sourceFileName: fileName,
         sheetName: result.sheetName,
         masterSummary: result.masterSummary,
-        cylinderRows: cyl.rows,
-        cylinderFactor: cyl.factor,
       });
-      const warnParts = [
-        ...result.warnings,
-        ...cyl.warnings.filter((w) => !/not found/i.test(w)),
-      ];
-      const warn = warnParts.length ? ` (${warnParts.length} warnings)` : '';
-      const cylBit = cyl.rows.length ? ` · CYL ${cyl.rows.length}` : '';
-      if (keptEdit || keptCyl) {
+      const warn = result.warnings.length ? ` (${result.warnings.length} warnings)` : '';
+      if (keptEdit) {
         this.toast.show(
-          `View updated (${result.events.length} events${cylBit})${warn}. Draft(s) kept.`,
+          `View updated (${result.events.length} events)${warn}. Edit draft kept.`,
           'success',
         );
       } else {
-        this.toast.show(`Imported ${result.events.length} events${cylBit}${warn}`, 'success');
+        this.toast.show(`Imported ${result.events.length} events${warn}`, 'success');
       }
     } catch (err) {
       this.toast.showError(err instanceof Error ? err.message : 'Import failed');
@@ -2205,10 +2059,6 @@ export class FuelComponent {
 
   @HostListener('document:keydown.escape')
   protected onEscape(): void {
-    if (this.showUpdatedHandoffModal()) {
-      this.showUpdatedHandoffModal.set(false);
-      return;
-    }
     if (this.showMasterSummaryModal()) {
       this.showMasterSummaryModal.set(false);
     }

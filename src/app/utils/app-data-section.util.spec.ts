@@ -2,6 +2,7 @@ import { createEmptyAppData } from '../data/empty-app-data';
 import {
   mergeSectionForSave,
   mergeSectionFromDisk,
+  mergeSectionsForSave,
   sectionFromRoutePath,
 } from './app-data-section.util';
 
@@ -75,5 +76,40 @@ describe('app-data-section.util', () => {
 
     const saved = mergeSectionForSave(disk, memory, 'home');
     expect(saved.ship.portOfCall).toBe('Rotterdam');
+  });
+
+  it('mergeSectionsForSave keeps every dirty tab and leaves clean tabs from disk', () => {
+    const disk = createEmptyAppData();
+    disk.crew = [{ id: '1', familyName: 'DISK', givenNames: '', rank: 'Master' } as never];
+    disk.fuelLibrary = { ...disk.fuelLibrary, events: [] };
+    disk.etaLibrary = { ...disk.etaLibrary, draft: { ...disk.etaLibrary.draft, name: 'DISK-ETA' } };
+    const memory = createEmptyAppData();
+    memory.crew = [{ id: '2', familyName: 'MEM', givenNames: '', rank: 'Cook' } as never];
+    memory.fuelLibrary = {
+      ...memory.fuelLibrary,
+      events: [{ id: 'e1' } as never],
+    };
+    memory.etaLibrary = { ...memory.etaLibrary, draft: { ...memory.etaLibrary.draft, name: 'MEM-ETA' } };
+
+    const saved = mergeSectionsForSave(disk, memory, ['home', 'fuel']);
+    expect(saved.crew[0]?.familyName).toBe('MEM');
+    expect(saved.fuelLibrary.events).toHaveLength(1);
+    // ETA was not dirty — disk wins (other PC / older shared value).
+    expect(saved.etaLibrary.draft.name).toBe('DISK-ETA');
+  });
+
+  it('mergeSectionsForSave with no sections still writes shared ship/outputSettings', () => {
+    const disk = createEmptyAppData();
+    disk.ship = { ...disk.ship, portOfCall: 'DiskPort' };
+    disk.crew = [{ id: '1', familyName: 'DISK', givenNames: '', rank: 'Master' } as never];
+    const memory = createEmptyAppData();
+    memory.ship = { ...memory.ship, portOfCall: 'MemPort' };
+    memory.outputSettings = { ...memory.outputSettings, saveToFolder: true };
+    memory.crew = [{ id: '2', familyName: 'MEM', givenNames: '', rank: 'Cook' } as never];
+
+    const saved = mergeSectionsForSave(disk, memory, []);
+    expect(saved.ship.portOfCall).toBe('MemPort');
+    expect(saved.outputSettings.saveToFolder).toBe(true);
+    expect(saved.crew[0]?.familyName).toBe('DISK');
   });
 });

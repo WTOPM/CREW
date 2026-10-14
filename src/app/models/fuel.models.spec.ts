@@ -161,22 +161,45 @@ describe('recomputeFuelTotalM3FromFm', () => {
 });
 
 describe('syncFuelBoilerDmaPeriod', () => {
-  it('Boiler FM delta → DMA m³ and t 1:1 (no density)', () => {
+  it('Boiler FM delta → DMA m³; mt = ROUND(m³ × 0.88, 1)', () => {
     expect(
-      syncFuelBoilerDmaPeriod({ boilerFm: 73.7, dmaConsM3: 0.1, boilerMt: 0.7 }, 73.0, 'boilerFm'),
-    ).toEqual({ boilerFm: 73.7, dmaConsM3: 0.7, boilerMt: 0.7 });
+      syncFuelBoilerDmaPeriod(
+        { boilerFm: 73.7, dmaConsM3: 0.1, boilerMt: 0.7, dmaDensity: 0.88 },
+        73.0,
+        'boilerFm',
+      ),
+    ).toEqual({ boilerFm: 73.7, dmaConsM3: 0.7, boilerMt: 0.6, dmaDensity: 0.88 });
   });
 
-  it('DMA m³ edit updates FM and t', () => {
+  it('DMA m³ edit updates FM and mt via density', () => {
     expect(
-      syncFuelBoilerDmaPeriod({ boilerFm: 73.0, dmaConsM3: 0.5, boilerMt: 0.1 }, 73.0, 'dmaConsM3'),
-    ).toEqual({ boilerFm: 73.5, dmaConsM3: 0.5, boilerMt: 0.5 });
+      syncFuelBoilerDmaPeriod(
+        { boilerFm: 73.0, dmaConsM3: 0.5, boilerMt: 0.1, dmaDensity: 0.88 },
+        73.0,
+        'dmaConsM3',
+      ),
+    ).toEqual({ boilerFm: 73.5, dmaConsM3: 0.5, boilerMt: 0.4, dmaDensity: 0.88 });
   });
 
-  it('DMA/Boiler t edit updates FM and m³', () => {
+  it('DMA TOTAL CONS mt edit updates FM and m³ via density', () => {
+    // mt 0.7 → m³ = ROUND(0.7/0.88,1) = 0.8 → FM = 73.0+0.8; mt back = ROUND(0.8×0.88,1)=0.7
     expect(
-      syncFuelBoilerDmaPeriod({ boilerFm: 73.0, dmaConsM3: 0.1, boilerMt: 0.7 }, 73.0, 'boilerMt'),
-    ).toEqual({ boilerFm: 73.7, dmaConsM3: 0.7, boilerMt: 0.7 });
+      syncFuelBoilerDmaPeriod(
+        { boilerFm: 73.0, dmaConsM3: 0.1, boilerMt: 0.7, dmaDensity: 0.88 },
+        73.0,
+        'boilerMt',
+      ),
+    ).toEqual({ boilerFm: 73.8, dmaConsM3: 0.8, boilerMt: 0.7, dmaDensity: 0.88 });
+  });
+
+  it('dmaDensity edit recomputes mt from existing m³', () => {
+    expect(
+      syncFuelBoilerDmaPeriod(
+        { boilerFm: 73.5, dmaConsM3: 0.5, boilerMt: 0.4, dmaDensity: 0.9 },
+        73.0,
+        'dmaDensity',
+      ),
+    ).toEqual({ boilerFm: 73.5, dmaConsM3: 0.5, boilerMt: 0.5, dmaDensity: 0.9 });
   });
 });
 
@@ -908,25 +931,6 @@ describe('normalizeFuelLibrary edit draft', () => {
     expect(lib.editDirty).toBe(true);
   });
 
-  it('normalizes shared UPDATED handoff (additive default)', () => {
-    const empty = normalizeFuelLibrary({});
-    expect(empty.updatedHandoff.status).toBe('idle');
-    expect(empty.updatedHandoff.items).toEqual([]);
-
-    const lib = normalizeFuelLibrary({
-      updatedHandoff: {
-        status: 'needs_update',
-        date: '2026-09-13',
-        port: 'HAMBURG',
-        items: [{ id: 't0', label: 'RMD', value: '439,5' }],
-        note: '',
-        changedAt: '2026-09-13T10:00:00.000Z',
-      },
-    });
-    expect(lib.updatedHandoff.status).toBe('needs_update');
-    expect(lib.updatedHandoff.port).toBe('HAMBURG');
-    expect(lib.updatedHandoff.items[0]).toMatchObject({ label: 'RMD', value: '439,5' });
-  });
 });
 
 describe('writeStatus', () => {

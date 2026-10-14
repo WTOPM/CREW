@@ -196,7 +196,7 @@ export class SettingsComponent {
     input.value = normalized;
     this.clearMetresDraft(field);
     if (this.ship()[field] === normalized) return;
-    // RAM only — shared folder write waits for tab leave / minimize / close.
+    // RAM only — shared folder write waits for Save / Done / Quit.
     this.storage.updateShip({ [field]: normalized }, 'memory', shipFieldUpdatedMessage(field));
   }
 

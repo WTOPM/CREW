@@ -26,7 +26,7 @@ export function detectTextCase(raw: string): TextCaseMode {
   return 'mixed';
 }
 
-/** Next case in the Shift+F3 cycle. */
+/** Next case in the Shift+F3 cycle (hotkey only — no on-screen hint). */
 export function nextTextCase(raw: string): string {
   const s = String(raw ?? '');
   const mode = detectTextCase(s);
@@ -34,5 +34,3 @@ export function nextTextCase(raw: string): string {
   if (mode === 'capitalize') return s.toLowerCase();
   return s.toUpperCase();
 }
-
-export const TEXT_CASE_HOTKEY_HINT = 'Shift+F3 — cycle case: ABC → Abc → abc';

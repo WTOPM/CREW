@@ -107,7 +107,7 @@ export function mergeSectionForSave(disk: AppData, memory: AppData, section: App
     ship: memory.ship,
     outputSettings: memory.outputSettings,
     /** Document overlay prefs edited from Home document menus. */
-    ...(section === 'home'
+    ...(section === 'home' || section === 'settings'
       ? {
           documentOverlay: memory.documentOverlay,
           shipAssets: memory.shipAssets,
@@ -115,4 +115,30 @@ export function mergeSectionForSave(disk: AppData, memory: AppData, section: App
       : {}),
     seedVersion: APP_DATA_SCHEMA_VERSION,
   };
+}
+
+/**
+ * Merge several dirty sections from RAM into the on-disk blob.
+ * Needed when the user edits multiple tabs before Save / Quit (no tab-leave flush).
+ */
+export function mergeSectionsForSave(
+  disk: AppData,
+  memory: AppData,
+  sections: readonly AppSection[],
+): AppData {
+  const unique = [...new Set(sections)];
+  if (!unique.length) {
+    // No section tracked — still push shared ship / output prefs.
+    return {
+      ...disk,
+      ship: memory.ship,
+      outputSettings: memory.outputSettings,
+      seedVersion: APP_DATA_SCHEMA_VERSION,
+    };
+  }
+  let next = disk;
+  for (const section of unique) {
+    next = mergeSectionForSave(next, memory, section);
+  }
+  return next;
 }
