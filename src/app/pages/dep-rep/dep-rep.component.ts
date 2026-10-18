@@ -153,8 +153,9 @@ export class DepRepComponent {
     () => this.previousTab()?.excelSheetName || this.library().lastWrittenSheet || 'Previous',
   );
 
+  /** Write action — opposite of Load from file (Refresh). */
   protected readonly writeActionLabel = computed(() =>
-    this.activeSheetTab() === 'new' && this.newTab() ? 'Create sheet' : 'Update sheet',
+    this.activeSheetTab() === 'new' && this.newTab() ? 'Save new sheet' : 'Save to file',
   );
 
   /** Empty / missing value — drives red translucent field styling. */
@@ -310,7 +311,7 @@ export class DepRepComponent {
     this.newTab.set(seeded);
     this.activeSheetTab.set('new');
     this.restoreWorkspace(seeded);
-    this.sheetStatus.set('New sheet — voyage/drafts from Settings. Fill the rest, then Create.');
+    this.sheetStatus.set('New sheet — voyage/drafts from Settings. Fill the rest, then Save new sheet.');
     this.sheetStatusKind.set('draft');
     this.toast.show('New sheet — voyage taken from Settings', 'info');
   }
@@ -327,11 +328,11 @@ export class DepRepComponent {
     if (ws) this.restoreWorkspace(ws);
 
     if (tab === 'new') {
-      this.sheetStatus.set('New sheet — Write will create a new Excel tab');
+      this.sheetStatus.set('New sheet — Save new sheet will create a new Excel tab');
       this.sheetStatusKind.set('draft');
     } else {
       const name = this.previousTab()?.excelSheetName || 'previous';
-      this.sheetStatus.set(`Editing "${name}" — Write will update this Excel tab`);
+      this.sheetStatus.set(`Editing "${name}" — Save to file will overwrite this Excel tab`);
       this.sheetStatusKind.set('ok');
     }
   }
@@ -625,7 +626,7 @@ export class DepRepComponent {
       return;
     }
     if (!window.electronAPI?.readFileBase64) {
-      this.toast.showError('Refresh requires the desktop app');
+      this.toast.showError('Load from file requires the desktop app');
       return;
     }
 
@@ -765,9 +766,9 @@ export class DepRepComponent {
         this.toast.show(`Created "${sheet}" — now the previous tab`, 'success');
       } else {
         this.previousTab.set(this.captureWorkspace(sheet, 'update'));
-        this.sheetStatus.set(`Updated sheet "${sheet}"`);
+        this.sheetStatus.set(`Saved to file "${sheet}"`);
         this.sheetStatusKind.set('ok');
-        this.toast.show(`Updated sheet "${sheet}"`, 'success');
+        this.toast.show(`Saved to file "${sheet}"`, 'success');
       }
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Failed to write DEP REP');

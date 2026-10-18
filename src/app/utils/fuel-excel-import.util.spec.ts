@@ -299,6 +299,40 @@ describe('importFuelLogFromExcelBytes', () => {
     expect(result.events[1].robDmaMt).toBeNull();
     expect(result.warnings.some((w) => /no time/i.test(w))).toBe(true);
   });
+
+  it('skips rows whose time cell is blank numeric 0 or a midnight Date (not text 00:00)', async () => {
+    const wb = new ExcelJS.Workbook();
+    const master = wb.addWorksheet('Fuel Log MASTER ');
+    master.getCell('A5').value = 'Sea';
+    master.getCell('B5').value = 'BOSP';
+    master.getCell('C5').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D5').value = '08:00';
+
+    // Empty time-formatted cell often stores 0 → must NOT become 00:00
+    master.getCell('A6').value = 'Sea';
+    master.getCell('B6').value = 'Noon';
+    master.getCell('C6').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D6').value = 0;
+
+    // Date pasted into time column (midnight) → skip
+    master.getCell('A7').value = 'Sea';
+    master.getCell('B7').value = 'EOSP';
+    master.getCell('C7').value = new Date(Date.UTC(2026, 8, 1));
+    master.getCell('D7').value = new Date(Date.UTC(2026, 8, 1, 0, 0, 0));
+
+    // Explicit text midnight is a real clock → keep
+    master.getCell('A8').value = 'Sea';
+    master.getCell('B8').value = 'FEW';
+    master.getCell('C8').value = new Date(Date.UTC(2026, 8, 2));
+    master.getCell('D8').value = '00:00';
+
+    const buf = await wb.xlsx.writeBuffer();
+    const result = await importFuelLogFromExcelBytes(buf as ArrayBuffer);
+    expect(result.events.map((e) => e.rawEvent)).toEqual(['BOSP', 'FEW']);
+    expect(result.events[1].time).toBe('00:00');
+    expect(result.warnings.filter((w) => /no time/i.test(w)).length).toBe(2);
+  });
+
   it('prefers CENG fuel values over MASTER when both exist; MASTER supplies bunker only', async () => {
     const wb = new ExcelJS.Workbook();
     const master = wb.addWorksheet('Fuel Log MASTER ');

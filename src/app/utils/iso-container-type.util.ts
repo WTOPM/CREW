@@ -61,8 +61,9 @@ const MANIFEST_CONTAINER_TYPES: readonly IsoContainerTypeEntry[] = [
   entry('42RF', '40′RF', 'Refrigerated container — 40-foot reefer.'),
   entry('45RF', '40′RFHC', 'Refrigerated container — 40-foot high-cube reefer.'),
 
-  // Tank
+  // Tank (liquids TN / gases K*)
   entry('22TN', '20′TN', 'Tank container — 20-foot ISO tank.'),
+  entry('22K2', '20′TN', 'Tank container — 20-foot pressurized (gas) ISO tank.'),
   entry('42TN', '40′TN', 'Tank container — 40-foot ISO tank.'),
 
   // Open top
@@ -94,9 +95,21 @@ export const ISO_CONTAINER_TYPES: readonly IsoContainerTypeEntry[] = [
   entry('22P1', '20′PF', '20′ flat rack / platform — fixed posts'),
   entry('42P1', '40′PF', '40′ flat rack / platform — fixed posts'),
   entry('22T1', '20′TN', '20′ ISO tank — non-DG liquids'),
+  entry('22T6', '20′TN', '20′ ISO tank — liquids (type 6)'),
+  entry('22K2', '20′TN', '20′ ISO tank — pressurized gases'),
   entry('22V1', '20′VT', '20′ ventilated — closed with vents'),
   entry('22B1', '20′BK', '20′ bulk — closed, dry bulk'),
 ];
+
+/**
+ * Unifeeder / DP WORLD PDF font misreads for the size cell next to the container number.
+ * Leading `22` often extracts as `EM` / `DM` (same family as historical `EMT6` → `22T6`).
+ */
+const PDF_SIZE_OCR_FIXES: Record<string, string> = {
+  EMT6: '22T6',
+  EMKD: '22K2',
+  DMKD: '22K2',
+};
 
 const ISO_CONTAINER_TYPE_BY_CODE = new Map(
   ISO_CONTAINER_TYPES.map((e) => [e.code, e] as const),
@@ -128,6 +141,7 @@ const ISO_CATEGORY: Record<string, string> = {
   U: 'open-top container',
   P: 'platform / flat-rack container',
   T: 'ISO tank container',
+  K: 'ISO tank container (pressurized / gas)',
   V: 'ventilated container',
   B: 'bulk container',
 };
@@ -139,6 +153,7 @@ const ISO_CATEGORY_DETAIL: Record<string, string> = {
   FR: 'flat-rack / platform container (PF)',
   TN: 'tank container',
   TK: 'tank container',
+  K2: 'tank container (pressurized / gas)',
   PW: 'pallet-wide dry container',
 };
 
@@ -147,6 +162,16 @@ export function normalizeIsoContainerTypeCode(raw: string | undefined | null): s
     .trim()
     .toUpperCase()
     .replace(/\s/g, '');
+}
+
+/**
+ * Normalize a manifest size/type cell: trim, uppercase, apply known PDF OCR fixes
+ * (`EMKD` → `22K2`, `EMT6` → `22T6`, …).
+ */
+export function normalizeManifestSizeCode(raw: string | undefined | null): string {
+  const s = normalizeIsoContainerTypeCode(raw);
+  if (!s) return '';
+  return PDF_SIZE_OCR_FIXES[s] ?? s;
 }
 
 export function containerTypeSizeLabel(entry: IsoContainerTypeEntry): string {
@@ -301,7 +326,10 @@ function formatGuessedSizeLabel(size: string, code: string): string {
         ? 'OT'
         : suffix.startsWith('FR') || suffix.startsWith('P')
           ? 'PF'
-          : suffix.startsWith('TN') || suffix.startsWith('T')
+          : suffix.startsWith('TN') ||
+              suffix.startsWith('TK') ||
+              suffix.startsWith('T') ||
+              suffix.startsWith('K')
             ? 'TN'
             : suffix.startsWith('V')
               ? 'VT'

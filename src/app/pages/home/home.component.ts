@@ -130,8 +130,12 @@ export class HomeComponent {
   );
 
   protected editingCrew = signal<CrewMember | null>(null);
+  /** True when departure opens the crew modal for view-only. */
+  protected editingCrewViewOnly = signal(false);
 
   protected editingPax = signal<PassengerMember | null>(null);
+  /** True when departure opens the passenger modal for view-only. */
+  protected editingPaxViewOnly = signal(false);
 
   protected showArchive = signal(false);
 
@@ -194,41 +198,63 @@ export class HomeComponent {
 
   protected startEdit(member: CrewMember): void {
     this.cancelPassengerEdit(true);
+    this.editingCrewViewOnly.set(false);
+    this.editingCrew.set(member);
+  }
+
+  /** Departure list — inspect profile; edits stay on Arrival. */
+  protected startViewCrew(member: CrewMember): void {
+    this.cancelPassengerEdit(true);
+    this.editingCrewViewOnly.set(true);
     this.editingCrew.set(member);
   }
 
   protected cancelEdit(quiet = false): void {
-    if (!quiet && this.editingCrew()) {
+    if (!quiet && this.editingCrew() && !this.editingCrewViewOnly()) {
       this.toast.showCancelled('Crew edit cancelled');
     }
     this.editingCrew.set(null);
+    this.editingCrewViewOnly.set(false);
   }
 
   protected onCrewSave(draft: CrewMember): void {
+    if (this.editingCrewViewOnly()) return;
     const m = this.editingCrew();
     if (!m) return;
     this.crew.updateCrewMember(m.id, this.crewProfilePatch(draft), 'silent');
     this.editingCrew.set(null);
+    this.editingCrewViewOnly.set(false);
     this.toast.showSaved('Crew member saved');
   }
 
   protected startPassengerEdit(member: PassengerMember): void {
     this.cancelEdit(true);
+    this.editingPaxViewOnly.set(false);
+    this.editingPax.set(member);
+  }
+
+  /** Departure list — inspect profile; edits stay on Arrival. */
+  protected startViewPassenger(member: PassengerMember): void {
+    this.cancelEdit(true);
+    this.editingPaxViewOnly.set(true);
     this.editingPax.set(member);
   }
 
   protected cancelPassengerEdit(quiet = false): void {
-    if (!quiet && this.editingPax()) {
+    if (!quiet && this.editingPax() && !this.editingPaxViewOnly()) {
       this.toast.showCancelled('Passenger edit cancelled');
     }
     this.editingPax.set(null);
+    this.editingPaxViewOnly.set(false);
   }
 
   protected onPassengerSave(draft: PassengerMember): void {
+    if (this.editingPaxViewOnly()) return;
     const p = this.editingPax();
     if (!p) return;
     this.passengers.updatePassenger(p.id, this.passengerProfilePatch(draft), 'silent');
     this.editingPax.set(null);
+    this.editingPaxViewOnly.set(false);
     this.toast.showSaved('Passenger saved');
   }
 

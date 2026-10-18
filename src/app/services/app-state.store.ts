@@ -17,10 +17,12 @@ import { SectionLockService } from './section-lock.service';
 import {
   APP_SECTIONS,
   AppSection,
+  formSessionSlicesChanged,
   mergeSectionFromDisk,
   mergeSectionsForSave,
 } from '../utils/app-data-section.util';
 import { readLocalStorage, writeLocalStorage } from '../utils/browser-storage.util';
+import { commitPendingDomEdits } from '../utils/commit-pending-dom-edits.util';
 
 const STORAGE_KEY = 'crew-app-data';
 
@@ -108,6 +110,12 @@ export class AppStateStore {
   private pendingSavedMessage: string | undefined;
   private persistInFlight: Promise<void> | null = null;
   private persistQueuedAgain = false;
+
+  /**
+   * Shown while Done / Save writes the shared working folder (slow LAN).
+   * App shell renders a blocking progress overlay when true.
+   */
+  readonly formSaveBusy = signal(false);
 
   /**
    * Load the full crew-data.json once into RAM (all sections: Home/DG/ETA/Fuel/…).
@@ -259,9 +267,16 @@ export class AppStateStore {
     this.queuePersist(notify === 'memory' ? 'silent' : notify, savedMessage);
   }
 
-  /** True when a settings modal has unsaved in-memory edits. */
+  /**
+   * True when a settings modal has real unsaved edits (vs snapshot).
+   * Uses slice compare — not the persist flag — so Select-document tab switches
+   * alone do not count as dirty (see formSessionSlicesChanged).
+   */
   isFormSessionDirty(): boolean {
-    return this.formSessionActive && this.formSessionDirty;
+    if (!this.formSessionActive) return false;
+    const snap = this.formSessionSnapshot;
+    if (!snap) return this.formSessionDirty;
+    return formSessionSlicesChanged(snap, this.data());
   }
 
   isFormSessionActive(): boolean {
@@ -279,18 +294,28 @@ export class AppStateStore {
 
   /** Done — write to disk only if something changed. */
   async commitFormSession(savedMessage = 'Form changes saved'): Promise<void> {
-    const dirty = this.formSessionDirty || this.persistDirty || this.dirtyBeforeFormSession;
+    const dirty =
+      this.formSessionDirty ||
+      this.persistDirty ||
+      this.dirtyBeforeFormSession ||
+      (!!this.formSessionSnapshot && formSessionSlicesChanged(this.formSessionSnapshot, this.data()));
     this.formSessionActive = false;
     this.formSessionSnapshot = null;
     this.formSessionDirty = false;
     this.dirtyBeforeFormSession = false;
     this.toast.cancelDebouncedSaved();
     if (!dirty) return;
-    // Modal edits usually belong to Settings (ports/ranks/packages/…).
+    // Document forms live on Home; lists/overlays/packages on Settings.
+    this.dirtySections.add('home');
     this.dirtySections.add('settings');
     const active = this.sectionLock.activeSection();
     if (active) this.dirtySections.add(active);
-    await this.flushPersist('saved', savedMessage);
+    this.formSaveBusy.set(true);
+    try {
+      await this.flushPersist('saved', savedMessage);
+    } finally {
+      this.formSaveBusy.set(false);
+    }
   }
 
   /** Discard modal edits and restore the snapshot from beginFormSession. */
@@ -354,10 +379,19 @@ export class AppStateStore {
    * dirty section to the shared folder before the on-close backup.
    */
   async flushPersistForQuit(): Promise<void> {
+    // Commit focused Settings metres / draft fields before checking dirty.
+    await commitPendingDomEdits();
     if (this.formSessionActive) {
+      const snap = this.formSessionSnapshot;
+      const sessionDirty =
+        this.formSessionDirty ||
+        this.dirtyBeforeFormSession ||
+        this.persistDirty ||
+        (!!snap && formSessionSlicesChanged(snap, this.data()));
       this.formSessionActive = false;
       this.formSessionSnapshot = null;
-      if (this.formSessionDirty || this.dirtyBeforeFormSession || this.persistDirty) {
+      if (sessionDirty) {
+        this.dirtySections.add('home');
         this.dirtySections.add('settings');
         const active = this.sectionLock.activeSection();
         if (active) this.dirtySections.add(active);
@@ -365,6 +399,11 @@ export class AppStateStore {
       }
       this.formSessionDirty = false;
       this.dirtyBeforeFormSession = false;
+    }
+    // Ship lives in the settings slice; snapshots in home — always include both
+    // when anything is dirty so Quit never drops draft/voyage RAM edits.
+    if (this.persistDirty || this.dirtySections.size > 0) {
+      this.markSectionsDirty(['home', 'settings']);
     }
     await this.flushPersist('silent');
   }
@@ -381,6 +420,15 @@ export class AppStateStore {
   /** True when memory has edits not yet written to disk. */
   hasPendingPersist(): boolean {
     return this.persistDirty || !!this.persistInFlight || this.dirtySections.size > 0;
+  }
+
+  /**
+   * Mark section slice(s) dirty for merge-on-save (e.g. DG archive Save must
+   * always write `dgLibrary` + `dgPageArchives`, even if nav lock is unset).
+   */
+  markSectionsDirty(sections: readonly AppSection[]): void {
+    for (const section of sections) this.dirtySections.add(section);
+    this.persistDirty = true;
   }
 
   private async runPersistCycle(): Promise<void> {
@@ -427,6 +475,11 @@ export class AppStateStore {
     const sections = [...this.dirtySections];
     const active = this.sectionLock.activeSection();
     if (active && !sections.includes(active)) sections.push(active);
+    // Never flush with an empty section list while dirty — that path only
+    // writes ship/outputSettings and silently drops DG/Reefer/Fuel/… RAM edits.
+    if (!sections.length) {
+      sections.push(...APP_SECTIONS);
+    }
 
     if (electron) {
       // Merge every dirty section into the on-disk blob so edits made on
@@ -489,7 +542,7 @@ export class AppStateStore {
     this.afterPersist(notify, savedMessage);
   }
 
-  /** Save ship/voyage fields — Home edits stay in RAM until flush (tab/Save/close). */
+  /** Save ship/voyage fields — Home/Settings edits stay in RAM until flush (Save / Quit). */
   async persistShip(notify: PersistNotify = 'memory', savedMessage?: string): Promise<void> {
     const electron = window.electronAPI;
     if (electron && !this.electronBootstrapComplete) {
@@ -499,31 +552,17 @@ export class AppStateStore {
       return;
     }
 
-    // Typing port / dates / crew voyage fields: memory only.
+    // Ship is owned by the settings section slice — always mark it dirty.
+    this.markSectionsDirty(['settings']);
+
+    // Typing port / dates / drafts: memory only until Save / Quit.
     if (notify !== 'saved') {
       this.queuePersist('silent', savedMessage);
       return;
     }
 
-    await this.flushPersist('silent');
-
-    const memory = this.data();
-    if (electron) {
-      const loaded = await electron.readData();
-      const disk = normalizeAppData(loaded ?? createEmptyAppData());
-      const saved = await this.writeElectronData({
-        ...disk,
-        ship: memory.ship,
-        seedVersion: APP_DATA_SCHEMA_VERSION,
-      });
-      if (!saved) return;
-    } else {
-      writeLocalStorage(
-        STORAGE_KEY,
-        JSON.stringify({ ...memory, seedVersion: APP_DATA_SCHEMA_VERSION }),
-      );
-    }
-    this.afterPersist(notify, savedMessage);
+    this.markSectionsDirty(['home', 'settings']);
+    await this.flushPersist('saved', savedMessage);
   }
 
   private async writeElectronData(toWrite: AppData): Promise<boolean> {

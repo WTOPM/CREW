@@ -220,7 +220,7 @@
           <button
             type="button"
             class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
-            title="Save current column layout on this computer"
+            title="Save current Events + Columns layout (shared list)"
             (click)="openDisplaySave()"
           >
             <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -234,7 +234,7 @@
           <button
             type="button"
             class="btn btn-secondary dg-page-action-btn dg-page-action-btn--load"
-            title="Load a saved column layout"
+            title="Load a saved Events + Columns layout"
             (click)="openDisplayLoad()"
           >
             <svg class="dg-page-action-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -250,18 +250,28 @@
     </div>
 
     <div class="fuel-filter-row">
-      <label class="fuel-mini-field fuel-mini-field--date">
+      <label
+        class="fuel-mini-field fuel-mini-field--date"
+        [class.fuel-mini-field--from-set]="!!tabUi().dateFrom.trim()"
+      >
         <span>From</span>
         <app-date-picker
           size="sm"
+          class="fuel-filter-from"
+          [class.fuel-filter-from--set]="!!tabUi().dateFrom.trim()"
           [value]="tabUi().dateFrom"
           (valueChange)="onDateFrom($event)"
         />
       </label>
-      <label class="fuel-mini-field fuel-mini-field--date">
+      <label
+        class="fuel-mini-field fuel-mini-field--date"
+        [class.fuel-mini-field--to-set]="!!tabUi().dateTo.trim()"
+      >
         <span>To</span>
         <app-date-picker
           size="sm"
+          class="fuel-filter-to"
+          [class.fuel-filter-to--set]="!!tabUi().dateTo.trim()"
           [value]="tabUi().dateTo"
           (valueChange)="onDateTo($event)"
         />
@@ -297,6 +307,7 @@
         <button
           type="button"
           class="btn btn-secondary fuel-clear-filters-btn"
+          [class.fuel-clear-filters-btn--active]="filtersNonDefault()"
           title="Reset From, To, Show (Last 20) and Search"
           (click)="clearFilters()"
         >
@@ -390,7 +401,7 @@
               type="button"
               class="fuel-scope-btn"
               [class.fuel-scope-btn--all]="eventsFilterTone() === 'all'"
-              [class.fuel-scope-btn--partial]="eventsFilterTone() === 'partial'"
+              [class.fuel-scope-btn--events-half]="eventsFilterTone() === 'partial'"
               [class.fuel-scope-btn--none]="eventsFilterTone() === 'none'"
               [class.fuel-scope-btn--open]="eventsMenuOpen()"
               (click)="toggleEventsMenu($event)"
@@ -426,10 +437,16 @@
                       <button
                         type="button"
                         class="fuel-menu-chip"
-                        [class.fuel-menu-chip--on]="kindOn(kind)"
+                        [class.fuel-menu-chip--on]="kindOn(kind) && !kindHasHiddenEvents(kind)"
+                        [class.fuel-menu-chip--partial]="kindOn(kind) && kindHasHiddenEvents(kind)"
                         [attr.data-kind]="kind"
                         role="menuitemcheckbox"
-                        [attr.aria-checked]="kindOn(kind)"
+                        [attr.aria-checked]="kindOn(kind) && !kindHasHiddenEvents(kind)"
+                        [attr.title]="
+                          kindHasHiddenEvents(kind)
+                            ? 'Some hidden — click to restore all ' + kindLabels[kind]
+                            : null
+                        "
                         (click)="toggleKind(kind)"
                       >
                         <span class="fuel-menu-chip__dot" aria-hidden="true"></span>
@@ -701,13 +718,12 @@
                       @if (col.id === 'kind') {
                         <span
                           class="fuel-kind-badge"
-                          [class.fuel-kind-badge--pressing]="kindPressId() === e.kind"
+                          [class.fuel-kind-badge--pressing]="kindBadgePressing(e.id, e.kind)"
                           [attr.data-kind]="e.kind"
-                          title="Hold to hide this event type"
-                          (pointerdown)="onKindBadgePointerDown(e.kind, $event)"
+                          title="LMB HIDES ALL · RMB HIDES CURRENT"
+                          (pointerdown)="onKindBadgePointerDown(e.id, e.kind, $event)"
                           (pointerup)="onKindBadgePointerUp($event)"
-                          (pointerleave)="onKindBadgePointerUp()"
-                          (pointercancel)="onKindBadgePointerUp()"
+                          (pointercancel)="onKindBadgePointerUp($event)"
                           (contextmenu)="$event.preventDefault()"
                         >
                           <span class="fuel-kind-badge__label">{{ kindLabels[e.kind] }}</span>
@@ -732,7 +748,6 @@
                               'fuel-cell-input' +
                               (isCellInherited(e.id, 'place') ? ' fuel-cell-input--inherited' : '')
                             "
-                            [title]="cellTip(col)"
                             (valueChange)="onPlaceCommit(e.id, $event)"
                             (commit)="onPlaceCommit(e.id, $event)"
                           />
@@ -746,7 +761,6 @@
                               'fuel-cell-input' +
                               (isCellInherited(e.id, 'rawEvent') ? ' fuel-cell-input--inherited' : '')
                             "
-                            [title]="cellTip(col)"
                             (valueChange)="onRawEventCommit(e.id, $event)"
                             (commit)="onRawEventCommit(e.id, $event)"
                           />
@@ -755,7 +769,6 @@
                             <input
                               class="fuel-cell-input fuel-cell-input--time"
                               [value]="editValue(e, col)"
-                              [appPlainTooltip]="cellTip(col)"
                               autocomplete="off"
                               spellcheck="false"
                               (input)="onEditLive(e, col, $event)"
@@ -775,7 +788,6 @@
                               class="fuel-cell-input fuel-cell-input--auto fuel-cell-input--density"
                               [value]="editValue(e, col)"
                               [attr.tabindex]="-1"
-                              [appPlainTooltip]="densityCellTip(e)"
                               autocomplete="off"
                               spellcheck="false"
                               readonly
@@ -784,7 +796,7 @@
                             <button
                               type="button"
                               class="fuel-density-badge"
-                              [appPlainTooltip]="densityBadgeTip(e)"
+                              [attr.title]="densityBadgeTip(e)"
                               tabindex="-1"
                               (click)="openDensityHud(e, $event)"
                               (contextmenu)="onTotalMtContextMenu(e, $event)"
@@ -798,10 +810,9 @@
                             (contextmenu)="onDmaConsMtContextMenu(e, $event)"
                           >
                             <input
-                              class="fuel-cell-input fuel-cell-input--density fuel-cell-input--dma"
+                              class="fuel-cell-input fuel-cell-input--dma"
                               [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
                               [value]="editValue(e, col)"
-                              [attr.title]="dmaDensityCellTip(e)"
                               autocomplete="off"
                               spellcheck="false"
                               (input)="onEditLive(e, col, $event)"
@@ -809,25 +820,27 @@
                               (keydown)="onCellKeydown(e, col, $event)"
                               (contextmenu)="onDmaConsMtContextMenu(e, $event)"
                             />
-                            <button
-                              type="button"
-                              class="fuel-density-badge fuel-density-badge--dma"
-                              [attr.title]="dmaDensityBadgeTip(e)"
-                              tabindex="-1"
-                              (click)="openDensityHud(e, $event, 'dma')"
-                              (contextmenu)="onDmaConsMtContextMenu(e, $event)"
-                            >
-                              D
-                            </button>
-                            <button
-                              type="button"
-                              class="fuel-rob-badge"
-                              [attr.title]="robBadgeTip(e, col)"
-                              tabindex="-1"
-                              (click)="openRobTankMenu(e, col, $event)"
-                            >
-                              F
-                            </button>
+                            <span class="fuel-density-cell__badges">
+                              <button
+                                type="button"
+                                class="fuel-density-badge fuel-density-badge--dma"
+                                [attr.title]="dmaDensityBadgeTip(e)"
+                                tabindex="-1"
+                                (click)="openDensityHud(e, $event, 'dma')"
+                                (contextmenu)="onDmaConsMtContextMenu(e, $event)"
+                              >
+                                D
+                              </button>
+                              <button
+                                type="button"
+                                class="fuel-rob-badge"
+                                [attr.title]="robBadgeTip(e, col)"
+                                tabindex="-1"
+                                (click)="openRobTankMenu(e, col, $event)"
+                              >
+                                F
+                              </button>
+                            </span>
                           </span>
                         } @else if (isConsumptionFuelCol(col)) {
                           <span class="fuel-density-cell">
@@ -835,7 +848,6 @@
                               class="fuel-cell-input fuel-cell-input--density"
                               [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
                               [value]="editValue(e, col)"
-                              [attr.title]="cellTip(col)"
                               autocomplete="off"
                               spellcheck="false"
                               (input)="onEditLive(e, col, $event)"
@@ -863,7 +875,7 @@
                             [appPlainTooltip]="
                               col.id === 'fmMeAe' && isFmInvalid(e)
                                 ? 'FM must be greater than the previous counter'
-                                : cellTip(col)
+                                : ''
                             "
                             autocomplete="off"
                             spellcheck="false"
@@ -964,14 +976,18 @@
 @if (densityHud(); as hud) {
   <div
     class="fuel-density-hud"
-    [style.left.px]="hud.x + 12"
-    [style.top.px]="hud.y - 36"
+    [style.left.px]="hud.x"
+    [style.top.px]="hud.y"
     (mousedown)="$event.stopPropagation()"
     (pointerdown)="$event.stopPropagation()"
     (wheel)="onDensityHudWheel($event)"
   >
     <span class="fuel-density-hud__label">{{
-      hud.target === 'dma' ? 'DMA density' : 'Density'
+      hud.target === 'dma'
+        ? 'Density (DMA / Boiler t)'
+        : hud.target === 'boilerCons'
+          ? 'Boiler density'
+          : 'Density'
     }}</span>
     <input
       class="fuel-density-hud__input"
@@ -996,8 +1012,8 @@
 @if (robTankMenu(); as menu) {
   <div
     class="fuel-rob-menu"
-    [style.left.px]="menu.x + 8"
-    [style.top.px]="menu.y + 8"
+    [style.left.px]="menu.x"
+    [style.top.px]="menu.y"
     (mousedown)="$event.stopPropagation()"
     (pointerdown)="$event.stopPropagation()"
     role="listbox"

@@ -139,6 +139,21 @@ export class FuelStore {
     void this.state.persist('silent');
   }
 
+  /** Remember last Boiler cons t density (CENG). */
+  setLastBoilerConsDensity(density: number | null): void {
+    this.data.update((d) => {
+      const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
+      return {
+        ...d,
+        fuelLibrary: normalizeFuelLibrary({
+          ...prev,
+          lastBoilerConsDensity: density,
+        }),
+      };
+    });
+    void this.state.persist('silent');
+  }
+
   updateView(partial: Partial<FuelViewPrefs>): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
@@ -355,10 +370,14 @@ export class FuelStore {
     );
   }
 
-  /** Save current local column layout into the shared preset list. */
+  /** Save current local Events + Columns layout into the shared preset list. */
   saveDisplayPreset(
     name: string,
-    layout: { visibleColumns: FuelDisplayPreset['visibleColumns']; hoursAsHm: boolean },
+    layout: {
+      visibleColumns: FuelDisplayPreset['visibleColumns'];
+      visibleKinds: FuelDisplayPreset['visibleKinds'];
+      hoursAsHm: boolean;
+    },
     overwriteId?: string,
   ): FuelDisplayPreset {
     const trimmed = name.trim().slice(0, 80);
@@ -367,6 +386,7 @@ export class FuelStore {
       name: trimmed,
       savedAt: new Date().toISOString(),
       visibleColumns: [...layout.visibleColumns],
+      visibleKinds: [...layout.visibleKinds],
       hoursAsHm: layout.hoursAsHm,
     };
     this.data.update((d) => {

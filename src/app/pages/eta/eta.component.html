@@ -340,14 +340,15 @@
                           calculation().legs[i]?.toLabel || '—'
                         }}</span>
                       } @else {
-                        <input
-                          type="text"
-                          class="eta-input eta-input--route"
+                        <app-ref-choice-suggest
+                          [value]="leg.toLabel"
+                          [options]="waypointNameChoices()"
+                          matchMode="includes"
+                          listTone="fuel"
                           [title]="etaTips.legWaypoint"
-                          [ngModel]="leg.toLabel"
-                          (ngModelChange)="onLegToLabel(leg.id, $event)"
-                          (keydown.enter)="blurOnEnter($event)"
-                          placeholder="Intermediate point"
+                          inputClass="eta-input eta-input--route"
+                          (valueChange)="onLegToLabel(leg.id, $event)"
+                          (commit)="onLegToLabel(leg.id, $event)"
                         />
                       }
                       <button

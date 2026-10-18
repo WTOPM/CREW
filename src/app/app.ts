@@ -89,6 +89,8 @@ export class App implements OnInit {
   private folderHoldTriggered = false;
 
   protected readonly outputSettings = this.storage.outputSettings;
+  /** Settings modal Done / Save — blocking write to the working folder. */
+  protected readonly formSaveBusy = this.appState.formSaveBusy;
   /** Desktop build writes to a typed absolute path. */
   protected readonly hasElectron = !!window.electronAPI;
   protected readonly minimizeToTray = this.localPrefs.minimizeToTray;
@@ -186,9 +188,8 @@ export class App implements OnInit {
 
   /** Write RAM edits to the shared/local data file only when dirty (no toast). */
   private async flushPendingToDisk(): Promise<void> {
-    if (!this.appState.hasPendingPersist()) return;
     try {
-      // Quit path: keep open Settings-modal edits and merge every dirty section.
+      // Always run quit flush — it commits focused fields first, then writes if dirty.
       await this.appState.flushPersistForQuit();
     } catch {
       /* ignore — quit path */

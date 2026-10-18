@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   displayContainerSize,
+  normalizeManifestSizeCode,
   resolveContainerColumnValue,
   resolveContainerSizeValue,
   splitContainerSizeLabel,
@@ -63,6 +64,15 @@ describe('displayContainerSize / resolveContainerColumnValue', () => {
     expect(displayContainerSize('46GP')).toBe(`40${P}HCPW`);
     expect(displayContainerSize('42FR')).toBe(`40${P}PF`);
     expect(displayContainerSize('45RF')).toBe(`40${P}RFHC`);
+    expect(displayContainerSize('22TN')).toBe(`20${P}TN`);
+    expect(displayContainerSize('22K2')).toBe(`20${P}TN`);
+  });
+
+  it('fixes Unifeeder PDF OCR size tokens (EM/DM → 22)', () => {
+    expect(normalizeManifestSizeCode('EMKD')).toBe('22K2');
+    expect(normalizeManifestSizeCode('DMKD')).toBe('22K2');
+    expect(normalizeManifestSizeCode('EMT6')).toBe('22T6');
+    expect(displayContainerSize(normalizeManifestSizeCode('EMKD'))).toBe(`20${P}TN`);
   });
 
   it('keeps size labels and normalizes ASCII apostrophes / spaces', () => {

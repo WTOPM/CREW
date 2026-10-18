@@ -24,6 +24,15 @@ export interface ConfirmDialogOptions {
   /** Optional fourth button (e.g. “Fix all MANIFEST”). */
   alt2Label?: string;
   variant?: ConfirmDialogVariant;
+  /**
+   * When false, backdrop click does not dismiss (user must pick a button).
+   * Default true.
+   */
+  dismissOnBackdrop?: boolean;
+  /**
+   * When false, Escape does not dismiss. Default true (Escape = cancel).
+   */
+  dismissOnEscape?: boolean;
 }
 
 export interface ConfirmDialogState {
@@ -35,6 +44,8 @@ export interface ConfirmDialogState {
   altLabel: string;
   alt2Label: string;
   variant: ConfirmDialogVariant;
+  dismissOnBackdrop: boolean;
+  dismissOnEscape: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -45,7 +56,12 @@ export class ConfirmDialogService {
   readonly dialog = this.state.asReadonly();
 
   confirm(options: ConfirmDialogOptions): Promise<ConfirmDialogResult> {
+    // Do not auto-cancel a dialog that requires an explicit choice.
     if (this.resolver) {
+      const open = this.state();
+      if (open && (!open.dismissOnBackdrop || !open.dismissOnEscape)) {
+        return Promise.resolve(false);
+      }
       this.resolver(false);
     }
 
@@ -60,8 +76,24 @@ export class ConfirmDialogService {
         altLabel: options.altLabel?.trim() || '',
         alt2Label: options.alt2Label?.trim() || '',
         variant: options.variant ?? 'default',
+        dismissOnBackdrop: options.dismissOnBackdrop !== false,
+        dismissOnEscape: options.dismissOnEscape !== false,
       });
     });
+  }
+
+  /** Backdrop click — no-op when dismissOnBackdrop is false. */
+  backdropDismiss(): void {
+    const open = this.state();
+    if (!open?.dismissOnBackdrop) return;
+    this.cancel();
+  }
+
+  /** Escape — no-op when dismissOnEscape is false. */
+  escapeDismiss(): void {
+    const open = this.state();
+    if (!open?.dismissOnEscape) return;
+    this.cancel();
   }
 
   accept(): void {

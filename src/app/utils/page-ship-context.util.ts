@@ -1,6 +1,7 @@
 import type { ShipInfo } from '../models/crew.models';
 import type { DgPageShipContext } from '../models/dg-page-archive.models';
 import type { ReeferPageShipContext } from '../models/reefer-page-archive.models';
+import { coerceIsoDate } from './date.util';
 
 /** DG page voyage fields — independent from the main ship form. */
 export interface DgPageContext {
@@ -41,16 +42,16 @@ export function normalizeDgPageContext(
     return {
       portOfCall: String(raw?.portOfCall ?? '').trim(),
       nextPortOfCall: String(raw?.nextPortOfCall ?? '').trim(),
-      dateOfDeparture: String(raw?.dateOfDeparture ?? '').trim(),
-      dateOfArrival: String(raw?.dateOfArrival ?? '').trim(),
+      dateOfDeparture: coerceIsoDate(raw?.dateOfDeparture),
+      dateOfArrival: coerceIsoDate(raw?.dateOfArrival),
     };
   }
   if (shipSeed) {
     return {
       portOfCall: shipSeed.portOfCall?.trim() ?? '',
       nextPortOfCall: shipSeed.nextPortOfCall?.trim() ?? '',
-      dateOfDeparture: shipSeed.dateOfDeparture?.trim() ?? '',
-      dateOfArrival: shipSeed.dateOfArrival?.trim() ?? '',
+      dateOfDeparture: coerceIsoDate(shipSeed.dateOfDeparture),
+      dateOfArrival: coerceIsoDate(shipSeed.dateOfArrival),
     };
   }
   return createEmptyDgPageContext();
@@ -64,13 +65,13 @@ export function normalizeReeferPageContext(
   if (hasExplicitKey || raw) {
     return {
       portOfCall: String(raw?.portOfCall ?? '').trim(),
-      dateOfDeparture: String(raw?.dateOfDeparture ?? '').trim(),
+      dateOfDeparture: coerceIsoDate(raw?.dateOfDeparture),
     };
   }
   if (shipSeed) {
     return {
       portOfCall: shipSeed.portOfCall?.trim() ?? '',
-      dateOfDeparture: shipSeed.dateOfDeparture?.trim() ?? '',
+      dateOfDeparture: coerceIsoDate(shipSeed.dateOfDeparture),
     };
   }
   return createEmptyReeferPageContext();

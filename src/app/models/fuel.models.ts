@@ -98,10 +98,7 @@ export type FuelColumnId =
   | 'ae3Hours'
   | 'ae3Kw'
   | 'boilerCounterRh'
-  | 'boilerHours'
-  | 'boilerFmCeng'
-  | 'boilerConsM3'
-  | 'boilerConsMt';
+  | 'boilerHours';
 
 export type FuelColumnValueType = 'text' | 'date' | 'time' | 'hours' | 'num' | 'kw' | 'kind';
 
@@ -238,7 +235,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'dmaConsMt',
     label: 'DMA / Boiler t',
-    tip: 'DMA TOTAL CONS mt = ROUND(m³ × density, 1) — default density 0.88 (D). Debits ROB via F.',
+    tip: 'DMA TOTAL CONS mt = ROUND(m³ × density, 1). Density via D (default 0.88; ↑↓ ±0.01, Shift ±0.1). Debits ROB via F.',
     type: 'num',
     field: 'boilerMt',
     tone: 'boiler',
@@ -247,7 +244,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'dmaConsM3',
     label: 'DMA m³',
-    tip: 'DMA TOTAL CONS m³ = this Boiler FM − previous. Linked to FM ↔ mt via density.',
+    tip: 'DMA TOTAL CONS m³ = this Boiler FM − previous. Linked to Boiler FM ↔ DMA / Boiler t via density (D).',
     type: 'num',
     field: 'dmaConsM3',
     tone: 'boiler',
@@ -256,7 +253,7 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
   {
     id: 'boilerFm',
     label: 'Boiler FM',
-    tip: 'Boiler flowmeter (MASTER R). Delta → DMA m³; mt = ROUND(m³ × density, 1); ROB falls (F).',
+    tip: 'Boiler flowmeter. Delta → DMA m³; DMA / Boiler t = ROUND(m³ × density, 1); ROB falls (F).',
     type: 'num',
     field: 'boilerFm',
     tone: 'boiler',
@@ -439,33 +436,6 @@ export const FUEL_COLUMNS: FuelColumnDef[] = [
     tip: 'Boiler running hours for the period. Auto: Boiler counter − previous.',
     type: 'hours',
     field: 'boilerHours',
-    tone: 'boiler',
-    numeric: true,
-  },
-  {
-    id: 'boilerFmCeng',
-    label: 'Boiler FM (CENG)',
-    tip: 'Boiler flowmeter from CENG sheet.',
-    type: 'num',
-    field: 'boilerFmCeng',
-    tone: 'boiler',
-    numeric: true,
-  },
-  {
-    id: 'boilerConsM3',
-    label: 'Boiler m³',
-    tip: 'Boiler consumption volume (CENG).',
-    type: 'num',
-    field: 'boilerConsM3',
-    tone: 'boiler',
-    numeric: true,
-  },
-  {
-    id: 'boilerConsMt',
-    label: 'Boiler cons t',
-    tip: 'Boiler consumption mass (CENG).',
-    type: 'num',
-    field: 'boilerConsMt',
     tone: 'boiler',
     numeric: true,
   },
@@ -698,7 +668,13 @@ export interface FuelLogEvent {
   boilerHours: number | null;
   boilerFmCeng: number | null;
   boilerConsM3: number | null;
+  /** Boiler cons t = ROUND(boilerConsM3 × boilerConsDensity, 1). */
   boilerConsMt: number | null;
+  /**
+   * Per-row density for Boiler cons t (CENG).
+   * Separate from FO Total t and DMA TOTAL CONS densities. Null → lastBoilerConsDensity / 0.88.
+   */
+  boilerConsDensity: number | null;
   /** Fuel Log MASTER row (≥ 5). 0 = not yet on MASTER / app-added. */
   sourceRow: number;
   /**
@@ -738,6 +714,11 @@ export function fuelEventReadyForWrite(e: Pick<FuelLogEvent, 'date' | 'time' | '
 export interface FuelViewPrefs {
   /** Kinds shown in the table (empty = show none). */
   visibleKinds: FuelEventKind[];
+  /**
+   * Individual event ids hidden by RMB-hold on the Kind badge.
+   * Still roll into the next visible row (same as a hidden kind).
+   */
+  hiddenEventIds: string[];
   newestFirst: boolean;
   /** Optional ISO date filters (inclusive). Empty = no bound. */
   dateFrom: string;
@@ -788,12 +769,14 @@ export interface FuelLocalUiPrefs {
   tabsReady: boolean;
 }
 
-/** One saved column layout (Save / Load display) — shared via data folder. */
+/** One saved Events + Columns layout (Save / Load display) — shared via data folder. */
 export interface FuelDisplayPreset {
   id: string;
   name: string;
   savedAt: string;
   visibleColumns: FuelColumnId[];
+  /** Event types shown in the table (Events menu). */
+  visibleKinds: FuelEventKind[];
   hoursAsHm: boolean;
 }
 
@@ -840,6 +823,8 @@ export interface FuelLibrarySettings {
   lastDensity: number | null;
   /** Last DMA TOTAL CONS density (separate from FO) — default for new rows. */
   lastDmaDensity: number | null;
+  /** Last Boiler cons t density (CENG) — default for new rows. */
+  lastBoilerConsDensity: number | null;
 }
 
 /** One AE line from MASTER S–V (KW / RH / KG). MT is a shared merged cell. */
@@ -875,12 +860,26 @@ export const FUEL_DEFAULT_DENSITY = 0.88;
 export function createDefaultFuelViewPrefs(): FuelViewPrefs {
   return {
     visibleKinds: [...FUEL_DEFAULT_VISIBLE_KINDS],
+    hiddenEventIds: [],
     newestFirst: true,
     dateFrom: '',
     dateTo: '',
     search: '',
     limitCount: 20,
   };
+}
+
+function normalizeFuelHiddenEventIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const id = String(item ?? '').trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
 }
 
 export function createDefaultFuelTabLocalPrefs(
@@ -894,6 +893,9 @@ export function createDefaultFuelTabLocalPrefs(
     visibleKinds: Array.isArray(view?.visibleKinds)
       ? normalizeFuelVisibleKinds(view!.visibleKinds)
       : [...base.visibleKinds],
+    hiddenEventIds: Array.isArray(view?.hiddenEventIds)
+      ? normalizeFuelHiddenEventIds(view!.hiddenEventIds)
+      : [...base.hiddenEventIds],
     newestFirst: view?.newestFirst !== false,
     dateFrom: typeof view?.dateFrom === 'string' ? view.dateFrom : '',
     dateTo: typeof view?.dateTo === 'string' ? view.dateTo : '',
@@ -923,6 +925,7 @@ export function createDefaultFuelLocalUiPrefs(): FuelLocalUiPrefs {
 export function fuelTabLocalPrefsAsView(tab: FuelTabLocalPrefs): FuelViewPrefs {
   return {
     visibleKinds: [...tab.visibleKinds],
+    hiddenEventIds: [...(tab.hiddenEventIds ?? [])],
     newestFirst: tab.newestFirst,
     dateFrom: tab.dateFrom,
     dateTo: tab.dateTo,
@@ -973,6 +976,7 @@ export function createDefaultFuelLibrary(): FuelLibrarySettings {
     masterSummary: null,
     lastDensity: FUEL_DEFAULT_DENSITY,
     lastDmaDensity: FUEL_DEFAULT_DENSITY,
+    lastBoilerConsDensity: FUEL_DEFAULT_DENSITY,
   };
 }
 
@@ -1049,6 +1053,18 @@ export function resolveDmaDensity(
   );
 }
 
+/** Boiler cons t density (CENG) — separate from FO H and DMA P densities. */
+export function resolveBoilerConsDensity(
+  row: Pick<FuelLogEvent, 'boilerConsDensity'> | null | undefined,
+  preferred?: number | null,
+): number {
+  return (
+    normalizeFuelDensity(row?.boilerConsDensity) ??
+    normalizeFuelDensity(preferred) ??
+    FUEL_DEFAULT_DENSITY
+  );
+}
+
 /** Reverse of Total/DMA t: m³ ≈ ROUND(mt / density, 1). */
 export function recomputeFuelM3FromMt(
   totalMt: number | null | undefined,
@@ -1080,7 +1096,6 @@ export const FUEL_INHERITABLE_FROM_PREVIOUS = [
   'place',
   'fmMeAe',
   'boilerFm',
-  'boilerFmCeng',
   'meCounterRh',
   'ae1CounterRh',
   'ae2CounterRh',
@@ -1110,6 +1125,21 @@ export function inheritFuelFieldsFromPrevious(
   return { patch, inheritedFields };
 }
 
+/**
+ * Sort / chrono key for Fuel events.
+ * Empty time must NOT become 00:00 (that jumps rows to the start of the day).
+ * Untimed rows sort after timed ones on the same date, then by sourceRow / id.
+ */
+export function fuelEventChronoKey(
+  e: Pick<FuelLogEvent, 'date' | 'time' | 'sourceRow'> & { id?: string },
+): string {
+  const time = String(e.time ?? '').trim();
+  const row = String(e.sourceRow || 0).padStart(6, '0');
+  const id = e.id ? `#${e.id}` : '';
+  // `~~:~~` > `23:59` so missing clocks stay at the end of that date.
+  return `${e.date}T${time || '~~:~~'}#${row}${id}`;
+}
+
 /** Chronologically last event in the log (for seeding a new row). */
 export function findLatestFuelEvent(
   events: readonly FuelLogEvent[],
@@ -1118,7 +1148,8 @@ export function findLatestFuelEvent(
   let best: FuelLogEvent | null = null;
   let bestKey = '';
   for (const e of events) {
-    const key = `${e.date}T${e.time || '00:00'}#${String(e.sourceRow).padStart(6, '0')}`;
+    if (!e.date) continue;
+    const key = fuelEventChronoKey(e);
     if (!best || key > bestKey) {
       best = e;
       bestKey = key;
@@ -1146,6 +1177,7 @@ export function createEmptyFuelLogEvent(partial?: Partial<FuelLogEvent>): FuelLo
       aeMt: partial?.aeMt ?? null,
       boilerMt: partial?.boilerMt ?? null,
       dmaDensity: partial?.dmaDensity ?? null,
+      boilerConsDensity: partial?.boilerConsDensity ?? null,
       robRmdMt: partial?.robRmdMt ?? null,
       robB100Mt: partial?.robB100Mt ?? null,
       bunkerRmdBioMt: partial?.bunkerRmdBioMt ?? null,
@@ -1224,6 +1256,8 @@ export function normalizeFuelLibrary(
       normalizeFuelDensity(raw?.lastDensity) ?? defaults.lastDensity,
     lastDmaDensity:
       normalizeFuelDensity(raw?.lastDmaDensity) ?? defaults.lastDmaDensity,
+    lastBoilerConsDensity:
+      normalizeFuelDensity(raw?.lastBoilerConsDensity) ?? defaults.lastBoilerConsDensity,
     sheetName: String(raw?.sheetName ?? defaults.sheetName).trim(),
     events,
     editEvents,
@@ -1231,6 +1265,7 @@ export function normalizeFuelLibrary(
     editDirty: raw?.editDirty === true,
     view: {
       visibleKinds,
+      hiddenEventIds: normalizeFuelHiddenEventIds(viewRaw?.hiddenEventIds),
       newestFirst: viewRaw?.newestFirst !== false,
       dateFrom: String(viewRaw?.dateFrom ?? '').trim(),
       dateTo: String(viewRaw?.dateTo ?? '').trim(),
@@ -1453,11 +1488,15 @@ export function normalizeFuelDisplayPresets(raw: unknown): FuelDisplayPreset[] {
       seen.add(id);
       return true;
     });
+    const visibleKinds = Array.isArray(p.visibleKinds)
+      ? normalizeFuelVisibleKinds(p.visibleKinds)
+      : [...FUEL_DEFAULT_VISIBLE_KINDS];
     out.push({
       id: String(p.id ?? '').trim() || `fuel-disp-${Date.now()}-${out.length}`,
       name: name.slice(0, 80),
       savedAt: String(p.savedAt ?? '').trim() || new Date().toISOString(),
       visibleColumns: visibleColumns.length ? visibleColumns : [...FUEL_DEFAULT_VISIBLE_COLUMNS],
+      visibleKinds: visibleKinds.length ? visibleKinds : [...FUEL_DEFAULT_VISIBLE_KINDS],
       hoursAsHm: p.hoursAsHm === true,
     });
   }
@@ -1491,6 +1530,7 @@ function normalizeFuelLogEvent(raw: unknown, index: number): FuelLogEvent | null
     aeMt: numOrNull(e.aeMt),
     boilerMt: numOrNull(e.boilerMt),
     dmaDensity: normalizeFuelDensity(e.dmaDensity),
+    boilerConsDensity: normalizeFuelDensity(e.boilerConsDensity),
     robRmdMt: numOrNull(e.robRmdMt),
     robB100Mt: numOrNull(e.robB100Mt),
     bunkerRmdBioMt: numOrNull(e.bunkerRmdBioMt),
@@ -2032,12 +2072,6 @@ export function isAppAddedFuelEvent(e: Pick<FuelLogEvent, 'sourceRow'>): boolean
   return !(e.sourceRow >= 5);
 }
 
-export function fuelEventChronoKey(
-  e: Pick<FuelLogEvent, 'date' | 'time' | 'sourceRow' | 'id'>,
-): string {
-  return `${e.date}T${e.time || '00:00'}#${String(e.sourceRow).padStart(6, '0')}#${e.id}`;
-}
-
 /**
  * Stamp tank picks + ROB = previous − ME/AE/Boiler + bunker on those tanks.
  * Explicit tank picks always win over inference.
@@ -2287,6 +2321,14 @@ export function applyFuelEventAutoCalcs(
     }
   }
 
+  // CENG Boiler cons t = ROUND(m³ × boilerConsDensity, 1).
+  const boilerConsD = resolveBoilerConsDensity(next, preferredDma);
+  next = { ...next, boilerConsDensity: next.boilerConsDensity ?? boilerConsD };
+  if (next.boilerConsM3 != null && next.boilerConsMt == null) {
+    const mt = recomputeFuelTotalMtFromM3(next.boilerConsM3, boilerConsD);
+    if (mt != null) next = { ...next, boilerConsMt: mt };
+  }
+
   if (previous) {
     const meH = recomputeFuelHoursFromCounter(next.meCounterRh, previous.meCounterRh);
     if (meH != null) next = { ...next, meHours: meH };
@@ -2323,6 +2365,7 @@ export function buildFuelDisplayEvents(
   view: FuelViewPrefs,
 ): FuelDisplayEvent[] {
   const kinds = new Set(view.visibleKinds);
+  const hiddenIds = new Set(view.hiddenEventIds ?? []);
   const q = view.search.trim().toLowerCase();
 
   const scoped = [...events]
@@ -2330,14 +2373,20 @@ export function buildFuelDisplayEvents(
     .filter((e) => {
       if (view.dateFrom && e.date < view.dateFrom) return false;
       if (view.dateTo && e.date > view.dateTo) return false;
+      // Excel / synced rows without a clock must not appear as 00:00.
+      // App drafts (sourceRow 0) stay visible so the user can fill time.
+      if (!String(e.time ?? '').trim() && (e.sourceRow > 0 || e.writeStatus === 'synced')) {
+        return false;
+      }
       return true;
     })
-    .sort((a, b) => eventKey(a).localeCompare(eventKey(b)));
+    .sort((a, b) => fuelEventChronoKey(a).localeCompare(fuelEventChronoKey(b)));
 
   const visibleIdx: number[] = [];
   for (let i = 0; i < scoped.length; i++) {
     const e = scoped[i];
     if (!kinds.has(e.kind)) continue;
+    if (hiddenIds.has(e.id)) continue;
     if (q) {
       const hay = `${e.place} ${e.rawEvent} ${FUEL_EVENT_KIND_LABELS[e.kind]}`.toLowerCase();
       if (!hay.includes(q)) continue;
@@ -2360,13 +2409,9 @@ export function buildFuelDisplayEvents(
       : rolled;
 
   return [...limited].sort((a, b) => {
-    const cmp = eventKey(a).localeCompare(eventKey(b));
+    const cmp = fuelEventChronoKey(a).localeCompare(fuelEventChronoKey(b));
     return view.newestFirst ? -cmp : cmp;
   });
-}
-
-function eventKey(e: Pick<FuelLogEvent, 'date' | 'time' | 'sourceRow'>): string {
-  return `${e.date}T${e.time || '00:00'}#${String(e.sourceRow).padStart(6, '0')}`;
 }
 
 const SUM_FIELDS: Array<keyof FuelLogEvent> = [
@@ -2459,13 +2504,13 @@ export function findPreviousFuelEvent(
   excludeId?: string,
 ): FuelLogEvent | null {
   if (!date) return null;
-  const key = `${date}T${time || '00:00'}`;
+  const key = fuelEventChronoKey({ date, time, sourceRow: 0 });
   let best: FuelLogEvent | null = null;
   let bestKey = '';
   for (const e of events) {
     if (excludeId && e.id === excludeId) continue;
     if (!e.date) continue;
-    const k = `${e.date}T${e.time || '00:00'}`;
+    const k = fuelEventChronoKey(e);
     if (k >= key) continue;
     if (!best || k > bestKey) {
       best = e;

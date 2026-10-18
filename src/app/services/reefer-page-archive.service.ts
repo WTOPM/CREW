@@ -56,7 +56,7 @@ export class ReeferPageArchiveService {
     void this.state.persist('silent');
   }
 
-  save(label: string): ReeferPageSnapshot | null {
+  async save(label: string): Promise<ReeferPageSnapshot | null> {
     const trimmed = label.trim();
     if (!trimmed) return null;
 
@@ -76,7 +76,8 @@ export class ReeferPageArchiveService {
         ...d,
         reeferPageArchives: this.sortNewestFirst([entry, ...d.reeferPageArchives]),
       }));
-      void this.state.persist('silent');
+      this.state.markSectionsDirty(['reefer']);
+      await this.state.persist('saved', `Saved "${trimmed}"`);
       return entry;
     } finally {
       this.saving.set(false);
@@ -146,7 +147,8 @@ export class ReeferPageArchiveService {
       ...d,
       reeferPageArchives: d.reeferPageArchives.filter((e) => e.id !== id),
     }));
-    void this.state.persist('silent');
+    this.state.markSectionsDirty(['reefer']);
+    void this.state.flushPersist('silent');
     if (wasLoaded) {
       this.reset();
     }

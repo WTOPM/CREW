@@ -5,9 +5,9 @@
     (appClickOutside)="cancel.emit()"
     (click)="$event.stopPropagation()"
   >
-    <h3>Edit crew member</h3>
+    <h3>{{ viewOnly() ? 'View crew member' : 'Edit crew member' }}</h3>
 
-    <div class="crew-form-layout">
+    <div class="crew-form-layout" [class.crew-form-layout--view-only]="viewOnly()">
       <section class="crew-form-block">
         <h4 class="crew-form-block-title">Personal details</h4>
         <div class="form-grid">
@@ -292,16 +292,25 @@
 
       <section class="crew-form-block crew-form-block--signature">
         <h4 class="crew-form-block-title">Crew Effect signature</h4>
-        <p class="crew-form-sig-hint">
-          Drop PNG/JPEG/PDF — printed in the Signature column (forms 01–03).
-        </p>
+        @if (!viewOnly()) {
+          <p class="crew-form-sig-hint">
+            Drop PNG/JPEG/PDF — printed in the Signature column (forms 01–03).
+          </p>
+        }
         <app-crew-signature-drop [member]="draft()" (changed)="onSignatureChanged()" />
       </section>
     </div>
 
     <div class="modal-actions">
-      <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
-      <button type="button" class="btn btn-save" (click)="onSave()">Save</button>
+      @if (viewOnly()) {
+        <button type="button" class="btn btn-secondary" (click)="copyDetails()">
+          Copy details
+        </button>
+        <button type="button" class="btn btn-primary" (click)="cancel.emit()">Close</button>
+      } @else {
+        <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
+        <button type="button" class="btn btn-save" (click)="onSave()">Save</button>
+      }
     </div>
   </div>
 </div>

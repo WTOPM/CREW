@@ -62,11 +62,81 @@ export function parseValidityRange(value: string | undefined | null): {
   return { issue: '', expiry: single };
 }
 
+/**
+ * Unifeeder / DP WORLD sailing dates: `17-oktober-2026`, `7-okt-2026`, etc.
+ * EN + common NL/DE/DK month spellings (PDF often uses `oktober`, not `october`).
+ */
+const MANIFEST_MONTH_NAMES: Record<string, string> = {
+  january: '01',
+  jan: '01',
+  januar: '01',
+  february: '02',
+  feb: '02',
+  februar: '02',
+  march: '03',
+  mar: '03',
+  maart: '03',
+  april: '04',
+  apr: '04',
+  may: '05',
+  maj: '05',
+  mei: '05',
+  june: '06',
+  jun: '06',
+  juni: '06',
+  july: '07',
+  jul: '07',
+  juli: '07',
+  august: '08',
+  aug: '08',
+  augustus: '08',
+  september: '09',
+  sept: '09',
+  sep: '09',
+  october: '10',
+  oct: '10',
+  okt: '10',
+  oktober: '10',
+  november: '11',
+  nov: '11',
+  december: '12',
+  dec: '12',
+};
+
+/** Parse `D-month-YYYY` / `DD-month-YYYY` → ISO `yyyy-MM-dd`, or null. */
+export function parseManifestDayMonthYearToIso(raw: string): string | null {
+  const m = String(raw ?? '')
+    .trim()
+    .match(/^(\d{1,2})-([a-z]+)-(\d{4})$/i);
+  if (!m) return null;
+  const month = MANIFEST_MONTH_NAMES[m[2]!.toLowerCase()];
+  if (!month) return null;
+  const yyyy = +m[3]!;
+  const dd = +m[1]!;
+  const mm = +month;
+  const iso = `${String(yyyy).padStart(4, '0')}-${month}-${String(dd).padStart(2, '0')}`;
+  const date = new Date(`${iso}T00:00:00`);
+  if (isNaN(date.getTime())) return null;
+  if (date.getFullYear() !== yyyy || date.getMonth() + 1 !== mm || date.getDate() !== dd) {
+    return null;
+  }
+  return iso;
+}
+
+/** Prefer ISO; recover Unifeeder-style dates that slipped through un-normalized. */
+export function coerceIsoDate(raw: string | undefined | null): string {
+  const v = String(raw ?? '').trim();
+  if (!v) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  return parseManifestDayMonthYearToIso(v) ?? v;
+}
+
 /** Display as dd.MM.yyyy */
 export function formatDisplayDate(value: string | undefined | null): string {
   if (!value) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [y, m, d] = value.split('-');
+  const iso = coerceIsoDate(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [y, m, d] = iso.split('-');
     return `${d}.${m}.${y}`;
   }
   return value;

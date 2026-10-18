@@ -943,6 +943,14 @@
   width: 100%;
 }
 
+.fuel-mini-field--from-set {
+  color: #1d4ed8;
+}
+
+.fuel-mini-field--to-set {
+  color: #15803d;
+}
+
 .fuel-mini-field input,
 .fuel-mini-field select {
   padding: 0.45rem 0.55rem;
@@ -1015,6 +1023,19 @@
   font-weight: 750;
   letter-spacing: 0.04em;
   white-space: nowrap;
+}
+
+.fuel-clear-filters-btn--active {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #b91c1c;
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 14%);
+}
+
+.fuel-clear-filters-btn--active:hover {
+  border-color: #f87171;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .fuel-table-card {
@@ -1727,6 +1748,21 @@
   color: #9a3412;
 }
 
+/* Events only: half green / half red strip — E mark stays solid green. */
+.fuel-scope-btn--events-half {
+  color: #115e59;
+  background: linear-gradient(90deg, rgb(204 251 241 / 55%) 0 50%, rgb(254 226 226 / 70%) 50% 100%);
+}
+
+.fuel-scope-btn--events-half:hover {
+  background: linear-gradient(90deg, rgb(167 243 208 / 65%) 0 50%, rgb(254 202 202 / 75%) 50% 100%);
+  color: #0f766e;
+}
+
+.fuel-scope-btn--events-half .fuel-scope-btn__mark {
+  background: #0f766e;
+}
+
 .fuel-scope-btn--none .fuel-scope-btn__mark {
   background: #b91c1c;
 }
@@ -2396,6 +2432,18 @@
   box-shadow: 0 0 0 2px rgb(34 197 94 / 12%);
 }
 
+/* Half-fill: at least one event of this type is hidden individually. */
+.fuel-menu-chip--partial {
+  border-color: #86efac;
+  color: #166534;
+  background: linear-gradient(90deg, #ecfdf5 0 50%, #fff 50% 100%);
+  box-shadow: 0 0 0 2px rgb(34 197 94 / 10%);
+}
+
+.fuel-menu-chip--partial .fuel-menu-chip__dot {
+  background: currentColor;
+}
+
 .fuel-menu-chip__check {
   display: inline-flex;
   align-items: center;
@@ -2467,6 +2515,42 @@
   background: #e0f2fe;
   border-color: #7dd3fc;
   color: #0369a1;
+}
+
+.fuel-menu-chip[data-kind='arrival'].fuel-menu-chip--partial {
+  background: linear-gradient(90deg, #dbeafe 0 50%, #fff 50% 100%);
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.fuel-menu-chip[data-kind='departure'].fuel-menu-chip--partial {
+  background: linear-gradient(90deg, #ffedd5 0 50%, #fff 50% 100%);
+  border-color: #fdba74;
+  color: #c2410c;
+}
+
+.fuel-menu-chip[data-kind='start_sea'].fuel-menu-chip--partial {
+  background: linear-gradient(90deg, #dcfce7 0 50%, #fff 50% 100%);
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.fuel-menu-chip[data-kind='end_sea'].fuel-menu-chip--partial {
+  background: linear-gradient(90deg, #f3e8ff 0 50%, #fff 50% 100%);
+  border-color: #d8b4fe;
+  color: #7e22ce;
+}
+
+.fuel-menu-chip[data-kind='shifting'].fuel-menu-chip--partial {
+  background: linear-gradient(90deg, #e0f2fe 0 50%, #fff 50% 100%);
+  border-color: #7dd3fc;
+  color: #0369a1;
+}
+
+.fuel-menu-chip[data-kind='noon'].fuel-menu-chip--partial {
+  background: linear-gradient(90deg, #ecfdf5 0 50%, #fff 50% 100%);
+  border-color: #86efac;
+  color: #166534;
 }
 
 .fuel-menu-chip--me.fuel-menu-chip--on {
@@ -2547,22 +2631,44 @@
   min-width: 0;
 }
 
+/* DMA / Boiler t: value + D (density) + F (ROB) in one row — never overlap/clip. */
+.fuel-density-cell--dma {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.12rem;
+  width: auto;
+  min-width: 7.25rem;
+  max-width: none;
+}
+
+.fuel-density-cell--dma .fuel-cell-input--dma {
+  flex: 1 1 auto;
+  width: 3.6rem;
+  min-width: 3.2rem;
+  max-width: 5.5rem;
+  padding-right: 0.35rem;
+}
+
+.fuel-density-cell__badges {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.05rem;
+}
+
+.fuel-density-cell--dma .fuel-density-badge,
+.fuel-density-cell--dma .fuel-rob-badge {
+  position: static;
+  transform: none;
+  opacity: 1;
+}
+
 .fuel-cell-input--density {
   display: block;
   width: 100%;
   padding-right: 1.4rem;
   cursor: default;
   user-select: none;
-}
-
-.fuel-cell-input--dma {
-  padding-right: 2.7rem;
-  cursor: text;
-  user-select: text;
-}
-
-.fuel-density-badge--dma {
-  right: 1.4rem;
 }
 
 .fuel-density-badge {
@@ -2585,6 +2691,12 @@
   letter-spacing: 0;
   cursor: pointer;
   opacity: 0.55;
+}
+
+.fuel-density-badge--dma {
+  opacity: 1;
+  background: #ffedd5;
+  color: #9a3412;
 }
 
 .fuel-density-badge:hover {
@@ -2613,6 +2725,10 @@
   letter-spacing: 0;
   cursor: pointer;
   opacity: 0.55;
+}
+
+.fuel-density-cell--dma .fuel-rob-badge {
+  opacity: 0.85;
 }
 
 .fuel-rob-badge:hover {

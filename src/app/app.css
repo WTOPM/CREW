@@ -530,6 +530,89 @@
   flex: 1;
 }
 
+.form-save-busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgb(15 23 42 / 48%);
+  backdrop-filter: blur(2px);
+  cursor: wait;
+}
+
+.form-save-busy-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: min(20rem, 92vw);
+  max-width: 24rem;
+  padding: 1.35rem 1.5rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid rgb(148 163 184 / 35%);
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  box-shadow: 0 18px 50px rgb(15 23 42 / 28%);
+  text-align: center;
+}
+
+.form-save-busy-spinner {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0ea5e9;
+  animation: form-save-busy-spin 0.75s linear infinite;
+}
+
+.form-save-busy-title {
+  margin: 0.25rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.form-save-busy-text {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.form-save-busy-bar {
+  width: 100%;
+  height: 0.35rem;
+  margin-top: 0.55rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.form-save-busy-bar__fill {
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #0284c7);
+  animation: form-save-busy-bar 1.1s ease-in-out infinite;
+}
+
+@keyframes form-save-busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes form-save-busy-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
 @media (max-width: 960px) {
   .top-nav__center {
     order: 3;

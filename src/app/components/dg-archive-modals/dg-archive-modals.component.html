@@ -113,7 +113,7 @@
                       Voy {{ entry.ship.voyageNumber }}
                       ·
                     }
-                    {{ entry.dgLibrary.onboard.length }} container(s)
+                    {{ archiveContainerCount(entry) }} container(s)
                   </span>
                   <span class="dg-archive-load-card__stats">
                     saved {{ formatSavedAt(entry.savedAt) }}

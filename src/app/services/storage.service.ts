@@ -144,12 +144,25 @@ export class StorageService {
     return this.state.beginFormSession();
   }
 
+  private finishFormUiInFlight: Promise<void> | null = null;
+
   /**
    * Close a settings modal.
    * - done: write only if dirty
    * - backdrop: discard quietly if clean; ask Save/Discard if dirty
    */
   async finishFormUi(reason: 'done' | 'backdrop'): Promise<void> {
+    if (this.finishFormUiInFlight) return this.finishFormUiInFlight;
+    this.finishFormUiInFlight = this.runFinishFormUi(reason).finally(() => {
+      this.finishFormUiInFlight = null;
+    });
+    return this.finishFormUiInFlight;
+  }
+
+  private async runFinishFormUi(reason: 'done' | 'backdrop'): Promise<void> {
+    // Flush focused cell / input into the store before dirty check (ClickOutside races blur).
+    await this.flushActiveFormField();
+
     if (!this.state.isFormSessionActive()) {
       this.state.endFormSessionClean();
       return;
@@ -159,17 +172,27 @@ export class StorageService {
       return;
     }
     if (reason === 'done') {
-      await this.state.commitFormSession();
+      await this.state.commitFormSession('Settings saved');
       return;
     }
     const ok = await this.confirmDialog.confirm({
-      title: 'Save changes?',
-      message: 'You changed form settings. Save them before closing?',
+      title: 'Unsaved changes',
+      message: 'You changed settings. Save them to the working folder, or discard?',
       confirmLabel: 'Save',
       cancelLabel: 'Discard',
+      // Must pick Save or Discard — backdrop / Escape must not silently close.
+      dismissOnBackdrop: false,
+      dismissOnEscape: false,
     });
-    if (ok) await this.state.commitFormSession();
+    if (ok) await this.state.commitFormSession('Settings saved');
     else this.state.discardFormSession();
+  }
+
+  /** Let (blur) / ngModel handlers commit the active field before we read dirty state. */
+  private async flushActiveFormField(): Promise<void> {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement) el.blur();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
 
   /** @deprecated Prefer finishFormUi('done' | 'backdrop'). */

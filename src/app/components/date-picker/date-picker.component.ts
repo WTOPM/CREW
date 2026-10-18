@@ -13,7 +13,13 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkConnectedOverlay, CdkOverlayOrigin, type ConnectedPosition } from '@angular/cdk/overlay';
-import { formatDisplayDate, parsePastedDateToIso, adjustDisplayDateSegment, clearDisplayDateByBackspace } from '../../utils/date.util';
+import {
+  coerceIsoDate,
+  formatDisplayDate,
+  parsePastedDateToIso,
+  adjustDisplayDateSegment,
+  clearDisplayDateByBackspace,
+} from '../../utils/date.util';
 import {
   EN_MONTHS,
   EN_WEEKDAYS,
@@ -113,12 +119,12 @@ export class DatePickerComponent implements OnDestroy {
   );
 
   protected readonly cells = computed(() =>
-    buildMonthGrid(this.viewYear(), this.viewMonth(), this.value()),
+    buildMonthGrid(this.viewYear(), this.viewMonth(), coerceIsoDate(this.value())),
   );
 
   constructor() {
     effect(() => {
-      const value = this.value();
+      const value = coerceIsoDate(this.value());
       // Don't overwrite what the user is typing; resync happens on blur.
       if (!this.focused()) {
         this.text.set(formatDisplayDate(value) || '');

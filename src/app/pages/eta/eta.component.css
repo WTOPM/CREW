@@ -558,8 +558,10 @@
   min-width: 0;
 }
 
-.eta-route-cell .eta-input--route {
+.eta-route-cell .eta-input--route,
+.eta-route-cell app-ref-choice-suggest {
   flex: 1;
+  min-width: 0;
 }
 
 .eta-gps-pin {

@@ -1,5 +1,5 @@
 @if (dialog(); as d) {
-  <div class="modal-backdrop confirm-backdrop" (click)="cancel()">
+  <div class="modal-backdrop confirm-backdrop" (click)="onBackdropClick()">
     <div
       class="modal dg-archive-modal confirm-dialog"
       [class.confirm-dialog--danger]="d.variant === 'danger'"

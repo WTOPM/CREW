@@ -1260,6 +1260,29 @@ th {
   gap: 0.85rem;
 }
 
+/* Departure view-only: inputs stay selectable/copyable; pickers stay inert. */
+.crew-form-layout--view-only app-lookup-select,
+.crew-form-layout--view-only app-date-picker,
+.crew-form-layout--view-only app-port-select,
+.crew-form-layout--view-only app-crew-signature-drop,
+.crew-form-layout--view-only .crew-form-block button {
+  pointer-events: none;
+}
+
+.crew-form-layout--view-only input:not([type='checkbox']):not([type='radio']),
+.crew-form-layout--view-only textarea {
+  cursor: text;
+  background: #f8fafc;
+  user-select: text;
+}
+
+.crew-form-layout--view-only select,
+.crew-form-layout--view-only input[type='checkbox'],
+.crew-form-layout--view-only input[type='radio'] {
+  pointer-events: none;
+  cursor: default;
+}
+
 .crew-form-block {
   padding: 0.85rem 1rem;
   border-radius: 10px;
@@ -3373,7 +3396,8 @@ th {
 }
 
 .dg-unifeeder-table tbody td.uf-cargo {
-  vertical-align: top;
+  /* Multi-line containers: keep each cargo line centered in its own row. */
+  vertical-align: middle;
 }
 
 .dg-unifeeder-table tbody tr.dg-unifeeder-row--single-line > td {
@@ -3388,6 +3412,7 @@ th {
 .dg-unifeeder-table .uf-line-act {
   text-align: center;
   padding-inline: 0.05rem;
+  vertical-align: middle;
 }
 
 .dg-unifeeder-row .uf-desc .dg-cell-input {
@@ -3399,7 +3424,7 @@ th {
 .dg-master-table td.col-name,
 .dg-unifeeder-table td.uf-desc {
   overflow: visible;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .dg-unifeeder-row .uf-act.uf-group {
@@ -3958,7 +3983,8 @@ th {
 .dg-master-table tbody td.col-weight,
 .dg-master-table tbody td.col-name,
 .dg-master-table tbody td.col-line-act {
-  vertical-align: top;
+  /* Same as Unifeeder: center each cargo line in multi-line containers. */
+  vertical-align: middle;
 }
 
 .dg-master-table tbody tr.dg-master-row--single-line > td {
@@ -3976,7 +4002,7 @@ th {
 }
 
 .dg-master-table tbody tr.dg-master-row--single-line > td.col-name {
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .dg-master-row--single-line .dg-row-actions {

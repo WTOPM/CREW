@@ -197,7 +197,10 @@ function importFromCengSpine(
       m?.density ??
       inferFuelDensityFromMtM3(totalMt, totalM3);
     const boilerMt = preferCeng(periodNum(row.getCell(36), trustPeriodFormulas), m?.boilerMt);
-    const dmaConsM3 = m?.dmaConsM3 ?? null;
+    const boilerFmCeng = cellNum1(row.getCell(34));
+    const boilerConsM3 = periodNum(row.getCell(35), trustPeriodFormulas);
+    // CENG boiler FM / m³ / t are the same as MASTER Boiler FM / DMA m³ / DMA t — prefer one set.
+    const dmaConsM3 = m?.dmaConsM3 ?? boilerConsM3;
     const dmaDensity =
       m?.dmaDensity ??
       densityFromMtFormulaCell(row.getCell(36), boilerMt, dmaConsM3) ??
@@ -227,7 +230,7 @@ function importFromCengSpine(
         boilerMt,
         dmaDensity,
         dmaConsM3,
-        boilerFm: m?.boilerFm ?? null,
+        boilerFm: m?.boilerFm ?? boilerFmCeng,
         meCounterRh: cellNum1(row.getCell(14)),
         meShapoliRev: cellNum1(row.getCell(15)),
         meShapoliKwh: cellNum1(row.getCell(16)),
@@ -248,9 +251,9 @@ function importFromCengSpine(
         ae3Kw: cellNum1(row.getCell(31)),
         boilerCounterRh: cellNum1(row.getCell(32)),
         boilerHours: cellNum1(row.getCell(33)),
-        boilerFmCeng: cellNum1(row.getCell(34)),
-        boilerConsM3: periodNum(row.getCell(35), trustPeriodFormulas),
-        boilerConsMt: periodNum(row.getCell(36), trustPeriodFormulas),
+        boilerFmCeng,
+        boilerConsM3,
+        boilerConsMt: boilerMt,
         sourceRow: m?.sourceRow ?? 0,
         cengSourceRow: r,
       }),
@@ -892,17 +895,28 @@ function cellDateIso(cell: ExcelJS.Cell): string {
 
 function cellTimeHm(cell: ExcelJS.Cell): string {
   const v = resolveCell(cell);
+  if (v == null || v === '') return '';
   if (typeof v === 'number' && Number.isFinite(v)) {
+    // Date-only serial pasted into the time column (no clock fraction).
+    if (v >= 1 && Math.abs(v % 1) < 1e-9) return '';
+    // Empty time-formatted cells are often stored as 0 — not text "00:00".
+    // Real midnight must be written as text "00:00" / "0:00" (FO-VPC style).
+    if (Math.abs(v) < 1e-12) return '';
     const frac = v >= 1 ? v % 1 : v;
+    if (Math.abs(frac) < 1e-12) return '';
     const totalMinutes = Math.round(frac * 24 * 60) % (24 * 60);
+    if (totalMinutes === 0) return '';
     const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
     const mm = String(totalMinutes % 60).padStart(2, '0');
     return `${hh}:${mm}`;
   }
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
-    const hh = String(v.getUTCHours()).padStart(2, '0');
-    const mm = String(v.getUTCMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
+    const hh = v.getUTCHours();
+    const mm = v.getUTCMinutes();
+    const ss = v.getUTCSeconds();
+    // Midnight Date in the time column is usually a date paste / empty datetime.
+    if (hh === 0 && mm === 0 && ss === 0) return '';
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   }
   const s = String(v ?? '').trim();
   const m = s.match(/^(\d{1,2}):(\d{2})/);

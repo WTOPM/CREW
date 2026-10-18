@@ -32,8 +32,11 @@ export class FuelDisplayModalsComponent {
   constructor() {
     effect(() => {
       if (this.showSave()) {
-        const n = untracked(() => this.localPrefs.activeTabPrefs().visibleColumns.length);
-        this.saveLabel.set(`Columns · ${n}`);
+        const label = untracked(() => {
+          const tab = this.localPrefs.activeTabPrefs();
+          return `Events ${tab.visibleKinds.length} · Columns ${tab.visibleColumns.length}`;
+        });
+        this.saveLabel.set(label);
       }
     });
   }
@@ -50,28 +53,26 @@ export class FuelDisplayModalsComponent {
     }
     const tab = this.localPrefs.activeTabPrefs();
     const hoursAsHm = this.localPrefs.fuelUi().hoursAsHm;
+    const layout = {
+      visibleColumns: tab.visibleColumns,
+      visibleKinds: tab.visibleKinds,
+      hoursAsHm,
+    };
     const existing = this.fuelStore.findDisplayPresetByName(name);
     if (existing) {
       const ok = await this.confirmDialog.confirm({
         title: 'Overwrite saved display',
         message:
           `A display named "${name}" already exists (shared).\n\n` +
-          'Replace it with the current column layout from this computer?',
+          'Replace it with the current Events + Columns layout from this computer?',
         confirmLabel: 'Overwrite',
         variant: 'danger',
       });
       if (!ok) return;
-      this.fuelStore.saveDisplayPreset(
-        name,
-        { visibleColumns: tab.visibleColumns, hoursAsHm },
-        existing.id,
-      );
+      this.fuelStore.saveDisplayPreset(name, layout, existing.id);
       this.toast.show(`Updated "${name}"`, 'success');
     } else {
-      this.fuelStore.saveDisplayPreset(name, {
-        visibleColumns: tab.visibleColumns,
-        hoursAsHm,
-      });
+      this.fuelStore.saveDisplayPreset(name, layout);
       this.toast.show(`Saved "${name}"`, 'success');
     }
     this.closeSave.emit();
@@ -89,6 +90,9 @@ export class FuelDisplayModalsComponent {
     }
     await this.localPrefs.updateActiveTabPrefs({
       visibleColumns: [...preset.visibleColumns],
+      visibleKinds: [...(preset.visibleKinds ?? [])],
+      // Clear per-event hides so loaded event types show fully.
+      hiddenEventIds: [],
     });
     await this.localPrefs.setFuelHoursAsHm(preset.hoursAsHm);
     this.toast.show(`Loaded "${preset.name}"`, 'info');
@@ -120,6 +124,7 @@ export class FuelDisplayModalsComponent {
 
   protected presetMeta(preset: FuelDisplayPreset): string {
     const hrs = preset.hoursAsHm ? 'H:MM' : 'decimal hrs';
-    return `${preset.visibleColumns.length} columns · ${hrs}`;
+    const kinds = preset.visibleKinds?.length ?? 0;
+    return `${kinds} events · ${preset.visibleColumns.length} columns · ${hrs}`;
   }
 }

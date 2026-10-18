@@ -1,6 +1,6 @@
-﻿// Feature store for user-managed reference lists: ports (+ terminals), ranks,
+// Feature store for user-managed reference lists: ports (+ terminals), ranks,
 // nationalities. These are suggestion lists edited in Settings; deletions are permanent
-// (see CLAUDE.md). State is shared via AppStateStore вЂ” this store only owns the
+// (see CLAUDE.md). State is shared via AppStateStore — this store only owns the
 // reference-list slice of selectors + mutations.
 
 import { Injectable, computed, inject } from '@angular/core';

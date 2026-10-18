@@ -18,6 +18,7 @@ import {
 import {
   normalizeAppSnapshotEntries,
 } from './app-data-normalizer';
+import { commitPendingDomEdits } from '../utils/commit-pending-dom-edits.util';
 import { AppStateStore } from './app-state.store';
 import { StorageService } from './storage.service';
 
@@ -60,12 +61,18 @@ export class AppSnapshotArchiveService {
     void this.state.persist('silent');
   }
 
-  save(label: string, options?: { overwriteId?: string }): AppSnapshotEntry | null {
+  async save(
+    label: string,
+    options?: { overwriteId?: string },
+  ): Promise<AppSnapshotEntry | null> {
     const trimmed = label.trim();
     if (!trimmed) return null;
 
     this.saving.set(true);
     try {
+      // Commit focused Settings draft/metres fields into RAM before capture.
+      await commitPendingDomEdits();
+
       const ship = this.storage.ship();
       const data = this.storage.captureMainAppSnapshot();
       const portName = ship.portOfCall?.trim() ?? '';
@@ -100,8 +107,9 @@ export class AppSnapshotArchiveService {
           appSnapshots: this.sortNewestFirst([entry, ...d.appSnapshots]),
         };
       });
-      // Home Save must hit disk — in-memory voyage edits are included in the snapshot.
-      void this.state.persist('saved', `Saved snapshot "${entry.label}"`);
+      // Snapshots live under home; ship/drafts under settings — flush both.
+      this.state.markSectionsDirty(['home', 'settings']);
+      await this.state.persist('saved', `Saved snapshot "${entry.label}"`);
       return entry;
     } finally {
       this.saving.set(false);

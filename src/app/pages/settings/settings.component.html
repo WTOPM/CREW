@@ -1,4 +1,4 @@
-﻿<div class="page settings-page">
+<div class="page settings-page">
   <header class="page-header settings-page-header">
     <div>
       <a routerLink="/" class="back-link">Home</a>
@@ -57,7 +57,7 @@
             />
           </label>
           <label class="ship-field">
-            <span>Height (Keel вЂ“ Mast top), m</span>
+            <span>Height (Keel – Mast top), m</span>
             <input
               [value]="metresFieldValue('heightKeelToMastTop')"
               (focus)="onMetresFocus('heightKeelToMastTop', $event)"
@@ -237,7 +237,7 @@
     <div class="settings-tiles settings-tiles--ref">
       <button type="button" class="ref-tile ref-tile--ports" (click)="openPorts()">
         <span class="ref-tile__glow" aria-hidden="true"></span>
-        <span class="ref-tile__icon-wrap" aria-hidden="true">вљ“</span>
+        <span class="ref-tile__icon-wrap" aria-hidden="true">⚓</span>
         <span class="ref-tile__body">
           <span class="ref-tile__title">Ports</span>
           <span class="ref-tile__desc">Names, UN/LOCODE, country &amp; terminals</span>
@@ -250,11 +250,11 @@
             }
           </span>
         </span>
-        <span class="ref-tile__arrow" aria-hidden="true">в†’</span>
+        <span class="ref-tile__arrow" aria-hidden="true">→</span>
       </button>
       <button type="button" class="ref-tile ref-tile--ranks" (click)="openRanks()">
         <span class="ref-tile__glow" aria-hidden="true"></span>
-        <span class="ref-tile__icon-wrap" aria-hidden="true">в…</span>
+        <span class="ref-tile__icon-wrap" aria-hidden="true">★</span>
         <span class="ref-tile__body">
           <span class="ref-tile__title">Ranks</span>
           <span class="ref-tile__desc">Crew rank list for forms &amp; crew list</span>
@@ -262,11 +262,11 @@
             <span class="ref-tile__chip">{{ ranks().length }} ranks</span>
           </span>
         </span>
-        <span class="ref-tile__arrow" aria-hidden="true">в†’</span>
+        <span class="ref-tile__arrow" aria-hidden="true">→</span>
       </button>
       <button type="button" class="ref-tile ref-tile--nationalities" (click)="openNationalities()">
         <span class="ref-tile__glow" aria-hidden="true"></span>
-        <span class="ref-tile__icon-wrap" aria-hidden="true">рџЊЌ</span>
+        <span class="ref-tile__icon-wrap" aria-hidden="true">🌍</span>
         <span class="ref-tile__body">
           <span class="ref-tile__title">Nationalities</span>
           <span class="ref-tile__desc">Nationality options in crew records</span>
@@ -274,7 +274,7 @@
             <span class="ref-tile__chip">{{ nationalities().length }} entries</span>
           </span>
         </span>
-        <span class="ref-tile__arrow" aria-hidden="true">в†’</span>
+        <span class="ref-tile__arrow" aria-hidden="true">→</span>
       </button>
     </div>
   </section>
@@ -282,11 +282,11 @@
   <section class="card ref-settings-card">
     <h2>Printing</h2>
     <p class="section-desc">
-      Per-port document packages вЂ” open or print a chosen set of documents at once.
+      Per-port document packages — open or print a chosen set of documents at once.
     </p>
     <div class="settings-tiles">
       <button type="button" class="settings-tile settings-tile--packages" (click)="openPackages()">
-        <span class="tile-icon" aria-hidden="true">рџ–ЁпёЏ</span>
+        <span class="tile-icon" aria-hidden="true">🖨️</span>
         <span class="tile-title">Document packages</span>
         <span class="tile-count">{{ printPackages().length }} port(s)</span>
       </button>
@@ -303,7 +303,7 @@
     <button type="button" class="settings-data-path" (click)="openDataBackups()">
       <span class="settings-data-path__label">Data file</span>
       <span class="settings-data-path__value">{{ dataPath() }}</span>
-      <span class="settings-data-path__action">Backups on this PC в†’</span>
+      <span class="settings-data-path__action">Backups on this PC →</span>
     </button>
   }
 
@@ -338,7 +338,7 @@
       (click)="$event.stopPropagation()"
     >
       <header class="ref-modal__head">
-        <span class="ref-modal__mark" aria-hidden="true">вљ“</span>
+        <span class="ref-modal__mark" aria-hidden="true">⚓</span>
         <div class="ref-modal__head-text">
           <h3>Ports</h3>
           <p class="ref-modal__hint">
@@ -393,7 +393,7 @@
               [class.port-list-item--open]="expandedPort() === p.name"
             >
               <div class="port-list-main">
-                <span class="drag-handle" cdkDragHandle title="Drag to reorder">в ї</span>
+                <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
                 <button
                   type="button"
                   class="port-term-toggle"
@@ -401,7 +401,7 @@
                   [title]="expandedPort() === p.name ? 'Hide terminals' : 'Terminals'"
                   (click)="togglePortTerminals(p.name)"
                 >
-                  {{ expandedPort() === p.name ? 'в–ѕ' : 'в–ё' }}
+                  {{ expandedPort() === p.name ? '▾' : '▸' }}
                 </button>
                 <div class="port-list-label">
                   <span class="port-list-name">{{ p.name }}</span>
@@ -423,14 +423,14 @@
                   title="Remove port"
                   (click)="removePortItem(p.name)"
                 >
-                  Г—
+                  ×
                 </button>
               </div>
               @if (expandedPort() === p.name) {
                 <div class="port-terminals">
                   @if (portTerminalCount(p) === 0) {
                     <div class="port-term-intro">
-                      <span class="port-term-intro__icon" aria-hidden="true">рџЏ—</span>
+                      <span class="port-term-intro__icon" aria-hidden="true">🏗</span>
                       <div class="port-term-intro__text">
                         <strong>Terminals are optional</strong>
                         <p>
@@ -438,14 +438,14 @@
                           <span class="port-term-example"
                             ><kbd>EGH</kbd> Eurogate Terminal Hamburg</span
                           >
-                          вЂ” short code first, then full name.
+                          — short code first, then full name.
                         </p>
                       </div>
                     </div>
                   }
                   @for (t of p.terminals ?? []; track $index) {
                     <div class="port-terminal-row">
-                      <span class="port-terminal-abbrev">{{ t.abbrev || 'вЂ”' }}</span>
+                      <span class="port-terminal-abbrev">{{ t.abbrev || '—' }}</span>
                       <span class="port-terminal-name">{{ t.name }}</span>
                       <button
                         type="button"
@@ -453,7 +453,7 @@
                         title="Remove terminal"
                         (click)="removePortTerminalItem(p.name, $index)"
                       >
-                        Г—
+                        ×
                       </button>
                     </div>
                   }
@@ -509,11 +509,11 @@
       (click)="$event.stopPropagation()"
     >
       <header class="ref-modal__head">
-        <span class="ref-modal__mark" aria-hidden="true">в…</span>
+        <span class="ref-modal__mark" aria-hidden="true">★</span>
         <div class="ref-modal__head-text">
           <h3>Ranks</h3>
           <p class="ref-modal__hint">
-            Order matters вЂ” drag rows to set rank priority on crew lists.
+            Order matters — drag rows to set rank priority on crew lists.
           </p>
         </div>
       </header>
@@ -522,7 +522,7 @@
         <label class="ref-field ref-field--grow">
           <span>New rank</span>
           <input
-            placeholder="e.g. Master, Ch.OffвЂ¦"
+            placeholder="e.g. Master, Ch.Off…"
             [ngModel]="newRank()"
             (ngModelChange)="newRank.set($event)"
             (keyup.enter)="addRankItem()"
@@ -542,7 +542,7 @@
         <ul class="ref-modal__list" cdkDropList (cdkDropListDropped)="dropRank($event)">
           @for (r of ranks(); track r) {
             <li cdkDrag class="ref-modal__row">
-              <span class="drag-handle" cdkDragHandle title="Drag to reorder">в ї</span>
+              <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
               <span class="ref-modal__row-label">{{ r }}</span>
               <button
                 type="button"
@@ -550,7 +550,7 @@
                 title="Remove rank"
                 (click)="removeRankItem(r)"
               >
-                Г—
+                ×
               </button>
             </li>
           }
@@ -573,7 +573,7 @@
       (click)="$event.stopPropagation()"
     >
       <header class="ref-modal__head">
-        <span class="ref-modal__mark" aria-hidden="true">рџЊЌ</span>
+        <span class="ref-modal__mark" aria-hidden="true">🌍</span>
         <div class="ref-modal__head-text">
           <h3>Nationalities</h3>
           <p class="ref-modal__hint">Used in crew member records and exported documents.</p>
@@ -584,7 +584,7 @@
         <label class="ref-field ref-field--grow">
           <span>New nationality</span>
           <input
-            placeholder="e.g. Cyprus, UkraineвЂ¦"
+            placeholder="e.g. Cyprus, Ukraine…"
             [ngModel]="newNationality()"
             (ngModelChange)="newNationality.set($event)"
             (keyup.enter)="addNationalityItem()"
@@ -604,7 +604,7 @@
         <ul class="ref-modal__list" cdkDropList (cdkDropListDropped)="dropNationality($event)">
           @for (n of nationalities(); track n) {
             <li cdkDrag class="ref-modal__row">
-              <span class="drag-handle" cdkDragHandle title="Drag to reorder">в ї</span>
+              <span class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</span>
               <span class="ref-modal__row-label">{{ n }}</span>
               <button
                 type="button"
@@ -612,7 +612,7 @@
                 title="Remove nationality"
                 (click)="removeNationalityItem(n)"
               >
-                Г—
+                ×
               </button>
             </li>
           }

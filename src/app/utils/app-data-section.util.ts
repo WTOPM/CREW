@@ -142,3 +142,34 @@ export function mergeSectionsForSave(
   }
   return next;
 }
+
+/**
+ * Strip UI-only “which document tab is open” prefs so switching Select document
+ * does not count as unsaved edits (data still updates in RAM for the preview).
+ */
+function stripFormSessionUiPrefs(data: AppData): AppData {
+  return {
+    ...data,
+    shipStoresSettingsDocId: 'shipStores',
+    portOfCall: {
+      ...data.portOfCall,
+      settingsDocId: 'portOfCall',
+    },
+  };
+}
+
+/**
+ * True when settings-modal slices differ (document forms on Home + Settings lists/overlays).
+ * Used as a fallback dirty check when a cell blur may have raced ClickOutside.
+ * Ignores Select-document tab prefs (portOfCall.settingsDocId / shipStoresSettingsDocId).
+ */
+export function formSessionSlicesChanged(a: AppData, b: AppData): boolean {
+  const left = stripFormSessionUiPrefs(a);
+  const right = stripFormSessionUiPrefs(b);
+  return (
+    JSON.stringify(pickSectionSlice(left, 'home')) !==
+      JSON.stringify(pickSectionSlice(right, 'home')) ||
+    JSON.stringify(pickSectionSlice(left, 'settings')) !==
+      JSON.stringify(pickSectionSlice(right, 'settings'))
+  );
+}

@@ -1,9 +1,9 @@
-﻿// Feature store for the small per-document form domains: cash advance, crew money list,
+// Feature store for the small per-document form domains: cash advance, crew money list,
 // narcotic list, port-of-call settings, ship stores, crew effect, nil list, ship money,
 // and port-call history. Each is a small slice of form state edited in its settings modal.
 //
 // State is shared via AppStateStore. Read selectors (cashAdvanceForm, narcoticListForm,
-// вЂ¦) stay on StorageService for backward compatibility; this store owns the mutations.
+// …) stay on StorageService for backward compatibility; this store owns the mutations.
 
 import { Injectable, inject } from '@angular/core';
 import {
@@ -388,7 +388,7 @@ export class FormsStore {
       rows.splice(currentIndex, 0, moved);
       return { ...d, [field]: normalize({ ...form, rows }) };
     });
-    // Row order changed вЂ” drop all article overlay cells so PDF follows form rows.
+    // Row order changed — drop all article overlay cells so PDF follows form rows.
     const keys: string[] = [];
     for (let i = 0; i < rowCount; i++) {
       keys.push(`d-${i}-0`, `d-${i}-1`, `d-${i}-2`);

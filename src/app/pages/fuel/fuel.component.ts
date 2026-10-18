@@ -11,7 +11,6 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
@@ -56,10 +55,12 @@ import {
   recomputeFuelCounterFromHours,
   recomputeFuelFmFromTotalM3,
   recomputeFuelHoursFromCounter,
+  recomputeFuelM3FromMt,
   recomputeFuelTotalM3FromFm,
   recomputeFuelTotalMtFromM3,
   syncFuelBoilerDmaPeriod,
   resolveBunkerRobTank,
+  resolveBoilerConsDensity,
   resolveDmaDensity,
   resolveFuelDensity,
   resolveFuelRobTankAssignment,
@@ -83,8 +84,8 @@ interface FuelDensityHud {
   density: number;
   x: number;
   y: number;
-  /** FO Total t (H) vs DMA TOTAL CONS t (P) — separate densities. */
-  target: 'fo' | 'dma';
+  /** FO Total t / DMA TOTAL CONS t / Boiler cons t — separate densities. */
+  target: 'fo' | 'dma' | 'boilerCons';
 }
 
 /** F-badge menu: pick which ROB tank ME / AE / Boiler consumption debits. */
@@ -206,7 +207,7 @@ const FUEL_COLUMN_GROUPS: FuelColumnGroup[] = (() => {
       id: 'boiler',
       title: 'Boiler',
       tone: 'boiler',
-      columns: pick('boilerCounterRh', 'boilerHours', 'boilerFmCeng', 'boilerConsM3', 'boilerConsMt'),
+      columns: pick('boilerCounterRh', 'boilerHours'),
     },
   ];
 })();
@@ -224,7 +225,6 @@ interface FuelPathSegment {
   imports: [
     RouterLink,
     FormsModule,
-    DecimalPipe,
     DatePickerComponent,
     FuelEventEditModalComponent,
     FuelEtaVoyagePreviewModalComponent,
@@ -295,8 +295,10 @@ export class FuelComponent {
   protected readonly menuAnchor = signal<{ top: number; left: number; width: number } | null>(null);
   /** Long-press on column header to hide. */
   protected readonly colPressId = signal<FuelColumnId | null>(null);
-  /** Long-press on Kind badge to hide that event type. */
-  protected readonly kindPressId = signal<FuelEventKind | null>(null);
+  /** RMB long-press — highlight / hide this event only. */
+  protected readonly kindPressId = signal<string | null>(null);
+  /** LMB long-press — highlight all badges of this type. */
+  protected readonly kindPressKind = signal<FuelEventKind | null>(null);
   protected readonly pathDraft = linkedSignal(() => this.library().sourcePath);
   protected readonly kindLabels = FUEL_EVENT_KIND_LABELS;
   protected readonly allKinds = ALL_KINDS;
@@ -314,6 +316,7 @@ export class FuelComponent {
   private hScrollRo: ResizeObserver | null = null;
   private colPressTimer: ReturnType<typeof setTimeout> | null = null;
   private kindPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private kindPressPointerId: number | null = null;
 
   protected readonly fuelUi = this.localPrefs.fuelUi;
   /** Events / columns / filters for the active tab (this PC only). */
@@ -418,11 +421,32 @@ export class FuelComponent {
     return `${n} event types`;
   });
 
-  /** Toolbar chip: EVENTS - ALL / EVENTS - 11 / EVENTS - 0 */
+  /** Hidden row ids that still exist in the active event list. */
+  private activeHiddenEventCount(): number {
+    const hidden = this.tabUi().hiddenEventIds ?? [];
+    if (!hidden.length) return 0;
+    const ids = new Set(hidden);
+    let n = 0;
+    for (const e of this.activeEvents()) {
+      if (ids.has(e.id)) n++;
+    }
+    return n;
+  }
+
+  /**
+   * Toolbar chip value:
+   * - ALL — every kind on, no rows hidden
+   * - total event count (e.g. 12) — kinds all on but ≥1 row hidden
+   * - kinds count — some event types turned off
+   */
   protected readonly eventsChipSuffix = computed(() => {
-    const n = this.tabUi().visibleKinds.length;
-    if (n >= ALL_KINDS.length) return 'ALL';
-    return String(n);
+    const kinds = this.tabUi().visibleKinds.length;
+    if (kinds <= 0) return '0';
+    if (kinds >= ALL_KINDS.length) {
+      if (this.activeHiddenEventCount() > 0) return String(this.activeEvents().length);
+      return 'ALL';
+    }
+    return String(kinds);
   });
 
   /** Toolbar chip: COLUMNS - ALL / COLUMNS - 42 */
@@ -432,12 +456,18 @@ export class FuelComponent {
     return String(n);
   });
 
-  /** Filter chip color: all = green, partial = yellow, none = red. */
+  /**
+   * Events chip color:
+   * - all (green) — every kind on, no rows hidden
+   * - partial (half green / half red) — every kind on, but ≥1 row hidden
+   * - none (red) — at least one event type fully off (or none)
+   */
   protected readonly eventsFilterTone = computed((): 'all' | 'partial' | 'none' => {
-    const n = this.tabUi().visibleKinds.length;
-    if (n <= 0) return 'none';
-    if (n >= ALL_KINDS.length) return 'all';
-    return 'partial';
+    const kinds = this.tabUi().visibleKinds.length;
+    if (kinds <= 0) return 'none';
+    if (kinds < ALL_KINDS.length) return 'none';
+    if (this.activeHiddenEventCount() > 0) return 'partial';
+    return 'all';
   });
 
   protected readonly columnsFilterTone = computed((): 'all' | 'partial' | 'none' => {
@@ -594,16 +624,50 @@ export class FuelComponent {
     return this.tabUi().visibleKinds.includes(kind);
   }
 
+  /** True when at least one event of this type is hidden individually (RMB hold). */
+  protected kindHasHiddenEvents(kind: FuelEventKind): boolean {
+    const hidden = this.tabUi().hiddenEventIds ?? [];
+    if (!hidden.length) return false;
+    const ids = new Set(hidden);
+    return this.activeEvents().some(
+      (e) => ids.has(e.id) && classifyFuelEvent(e.rawEvent) === kind,
+    );
+  }
+
   protected toggleKind(kind: FuelEventKind): void {
+    if (this.kindHasHiddenEvents(kind)) {
+      void this.restoreHiddenEventsOfKind(kind);
+      return;
+    }
     void this.localPrefs.toggleKindOnActiveTab(kind);
   }
 
   protected selectAllKinds(): void {
-    void this.localPrefs.setVisibleKindsOnActiveTab([...ALL_KINDS]);
+    void this.localPrefs.updateActiveTabPrefs({
+      visibleKinds: [...ALL_KINDS],
+      hiddenEventIds: [],
+    });
   }
 
   protected clearAllKinds(): void {
     void this.localPrefs.setVisibleKindsOnActiveTab([]);
+  }
+
+  private async restoreHiddenEventsOfKind(kind: FuelEventKind): Promise<void> {
+    const kindIds = new Set(
+      this.activeEvents()
+        .filter((e) => classifyFuelEvent(e.rawEvent) === kind)
+        .map((e) => e.id),
+    );
+    const nextHidden = (this.tabUi().hiddenEventIds ?? []).filter((id) => !kindIds.has(id));
+    const kinds = this.tabUi().visibleKinds.includes(kind)
+      ? this.tabUi().visibleKinds
+      : [...this.tabUi().visibleKinds, kind];
+    await this.localPrefs.updateActiveTabPrefs({
+      hiddenEventIds: nextHidden,
+      visibleKinds: kinds,
+    });
+    this.toast.show(`Restored “${this.kindLabels[kind]}” events`, 'success');
   }
 
   protected columnOn(id: FuelColumnId): boolean {
@@ -662,10 +726,16 @@ export class FuelComponent {
     this.toast.show('Edit draft discarded', 'success');
   }
 
+  protected kindBadgePressing(eventId: string, kind: FuelEventKind): boolean {
+    return this.kindPressId() === eventId || this.kindPressKind() === kind;
+  }
+
   protected onColHeadPointerDown(col: FuelColumnDef, ev: PointerEvent): void {
     if (ev.button !== 0) return;
     this.clearKindPressTimer();
     this.kindPressId.set(null);
+    this.kindPressKind.set(null);
+    this.kindPressPointerId = null;
     this.clearColPressTimer();
     this.colPressId.set(col.id);
     this.colPressTimer = setTimeout(() => {
@@ -699,25 +769,63 @@ export class FuelComponent {
     this.toast.show(`Hidden “${col.label}” — restore via Columns`, 'success');
   }
 
-  protected onKindBadgePointerDown(kind: FuelEventKind, ev: PointerEvent): void {
-    if (ev.button !== 0) return;
-    ev.preventDefault();
+  protected onKindBadgePointerDown(eventId: string, kind: FuelEventKind, ev: PointerEvent): void {
+    // LMB hold → hide ALL of this type; RMB hold → hide this event only.
+    if (ev.button !== 0 && ev.button !== 2) return;
+    // RMB: block context menu. LMB: do not preventDefault (same as column hold).
+    if (ev.button === 2) ev.preventDefault();
     ev.stopPropagation();
     this.clearColPressTimer();
     this.colPressId.set(null);
     this.clearKindPressTimer();
-    this.kindPressId.set(kind);
+    const hideAllOfKind = ev.button === 0;
+    // LMB: pulse every badge of this type; RMB: only the current row.
+    if (hideAllOfKind) {
+      this.kindPressKind.set(kind);
+      this.kindPressId.set(null);
+    } else {
+      this.kindPressId.set(eventId);
+      this.kindPressKind.set(null);
+    }
+    this.kindPressPointerId = ev.pointerId;
+    const target = ev.currentTarget;
+    if (target instanceof HTMLElement) {
+      try {
+        target.setPointerCapture(ev.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
     this.kindPressTimer = setTimeout(() => {
       this.kindPressTimer = null;
       this.kindPressId.set(null);
-      this.hideKindByHold(kind);
+      this.kindPressKind.set(null);
+      this.kindPressPointerId = null;
+      if (hideAllOfKind) this.hideKindByHold(kind);
+      else this.hideEventByHold(eventId, kind);
     }, 550);
   }
 
-  protected onKindBadgePointerUp(ev?: Event): void {
+  protected onKindBadgePointerUp(ev?: PointerEvent): void {
+    if (
+      ev &&
+      this.kindPressPointerId != null &&
+      ev.pointerId !== this.kindPressPointerId
+    ) {
+      return;
+    }
     ev?.stopPropagation();
+    if (ev && ev.currentTarget instanceof HTMLElement && this.kindPressPointerId != null) {
+      try {
+        ev.currentTarget.releasePointerCapture(this.kindPressPointerId);
+      } catch {
+        /* ignore */
+      }
+    }
     this.clearKindPressTimer();
     this.kindPressId.set(null);
+    this.kindPressKind.set(null);
+    this.kindPressPointerId = null;
   }
 
   private clearKindPressTimer(): void {
@@ -727,6 +835,7 @@ export class FuelComponent {
     }
   }
 
+  /** LMB hold — hide every event of this type (Events filter), as before. */
   private hideKindByHold(kind: FuelEventKind): void {
     const visible = this.tabUi().visibleKinds;
     if (!visible.includes(kind)) return;
@@ -734,8 +843,36 @@ export class FuelComponent {
       this.toast.showError('Keep at least one event type visible');
       return;
     }
-    void this.localPrefs.setVisibleKindsOnActiveTab(visible.filter((k) => k !== kind));
+    // Drop per-event hides for this kind so Events chip is fully off, not half-filled.
+    const kindIds = new Set(
+      this.activeEvents()
+        .filter((e) => classifyFuelEvent(e.rawEvent) === kind)
+        .map((e) => e.id),
+    );
+    const nextHidden = (this.tabUi().hiddenEventIds ?? []).filter((id) => !kindIds.has(id));
+    void this.localPrefs.updateActiveTabPrefs({
+      visibleKinds: visible.filter((k) => k !== kind),
+      hiddenEventIds: nextHidden,
+    });
     this.toast.show(`Hidden “${this.kindLabels[kind]}” — restore via Events`, 'success');
+  }
+
+  /** RMB hold — hide only this row. */
+  private hideEventByHold(eventId: string, kind: FuelEventKind): void {
+    const hidden = this.tabUi().hiddenEventIds ?? [];
+    if (hidden.includes(eventId)) return;
+    const rows = this.visibleEvents();
+    if (rows.length <= 1 && rows.some((e) => e.id === eventId)) {
+      this.toast.showError('Keep at least one event visible');
+      return;
+    }
+    void this.localPrefs.updateActiveTabPrefs({
+      hiddenEventIds: [...hidden, eventId],
+    });
+    this.toast.show(
+      `Hidden event — restore via Events → ${this.kindLabels[kind]}`,
+      'success',
+    );
   }
 
   protected async selectAllColumns(): Promise<void> {
@@ -788,6 +925,17 @@ export class FuelComponent {
     this.showDisplaySaveModal.set(false);
     this.showDisplayLoadModal.set(true);
   }
+
+  /** True when From / To / Show / Search differ from defaults (Last 20, empty). */
+  protected readonly filtersNonDefault = computed(() => {
+    const t = this.tabUi();
+    return (
+      !!t.dateFrom.trim() ||
+      !!t.dateTo.trim() ||
+      !!t.search.trim() ||
+      t.limitCount !== 20
+    );
+  });
 
   protected onSearch(value: string): void {
     void this.localPrefs.updateActiveTabPrefs({ search: value });
@@ -910,6 +1058,7 @@ export class FuelComponent {
       place: latest?.place ?? '',
       density: this.library().lastDensity ?? FUEL_DEFAULT_DENSITY,
       dmaDensity: this.library().lastDmaDensity ?? FUEL_DEFAULT_DENSITY,
+      boilerConsDensity: this.library().lastBoilerConsDensity ?? FUEL_DEFAULT_DENSITY,
     });
     this.showAddModal.set(true);
   }
@@ -1105,6 +1254,9 @@ export class FuelComponent {
     this.fuelStore.replaceEditEvents(cascadeAppAddedFuelRob(merged));
     if (next.density != null) this.fuelStore.setLastDensity(next.density);
     if (next.dmaDensity != null) this.fuelStore.setLastDmaDensity(next.dmaDensity);
+    if (next.boilerConsDensity != null) {
+      this.fuelStore.setLastBoilerConsDensity(next.boilerConsDensity);
+    }
     if (pendingKept.length) {
       const map = new Map(this.pendingInheritedByEvent());
       map.set(next.id, new Set(pendingKept));
@@ -1227,6 +1379,31 @@ export class FuelComponent {
         ...next,
         ...syncFuelBoilerDmaPeriod(next, prev?.boilerFm, 'boilerMt', lastDmaDensity),
       };
+    }
+
+    // CENG Boiler cons t = ROUND(m³ × boilerConsDensity, 1) — like Total t.
+    if (
+      partial.boilerConsM3 !== undefined ||
+      partial.boilerConsDensity !== undefined ||
+      partial.boilerConsMt !== undefined
+    ) {
+      const lastBoilerConsD = this.library().lastBoilerConsDensity;
+      const d = resolveBoilerConsDensity(next, lastBoilerConsD);
+      next = { ...next, boilerConsDensity: d };
+      if (
+        partial.boilerConsMt !== undefined &&
+        partial.boilerConsM3 === undefined &&
+        partial.boilerConsDensity === undefined
+      ) {
+        const m3 = recomputeFuelM3FromMt(next.boilerConsMt, d);
+        if (m3 != null) next = { ...next, boilerConsM3: m3 };
+      } else {
+        const mt = recomputeFuelTotalMtFromM3(next.boilerConsM3, d);
+        if (mt != null) next = { ...next, boilerConsMt: mt };
+        else if (partial.boilerConsM3 === null && partial.boilerConsDensity === undefined) {
+          next = { ...next, boilerConsMt: null };
+        }
+      }
     }
 
     // ROB = previous − ME/AE/Boiler + bunker on F-picked tanks.
@@ -1559,11 +1736,25 @@ export class FuelComponent {
     return e.fmMeAe <= prev.fmMeAe;
   }
 
-  /** Open density HUD from the D badge (LMB) or anywhere on Total t / DMA t (RMB). */
+  /** Keep floating HUD/menu inside the viewport (Boiler cons t is often at the right edge). */
+  private clampFloatingPos(
+    x: number,
+    y: number,
+    width = 260,
+    height = 48,
+  ): { x: number; y: number } {
+    const pad = 8;
+    return {
+      x: Math.max(pad, Math.min(x, window.innerWidth - width - pad)),
+      y: Math.max(pad, Math.min(y, window.innerHeight - height - pad)),
+    };
+  }
+
+  /** Open density HUD from the D badge (LMB) or anywhere on Total / DMA / Boiler cons t (RMB). */
   protected openDensityHud(
     e: FuelDisplayEvent,
     event: MouseEvent,
-    target: 'fo' | 'dma' = 'fo',
+    target: 'fo' | 'dma' | 'boilerCons' = 'fo',
   ): void {
     if (!this.canEdit()) return;
     event.preventDefault();
@@ -1573,12 +1764,23 @@ export class FuelComponent {
     const density =
       target === 'dma'
         ? resolveDmaDensity(e, this.library().lastDmaDensity)
-        : resolveFuelDensity(e, null, this.library().lastDensity);
+        : target === 'boilerCons'
+          ? resolveBoilerConsDensity(e, this.library().lastBoilerConsDensity)
+          : resolveFuelDensity(e, null, this.library().lastDensity);
+    // Prefer just right of the click; if near the right edge, flip to the left.
+    const hudW = 260;
+    const preferRight = event.clientX + 12;
+    const preferLeft = event.clientX - hudW - 8;
+    const x =
+      preferRight + hudW <= window.innerWidth - 8
+        ? preferRight
+        : preferLeft;
+    const pos = this.clampFloatingPos(x, event.clientY - 36, hudW, 48);
     this.densityHud.set({
       eventId: e.id,
       density,
-      x: event.clientX,
-      y: event.clientY,
+      x: pos.x,
+      y: pos.y,
       target,
     });
   }
@@ -1589,6 +1791,10 @@ export class FuelComponent {
 
   protected onDmaConsMtContextMenu(e: FuelDisplayEvent, event: MouseEvent): void {
     this.openDensityHud(e, event, 'dma');
+  }
+
+  protected onBoilerConsMtContextMenu(e: FuelDisplayEvent, event: MouseEvent): void {
+    this.openDensityHud(e, event, 'boilerCons');
   }
 
   /** Column → ROB tank field for the F badge (ME / AE / Boiler t). */
@@ -1626,12 +1832,13 @@ export class FuelComponent {
     event.stopPropagation();
     this.closeDensityHud();
     this.hideFloatingTips();
+    const pos = this.clampFloatingPos(event.clientX + 8, event.clientY - 8, 180, 160);
     this.robTankMenu.set({
       eventId: e.id,
       field,
       selected: this.resolvedRobTank(e, field),
-      x: event.clientX,
-      y: event.clientY,
+      x: pos.x,
+      y: pos.y,
       mode: field === 'bunkerRobTank' ? 'bunker' : 'consume',
     });
   }
@@ -1763,6 +1970,11 @@ export class FuelComponent {
       if (persistLast) this.fuelStore.setLastDmaDensity(density);
       return;
     }
+    if (target === 'boilerCons') {
+      this.patchEvent(eventId, { boilerConsDensity: density });
+      if (persistLast) this.fuelStore.setLastBoilerConsDensity(density);
+      return;
+    }
     this.patchEvent(eventId, { density });
     if (persistLast) this.fuelStore.setLastDensity(density);
   }
@@ -1784,6 +1996,11 @@ export class FuelComponent {
     return `DMA density ${d} — mt = ROUND(m³ × density, 1). Click D or right-click (↑↓ ±0.01, Shift ±0.1).`;
   }
 
+  protected boilerConsDensityCellTip(e: Pick<FuelLogEvent, 'boilerConsDensity'>): string {
+    const d = resolveBoilerConsDensity(e, this.library().lastBoilerConsDensity);
+    return `Boiler density ${d} — cons t = ROUND(m³ × density, 1). Click D or right-click (↑↓ ±0.01, Shift ±0.1).`;
+  }
+
   /** Short tip on the D badge only. */
   protected densityBadgeTip(e: Pick<FuelLogEvent, 'density'>): string {
     const d = resolveFuelDensity(e, null, this.library().lastDensity);
@@ -1792,7 +2009,12 @@ export class FuelComponent {
 
   protected dmaDensityBadgeTip(e: Pick<FuelLogEvent, 'dmaDensity'>): string {
     const d = resolveDmaDensity(e, this.library().lastDmaDensity);
-    return `DMA density = ${d}`;
+    return `Density = ${d} (DMA / Boiler t = m³ × density)`;
+  }
+
+  protected boilerConsDensityBadgeTip(e: Pick<FuelLogEvent, 'boilerConsDensity'>): string {
+    const d = resolveBoilerConsDensity(e, this.library().lastBoilerConsDensity);
+    return `Boiler density = ${d}`;
   }
 
   protected async onPathSegmentPress(seg: FuelPathSegment, event: MouseEvent): Promise<void> {

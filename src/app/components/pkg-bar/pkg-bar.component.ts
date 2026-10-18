@@ -101,7 +101,7 @@ export class PkgBarComponent {
         variant: 'danger',
       });
       if (!ok) return;
-      const entry = this.archive.save(label, { overwriteId: existing.id });
+      const entry = await this.archive.save(label, { overwriteId: existing.id });
       if (!entry) {
         this.toast.showError('Enter a name for the snapshot');
         return;
@@ -112,7 +112,7 @@ export class PkgBarComponent {
       return;
     }
 
-    const entry = this.archive.save(label);
+    const entry = await this.archive.save(label);
     if (!entry) {
       this.toast.showError('Enter a name for the snapshot');
       return;

@@ -87,6 +87,7 @@ import type { AppSnapshotEntry } from '../models/app-snapshot.models';
 import type { DgPageSnapshot } from '../models/dg-page-archive.models';
 import type { ReeferPageSnapshot } from '../models/reefer-page-archive.models';
 import { extractMainAppSnapshot } from '../utils/app-snapshot.util';
+import { coerceIsoDate } from '../utils/date.util';
 import {
   isCrewListForm05CssBox,
   normalizeCrewListDocumentPrefs,
@@ -109,6 +110,8 @@ import {
 export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): AppData {
   const ship = { ...createEmptyShip(), ...raw.ship };
   migrateLegacyShipDraftFields(ship, raw.ship);
+  ship.dateOfArrival = coerceIsoDate(ship.dateOfArrival);
+  ship.dateOfDeparture = coerceIsoDate(ship.dateOfDeparture);
   let crew = (raw.crew ?? []).map((m) => normalizeMember(m, raw.ports));
   const crewArr = { ...createDefaultCrewArrSettings(), ...raw.crewArr };
   // Ports/ranks/nationalities are user-managed suggestion lists: keep exactly what

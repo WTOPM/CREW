@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EtaArchiveModalsComponent } from '../../components/eta-archive-modals/eta-archive-modals.component';
 import { EtaWaypointsModalComponent } from '../../components/eta-waypoints-modal/eta-waypoints-modal.component';
+import { RefChoiceSuggestComponent } from '../../components/ref-choice-suggest/ref-choice-suggest.component';
 import { EtaSpeedKnInputDirective } from '../../directives/eta-speed-kn-input.directive';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
@@ -91,6 +92,7 @@ const ETA_FUEL_PICKER_PRIMARY = ['SBE', 'BOSP', 'EOSP', 'FWE', 'FEW', 'Noon'] as
     TimeInputComponent,
     EtaArchiveModalsComponent,
     EtaWaypointsModalComponent,
+    RefChoiceSuggestComponent,
     EtaSpeedKnInputDirective,
   ],
   templateUrl: './eta.component.html',
@@ -106,6 +108,10 @@ export class EtaComponent implements OnDestroy {
   protected readonly ports = this.storage.ports;
   protected readonly etaLibrary = this.storage.etaLibrary;
   protected readonly draft = computed(() => this.etaLibrary().draft);
+  /** Intermediate leg TO names — suggest from GPS catalog. */
+  protected readonly waypointNameChoices = computed(() =>
+    (this.etaLibrary().waypoints ?? []).map((w) => w.name.trim()).filter(Boolean),
+  );
   protected readonly calculation = computed(() => calculateEta(this.draft()));
   protected readonly showSaveModal = signal(false);
   protected readonly showLoadModal = signal(false);

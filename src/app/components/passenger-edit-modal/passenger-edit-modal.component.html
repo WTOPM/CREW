@@ -5,9 +5,9 @@
     (appClickOutside)="cancel.emit()"
     (click)="$event.stopPropagation()"
   >
-    <h3>Edit passenger</h3>
+    <h3>{{ viewOnly() ? 'View passenger' : 'Edit passenger' }}</h3>
 
-    <div class="crew-form-layout">
+    <div class="crew-form-layout" [class.crew-form-layout--view-only]="viewOnly()">
       <section class="crew-form-block">
         <h4 class="crew-form-block-title">Personal details</h4>
         <div class="form-grid">
@@ -146,8 +146,15 @@
     </div>
 
     <div class="modal-actions">
-      <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
-      <button type="button" class="btn btn-save" (click)="onSave()">Save</button>
+      @if (viewOnly()) {
+        <button type="button" class="btn btn-secondary" (click)="copyDetails()">
+          Copy details
+        </button>
+        <button type="button" class="btn btn-primary" (click)="cancel.emit()">Close</button>
+      } @else {
+        <button type="button" class="btn btn-secondary" (click)="cancel.emit()">Cancel</button>
+        <button type="button" class="btn btn-save" (click)="onSave()">Save</button>
+      }
     </div>
   </div>
 </div>

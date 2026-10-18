@@ -16,8 +16,7 @@ export class TitleTooltipService {
 
     document.addEventListener('pointerenter', this.onPointerEnter, true);
     document.addEventListener('pointerleave', this.onPointerLeave, true);
-    document.addEventListener('focusin', this.onFocusIn, true);
-    document.addEventListener('focusout', this.onFocusOut, true);
+    // Hover only — Tab / keyboard focus must not open tips (fuel cells, etc.).
     window.addEventListener('scroll', this.hide, true);
     window.addEventListener('resize', this.hide, true);
   }
@@ -34,18 +33,6 @@ export class TitleTooltipService {
     if (!host) return;
     const related = event.relatedTarget as Node | null;
     if (related && host.contains(related)) return;
-    this.hide();
-  };
-
-  private onFocusIn = (event: FocusEvent): void => {
-    const target = event.target as HTMLElement | null;
-    if (!target) return;
-    const host = this.resolveHost(target);
-    if (!host) return;
-    this.scheduleShow(host);
-  };
-
-  private onFocusOut = (): void => {
     this.hide();
   };
 

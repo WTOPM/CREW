@@ -25,6 +25,7 @@ import {
   recomputeFuelFmFromTotalM3,
   recomputeFuelTotalM3FromFm,
   recomputeFuelTotalMtFromM3,
+  resolveBoilerConsDensity,
   syncFuelBoilerDmaPeriod,
   normalizeFuelDensity,
   nudgeFuelDensity,
@@ -34,6 +35,7 @@ import {
   balanceFuelMeAeAgainstTotal,
   dateTimeFromFuelHrsEdit,
   shiftFuelDateTime,
+  type FuelEventKind,
   type FuelLogEvent,
 } from '../models/fuel.models';
 
@@ -209,6 +211,12 @@ describe('recomputeFuelTotalMtFromM3', () => {
     expect(recomputeFuelTotalMtFromM3(5, 0.9)).toBe(4.5);
     expect(normalizeFuelDensity(0.879)).toBe(0.879);
     expect(normalizeFuelDensity(0.4)).toBe(0.5); // clamped
+  });
+
+  it('Boiler cons t = ROUND(m³ × boilerConsDensity, 1)', () => {
+    expect(recomputeFuelTotalMtFromM3(0.5, 0.88)).toBe(0.4);
+    expect(resolveBoilerConsDensity({ boilerConsDensity: 0.9 })).toBe(0.9);
+    expect(resolveBoilerConsDensity({ boilerConsDensity: null }, 0.85)).toBe(0.85);
   });
 
   it('nudges density by hundredths / tenths (not thousandths)', () => {
@@ -807,6 +815,21 @@ describe('filterFuelEvents roll-up', () => {
     expect(rows[1].kind).toBe('departure');
     expect(rows[1].timeUsedHours).toBe(18);
     expect(rows[1].totalMt).toBe(2.1);
+    expect(rows[1].rolledFromCount).toBe(2);
+  });
+
+  it('rolls a single hidden event id into the next visible row', () => {
+    const view = {
+      ...createDefaultFuelViewPrefs(),
+      visibleKinds: ['arrival', 'noon', 'departure'] as FuelEventKind[],
+      hiddenEventIds: ['2'],
+      newestFirst: false,
+      limitCount: 0,
+    };
+    const rows = filterFuelEvents(sample, view);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.id)).toEqual(['1', '3']);
+    expect(rows[1].timeUsedHours).toBe(18);
     expect(rows[1].rolledFromCount).toBe(2);
   });
 

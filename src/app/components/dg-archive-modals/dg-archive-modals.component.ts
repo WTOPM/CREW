@@ -39,13 +39,13 @@ export class DgArchiveModalsComponent {
     this.closeSave.emit();
   }
 
-  protected confirmSave(): void {
-    const entry = this.dgArchive.save(this.saveLabel());
+  protected async confirmSave(): Promise<void> {
+    const entry = await this.dgArchive.save(this.saveLabel());
     if (!entry) {
       this.toast.showError('Enter a name for the snapshot');
       return;
     }
-    this.toast.show(`Saved "${entry.label}"`, 'success');
+    // Toast comes from persist('saved') inside archive.save
     this.closeSave.emit();
   }
 
@@ -68,6 +68,12 @@ export class DgArchiveModalsComponent {
       wasLoaded ? `Deleted "${entry.label}" — back to live page` : `Deleted "${entry.label}"`,
       'success',
     );
+  }
+
+  /** CMA + Unifeeder inventory rows (LOAD used to count only CMA → "0 containers"). */
+  protected archiveContainerCount(entry: DgPageSnapshot): number {
+    const lib = entry.dgLibrary;
+    return (lib.onboard?.length ?? 0) + (lib.unifeeder?.onboard?.length ?? 0);
   }
 
   protected formatSavedAt(iso: string): string {

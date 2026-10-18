@@ -62,9 +62,9 @@
           class="btn btn-secondary"
           (click)="refreshFromSheet()"
           [disabled]="busy()"
-          title="Load the latest (leftmost) sheet from DEP REP.xlsx"
+          title="Read the latest (leftmost) sheet from Excel into this form — does not write the file"
         >
-          {{ busy() ? '…' : 'Refresh' }}
+          {{ busy() ? '…' : 'Load from file' }}
         </button>
         <button
           type="button"
@@ -80,8 +80,13 @@
           class="btn btn-primary"
           (click)="writeToExcel()"
           [disabled]="busy()"
+          [title]="
+            activeSheetTab() === 'new' && newTab()
+              ? 'Write a new sheet into DEP REP.xlsx from this form'
+              : 'Overwrite the Excel sheet with data from this form'
+          "
         >
-          {{ busy() ? 'Writing…' : writeActionLabel() }}
+          {{ busy() ? 'Saving…' : writeActionLabel() }}
         </button>
       </div>
     </div>

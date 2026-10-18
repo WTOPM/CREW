@@ -1,9 +1,13 @@
-import { Component, inject, OnInit, output, signal } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, output, signal } from '@angular/core';
 import { DataBackupService } from '../../services/data-backup.service';
 import { AppStateStore } from '../../services/app-state.store';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 import type { JsonBackupEntry } from '../../services/app-state.store';
+import {
+  acquireModalScrollLock,
+  releaseModalScrollLock,
+} from '../../utils/modal-scroll-lock.util';
 
 @Component({
   selector: 'app-data-backups-modal',
@@ -15,6 +19,7 @@ export class DataBackupsModalComponent implements OnInit {
   private readonly appState = inject(AppStateStore);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly closed = output<void>();
   readonly restored = output<void>();
@@ -23,6 +28,11 @@ export class DataBackupsModalComponent implements OnInit {
   protected readonly busy = signal(false);
   protected readonly backups = signal<JsonBackupEntry[]>([]);
   protected readonly backupsDir = signal<string | null>(null);
+
+  constructor() {
+    acquireModalScrollLock();
+    this.destroyRef.onDestroy(() => releaseModalScrollLock());
+  }
 
   ngOnInit(): void {
     void this.refresh();

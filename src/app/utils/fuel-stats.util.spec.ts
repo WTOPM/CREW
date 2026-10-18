@@ -27,6 +27,7 @@ function row(
     aeMt: null,
     boilerMt: null,
     dmaDensity: null,
+    boilerConsDensity: null,
     robRmdMt: null,
     robB100Mt: null,
     bunkerRmdBioMt: null,
@@ -195,6 +196,7 @@ describe('fuel-stats.util', () => {
     const withDates = describeFuelStatsScope(
       {
         visibleKinds: ['arrival', 'departure'],
+        hiddenEventIds: [],
         newestFirst: true,
         dateFrom: '2026-01-01',
         dateTo: '2026-01-31',
@@ -212,6 +214,7 @@ describe('fuel-stats.util', () => {
     const noDates = describeFuelStatsScope(
       {
         visibleKinds: ['arrival', 'departure'],
+        hiddenEventIds: [],
         newestFirst: true,
         dateFrom: '',
         dateTo: '',
@@ -228,6 +231,7 @@ describe('fuel-stats.util', () => {
   it('ignores Last N for stats when a date bound is set', () => {
     const base = {
       visibleKinds: ['arrival' as const],
+      hiddenEventIds: [],
       newestFirst: true,
       dateFrom: '',
       dateTo: '',

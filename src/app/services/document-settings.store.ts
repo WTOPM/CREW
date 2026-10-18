@@ -1,4 +1,4 @@
-﻿// Feature store for document output configuration: per-document stamp/signature overlay
+// Feature store for document output configuration: per-document stamp/signature overlay
 // prefs, the bulk stamp toggle, ship stamp/signature assets, output (folder/printer)
 // settings, custom uploaded documents, and per-port print packages (authorities + items).
 //
@@ -144,7 +144,7 @@ export class DocumentSettingsStore {
   ): void {
     this.data.update((d) => {
       const next: AppData['outputSettings'] = { ...d.outputSettings, ...partial };
-      // Flat path/ON fields without bySection в†’ apply to Home (legacy callers).
+      // Flat path/ON fields without bySection → apply to Home (legacy callers).
       if (
         partial.bySection === undefined &&
         (partial.saveToFolder !== undefined ||

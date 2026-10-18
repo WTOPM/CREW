@@ -72,8 +72,8 @@
             <span class="top-nav-tray__label">Minimize to system tray</span>
           </label>
           <span id="top-nav-tray-tip" class="top-nav-tray__tooltip" role="tooltip">
-            When minimized or closed, CREW stays in the tray. Open from the tray icon — data is
-            refreshed from the shared folder.
+            When minimized or closed, CREW stays in the tray and pending edits are written to the
+            data folder. Open from the tray icon to refresh from the shared folder.
           </span>
         </div>
       }
@@ -145,6 +145,18 @@
   </main>
   <app-confirm-dialog />
   <app-toast />
+  @if (formSaveBusy()) {
+    <div class="form-save-busy-overlay" role="status" aria-live="polite" aria-busy="true">
+      <div class="form-save-busy-card">
+        <div class="form-save-busy-spinner" aria-hidden="true"></div>
+        <p class="form-save-busy-title">Saving…</p>
+        <p class="form-save-busy-text">Writing settings to the working folder</p>
+        <div class="form-save-busy-bar" aria-hidden="true">
+          <div class="form-save-busy-bar__fill"></div>
+        </div>
+      </div>
+    </div>
+  }
   @if (dataSetup(); as setup) {
     <app-data-setup [reason]="setup.reason" (resolved)="onDataSetupResolved()" />
   }

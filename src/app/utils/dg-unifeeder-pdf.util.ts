@@ -19,6 +19,8 @@ import {
   type DgWeightTonnageOptions,
 } from '../models/dg-weight-tonnage.models';
 import { dualWeightFromImport } from './dg-weight-tonnage.util';
+import { coerceIsoDate } from './date.util';
+import { normalizeManifestSizeCode } from './iso-container-type.util';
 
 export type UnifeederPdfFormat = 'dp-world-dg' | 'unifeeder-dg' | 'unknown';
 
@@ -63,36 +65,6 @@ export interface UnifeederPdfParseResult {
   summary?: UnifeederPdfGrandTotalSummary | null;
   validation?: UnifeederImportValidation;
 }
-
-const MONTHS: Record<string, string> = {
-  january: '01',
-  jan: '01',
-  february: '02',
-  feb: '02',
-  march: '03',
-  mar: '03',
-  april: '04',
-  apr: '04',
-  may: '05',
-  maj: '05',
-  june: '06',
-  jun: '06',
-  juni: '06',
-  july: '07',
-  jul: '07',
-  august: '08',
-  aug: '08',
-  september: '09',
-  sept: '09',
-  sep: '09',
-  october: '10',
-  oct: '10',
-  okt: '10',
-  november: '11',
-  nov: '11',
-  december: '12',
-  dec: '12',
-};
 
 const CONTAINER_RAW_RE = /^[A-Z]{4}\s*[\d\s-]{6,12}$/i;
 const ISO_SIZE_RE = /^[0-9]{2}[A-Z0-9]{2,3}$/i;
@@ -140,18 +112,18 @@ export function countExtractableUnifeederContainers(items: readonly DgPdfTextIte
   return seen.size;
 }
 
-/** Normalize ISO size codes; fix common PDF font misreads (e.g. EMT6 → 22T6). */
+/** Normalize ISO size codes; fix common PDF font misreads (e.g. EMT6 → 22T6, EMKD → 22K2). */
 export function normalizeUnifeederSizeCode(raw: string): string {
-  const s = raw.trim().toUpperCase();
+  const s = normalizeManifestSizeCode(raw);
   if (!s) return '';
   if (ISO_SIZE_RE.test(s)) return s;
   if (LETTER_SIZE_RE.test(s)) return s;
-  if (s === 'EMT6') return '22T6';
   return s;
 }
 
 function isSizeCodeCandidate(value: string): boolean {
   const normalized = normalizeUnifeederSizeCode(value);
+  // Accept raw OCR tokens that normalize to a real ISO/letter size code.
   return ISO_SIZE_RE.test(normalized) || LETTER_SIZE_RE.test(normalized);
 }
 
@@ -161,11 +133,7 @@ function pickUnifeederSizeCode(items: readonly DgPdfTextItem[], targetY: number)
 }
 
 export function parseUnifeederManifestDate(raw: string): string {
-  const m = raw.trim().match(/^(\d{1,2})-([a-z]+)-(\d{4})$/i);
-  if (!m) return raw.trim();
-  const month = MONTHS[m[2].toLowerCase()];
-  if (!month) return raw.trim();
-  return `${m[3]}-${month}-${m[1].padStart(2, '0')}`;
+  return coerceIsoDate(raw);
 }
 
 export function extractUnifeederPortName(raw: string): string {
@@ -455,15 +423,22 @@ function dedupeImoPositions(items: readonly DgPdfTextItem[]): DgPdfTextItem[] {
   return kept;
 }
 
-/** IMO row anchor, or continuation page where only field labels remain (no "IMO Information"). */
+/**
+ * IMO row anchors, plus continuation columns after a page break.
+ * Overflow cargo often reprints Proper ship. name + UN without a new "IMO Information"
+ * label while later columns on the same page still have IMO headers — those must both count.
+ */
 function findPageCargoAnchors(items: readonly DgPdfTextItem[]): Array<{ x: number; y: number }> {
   const imoRows = dedupeImoPositions(items);
-  if (imoRows.length) {
-    return imoRows.map((row) => ({ x: row.x, y: row.y }));
-  }
+  const anchors: Array<{ x: number; y: number }> = imoRows.map((row) => ({
+    x: row.x,
+    y: row.y,
+  }));
 
   const properLabels = items.filter((it) => /^Proper ship\.\s*name:?\s*$/i.test(it.str.trim()));
-  if (!properLabels.length) return [];
+  if (!properLabels.length) {
+    return anchors.sort((a, b) => a.y - b.y || a.x - b.x);
+  }
 
   const clusters = new Map<number, DgPdfTextItem[]>();
   for (const label of properLabels) {
@@ -472,14 +447,33 @@ function findPageCargoAnchors(items: readonly DgPdfTextItem[]): Array<{ x: numbe
     clusters.get(bucketY)!.push(label);
   }
 
-  const anchors: Array<{ x: number; y: number }> = [];
   for (const [y, cluster] of clusters) {
     const unY = y + IMO.unNo;
-    const hasUn = items.some(
-      (it) => nearY(it, unY, 4) && /^\d{4}$/.test(it.str.trim()) && it.x >= 30,
-    );
-    if (!hasUn) continue;
-    anchors.push({ x: Math.min(...cluster.map((c) => c.x)), y });
+    const uns = items
+      .filter((it) => nearY(it, unY, 4) && /^\d{4}$/.test(it.str.trim()) && it.x >= 30)
+      .sort((a, b) => a.x - b.x);
+    if (!uns.length) continue;
+
+    for (const un of uns) {
+      // Same column: "IMO Information" sits slightly left of the UN digits (~0–40 pt).
+      // Do not treat the next column's IMO (often ~80+ pt away) as covering this UN.
+      const coveredByImo = items.some(
+        (it) =>
+          it.str === 'IMO Information' &&
+          nearY(it, y, 8) &&
+          it.x <= un.x + 12 &&
+          un.x - it.x <= 50,
+      );
+      if (coveredByImo) continue;
+      const coveredByAnchor = anchors.some(
+        (a) => Math.abs(a.y - y) <= 10 && Math.abs(a.x - un.x) <= 55,
+      );
+      if (coveredByAnchor) continue;
+      const nearestProper = cluster.reduce((best, cur) =>
+        Math.abs(cur.x - un.x) < Math.abs(best.x - un.x) ? cur : best,
+      );
+      anchors.push({ x: nearestProper.x, y });
+    }
   }
 
   return anchors.sort((a, b) => a.y - b.y || a.x - b.x);

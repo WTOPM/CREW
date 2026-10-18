@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { adjustDisplayDateSegment, clearDisplayDateByBackspace } from './date.util';
+import {
+  adjustDisplayDateSegment,
+  clearDisplayDateByBackspace,
+  coerceIsoDate,
+  formatDisplayDate,
+  parseManifestDayMonthYearToIso,
+} from './date.util';
 
 describe('adjustDisplayDateSegment', () => {
   it('adds and subtracts days', () => {
@@ -42,5 +48,24 @@ describe('clearDisplayDateByBackspace', () => {
   it('treats empty / junk as a full clear', () => {
     expect(clearDisplayDateByBackspace('')).toEqual({ text: '', select: 'empty' });
     expect(clearDisplayDateByBackspace('nope')).toEqual({ text: '', select: 'empty' });
+  });
+});
+
+describe('parseManifestDayMonthYearToIso / coerceIsoDate', () => {
+  it('parses Unifeeder NL oktober (full month name)', () => {
+    expect(parseManifestDayMonthYearToIso('7-oktober-2026')).toBe('2026-10-07');
+    expect(coerceIsoDate('7-oktober-2026')).toBe('2026-10-07');
+    expect(formatDisplayDate('7-oktober-2026')).toBe('07.10.2026');
+  });
+
+  it('parses abbreviated okt and English october', () => {
+    expect(coerceIsoDate('17-okt-2026')).toBe('2026-10-17');
+    expect(coerceIsoDate('17-october-2026')).toBe('2026-10-17');
+  });
+
+  it('leaves ISO dates unchanged and unknown text as-is', () => {
+    expect(coerceIsoDate('2026-10-07')).toBe('2026-10-07');
+    expect(coerceIsoDate('not-a-date')).toBe('not-a-date');
+    expect(parseManifestDayMonthYearToIso('32-oktober-2026')).toBeNull();
   });
 });

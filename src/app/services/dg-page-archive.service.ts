@@ -57,7 +57,7 @@ export class DgPageArchiveService {
     void this.state.persist('silent');
   }
 
-  save(label: string): DgPageSnapshot | null {
+  async save(label: string): Promise<DgPageSnapshot | null> {
     const trimmed = label.trim();
     if (!trimmed) return null;
 
@@ -77,7 +77,9 @@ export class DgPageArchiveService {
         ...d,
         dgPageArchives: this.sortNewestFirst([entry, ...d.dgPageArchives]),
       }));
-      void this.state.persist('silent');
+      // Disk flush like Home app-snapshot Save — silent alone stays in RAM only.
+      this.state.markSectionsDirty(['dg']);
+      await this.state.persist('saved', `Saved "${trimmed}"`);
       return entry;
     } finally {
       this.saving.set(false);
@@ -144,7 +146,8 @@ export class DgPageArchiveService {
       ...d,
       dgPageArchives: d.dgPageArchives.filter((e) => e.id !== id),
     }));
-    void this.state.persist('silent');
+    this.state.markSectionsDirty(['dg']);
+    void this.state.flushPersist('silent');
     if (wasLoaded) {
       this.reset();
     }

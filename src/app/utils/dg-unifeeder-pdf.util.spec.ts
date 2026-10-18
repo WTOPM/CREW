@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { DgPdfTextItem } from './dg-pdf-text.util';
-import { parseUnifeederDangerousCargoManifest } from './dg-unifeeder-pdf.util';
+import {
+  normalizeUnifeederSizeCode,
+  parseUnifeederDangerousCargoManifest,
+  parseUnifeederManifestDate,
+} from './dg-unifeeder-pdf.util';
 import { validateUnifeederImportAgainstSummary } from './dg-unifeeder-pdf-summary.util';
 
 function item(str: string, x: number, y: number, page: number): DgPdfTextItem {
@@ -110,6 +114,80 @@ describe('parseUnifeederDangerousCargoManifest page-break orphan header', () => 
     expect(byContainer.has('EURU1673876')).toBe(true);
   });
 
+  it('binds a page-break DG column that has no IMO Information when later columns do', () => {
+    // Page 1: one container with two IMO columns; the 2nd column body is empty (continues p.2).
+    // Page 2: continuation UN/weight without "IMO Information", then a normal IMO column.
+    const items: DgPdfTextItem[] = [
+      item('Dangerous Cargo Manifest', 40, 40, 1),
+      item('480,00', 82, 129, 1),
+      item('Nweight', 67, 133, 1),
+      item('528,00', 82, 173, 1),
+      item('Gweight', 67, 177, 1),
+      item('S-F', 82, 251, 1),
+      item('F-A', 82, 286, 1),
+      item('230282', 42, 313, 1),
+      item('Stowage position', 42, 375, 1),
+      item('III', 82, 373, 1),
+      item('3082', 82, 469, 1),
+      item('YES', 117, 469, 1),
+      item('ENVIRONMENTALLY HAZARDOUS SUBSTANCE, LIQUID, N.O.S.', 96, 466, 1),
+      item('(CORIANDER OLEORESIN)', 105, 466, 1),
+      item('0,0', 127, 466, 1),
+      item('/ / /', 141, 466, 1),
+      item('9', 82, 511, 1),
+      item('FANU 133669-7', 30, 505, 1),
+      item('22GP', 30, 532, 1),
+      item('IMO Information', 54, 532, 1),
+      item('Proper ship. name:', 96, 532, 1),
+      // Trailing empty IMO column (body on next page)
+      item('IMO Information', 499, 532, 1),
+
+      item('Dangerous Cargo Manifest', 40, 40, 2),
+      // Continuation — Proper/UN/weight only (no IMO Information on this column)
+      item('550,00', 32, 129, 2),
+      item('Nweight', 129, 133, 2),
+      item('603,65', 32, 173, 2),
+      item('Gweight', 129, 177, 2),
+      item('S-F', 32, 251, 2),
+      item('F-A', 32, 286, 2),
+      item('III', 32, 373, 2),
+      item('3082', 32, 469, 2),
+      item('YES', 67, 469, 2),
+      item('ENVIRONMENTALLY HAZARDOUS SUBSTANCE, LIQUID, N.O.S.', 46, 466, 2),
+      item('(OLEORESIN NUTMEG 40%)', 55, 466, 2),
+      item('0,0', 78, 466, 2),
+      item('/ / /', 91, 466, 2),
+      item('9', 32, 511, 2),
+      item('Proper ship. name:', 46, 532, 2),
+      item('Technical name:', 55, 532, 2),
+      item('Marine Pollutant:', 67, 532, 2),
+      // Later normal column with IMO Information on the same page
+      item('1.080,00', 144, 132, 2),
+      item('Nweight', 129, 133, 2),
+      item('1.184,40', 144, 176, 2),
+      item('Gweight', 129, 177, 2),
+      item('S-F', 144, 251, 2),
+      item('F-A', 144, 286, 2),
+      item('III', 144, 373, 2),
+      item('3082', 144, 469, 2),
+      item('YES', 178, 469, 2),
+      item('ENVIRONMENTALLY HAZARDOUS SUBSTANCE, LIQUID, N.O.S.', 158, 466, 2),
+      item('(BLACK PEPPER OLEORESIN 36/18)', 166, 466, 2),
+      item('0,0', 189, 466, 2),
+      item('/ / /', 202, 466, 2),
+      item('9', 144, 511, 2),
+      item('IMO Information', 116, 532, 2),
+      item('Proper ship. name:', 157, 532, 2),
+    ];
+
+    const result = parseUnifeederDangerousCargoManifest(items, { useGrossWeight: false });
+    const rows = result.rows.filter((r) => r.containerNo === 'FANU1336697');
+    expect(rows.length).toBeGreaterThanOrEqual(3);
+    // Page-break continuation (550 kg net) must attach to FANU even without "IMO Information".
+    expect(rows.some((r) => r.netWeightKg === '550' && r.weightKg === '550')).toBe(true);
+    expect(rows.some((r) => r.netWeightKg === '1080' || r.weightKg === '1080')).toBe(true);
+  });
+
   it('merges overflow cargo on the next page into the same container (no duplicate number)', () => {
     // Page 1: container with one DG line + stow. Page 2: more DG for same box, no container/stow reprint.
     const items: DgPdfTextItem[] = [
@@ -217,7 +295,7 @@ describe('validateUnifeederImportAgainstSummary', () => {
     expect(validation.mismatches.some((m) => m.includes('container headers in PDF'))).toBe(true);
   });
 
-  it('warns when Grand Total counts more than cargo-page headers', () => {
+  it('ignores Grand Total container counts when text layer has fewer headers (blank B/L pages)', () => {
     const rows = [
       {
         containerNo: 'AAAA1111111',
@@ -246,10 +324,9 @@ describe('validateUnifeederImportAgainstSummary', () => {
       extractableContainers: 2,
     });
 
-    expect(validation.ok).toBe(false);
-    expect(validation.mismatches.some((m) => m.includes('containers: PDF 16'))).toBe(true);
-    expect(validation.mismatches.some((m) => m.includes("20'"))).toBe(true);
-    expect(validation.mismatches.some((m) => m.includes("40'"))).toBe(true);
+    // All extractable headers imported + weight matches — do not fail on inflated Grand Total.
+    expect(validation.ok).toBe(true);
+    expect(validation.mismatches.some((m) => m.includes('containers: PDF 16'))).toBe(false);
   });
 
   it('counts 25GP as 20′ for Unifeeder Grand Total length checks', () => {
@@ -282,5 +359,21 @@ describe('validateUnifeederImportAgainstSummary', () => {
     });
 
     expect(validation.ok).toBe(true);
+  });
+});
+
+describe('parseUnifeederManifestDate', () => {
+  it('normalizes NL oktober to ISO (Unifeeder sailing date)', () => {
+    expect(parseUnifeederManifestDate('7-oktober-2026')).toBe('2026-10-07');
+    expect(parseUnifeederManifestDate('17-okt-2026')).toBe('2026-10-17');
+  });
+});
+
+describe('normalizeUnifeederSizeCode', () => {
+  it('maps PDF OCR tank codes to ISO 22K2 / 22T6', () => {
+    expect(normalizeUnifeederSizeCode('EMKD')).toBe('22K2');
+    expect(normalizeUnifeederSizeCode('DMKD')).toBe('22K2');
+    expect(normalizeUnifeederSizeCode('EMT6')).toBe('22T6');
+    expect(normalizeUnifeederSizeCode('22K2')).toBe('22K2');
   });
 });

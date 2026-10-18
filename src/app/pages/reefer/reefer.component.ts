@@ -223,15 +223,15 @@ export class ReeferComponent {
     this.archiveSaveLabel = '';
   }
 
-  protected confirmArchiveSave(): void {
-    const entry = this.pageArchive.save(this.archiveSaveLabel);
+  protected async confirmArchiveSave(): Promise<void> {
+    const entry = await this.pageArchive.save(this.archiveSaveLabel);
     if (!entry) {
       this.toast.showError('Enter a name for the snapshot');
       return;
     }
     this.showArchiveSaveModal.set(false);
     this.archiveSaveLabel = '';
-    this.toast.show(`Saved "${entry.label}"`, 'success');
+    // Toast comes from persist('saved') inside archive.save
   }
 
   protected openArchiveLoad(): void {

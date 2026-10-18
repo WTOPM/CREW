@@ -40,6 +40,7 @@ import type { UnifeederPdfParseResult } from '../utils/dg-unifeeder-pdf.util';
 import { resolveUnifeederTerminalAbbrev } from '../utils/dg-port-terminal-match.util';
 import { normalizeReeferLibrary } from '../models/reefer.models';
 import { resolveDgPageContextFromSnapshot } from '../utils/page-ship-context.util';
+import { coerceIsoDate } from '../utils/date.util';
 import { AppStateStore } from './app-state.store';
 
 @Injectable({ providedIn: 'root' })
@@ -79,11 +80,14 @@ export class DgManifestStore {
   ): void {
     this.data.update((d) => {
       const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      const next = { ...partial };
+      if (next.dateOfDeparture != null) next.dateOfDeparture = coerceIsoDate(next.dateOfDeparture);
+      if (next.dateOfArrival != null) next.dateOfArrival = coerceIsoDate(next.dateOfArrival);
       return {
         ...d,
         dgLibrary: {
           ...lib,
-          pageContext: { ...lib.pageContext, ...partial },
+          pageContext: { ...lib.pageContext, ...next },
         },
       };
     });
@@ -543,7 +547,7 @@ export class DgManifestStore {
         dischargeTerminalHint,
         d.ports,
       );
-      const documentDate = (result.header.departureDate ?? '').trim();
+      const documentDate = coerceIsoDate(result.header.departureDate);
       const doc = createDgUnifeederManifestDocument({
         sourceName: formatDgManifestSourceName(loadPort, documentDate, sourceName),
         rowCount: result.rows.length,
@@ -584,8 +588,8 @@ export class DgManifestStore {
       const pageContext = { ...libInner.pageContext };
       if (loadPort) pageContext.portOfCall = loadPort;
       if (dischargePort) pageContext.nextPortOfCall = dischargePort;
-      if (result.header.departureDate?.trim()) {
-        pageContext.dateOfDeparture = result.header.departureDate.trim();
+      if (documentDate) {
+        pageContext.dateOfDeparture = documentDate;
       }
       return {
         ...d,

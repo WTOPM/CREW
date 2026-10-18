@@ -1,5 +1,5 @@
-﻿// Feature store for the crew domain: the arrival / departure / archive lists and the
-// sync / preview / apply flows between them. The most intricate slice вЂ” list
+// Feature store for the crew domain: the arrival / departure / archive lists and the
+// sync / preview / apply flows between them. The most intricate slice — list
 // membership is encoded on each member via onArrivalList / onDepartureList / archived /
 // archivedFromDeparture flags, and the two lists can be "linked" (in sync) or diverged.
 //
@@ -178,7 +178,7 @@ export class CrewStore {
     };
   }
 
-  /** Active crew on arrival but not departure в†’ archive. Returns count archived. */
+  /** Active crew on arrival but not departure → archive. Returns count archived. */
   archiveArrivalOnlyCrew(notify: 'silent' | 'saved' = 'saved'): number {
     let count = 0;
     this.data.update((d) => ({
@@ -273,7 +273,7 @@ export class CrewStore {
     return [...ordered, ...rest];
   }
 
-  /** Remove from departure list в†’ departure archive (stays on arrival if listed there). */
+  /** Remove from departure list → departure archive (stays on arrival if listed there). */
   removeFromDepartureList(id: string): void {
     const member = this.data().crew.find((m) => m.id === id);
     if (!member) return;

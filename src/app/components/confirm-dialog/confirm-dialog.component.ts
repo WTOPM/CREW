@@ -12,7 +12,11 @@ export class ConfirmDialogComponent {
 
   @HostListener('document:keydown.escape')
   protected onEscape(): void {
-    if (this.dialog()) this.cancel();
+    if (this.dialog()) this.confirmDialog.escapeDismiss();
+  }
+
+  protected onBackdropClick(): void {
+    this.confirmDialog.backdropDismiss();
   }
 
   protected accept(): void {

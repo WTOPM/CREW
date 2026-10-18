@@ -6,56 +6,24 @@ import type { DgPdfTextItem } from './dg-pdf-text.util';
 import { pickBestGoodsDescription } from './dg-goods-description.util';
 import type { UnifeederImportHeader, UnifeederImportRowPartial } from './dg-unifeeder-pdf.util';
 import { dualWeightFromImport } from './dg-weight-tonnage.util';
+import { coerceIsoDate } from './date.util';
+import { normalizeManifestSizeCode } from './iso-container-type.util';
 
-const MONTHS: Record<string, string> = {
-  january: '01',
-  jan: '01',
-  february: '02',
-  feb: '02',
-  march: '03',
-  mar: '03',
-  april: '04',
-  apr: '04',
-  may: '05',
-  maj: '05',
-  june: '06',
-  jun: '06',
-  juni: '06',
-  july: '07',
-  jul: '07',
-  august: '08',
-  aug: '08',
-  september: '09',
-  sept: '09',
-  sep: '09',
-  october: '10',
-  oct: '10',
-  okt: '10',
-  november: '11',
-  nov: '11',
-  december: '12',
-  dec: '12',
-};
 
 function normalizeContainerNo(raw: string): string {
   return raw.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
 }
 
 function normalizeSizeCode(raw: string): string {
-  const s = raw.trim().toUpperCase();
+  const s = normalizeManifestSizeCode(raw);
   if (!s) return '';
   if (/^[0-9]{2}[A-Z0-9]{2,3}$/i.test(s)) return s;
   if (/^[A-Z][0-9][A-Z0-9]{2,3}$/i.test(s)) return s;
-  if (s === 'EMT6') return '22T6';
   return s;
 }
 
 function parseManifestDate(raw: string): string {
-  const m = raw.trim().match(/^(\d{1,2})-([a-z]+)-(\d{4})$/i);
-  if (!m) return raw.trim();
-  const month = MONTHS[m[2].toLowerCase()];
-  if (!month) return raw.trim();
-  return `${m[3]}-${month}-${m[1].padStart(2, '0')}`;
+  return coerceIsoDate(raw);
 }
 
 function extractPortName(raw: string): string {

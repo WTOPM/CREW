@@ -97,3 +97,28 @@
 :host(.fuel-date--ready) .date-picker-input {
   color: #7c3aed;
 }
+
+/* Fuel filter row: From (blue) / To (green) when a date is set. */
+:host(.fuel-filter-from--set) .date-picker-input {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 650;
+}
+
+:host(.fuel-filter-from--set) .date-picker-btn {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+:host(.fuel-filter-to--set) .date-picker-input {
+  border-color: #86efac;
+  background: #ecfdf5;
+  color: #15803d;
+  font-weight: 650;
+}
+
+:host(.fuel-filter-to--set) .date-picker-btn {
+  background: #dcfce7;
+  color: #15803d;
+}

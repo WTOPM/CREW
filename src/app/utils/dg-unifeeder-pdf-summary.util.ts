@@ -257,21 +257,32 @@ export function validateUnifeederImportAgainstSummary(
   const extractable = options.extractableContainers ?? 0;
 
   // Inventory totals always come from cargo pages; Grand Total is only a check.
+  // When Grand Total counts more boxes than the text layer (blank B/L pages, etc.),
+  // compare against extractable headers — not the inflated summary.
+  const summaryExceedsExtractable =
+    extractable > 0 && summary.totalContainers > 0 && extractable < summary.totalContainers;
+
   if (extractable > 0 && importedContainers < extractable) {
     mismatches.push(
       `container headers in PDF: ${extractable}, imported ${importedContainers}`,
     );
-  } else if (summary.totalContainers > 0 && importedContainers !== summary.totalContainers) {
+  } else if (
+    summary.totalContainers > 0 &&
+    importedContainers !== summary.totalContainers &&
+    !summaryExceedsExtractable
+  ) {
     mismatches.push(`containers: PDF ${summary.totalContainers}, imported ${importedContainers}`);
   }
 
-  for (const key of LENGTH_KEYS) {
-    const expected = summary.containerCountsByLength[key];
-    if (expected <= 0) continue;
-    const label = lengthKeyToBucketLabel(key);
-    const actual = importedByLength.get(label) ?? 0;
-    if (actual !== expected) {
-      mismatches.push(`${label}: PDF ${expected}, imported ${actual}`);
+  if (!summaryExceedsExtractable) {
+    for (const key of LENGTH_KEYS) {
+      const expected = summary.containerCountsByLength[key];
+      if (expected <= 0) continue;
+      const label = lengthKeyToBucketLabel(key);
+      const actual = importedByLength.get(label) ?? 0;
+      if (actual !== expected) {
+        mismatches.push(`${label}: PDF ${expected}, imported ${actual}`);
+      }
     }
   }
 

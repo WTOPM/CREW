@@ -306,6 +306,78 @@ function dataFileFingerprint(filePath) {
   return { mtimeMs: st.mtimeMs, size: st.size };
 }
 
+/**
+ * First complete top-level JSON value in `text` (string-aware brace match).
+ * Used to recover when a shorter write left a stale tail on Windows/SMB.
+ */
+function extractFirstJsonValue(text) {
+  const s = String(text ?? '');
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let end = -1;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) {
+        esc = false;
+        continue;
+      }
+      if (c === '\\') {
+        esc = true;
+        continue;
+      }
+      if (c === '"') {
+        inStr = false;
+        continue;
+      }
+      continue;
+    }
+    if (c === '"') {
+      inStr = true;
+      continue;
+    }
+    if (c === '{' || c === '[') depth += 1;
+    else if (c === '}' || c === ']') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  if (end < 0) return null;
+  return s.slice(0, end + 1);
+}
+
+function parseCrewDataJson(raw, filePath) {
+  const text = String(raw ?? '');
+  try {
+    return { data: JSON.parse(text), repaired: false };
+  } catch (err) {
+    const prefix = extractFirstJsonValue(text);
+    if (!prefix || prefix.length >= text.length) throw err;
+    let data;
+    try {
+      data = JSON.parse(prefix);
+    } catch {
+      throw err;
+    }
+    // Persist the repaired blob so the next launch is clean.
+    try {
+      const bak = `${filePath}.corrupt-${Date.now()}.bak`;
+      fs.copyFileSync(filePath, bak);
+      fs.writeFileSync(filePath, prefix, 'utf-8');
+      console.warn(
+        `crew-data.json had trailing garbage after JSON; repaired (${text.length - prefix.length} bytes trimmed). Backup: ${bak}`,
+      );
+    } catch (writeErr) {
+      console.warn('Could not rewrite repaired crew-data.json', writeErr);
+    }
+    return { data, repaired: true };
+  }
+}
+
 function readDataFileCached() {
   ensureDataDir();
   const filePath = getDataFilePath();
@@ -323,22 +395,55 @@ function readDataFileCached() {
   ) {
     return dataFileCache.data;
   }
-  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  const { data: parsed, repaired } = parseCrewDataJson(raw, filePath);
+  const nextFp = repaired ? dataFileFingerprint(filePath) : fp;
   dataFileCache = {
     filePath,
-    mtimeMs: fp.mtimeMs,
-    size: fp.size,
+    mtimeMs: nextFp ? nextFp.mtimeMs : 0,
+    size: nextFp ? nextFp.size : 0,
     data: parsed,
   };
   return parsed;
 }
 
+/** Serialize crew-data.json writers — overlapping Save/Quit/tray flushes must not race. */
+let dataFileWriteLock = Promise.resolve();
+
 function writeDataFile(data) {
   const filePath = getDataFilePath();
-  const tmp = `${filePath}.tmp`;
   // Compact JSON — shared/network folders: pretty-print made multi‑MB saves much slower.
-  fs.writeFileSync(tmp, JSON.stringify(data), 'utf-8');
-  fs.renameSync(tmp, filePath);
+  const json = JSON.stringify(data);
+  const expectedSize = Buffer.byteLength(json, 'utf-8');
+  const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, json, 'utf-8');
+  // Prefer rename (atomic on local NTFS). On Windows/SMB, rename-replace can leave a
+  // longer stale tail — verify size and fall back to truncating overwrite.
+  let replaced = false;
+  try {
+    fs.renameSync(tmp, filePath);
+    replaced = true;
+  } catch {
+    /* fall through */
+  }
+  if (!replaced) {
+    fs.writeFileSync(filePath, json, 'utf-8');
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      /* ignore */
+    }
+  } else {
+    try {
+      const st = fs.statSync(filePath);
+      if (st.size !== expectedSize) {
+        // Stale tail after rename-replace (seen on some network shares).
+        fs.writeFileSync(filePath, json, 'utf-8');
+      }
+    } catch {
+      fs.writeFileSync(filePath, json, 'utf-8');
+    }
+  }
   const fp = dataFileFingerprint(filePath);
   dataFileCache = {
     filePath,
@@ -346,6 +451,14 @@ function writeDataFile(data) {
     size: fp ? fp.size : 0,
     data,
   };
+}
+
+function writeDataFileQueued(data) {
+  const run = dataFileWriteLock.then(() => {
+    writeDataFile(data);
+  });
+  dataFileWriteLock = run.catch(() => {});
+  return run;
 }
 
 /** Per-computer JSON backups keyed by the active shared data folder path. */
@@ -668,9 +781,16 @@ function applyMinimizeToTrayPref(enabled) {
 
 function hideMainWindowToTray() {
   if (!mainWindow || !minimizeToTrayEnabled) return;
-  // No JSON backup here — copies are only taken on full Quit.
-  mainWindow.hide();
-  notifyMainWindowActive(mainWindow);
+  // Flush RAM → crew-data.json so Settings drafts / ship edits are not lost
+  // when the window is only hidden (no on-close JSON backup here — Quit only).
+  const win = mainWindow;
+  void requestRendererFlushForQuit()
+    .catch(() => {})
+    .finally(() => {
+      if (!win || win.isDestroyed()) return;
+      win.hide();
+      notifyMainWindowActive(win);
+    });
 }
 
 function showMainWindowFromTray() {
@@ -718,6 +838,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     icon: path.join(__dirname, 'icon.ico'),
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -725,10 +846,9 @@ function createWindow() {
     },
   });
 
-  if (app.isPackaged) {
-    win.setMenu(null);
-    win.setMenuBarVisibility(false);
-  }
+  // No File/Edit/View/Window bar — app uses its own UI (dev + packaged).
+  win.setMenu(null);
+  win.setMenuBarVisibility(false);
 
   mainWindow = win;
   attachTrayWindowHandlers(win);
@@ -743,10 +863,9 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(() => ({ action: 'allow' }));
   win.webContents.on('did-create-window', (childWindow) => {
     childWindow.maximize();
-    if (app.isPackaged) {
-      childWindow.setMenu(null);
-      childWindow.setMenuBarVisibility(false);
-    }
+    childWindow.setMenu(null);
+    childWindow.setMenuBarVisibility(false);
+    childWindow.autoHideMenuBar = true;
   });
 
   if (app.isPackaged) {
@@ -867,10 +986,10 @@ ipcMain.handle('read-data', () => {
   }
 });
 
-ipcMain.handle('write-data', (_event, data) => {
+ipcMain.handle('write-data', async (_event, data) => {
   ensureDataDir();
   guardShrinkBeforeWrite(data);
-  writeDataFile(data);
+  await writeDataFileQueued(data);
 });
 
 ipcMain.handle('get-data-path', () => getDataFilePath());
@@ -2073,8 +2192,8 @@ if (gotSingleInstanceLock) {
   });
 
   app.whenReady().then(() => {
+    Menu.setApplicationMenu(null);
     if (app.isPackaged) {
-      Menu.setApplicationMenu(null);
       registerAppProtocol();
       logDataPathDiagnostics('app-ready');
     }

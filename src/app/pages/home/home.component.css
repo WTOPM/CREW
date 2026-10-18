@@ -492,6 +492,15 @@
   box-shadow: 0 4px 12px rgb(34 197 94 / 22%);
 }
 
+.crew-action--view {
+  color: #0284c7;
+}
+
+.crew-action--view:hover {
+  background: rgb(14 165 233 / 14%);
+  box-shadow: 0 4px 12px rgb(14 165 233 / 22%);
+}
+
 .crew-action--off-departure,
 .crew-action--off-arrival {
   color: #64748b;
