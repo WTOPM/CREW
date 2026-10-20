@@ -1098,9 +1098,33 @@ th {
 
 .dg-archive-load-card__meta,
 .dg-archive-load-card__stats {
-  font-size: 0.76rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.35;
+}
+
+.dg-archive-load-card__sep {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.dg-archive-load-card__chip--voy {
+  color: #0369a1;
+}
+
+.dg-archive-load-card__chip--cont {
+  color: #b45309;
+}
+
+.dg-archive-load-card__chip--saved {
+  color: #64748b;
 }
 
 .dg-archive-load-delete {
@@ -1193,6 +1217,27 @@ th {
 
 .dg-hint-tooltip--plain .dg-hint-tooltip__text {
   white-space: pre-line;
+}
+
+.dg-hint-tooltip--action {
+  max-width: min(20rem, calc(100vw - 1.25rem));
+  padding: 0.58rem 0.78rem;
+}
+
+.dg-hint-tooltip__title {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0c4a6e;
+  margin-bottom: 0.28rem;
+  line-height: 1.2;
+}
+
+.dg-hint-tooltip--action .dg-hint-tooltip__text {
+  font-size: 0.8rem;
+  color: #334155;
 }
 
 .dg-hint-tooltip--visible {
@@ -1784,6 +1829,185 @@ th {
   flex-shrink: 0;
 }
 
+.dg-inventory-view-mode {
+  flex: 0 0 auto;
+  align-self: center;
+  --dg-view-edit-bg: #dcfce7;
+  --dg-view-edit-border: #86efac;
+  --dg-view-edit-text: #166534;
+  --dg-view-edit-soft: rgb(22 101 52 / 10%);
+  --dg-view-copy-bg: #dbeafe;
+  --dg-view-copy-border: #93c5fd;
+  --dg-view-copy-text: #1d4ed8;
+  --dg-view-copy-soft: rgb(29 78 216 / 10%);
+}
+
+.dg-inventory-view-mode .choice-segmented__text {
+  min-width: 2.85rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.dg-inventory-view-mode__edit .choice-segmented__text {
+  color: #5b8a6e;
+}
+
+.dg-inventory-view-mode__copy .choice-segmented__text {
+  color: #6b86c4;
+}
+
+.dg-inventory-view-mode__edit:hover .choice-segmented__text {
+  background: var(--dg-view-edit-soft);
+  color: var(--dg-view-edit-text);
+}
+
+.dg-inventory-view-mode__copy:hover .choice-segmented__text {
+  background: var(--dg-view-copy-soft);
+  color: var(--dg-view-copy-text);
+}
+
+.dg-inventory-view-mode__edit:has(input:checked) .choice-segmented__text {
+  background: var(--dg-view-edit-bg);
+  color: var(--dg-view-edit-text);
+  box-shadow: inset 0 0 0 1px var(--dg-view-edit-border);
+}
+
+.dg-inventory-view-mode__copy:has(input:checked) .choice-segmented__text {
+  background: var(--dg-view-copy-bg);
+  color: var(--dg-view-copy-text);
+  box-shadow: inset 0 0 0 1px var(--dg-view-copy-border);
+}
+
+.dg-inventory-view-mode__edit:has(input:focus-visible) .choice-segmented__text,
+.dg-inventory-view-mode__copy:has(input:focus-visible) .choice-segmented__text {
+  outline: 2px solid #94a3b8;
+  outline-offset: -2px;
+}
+
+/* —— Copy view: plain Excel-like grid, no editing —— */
+/* Per-row action columns stay hidden (Excel grid). Toolbar buttons stay
+   clickable and show a toast to switch to Edit. */
+.dg-inventory--copy-mode .dg-row-actions,
+.dg-inventory--copy-mode .dg-row-actions .dg-act,
+.dg-inventory--copy-mode .uf-line-act,
+.dg-inventory--copy-mode .uf-act,
+.dg-inventory--copy-mode .col-line-act,
+.dg-inventory--copy-mode .col-actions,
+.dg-inventory--copy-mode .uf-col-line-act,
+.dg-inventory--copy-mode .uf-col-act,
+.dg-inventory--copy-mode thead .dg-row-actions {
+  display: none !important;
+}
+
+.dg-inventory--copy-mode .dg-unifeeder-table,
+.dg-inventory--copy-mode .dg-master-table {
+  user-select: none;
+  cursor: cell;
+  outline: none;
+}
+
+.dg-inventory--copy-mode .dg-unifeeder-table td,
+.dg-inventory--copy-mode .dg-master-table td {
+  border: 1px solid #cbd5e1 !important;
+  background: #fff !important;
+}
+
+/* No / # column: same plain selectable cells as the rest of the grid */
+.dg-inventory--copy-mode .dg-unifeeder-table td.uf-no,
+.dg-inventory--copy-mode .dg-master-table td.col-index,
+.dg-inventory--copy-mode .dg-unifeeder-table td.dg-sheet-cell,
+.dg-inventory--copy-mode .dg-master-table td.dg-sheet-cell {
+  background: #fff !important;
+  color: #334155 !important;
+  cursor: cell !important;
+  box-shadow: none !important;
+  touch-action: auto !important;
+  font-weight: 600;
+}
+
+.dg-inventory--copy-mode .dg-unifeeder-table td.dg-sheet-sel,
+.dg-inventory--copy-mode .dg-master-table td.dg-sheet-sel,
+.dg-inventory--copy-mode .dg-unifeeder-table td.uf-no.dg-sheet-sel,
+.dg-inventory--copy-mode .dg-master-table td.col-index.dg-sheet-sel {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+  outline: 2px solid #2563eb !important;
+  outline-offset: -2px;
+}
+
+.dg-inventory--copy-mode .dg-unifeeder-table th,
+.dg-inventory--copy-mode .dg-master-table th {
+  cursor: pointer;
+}
+
+.dg-inventory--copy-mode .dg-unifeeder-table input,
+.dg-inventory--copy-mode .dg-unifeeder-table textarea,
+.dg-inventory--copy-mode .dg-unifeeder-table select,
+.dg-inventory--copy-mode .dg-unifeeder-table button,
+.dg-inventory--copy-mode .dg-master-table input,
+.dg-inventory--copy-mode .dg-master-table textarea,
+.dg-inventory--copy-mode .dg-master-table select,
+.dg-inventory--copy-mode .dg-master-table button {
+  pointer-events: none !important;
+}
+
+.dg-inventory--copy-mode .dg-cell-input,
+.dg-inventory--copy-mode textarea.dg-cell-input,
+.dg-inventory--copy-mode .cts__input,
+.dg-inventory--copy-mode .port-select,
+.dg-inventory--copy-mode .rcs__input,
+.dg-inventory--copy-mode .ref-choice-suggest input {
+  pointer-events: none !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding-inline: 0.2rem !important;
+  min-height: 1.35rem;
+}
+
+.dg-inventory--copy-mode .dg-cell-port-select,
+.dg-inventory--copy-mode .cts,
+.dg-inventory--copy-mode .ref-choice-suggest,
+.dg-inventory--copy-mode app-port-select,
+.dg-inventory--copy-mode app-container-type-suggest,
+.dg-inventory--copy-mode app-ref-choice-suggest {
+  pointer-events: none !important;
+}
+
+.dg-inventory--copy-mode .port-select__chev {
+  display: none !important;
+}
+
+.dg-inventory--copy-mode .port-select {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 0.2rem !important;
+  min-height: 1.35rem;
+  justify-content: flex-start;
+}
+
+
+.dg-inventory--copy-mode .dg-unifeeder-row--container-gap td,
+.dg-inventory--copy-mode .dg-master-row--container-gap td {
+  border-top-width: 1px !important;
+  padding-top: 0.2rem !important;
+}
+
+.dg-inventory--copy-mode .dg-unifeeder-row--container-end td,
+.dg-inventory--copy-mode .dg-master-row--container-end td {
+  border-bottom-width: 1px !important;
+  padding-bottom: 0.2rem !important;
+}
+
+.dg-inventory--copy-mode .dg-master-row--selected td,
+.dg-inventory--copy-mode .dg-unifeeder-row--selected td {
+  background: #fff;
+}
+
 .dg-inventory-transfer-btn {
   display: inline-flex;
   align-items: center;
@@ -1930,12 +2154,11 @@ th {
 .cma-controls-panel,
 .uf-controls-panel {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.45rem 0.65rem;
+  gap: 0.45rem 0.55rem;
   width: 100%;
-  min-height: 3.1rem;
   padding: 0.35rem 0.45rem;
   border: 1px solid #e2e8f0;
   border-radius: 9px;
@@ -1952,23 +2175,143 @@ th {
   background: linear-gradient(180deg, #eef2ff 0%, #fff 70%);
 }
 
-.cma-controls-panel__actions,
-.uf-controls-panel__actions {
+/* Left: display option icons */
+.cma-controls-panel__options,
+.uf-controls-panel__options {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.38rem 0.45rem;
+  gap: 0.28rem 0.32rem;
+  padding: 0;
+  border: 0;
 }
 
-.cma-controls-panel__stats,
-.uf-controls-panel__stats {
+/* Center: search · Edit/Copy · export */
+.cma-controls-panel__primary,
+.uf-controls-panel__primary {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.45rem 0.55rem;
   flex: 1 1 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.45rem;
   min-width: 0;
+}
+
+.cma-controls-panel__primary .uf-search-box,
+.uf-controls-panel__primary .uf-search-box {
+  flex: 1 1 10rem;
+  min-width: 7.5rem;
+  max-width: 16rem;
+}
+
+.cma-controls-panel__tools,
+.uf-controls-panel__tools {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.28rem;
+  flex: 0 0 auto;
+}
+
+/* Right: totals strip */
+.cma-controls-panel > .uf-inventory-strip,
+.uf-controls-panel > .uf-inventory-strip {
+  flex: 0 0 auto;
+  margin-left: 0;
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: none;
+}
+
+/* Compact icon option buttons (Discharged, terminals, etc.) */
+.uf-opt-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #c7d2fe;
+  border-radius: 9px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.uf-opt-btn.dg-hint-tooltip-host {
+  display: inline-flex;
+  width: 2.15rem;
+}
+
+.uf-opt-btn:hover {
+  border-color: #818cf8;
+  color: #4338ca;
+  background: #f8fafc;
+}
+
+.uf-opt-btn--on,
+.uf-opt-btn:has(input:checked) {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.uf-opt-btn__input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.uf-opt-btn__icon {
+  width: 1.22rem;
+  height: 1.22rem;
+  display: block;
+  flex-shrink: 0;
+}
+
+.uf-opt-btn__badge {
+  position: absolute;
+  right: 0.12rem;
+  bottom: 0.08rem;
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: inherit;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.uf-opt-btn--mode {
+  width: 2.45rem;
+}
+
+.uf-opt-btn--mode.dg-hint-tooltip-host {
+  width: 2.45rem;
+}
+
+.cma-controls-panel__options .dg-weight-mode,
+.uf-controls-panel__options .dg-weight-mode {
+  margin-inline: 0.1rem;
+}
+
+.dg-consolidated-legend--dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.68rem;
 }
 
 .cma-drop--import {
@@ -2518,10 +2861,10 @@ th {
 
 .uf-inventory-strip {
   display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.32rem 0.55rem;
-  padding: 0.45rem 0.85rem;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  padding: 0.38rem 0.78rem;
   border: 1px solid #c7d2fe;
   border-radius: 999px;
   background: linear-gradient(180deg, #fff 0%, #f5f3ff 100%);
@@ -2529,15 +2872,58 @@ th {
   color: var(--text-muted);
   white-space: nowrap;
   box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  width: fit-content;
+}
+
+/* Tooltip host defaults to block/100% — keep strip items inline */
+.uf-inventory-strip .dg-hint-tooltip-host {
+  display: inline-flex;
+  align-items: baseline;
+  width: auto;
 }
 
 .uf-inventory-strip strong {
-  color: #0f172a;
   font-weight: 800;
+}
+
+.uf-inventory-strip__stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  letter-spacing: 0.04em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: default;
+  line-height: 1.2;
+}
+
+.uf-inventory-strip__stat strong {
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.uf-inventory-strip__stat--containers {
+  color: #0369a1;
+}
+
+.uf-inventory-strip__stat--containers strong {
+  color: #0c4a6e;
+}
+
+.uf-inventory-strip__stat--discharged {
+  color: #b45309;
+}
+
+.uf-inventory-strip__stat--discharged strong {
+  color: #92400e;
 }
 
 .uf-inventory-strip__sep {
   color: #cbd5e1;
+  align-self: center;
+  line-height: 1;
 }
 
 .uf-inventory-strip__muted {
@@ -2546,19 +2932,32 @@ th {
 }
 
 .uf-inventory-strip__weight {
-  color: #4f46e5;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.12rem;
   font-weight: 800;
   font-size: 0.92rem;
+  line-height: 1.2;
 }
 
-.uf-controls-panel__stats .uf-search-box {
-  flex: 0 0 auto;
+.uf-inventory-strip__weight-whole {
+  color: #312e81;
 }
 
-.uf-controls-panel__stats .uf-inventory-strip {
-  flex: 0 1 auto;
-  min-width: 0;
+.uf-inventory-strip__weight-frac {
+  color: #16a34a;
+  font-weight: 700;
+  font-size: 0.82rem;
 }
+
+.uf-inventory-strip__weight-unit {
+  margin-left: 0.12rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #2563eb;
+}
+
 
 .uf-toggle {
   display: inline-flex;
@@ -2680,10 +3079,18 @@ th {
 .dg-tonnage-gross .dg-master-total-kg,
 .dg-tonnage-gross .dg-class-summary-total,
 .dg-tonnage-gross .dg-class-summary-kg,
-.dg-tonnage-gross .uf-inventory-strip__weight,
+.dg-tonnage-gross .uf-inventory-strip__weight-whole,
 .dg-tonnage-gross .dg-row-actions .dg-container-kg,
 .dg-tonnage-gross .uf-stat-chip--dg .uf-stat-chip__value {
   color: var(--dg-tonnage-gross-text);
+}
+
+.dg-tonnage-gross .uf-inventory-strip__weight-frac {
+  color: #16a34a;
+}
+
+.dg-tonnage-gross .uf-inventory-strip__weight-unit {
+  color: #2563eb;
 }
 
 .dg-tonnage-gross .dg-cell-input--weight:not(.dg-cell-input--readonly) {
@@ -2703,10 +3110,18 @@ th {
 .dg-tonnage-net .dg-master-total-kg,
 .dg-tonnage-net .dg-class-summary-total,
 .dg-tonnage-net .dg-class-summary-kg,
-.dg-tonnage-net .uf-inventory-strip__weight,
+.dg-tonnage-net .uf-inventory-strip__weight-whole,
 .dg-tonnage-net .dg-row-actions .dg-container-kg,
 .dg-tonnage-net .uf-stat-chip--dg .uf-stat-chip__value {
   color: var(--dg-tonnage-net-text);
+}
+
+.dg-tonnage-net .uf-inventory-strip__weight-frac {
+  color: #16a34a;
+}
+
+.dg-tonnage-net .uf-inventory-strip__weight-unit {
+  color: #2563eb;
 }
 
 .dg-tonnage-net .dg-cell-input--weight:not(.dg-cell-input--readonly) {
@@ -2794,22 +3209,27 @@ th {
 }
 
 @media (max-width: 1100px) {
-  .cma-controls-panel,
-  .uf-controls-panel {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .cma-controls-panel__actions,
-  .cma-controls-panel__stats,
-  .uf-controls-panel__actions,
-  .uf-controls-panel__stats {
-    justify-content: flex-start;
-  }
-
   .cma-manifest-list,
   .uf-manifest-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cma-controls-panel,
+  .uf-controls-panel {
+    flex-wrap: wrap;
+  }
+
+  .cma-controls-panel__primary,
+  .uf-controls-panel__primary {
+    order: 1;
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+
+  .cma-controls-panel > .uf-inventory-strip,
+  .uf-controls-panel > .uf-inventory-strip {
+    order: 2;
+    margin-left: auto;
   }
 }
 
@@ -2827,20 +3247,20 @@ th {
     flex-basis: auto;
   }
 
-  .cma-controls-panel__stats,
-  .uf-controls-panel__stats {
-    flex-direction: column;
-    align-items: stretch;
+  .cma-controls-panel,
+  .uf-controls-panel {
+    flex-wrap: wrap;
   }
 
-  .uf-search-box {
-    width: 100%;
-    max-width: 12rem;
+  .cma-controls-panel__primary .uf-search-box,
+  .uf-controls-panel__primary .uf-search-box {
+    flex: 1 1 100%;
+    max-width: none;
   }
 
-  .cma-controls-panel__stats .uf-inventory-strip,
-  .uf-controls-panel__stats .uf-inventory-strip {
-    justify-content: center;
+  .cma-controls-panel__tools,
+  .uf-controls-panel__tools {
+    flex-wrap: wrap;
   }
 }
 
@@ -4253,7 +4673,7 @@ th {
   margin-inline: auto;
 }
 
-/* Multi-select by list # / No ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ both CMA and DP WORLD tables */
+/* Multi-select by list # / No — both CMA and DP WORLD tables */
 .dg-select-th {
   cursor: pointer;
   user-select: none;
@@ -4264,13 +4684,13 @@ th {
 }
 
 .dg-select-th:hover {
-  color: #1d4ed8;
-  background: #eff6ff;
+  color: #b91c1c;
+  background: #fef2f2;
 }
 
 .dg-select-th--active {
-  color: #1d4ed8;
-  background: #dbeafe;
+  color: #b91c1c;
+  background: #fee2e2;
 }
 
 .dg-select-th__mark {
@@ -4280,8 +4700,8 @@ th {
   width: 1.1rem;
   height: 1.1rem;
   border-radius: 4px;
-  border: 1.5px solid #2563eb;
-  background: #2563eb;
+  border: 1.5px solid #dc2626;
+  background: #dc2626;
   color: #fff;
   font-size: 0.72rem;
   font-weight: 800;
@@ -4289,7 +4709,7 @@ th {
 }
 
 .dg-select-cell {
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
@@ -4300,27 +4720,37 @@ th {
 }
 
 .dg-select-cell:hover {
-  color: #1d4ed8;
-  background: #eff6ff !important;
-  box-shadow: inset 0 0 0 1px #93c5fd;
-  cursor: grab;
+  color: #b91c1c;
+  background: #fef2f2 !important;
+  box-shadow: inset 0 0 0 1px #fca5a5;
+  cursor: pointer;
 }
 
 .dg-select-cell:active {
-  cursor: grabbing;
+  cursor: pointer;
 }
 
 .dg-master-row--selected > td,
 .dg-unifeeder-row--selected > td {
-  background: #eff6ff !important;
+  background: #fff1f2 !important;
 }
 
 .dg-master-row--selected > td.dg-select-cell,
-.dg-unifeeder-row--selected > td.dg-select-cell {
-  background: #dbeafe !important;
-  color: #1e40af;
-  font-weight: 700;
-  box-shadow: inset 3px 0 0 #2563eb;
+.dg-unifeeder-row--selected > td.dg-select-cell,
+.dg-master-row--selected > td.col-index,
+.dg-unifeeder-row--selected > td.uf-no {
+  background: #fecaca !important;
+  color: #dc2626 !important;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.dg-master-row--selected .dg-cell-input,
+.dg-unifeeder-row--selected .dg-cell-input,
+.dg-master-row--selected .port-select,
+.dg-unifeeder-row--selected .port-select {
+  background: rgb(255 255 255 / 70%) !important;
 }
 
 .dg-header-actions {

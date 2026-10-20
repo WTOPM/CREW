@@ -2,7 +2,11 @@ import { Component, effect, inject, input, output, signal, untracked } from '@an
 import { FormsModule } from '@angular/forms';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
 import { DgPageArchiveService } from '../../services/dg-page-archive.service';
-import type { DgPageSnapshot } from '../../models/dg-page-archive.models';
+import {
+  dgLibraryActiveContainerCount,
+  type DgPageSnapshot,
+} from '../../models/dg-page-archive.models';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 
 /**
@@ -23,6 +27,7 @@ export class DgArchiveModalsComponent {
 
   protected readonly dgArchive = inject(DgPageArchiveService);
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   protected readonly saveLabel = signal('');
 
@@ -40,7 +45,27 @@ export class DgArchiveModalsComponent {
   }
 
   protected async confirmSave(): Promise<void> {
-    const entry = await this.dgArchive.save(this.saveLabel());
+    const label = this.saveLabel();
+    const existing = this.dgArchive.findMatchingSnapshot();
+    let overwriteId: string | undefined;
+    if (existing) {
+      const result = await this.confirmDialog.confirm({
+        title: 'Overwrite snapshot',
+        message:
+          `A snapshot for the same port, voyage and container count already exists:\n` +
+          `"${existing.label}"\n\n` +
+          'Replace it with the current page (e.g. after re-sorting)?',
+        confirmLabel: 'Overwrite',
+        cancelLabel: 'Cancel',
+        altLabel: 'Save as new',
+        variant: 'danger',
+      });
+      if (!result) return;
+      if (result === true) overwriteId = existing.id;
+      // 'alt' → Save as new (no overwriteId)
+    }
+
+    const entry = await this.dgArchive.save(label, overwriteId ? { overwriteId } : undefined);
     if (!entry) {
       this.toast.showError('Enter a name for the snapshot');
       return;
@@ -70,10 +95,24 @@ export class DgArchiveModalsComponent {
     );
   }
 
-  /** CMA + Unifeeder inventory rows (LOAD used to count only CMA → "0 containers"). */
-  protected archiveContainerCount(entry: DgPageSnapshot): number {
-    const lib = entry.dgLibrary;
-    return (lib.onboard?.length ?? 0) + (lib.unifeeder?.onboard?.length ?? 0);
+  /**
+   * CAPS meta chips for Load cards (voyage / containers / saved).
+   * Counts only the inventory tab active when the snapshot was saved
+   * (DP WORLD → unique containers, not CMA; CMA → CMA only).
+   */
+  protected archiveLoadMeta(entry: DgPageSnapshot): {
+    voyage: string;
+    containers: string;
+    saved: string;
+  } {
+    const count = dgLibraryActiveContainerCount(entry.dgLibrary);
+    const voy = entry.ship.voyageNumber?.trim();
+    const saved = this.formatSavedAt(entry.savedAt);
+    return {
+      voyage: voy ? `VOY ${voy}` : '',
+      containers: `${count} CONTAINER(S)`,
+      saved: saved ? `SAVED ${saved}` : '',
+    };
   }
 
   protected formatSavedAt(iso: string): string {

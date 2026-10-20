@@ -318,6 +318,8 @@ function parseDpWorldDataRow(
   loadPort: string,
   dischargePort: string,
   useGrossWeight: boolean,
+  loadTerminal = '',
+  dischargeTerminal = '',
 ): UnifeederImportRowPartial[] {
   const unAnchors = findUnAnchorsOnDataRow(pageItems, dataY);
   if (!unAnchors.length) return [];
@@ -375,6 +377,8 @@ function parseDpWorldDataRow(
       containerNo,
       loadPort,
       dischargePort,
+      loadTerminal,
+      dischargeTerminal,
       unNo,
       packingGroup,
       weightKg: weights.weightKg,
@@ -400,6 +404,8 @@ function parseDpWorldCargoPage(
   dischargePort: string,
   useGrossWeight: boolean,
   inherited?: { containerNo: string; size: string; stow: string },
+  loadTerminal = '',
+  dischargeTerminal = '',
 ): UnifeederImportRowPartial[] {
   const imo = pageItems.find((it) => it.str === 'IMO Information');
   const properFallback = !imo
@@ -445,6 +451,8 @@ function parseDpWorldCargoPage(
         loadPort,
         dischargePort,
         useGrossWeight,
+        loadTerminal,
+        dischargeTerminal,
       ),
     );
   }
@@ -459,8 +467,10 @@ export function parseDpWorldDangerousCargoPages(
 ): { rows: UnifeederImportRowPartial[]; warnings: string[] } {
   const useGrossWeight = resolveDgWeightTonnageOptions(options).useGrossWeight;
   const warnings: string[] = [];
-  const loadPort = header.portOfDeparture ?? '';
-  const dischargePort = header.portOfArrival ?? '';
+  let activeLoadPort = (header.portOfDeparture ?? '').trim();
+  let activeDischargePort = (header.portOfArrival ?? '').trim();
+  let activeLoadTerminal = (header.terminalOfDeparture ?? '').trim();
+  let activeDischargeTerminal = (header.terminalOfArrival ?? '').trim();
   const pages = [...new Set(items.map((i) => i.page))].sort((a, b) => a - b);
   const rows: UnifeederImportRowPartial[] = [];
   let openContainer: { containerNo: string; size: string; stow: string } | undefined;
@@ -469,12 +479,33 @@ export function parseDpWorldDangerousCargoPages(
     const pageItems = items.filter((i) => i.page === page);
     if (pageItems.some((it) => /Grand Total Summary/i.test(it.str))) continue;
 
+    const pageHeader = parseDpWorldHeaderFromPage(pageItems);
+    const pageLoad = (pageHeader.portOfDeparture ?? '').trim();
+    const pageDischarge = (pageHeader.portOfArrival ?? '').trim();
+    const pageLoadTerm = (pageHeader.terminalOfDeparture ?? '').trim();
+    const pageDischargeTerm = (pageHeader.terminalOfArrival ?? '').trim();
+    if (pageLoad) {
+      activeLoadTerminal =
+        pageLoadTerm || (pageLoad === activeLoadPort ? activeLoadTerminal : '');
+      activeLoadPort = pageLoad;
+    }
+    if (pageDischarge) {
+      activeDischargeTerminal =
+        pageDischargeTerm ||
+        (pageDischarge === activeDischargePort ? activeDischargeTerminal : '');
+      activeDischargePort = pageDischarge;
+    }
+    if (pageLoadTerm) activeLoadTerminal = pageLoadTerm;
+    if (pageDischargeTerm) activeDischargeTerminal = pageDischargeTerm;
+
     const pageRows = parseDpWorldCargoPage(
       pageItems,
-      loadPort,
-      dischargePort,
+      activeLoadPort,
+      activeDischargePort,
       useGrossWeight,
       openContainer,
+      activeLoadTerminal,
+      activeDischargeTerminal,
     );
     if (!pageRows.length) {
       const mightHaveCargo = pageItems.some(

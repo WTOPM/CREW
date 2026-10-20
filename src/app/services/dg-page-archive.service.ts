@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   DG_PAGE_ARCHIVE_SESSION_KEY,
   DG_PAGE_ARCHIVE_STORAGE_KEY,
+  dgPageSnapshotMatchKey,
   type DgPageArchiveSession,
   type DgPageLiveBackup,
   type DgPageShipContext,
@@ -57,7 +58,10 @@ export class DgPageArchiveService {
     void this.state.persist('silent');
   }
 
-  async save(label: string): Promise<DgPageSnapshot | null> {
+  async save(
+    label: string,
+    options?: { overwriteId?: string },
+  ): Promise<DgPageSnapshot | null> {
     const trimmed = label.trim();
     if (!trimmed) return null;
 
@@ -65,25 +69,57 @@ export class DgPageArchiveService {
     try {
       const ship = this.storage.ship();
       const dgLibrary = this.storage.dgLibrary();
+      const existing = options?.overwriteId
+        ? this.entries().find((e) => e.id === options.overwriteId)
+        : undefined;
       const entry: DgPageSnapshot = {
-        id: crypto.randomUUID(),
+        id: existing?.id ?? crypto.randomUUID(),
         label: trimmed,
         savedAt: new Date().toISOString(),
         ship: dgPageShipContextFromLibrary(ship, dgLibrary.pageContext),
         dgLibrary: cloneDgLibrary(dgLibrary, this.storage.ports()),
       };
 
-      this.state.data.update((d) => ({
-        ...d,
-        dgPageArchives: this.sortNewestFirst([entry, ...d.dgPageArchives]),
-      }));
+      this.state.data.update((d) => {
+        if (existing) {
+          return {
+            ...d,
+            dgPageArchives: this.sortNewestFirst(
+              d.dgPageArchives.map((e) => (e.id === existing.id ? entry : e)),
+            ),
+          };
+        }
+        return {
+          ...d,
+          dgPageArchives: this.sortNewestFirst([entry, ...d.dgPageArchives]),
+        };
+      });
       // Disk flush like Home app-snapshot Save — silent alone stays in RAM only.
       this.state.markSectionsDirty(['dg']);
-      await this.state.persist('saved', `Saved "${trimmed}"`);
+      await this.state.persist(
+        'saved',
+        existing ? `Updated "${trimmed}"` : `Saved "${trimmed}"`,
+      );
       return entry;
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /**
+   * Same port + voyage + container count (+ inventory tab) as the current page.
+   * Used to offer overwrite instead of creating a duplicate after re-sort.
+   */
+  findMatchingSnapshot(): DgPageSnapshot | undefined {
+    const ship = this.storage.ship();
+    const dgLibrary = this.storage.dgLibrary();
+    const ctx = dgPageShipContextFromLibrary(ship, dgLibrary.pageContext);
+    const key = dgPageSnapshotMatchKey(ctx, dgLibrary);
+    // Need port + voyage to match — empty keys would collide on every empty page.
+    if (!ctx.portOfCall.trim() || !ctx.voyageNumber.trim()) return undefined;
+    return this.entries().find(
+      (e) => dgPageSnapshotMatchKey(e.ship, e.dgLibrary) === key,
+    );
   }
 
   load(id: string): boolean {

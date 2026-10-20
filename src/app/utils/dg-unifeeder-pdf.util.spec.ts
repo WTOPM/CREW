@@ -268,6 +268,61 @@ describe('parseUnifeederDangerousCargoManifest page-break orphan header', () => 
   });
 });
 
+describe('parseUnifeederDangerousCargoManifest per-page POD/POL', () => {
+  it('applies page-5 HELSINKI POD instead of stamping page-1 TALLINN on every row', () => {
+    const cargo = (page: number, container: string, un: string, x: number): DgPdfTextItem[] => [
+      item('4.620,00', x + 28, 176, page),
+      item('Gweight', x + 13, 177, page),
+      item('1,00', x + 28, 125, page),
+      item('Nweight', x + 13, 133, page),
+      item('S-U', x + 28, 251, page),
+      item('F-D', x + 28, 286, page),
+      item('210282', x - 12, 313, page),
+      item('Stowage position', x - 12, 375, page),
+      item('--', x + 28, 371, page),
+      item(un, x + 28, 469, page),
+      item('NO', x + 63, 470, page),
+      item('TEST GOODS', x + 42, 466, page),
+      item('2.1', x + 28, 514, page),
+      item(container, x - 24, 505, page),
+      item('22TN', x - 24, 532, page),
+      item('IMO Information', x, 532, page),
+      item('Proper ship. name:', x + 42, 532, page),
+    ];
+
+    const items: DgPdfTextItem[] = [
+      item('Dangerous Cargo Manifest', 40, 40, 1),
+      item('POL/TERMINAL', 40, 80, 1),
+      item('HAMBURG/C.T. ALTENWERDER (CTA)', 40, 100, 1),
+      item('POD/TERMINAL', 280, 80, 1),
+      item('TALLINN/MUUGA CONTAINER TERMINAL', 280, 100, 1),
+      ...cargo(1, 'JXYU 265115-2', '3161', 100),
+
+      // Continuation page — no header; must keep TALLINN
+      item('Dangerous Cargo Manifest', 40, 40, 2),
+      ...cargo(2, 'PAMU 133689-7', '3082', 100),
+
+      // New POD section
+      item('Dangerous Cargo Manifest', 40, 40, 5),
+      item('POL/TERMINAL', 40, 80, 5),
+      item('HAMBURG/C.T. TOLLERORT (CTT)', 40, 100, 5),
+      item('POD/TERMINAL', 280, 80, 5),
+      item('HELSINKI/VUOSAARI STEVECO', 280, 100, 5),
+      ...cargo(5, 'SEKU 466895-9', '3480', 100),
+    ];
+
+    const result = parseUnifeederDangerousCargoManifest(items, {});
+    const jxyu = result.rows.find((r) => r.containerNo === 'JXYU2651152');
+    const pamu = result.rows.find((r) => r.containerNo === 'PAMU1336897');
+    const seku = result.rows.find((r) => r.containerNo === 'SEKU4668959');
+
+    expect(jxyu?.dischargePort.toUpperCase()).toContain('TALLINN');
+    expect(pamu?.dischargePort.toUpperCase()).toContain('TALLINN');
+    expect(seku?.dischargePort.toUpperCase()).toContain('HELSINKI');
+    expect(seku?.dischargePort.toUpperCase()).not.toContain('TALLINN');
+  });
+});
+
 describe('validateUnifeederImportAgainstSummary', () => {
   it('reports container count mismatches instead of silently accepting off-by-one', () => {
     const rows = [

@@ -142,6 +142,11 @@ export interface DgLibrarySettings {
   manifestGrossTotalKg?: boolean;
   /** Last opened inventory table on the DG page. */
   activeInventoryTab: DgActiveInventoryTab;
+  /**
+   * Inventory table interaction: `edit` = normal inputs; `copy` = Excel-like
+   * read-only grid for cell/row/column selection + clipboard copy.
+   */
+  inventoryViewMode: 'edit' | 'copy';
   /** Port/date context for this page and DG document export. */
   pageContext: DgPageContext;
   /** DP WORLD manifest — separate inventory from CMA CGM. */
@@ -249,6 +254,7 @@ export function createDefaultDgLibrary(): DgLibrarySettings {
     manifestUseGrossWeight: true,
     manifestRoundWeights: false,
     activeInventoryTab: 'cmaCgm',
+    inventoryViewMode: 'edit',
     pageContext: createEmptyDgPageContext(),
     unifeeder: createDefaultUnifeederLibrary(),
   };
@@ -313,6 +319,7 @@ export function normalizeDgLibrary(
       manifestUseGrossWeight,
       manifestRoundWeights,
       activeInventoryTab: raw.activeInventoryTab === 'unifeeder' ? 'unifeeder' : 'cmaCgm',
+      inventoryViewMode: raw.inventoryViewMode === 'copy' ? 'copy' : 'edit',
       pageContext,
       unifeeder: normalizeUnifeederLibrary(raw.unifeeder, ports, pageContext),
     };
@@ -383,6 +390,7 @@ function migrateLegacyDgForm(
     manifestUseGrossWeight: true,
     manifestRoundWeights: false,
     activeInventoryTab: 'cmaCgm',
+    inventoryViewMode: 'edit',
     pageContext: normalizeDgPageContext(undefined, false, shipSeed),
     unifeeder: createDefaultUnifeederLibrary(),
   };

@@ -14,6 +14,8 @@ export class NetworkForceQuitService {
   private static readonly POLL_MS = 30_000;
   /** Ignore signals created before this process started (safe restart after update). */
   private static readonly START_SKEW_MS = 5_000;
+  /** Cap flush before quit so a hung share cannot leave the process locking the exe. */
+  private static readonly QUIT_FLUSH_MS = 12_000;
 
   private readonly state = inject(AppStateStore);
   private readonly etaStore = inject(EtaStore);
@@ -76,7 +78,12 @@ export class NetworkForceQuitService {
 
     try {
       this.etaStore.flushPersist('silent');
-      await this.state.flushPersistForQuit();
+      await Promise.race([
+        this.state.flushPersistForQuit(),
+        new Promise<void>((resolve) =>
+          setTimeout(resolve, NetworkForceQuitService.QUIT_FLUSH_MS),
+        ),
+      ]);
     } catch {
       /* still quit */
     }

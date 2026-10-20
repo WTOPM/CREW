@@ -55,6 +55,9 @@ import { filterDgOnboardContainers } from '../../utils/dg-inventory-search.util'
 import type { DgPageContext } from '../../utils/page-ship-context.util';
 import { DgActIconComponent } from './dg-act-icon.component';
 import { UnNumberTooltipDirective } from '../../directives/un-number-tooltip.directive';
+import { DgSheetSelectDirective } from '../../directives/dg-sheet-select.directive';
+import { DgCopyModeGuardDirective } from '../../directives/dg-copy-mode-guard.directive';
+import { PlainTooltipDirective } from '../../directives/plain-tooltip.directive';
 import {
   cmaCargoAutofillFromUnNumber,
   unNumberHasDigits,
@@ -80,6 +83,9 @@ export type DgInventoryTab = DgActiveInventoryTab;
     UnNumberTooltipDirective,
     DgArchiveModalsComponent,
     DgUnifeederInventoryComponent,
+    DgSheetSelectDirective,
+    DgCopyModeGuardDirective,
+    PlainTooltipDirective,
   ],
   templateUrl: './dg.component.html',
 })
@@ -136,12 +142,15 @@ export class DgComponent {
       this.filteredOnboardContainers(),
       this.inventorySearch(),
     );
-    return dgViewOnboardInventoryStats(
+    const base = dgViewOnboardInventoryStats(
       filtered,
       true,
       this.viewOptions(),
       (container) => this.containerDisplayLines(container).length,
     );
+    // Discharged total from full onboard (not hidden by showDischarged).
+    const dischargedCount = this.library().onboard.filter((c) => c.status === 'discharged').length;
+    return { ...base, dischargedCount };
   });
 
   protected readonly dragOver = signal(false);
@@ -205,6 +214,23 @@ export class DgComponent {
     this.dg.updateDgManifestView({ activeInventoryTab: tab });
   }
 
+  protected readonly inventoryCopyMode = computed(
+    () => this.library().inventoryViewMode === 'copy',
+  );
+
+  protected setInventoryViewMode(mode: 'edit' | 'copy'): void {
+    if (this.library().inventoryViewMode === mode) return;
+    if (mode === 'copy') this.rowSelection.clear();
+    this.dg.updateDgManifestView({ inventoryViewMode: mode });
+  }
+
+  /** Returns false (and toasts) when Copy mode blocks edits. */
+  protected requireInventoryEdit(): boolean {
+    if (!this.inventoryCopyMode()) return true;
+    this.toast.show('Switch to Edit mode to change the inventory', 'info');
+    return false;
+  }
+
   protected dgTransferButtonTitle(): string {
     return this.activeInventoryTab() === 'cmaCgm'
       ? 'Replace DP WORLD list with CMA CGM data'
@@ -212,6 +238,7 @@ export class DgComponent {
   }
 
   protected async transferDgInventoryToOpposite(): Promise<void> {
+    if (!this.requireInventoryEdit()) return;
     const fromCma = this.activeInventoryTab() === 'cmaCgm';
     const sourceCount = fromCma
       ? this.library().onboard.length
@@ -247,6 +274,7 @@ export class DgComponent {
   }
 
   protected async clearActiveDgInventory(): Promise<void> {
+    if (!this.requireInventoryEdit()) return;
     const fromCma = this.activeInventoryTab() === 'cmaCgm';
     const onboardCount = fromCma
       ? this.library().onboard.length
@@ -291,6 +319,7 @@ export class DgComponent {
   }
 
   protected toggleInventorySort(column: DgInventorySortColumn): void {
+    if (this.inventoryCopyMode()) return;
     if (this.inventorySortColumn() === column) {
       this.inventorySortDirection.update((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -301,6 +330,7 @@ export class DgComponent {
 
   protected removeManifest(id: string, event: Event): void {
     event.stopPropagation();
+    if (!this.requireInventoryEdit()) return;
     this.dg.removeDgManifest(id);
   }
 
@@ -327,6 +357,13 @@ export class DgComponent {
       return formatDgWeightKgGrossDisplay(value) || '0';
     }
     return formatDgWeightKgDisplay(value) || '0';
+  }
+
+  protected stripWeightParts(value: number): { whole: string; fraction: string } {
+    const formatted = this.formatSummaryKg(value);
+    const dot = formatted.indexOf('.');
+    if (dot < 0) return { whole: formatted, fraction: '' };
+    return { whole: formatted.slice(0, dot), fraction: formatted.slice(dot) };
   }
 
   protected flashPointTone(value: string): 'negative' | 'positive' | 'neutral' {
@@ -490,22 +527,27 @@ export class DgComponent {
   }
 
   protected addContainer(): void {
+    if (!this.requireInventoryEdit()) return;
     this.dg.addDgOnboardContainer();
   }
 
   protected removeContainer(containerId: string): void {
+    if (!this.requireInventoryEdit()) return;
     this.dg.removeDgOnboardContainer(containerId);
   }
 
   protected markDischarged(containerId: string): void {
+    if (!this.requireInventoryEdit()) return;
     this.dg.setDgOnboardContainerStatus(containerId, 'discharged');
   }
 
   protected restoreOnboard(containerId: string): void {
+    if (!this.requireInventoryEdit()) return;
     this.dg.setDgOnboardContainerStatus(containerId, 'onboard');
   }
 
   protected dischargeSelectedContainers(): void {
+    if (!this.requireInventoryEdit()) return;
     const ids = [...this.rowSelection.selectedIds()];
     if (ids.length === 0) return;
     for (const id of ids) {
@@ -514,6 +556,7 @@ export class DgComponent {
   }
 
   protected removeSelectedContainers(): void {
+    if (!this.requireInventoryEdit()) return;
     const ids = [...this.rowSelection.selectedIds()];
     if (ids.length === 0) return;
     for (const id of ids) {
@@ -590,6 +633,7 @@ export class DgComponent {
   }
 
   protected pickPdf(): void {
+    if (!this.requireInventoryEdit()) return;
     this.fileRef()?.nativeElement.click();
   }
 
@@ -602,6 +646,7 @@ export class DgComponent {
 
   protected onDragOver(event: DragEvent): void {
     event.preventDefault();
+    if (this.inventoryCopyMode()) return;
     this.dragOver.set(true);
   }
 
@@ -612,11 +657,13 @@ export class DgComponent {
   protected onDrop(event: DragEvent): void {
     event.preventDefault();
     this.dragOver.set(false);
+    if (!this.requireInventoryEdit()) return;
     const file = event.dataTransfer?.files?.[0];
     if (file) void this.importPdfFile(file);
   }
 
   private async importPdfFile(file: File): Promise<void> {
+    if (!this.requireInventoryEdit()) return;
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
     if (!isPdf) {
       this.toast.showError('Please choose a PDF file');

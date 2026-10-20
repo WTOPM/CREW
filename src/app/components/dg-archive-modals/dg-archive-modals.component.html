@@ -108,15 +108,25 @@
                       <span class="dg-archive-load-card__badge">Loaded</span>
                     }
                   </span>
+                  @let meta = archiveLoadMeta(entry);
                   <span class="dg-archive-load-card__meta">
-                    @if (entry.ship.voyageNumber) {
-                      Voy {{ entry.ship.voyageNumber }}
-                      ·
+                    @if (meta.voyage) {
+                      <span class="dg-archive-load-card__chip dg-archive-load-card__chip--voy">{{
+                        meta.voyage
+                      }}</span>
                     }
-                    {{ archiveContainerCount(entry) }} container(s)
-                  </span>
-                  <span class="dg-archive-load-card__stats">
-                    saved {{ formatSavedAt(entry.savedAt) }}
+                    @if (meta.voyage) {
+                      <span class="dg-archive-load-card__sep" aria-hidden="true">·</span>
+                    }
+                    <span class="dg-archive-load-card__chip dg-archive-load-card__chip--cont">{{
+                      meta.containers
+                    }}</span>
+                    @if (meta.saved) {
+                      <span class="dg-archive-load-card__sep" aria-hidden="true">·</span>
+                      <span class="dg-archive-load-card__chip dg-archive-load-card__chip--saved">{{
+                        meta.saved
+                      }}</span>
+                    }
                   </span>
                 </button>
                 <button

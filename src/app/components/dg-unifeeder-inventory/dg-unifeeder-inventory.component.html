@@ -130,76 +130,160 @@
 
     <section class="uf-header__controls-row" aria-label="Inventory controls">
       <div class="uf-controls-panel">
-        <div class="uf-controls-panel__actions">
-          <label class="uf-toggle" title="Show discharged containers">
+        <div class="uf-controls-panel__options" aria-label="Display options">
+          <label
+            class="uf-opt-btn"
+            [class.uf-opt-btn--on]="unifeederLibrary().showDischarged"
+            aria-label="Discharged"
+            appPlainTooltipTitle="DISCHARGED"
+            [appPlainTooltip]="
+              unifeederLibrary().showDischarged
+                ? 'Click to turn OFF — hide discharged containers from the list.'
+                : 'Click to turn ON — show discharged containers in the list.'
+            "
+          >
             <input
               type="checkbox"
+              class="uf-opt-btn__input"
               [ngModel]="unifeederLibrary().showDischarged"
               (ngModelChange)="toggleUnifeederShowDischarged($event)"
             />
-            <span>Discharged</span>
+            <!-- ISO container silhouette -->
+            <svg class="uf-opt-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M2.5 8.2h19v9.6c0 .7-.55 1.2-1.2 1.2H3.7c-.65 0-1.2-.5-1.2-1.2V8.2zm1.4 1.35v7h16.2v-7H3.9zm1.5-3.1h2.35L8.7 5h6.6l.95 1.45H18.6c.55 0 1 .4 1 .95v.55H3.4v-.55c0-.55.45-.95 1-.95z"
+              />
+              <path
+                fill="currentColor"
+                d="M6.2 11h1.7v4.4H6.2V11zm3.3 0h1.7v4.4H9.5V11zm3.3 0h1.7v4.4H12.8V11zm3.3 0h1.7v4.4H16.1V11z"
+                opacity="0.55"
+              />
+            </svg>
           </label>
+
           <label
-            class="uf-toggle"
-            title="POL/POD as terminals — same values go to Excel/PDF"
+            class="uf-opt-btn"
+            [class.uf-opt-btn--on]="unifeederLibrary().showByTerminals"
+            aria-label="By terminals"
+            appPlainTooltipTitle="BY TERMINALS"
+            [appPlainTooltip]="
+              unifeederLibrary().showByTerminals
+                ? 'Click to turn OFF — show POL/POD as port names again.'
+                : 'Click to turn ON — show POL/POD as terminals (same values go to Excel/PDF).'
+            "
           >
             <input
               type="checkbox"
+              class="uf-opt-btn__input"
               [ngModel]="unifeederLibrary().showByTerminals"
               (ngModelChange)="toggleUnifeederShowByTerminals($event)"
             />
-            <span>By terminals</span>
+            <!-- Pier / quay with bollards -->
+            <svg class="uf-opt-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M3 18.8h18v1.6H3v-1.6zm1.2-2.4h15.6V18H4.2v-1.6zM5 6.2h2.2v8.4H5V6.2zm5.9 0H13v8.4h-2.1V6.2zm5.9 0H19v8.4h-2.2V6.2zM4.2 4.5h15.6v1.7H4.2V4.5z"
+              />
+              <path
+                fill="currentColor"
+                d="M6.1 8.4h1.2v1.3H6.1V8.4zm0 2.6h1.2v1.3H6.1v-1.3zm5.9-2.6H13.2v1.3h-1.2V8.4zm0 2.6H13.2v1.3h-1.2v-1.3zm5.9-2.6H19.1v1.3h-1.2V8.4zm0 2.6H19.1v1.3h-1.2v-1.3z"
+                opacity="0.45"
+              />
+            </svg>
           </label>
-          <div
-            class="choice-segmented choice-segmented--row uf-size-column-mode"
-            role="radiogroup"
-            aria-label="Size column display"
-            title="Show container type codes or size labels in the Size/Type column"
+
+          <button
+            type="button"
+            class="uf-opt-btn uf-opt-btn--mode"
+            [class.uf-opt-btn--on]="unifeederLibrary().sizeColumnMode === 'size'"
+            [attr.aria-label]="
+              'Type / Size, now ' +
+              (unifeederLibrary().sizeColumnMode === 'size' ? 'Size' : 'Type')
+            "
+            appPlainTooltipTitle="TYPE / SIZE"
+            [appPlainTooltip]="
+              unifeederLibrary().sizeColumnMode === 'size'
+                ? 'Now showing SIZE. Click to switch the column to TYPE codes.'
+                : 'Now showing TYPE. Click to switch the column to SIZE labels.'
+            "
+            (click)="toggleUnifeederSizeColumnMode()"
           >
-            <label class="choice-segmented__item">
-              <input
-                type="radio"
-                name="ufSizeColumnMode"
-                [checked]="unifeederLibrary().sizeColumnMode === 'type'"
-                (change)="setUnifeederSizeColumnMode('type')"
+            <svg class="uf-opt-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M4 5.2h16v2.1H4V5.2zm0 5.5h11.2v2.1H4v-2.1zm0 5.5h14v2.1H4v-2.1z"
               />
-              <span class="choice-segmented__text">Type</span>
-            </label>
-            <label class="choice-segmented__item">
-              <input
-                type="radio"
-                name="ufSizeColumnMode"
-                [checked]="unifeederLibrary().sizeColumnMode === 'size'"
-                (change)="setUnifeederSizeColumnMode('size')"
+              <path
+                fill="currentColor"
+                d="M17.4 9.6 19.8 12l-5.2 5.2h-2.4v-2.4L17.4 9.6z"
+                opacity="0.7"
               />
-              <span class="choice-segmented__text">Size</span>
-            </label>
-          </div>
+            </svg>
+            <span class="uf-opt-btn__badge">{{
+              unifeederLibrary().sizeColumnMode === 'size' ? 'Sz' : 'Ty'
+            }}</span>
+          </button>
+
           <label
-            class="uf-toggle"
-            title="Combine lines in the same container when class, UN, name and MP/LQ match (same as PDF export)"
+            class="uf-opt-btn"
+            [class.uf-opt-btn--on]="unifeederLibrary().mergeLines"
+            aria-label="Consolidate"
+            appPlainTooltipTitle="CONSOLIDATE"
+            [appPlainTooltip]="
+              unifeederLibrary().mergeLines
+                ? 'Click to turn OFF — show every cargo line separately again.'
+                : 'Click to turn ON — merge matching lines in the same container (as in PDF export).'
+            "
           >
             <input
               type="checkbox"
+              class="uf-opt-btn__input"
               [ngModel]="unifeederLibrary().mergeLines"
               (ngModelChange)="toggleUnifeederMergeLines($event)"
             />
-            <span>Consolidate lines</span>
+            <!-- Stacked layers merging into one -->
+            <svg class="uf-opt-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 3.2 20.2 7.4 12 11.6 3.8 7.4 12 3.2zm0 3.1L7.4 8.4 12 10.7l4.6-2.3L12 6.3z"
+              />
+              <path
+                fill="currentColor"
+                d="M3.8 10.2 12 14.4l8.2-4.2v2.3L12 16.7 3.8 12.5v-2.3z"
+                opacity="0.7"
+              />
+              <path
+                fill="currentColor"
+                d="M3.8 14.3 12 18.5l8.2-4.2v2.3L12 20.8 3.8 16.6v-2.3z"
+                opacity="0.45"
+              />
+            </svg>
           </label>
           @if (unifeederLibrary().mergeLines) {
-            <span class="dg-consolidated-legend" title="Rows where 2+ cargo lines were combined">
-              merged rows
-            </span>
+            <span
+              class="dg-consolidated-legend dg-consolidated-legend--dot"
+              title="Rows where 2+ cargo lines were combined"
+              >merged</span
+            >
           }
+
           <div
             class="choice-segmented choice-segmented--row dg-weight-mode"
             [class.dg-weight-mode--gross]="unifeederLibrary().useGrossWeight"
             [class.dg-weight-mode--net]="!unifeederLibrary().useGrossWeight"
             role="radiogroup"
             aria-label="Weight tonnage"
-            title="Gross or net weight for display and totals"
           >
-            <label class="choice-segmented__item dg-weight-mode__gross">
+            <label
+              class="choice-segmented__item dg-weight-mode__gross"
+              appPlainTooltipTitle="GROSS"
+              [appPlainTooltip]="
+                unifeederLibrary().useGrossWeight
+                  ? 'Already on GROSS. Click NET to switch display and totals.'
+                  : 'Click to switch display and totals to GROSS weight.'
+              "
+            >
               <input
                 type="radio"
                 name="ufWeightTonnage"
@@ -208,7 +292,15 @@
               />
               <span class="choice-segmented__text">Gross</span>
             </label>
-            <label class="choice-segmented__item dg-weight-mode__net">
+            <label
+              class="choice-segmented__item dg-weight-mode__net"
+              appPlainTooltipTitle="NET"
+              [appPlainTooltip]="
+                !unifeederLibrary().useGrossWeight
+                  ? 'Already on NET. Click GROSS to switch display and totals.'
+                  : 'Click to switch display and totals to NET weight.'
+              "
+            >
               <input
                 type="radio"
                 name="ufWeightTonnage"
@@ -218,43 +310,50 @@
               <span class="choice-segmented__text">Net</span>
             </label>
           </div>
-          <label class="uf-toggle" title="Round displayed weights and totals to whole kg">
+
+          <label
+            class="uf-opt-btn"
+            [class.uf-opt-btn--on]="unifeederLibrary().roundWeights"
+            aria-label="Round"
+            appPlainTooltipTitle="ROUND"
+            [appPlainTooltip]="
+              unifeederLibrary().roundWeights
+                ? 'Click to turn OFF — show exact kg values again (no rounding).'
+                : 'Click to turn ON — round displayed weights and totals to whole kg.'
+            "
+          >
             <input
               type="checkbox"
+              class="uf-opt-btn__input"
               [ngModel]="unifeederLibrary().roundWeights"
               (ngModelChange)="toggleUnifeederRoundWeights($event)"
             />
-            <span>Round weight</span>
+            <!-- ≈ approx / round mark -->
+            <svg class="uf-opt-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M4.8 8.4c1.8-1.6 4.1-2.4 7.2-2.4 2.5 0 4.3.6 5.6 1.6l-1.2 1.7c-1-.7-2.4-1.2-4.4-1.2-2.5 0-4.2.6-5.4 1.7L4.8 8.4zm0 5.8c1.8-1.6 4.1-2.4 7.2-2.4 2.5 0 4.3.6 5.6 1.6l-1.2 1.7c-1-.7-2.4-1.2-4.4-1.2-2.5 0-4.2.6-5.4 1.7l-1.8-1.4z"
+              />
+              <circle
+                cx="18.4"
+                cy="17"
+                r="3.1"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                d="M18.4 15.4v3.2M16.8 17h3.2"
+              />
+            </svg>
           </label>
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm dg-pdf-btn"
-            title="Export Dangerous Goods List (PDF)"
-            [disabled]="exportingPdf()"
-            (click)="exportUnifeederPdf()"
-          >
-            PDF
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm dg-excel-btn"
-            title="Export Dangerous Goods List (Excel)"
-            [disabled]="exportingExcel()"
-            (click)="exportUnifeederExcel()"
-          >
-            Excel
-          </button>
-          <button
-            type="button"
-            class="btn btn-primary btn-sm uf-add-row-btn"
-            title="Add container"
-            (click)="addUnifeederRow()"
-          >
-            + Container
-          </button>
         </div>
 
-        <div class="uf-controls-panel__stats">
+        <div class="uf-controls-panel__primary">
           <label
             class="uf-search-box"
             [class.uf-search-box--filled]="unifeederInventorySearch().trim().length > 0"
@@ -269,25 +368,84 @@
             />
           </label>
 
-          <div class="uf-inventory-strip">
-            <span
-              ><strong>{{ visibleUnifeederContainerGroups().length }}</strong> containers</span
+          <div
+            class="choice-segmented choice-segmented--row dg-inventory-view-mode"
+            role="radiogroup"
+            aria-label="Inventory table view"
+            title="Edit: normal table. Copy: Excel-like read-only grid — select cells/rows/columns and Ctrl+C"
+          >
+            <label class="choice-segmented__item dg-inventory-view-mode__edit">
+              <input
+                type="radio"
+                name="dgInventoryViewModeUf"
+                [checked]="!inventoryCopyMode()"
+                (change)="setInventoryViewMode('edit')"
+              />
+              <span class="choice-segmented__text">EDIT</span>
+            </label>
+            <label class="choice-segmented__item dg-inventory-view-mode__copy">
+              <input
+                type="radio"
+                name="dgInventoryViewModeUf"
+                [checked]="inventoryCopyMode()"
+                (change)="setInventoryViewMode('copy')"
+              />
+              <span class="choice-segmented__text">VIEW</span>
+            </label>
+          </div>
+
+          <div class="uf-controls-panel__tools">
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm dg-pdf-btn"
+              title="Export Dangerous Goods List (PDF)"
+              [disabled]="exportingPdf()"
+              (click)="exportUnifeederPdf()"
             >
-            <span class="uf-inventory-strip__sep">·</span>
-            <span
-              ><strong>{{ unifeederStats().rowCount }}</strong> lines</span
+              PDF
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm dg-excel-btn"
+              title="Export Dangerous Goods List (Excel)"
+              [disabled]="exportingExcel()"
+              (click)="exportUnifeederExcel()"
             >
-            @if (unifeederStats().dischargedCount > 0) {
-              <span class="uf-inventory-strip__sep">·</span>
-              <span class="uf-inventory-strip__muted"
-                >{{ unifeederStats().dischargedCount }} disch.</span
-              >
-            }
-            <span class="uf-inventory-strip__weight"
-              >{{ formatUnifeederWeight(unifeederStats().totalKg) }} kg</span
+              Excel
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm uf-add-row-btn"
+              title="Add container"
+              (click)="addUnifeederRow()"
             >
+              + Container
+            </button>
           </div>
         </div>
+
+        <div class="uf-inventory-strip">
+            <span
+              class="uf-inventory-strip__stat uf-inventory-strip__stat--containers"
+              [appPlainTooltip]="unifeederStats().rowCount + ' LINES'"
+            >
+              CONTAINERS <strong>{{ visibleUnifeederContainerGroups().length }}</strong>
+            </span>
+            <span class="uf-inventory-strip__sep" aria-hidden="true">·</span>
+            <span class="uf-inventory-strip__stat uf-inventory-strip__stat--discharged">
+              DISCHARGED <strong>{{ unifeederStats().dischargedContainerCount }}</strong>
+            </span>
+            <span class="uf-inventory-strip__sep" aria-hidden="true">·</span>
+            @let stripWt = stripWeightParts(unifeederStats().totalKg);
+            <span class="uf-inventory-strip__weight">
+              <span class="uf-inventory-strip__weight-whole">{{ stripWt.whole }}</span>
+              @if (stripWt.fraction) {
+                <span class="uf-inventory-strip__weight-frac">{{ stripWt.fraction }}</span>
+              }
+              <span class="uf-inventory-strip__weight-unit">KG</span>
+            </span>
+          </div>
+
       </div>
     </section>
   </header>
@@ -301,6 +459,7 @@
       <table
         class="dg-unifeeder-table"
         [class.uf-table--size-labels]="unifeederLibrary().sizeColumnMode === 'size'"
+        [appDgSheetSelect]="inventoryCopyMode()"
       >
         <colgroup>
           <col class="uf-col-no" />
@@ -333,7 +492,7 @@
               [title]="
                 rowSelection.hasSelection() ? 'Clear selection' : 'Select all containers'
               "
-              (click)="rowSelection.toggleSelectAll()"
+              (click)="!inventoryCopyMode() && rowSelection.toggleSelectAll()"
             >
               @if (rowSelection.hasSelection()) {
                 <span class="dg-select-th__mark" aria-hidden="true">✓</span>
@@ -575,23 +734,35 @@
                 (mouseenter)="setUnifeederLineHover(container.key, line.id)"
                 (mouseleave)="onUnifeederContainerGroupLeave($event, container.key)"
               >
-                @if (first) {
+                @if (inventoryCopyMode() || first) {
                   <td
-                    class="uf-no uf-group dg-select-cell"
-                    [attr.rowspan]="unifeederContainerLineCount(container)"
+                    class="uf-no uf-group"
+                    [class.dg-select-cell]="!inventoryCopyMode()"
+                    [attr.rowspan]="
+                      inventoryCopyMode() ? null : unifeederContainerLineCount(container)
+                    "
                     [attr.data-uf-container-key]="container.key"
-                    title="Select container"
+                    [attr.title]="inventoryCopyMode() ? null : 'Select container'"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
-                    (pointerdown)="rowSelection.onIndexPointerDown(container.key, $event)"
-                    (pointerenter)="rowSelection.onIndexPointerEnter(container.key)"
-                    (pointerup)="rowSelection.onIndexPointerUp($event)"
-                    (pointercancel)="rowSelection.onIndexPointerCancel($event)"
+                    (pointerdown)="
+                      !inventoryCopyMode() &&
+                      rowSelection.onIndexPointerDown(container.key, $event)
+                    "
+                    (pointerenter)="
+                      !inventoryCopyMode() && rowSelection.onIndexPointerEnter(container.key)
+                    "
+                    (pointerup)="!inventoryCopyMode() && rowSelection.onIndexPointerUp($event)"
+                    (pointercancel)="
+                      !inventoryCopyMode() && rowSelection.onIndexPointerCancel($event)
+                    "
                   >
                     {{ ci + 1 }}
                   </td>
                   <td
                     class="uf-group"
-                    [attr.rowspan]="unifeederContainerLineCount(container)"
+                    [attr.rowspan]="
+                      inventoryCopyMode() ? null : unifeederContainerLineCount(container)
+                    "
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
@@ -605,7 +776,9 @@
                   </td>
                   <td
                     class="uf-group"
-                    [attr.rowspan]="unifeederContainerLineCount(container)"
+                    [attr.rowspan]="
+                      inventoryCopyMode() ? null : unifeederContainerLineCount(container)
+                    "
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
@@ -617,7 +790,9 @@
                   </td>
                   <td
                     class="uf-group"
-                    [attr.rowspan]="unifeederContainerLineCount(container)"
+                    [attr.rowspan]="
+                      inventoryCopyMode() ? null : unifeederContainerLineCount(container)
+                    "
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
@@ -629,7 +804,9 @@
                   </td>
                   <td
                     class="uf-group"
-                    [attr.rowspan]="unifeederContainerLineCount(container)"
+                    [attr.rowspan]="
+                      inventoryCopyMode() ? null : unifeederContainerLineCount(container)
+                    "
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
@@ -657,7 +834,9 @@
                   </td>
                   <td
                     class="uf-group"
-                    [attr.rowspan]="unifeederContainerLineCount(container)"
+                    [attr.rowspan]="
+                      inventoryCopyMode() ? null : unifeederContainerLineCount(container)
+                    "
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >
@@ -897,10 +1076,12 @@
                     </button>
                   }
                 </td>
-                @if (first) {
+                @if (inventoryCopyMode() || first) {
                   <td
                     class="uf-act uf-group"
-                    [attr.rowspan]="unifeederContainerLineCount(container)"
+                    [attr.rowspan]="
+                      inventoryCopyMode() ? null : unifeederContainerLineCount(container)
+                    "
                     [attr.data-uf-container-key]="container.key"
                     (mouseenter)="setUnifeederContainerGroupHover(container.key)"
                   >

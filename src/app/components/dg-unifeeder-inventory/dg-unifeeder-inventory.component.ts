@@ -71,6 +71,8 @@ import {
 } from '../../utils/dg-un-number-autofill.util';
 import { normalizeUnNumber } from '../../utils/dg-un-number.util';
 import { RefChoiceSuggestComponent } from '../ref-choice-suggest/ref-choice-suggest.component';
+import { DgSheetSelectDirective } from '../../directives/dg-sheet-select.directive';
+import { PlainTooltipDirective } from '../../directives/plain-tooltip.directive';
 import {
   applyUnifeederReferenceValue,
   findIdenticalUnifeederReferenceMismatches,
@@ -104,6 +106,8 @@ import { DgRowSelection } from '../../utils/dg-row-selection.util';
     MfagScheduleTooltipDirective,
     UnNumberTooltipDirective,
     PackingGroupTooltipDirective,
+    DgSheetSelectDirective,
+    PlainTooltipDirective,
   ],
   templateUrl: './dg-unifeeder-inventory.component.html',
 })
@@ -122,6 +126,22 @@ export class DgUnifeederInventoryComponent {
   protected readonly library = this.storage.dgLibrary;
 
   protected readonly unifeederLibrary = computed(() => this.library().unifeeder);
+  protected readonly inventoryCopyMode = computed(
+    () => this.library().inventoryViewMode === 'copy',
+  );
+
+  protected setInventoryViewMode(mode: 'edit' | 'copy'): void {
+    if (this.library().inventoryViewMode === mode) return;
+    if (mode === 'copy') this.rowSelection.clear();
+    this.dg.updateDgManifestView({ inventoryViewMode: mode });
+  }
+
+  /** Returns false (and toasts) when Copy mode blocks edits. */
+  protected requireInventoryEdit(): boolean {
+    if (!this.inventoryCopyMode()) return true;
+    this.toast.show('Switch to Edit mode to change the inventory', 'info');
+    return false;
+  }
 
   protected readonly unifeederWeightOptions = computed(() => ({
     mergeLines: this.unifeederLibrary().mergeLines,
@@ -147,6 +167,9 @@ export class DgUnifeederInventoryComponent {
       this.rowSelection.setOrderedIds(
         this.visibleUnifeederContainerGroups().map((g) => g.key),
       );
+    });
+    effect(() => {
+      if (this.inventoryCopyMode()) this.rowSelection.clear();
     });
   }
 
@@ -242,9 +265,17 @@ export class DgUnifeederInventoryComponent {
       lib.roundWeights,
       lib.mergeLines,
     );
+    // Count discharged containers from full onboard (not hidden by showDischarged).
+    const dischargedKeys = new Set<string>();
+    for (const row of lib.onboard) {
+      if (row.status !== 'discharged') continue;
+      const key = row.containerNo.trim().toUpperCase() || row.id;
+      dischargedKeys.add(key);
+    }
     return {
       ...base,
       rowCount: this.visibleUnifeederDisplayRows().length,
+      dischargedContainerCount: dischargedKeys.size,
     };
   });
 
@@ -298,6 +329,11 @@ export class DgUnifeederInventoryComponent {
     this.dg.updateUnifeederViewSettings({ sizeColumnMode: mode });
   }
 
+  protected toggleUnifeederSizeColumnMode(): void {
+    const next = this.unifeederLibrary().sizeColumnMode === 'size' ? 'type' : 'size';
+    this.setUnifeederSizeColumnMode(next);
+  }
+
   protected setUnifeederWeightTonnage(gross: boolean): void {
     this.dg.updateUnifeederViewSettings({ useGrossWeight: gross });
     this.showUnifeederTonnageManifestCheck(gross);
@@ -332,6 +368,7 @@ export class DgUnifeederInventoryComponent {
   }
 
   protected toggleUnifeederInventorySort(column: DgUnifeederSortColumn): void {
+    if (this.inventoryCopyMode()) return;
     if (this.unifeederSortColumn() === column) {
       this.unifeederSortDirection.update((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -459,10 +496,12 @@ export class DgUnifeederInventoryComponent {
   }
 
   protected addUnifeederRow(): void {
+    if (!this.requireInventoryEdit()) return;
     this.dg.addUnifeederRow();
   }
 
   protected addUnifeederCargoLine(group: DgUnifeederContainerDisplayGroup): void {
+    if (!this.requireInventoryEdit()) return;
     this.dg.addUnifeederRow({
       size: group.size,
       stow: group.stow,
@@ -476,6 +515,7 @@ export class DgUnifeederInventoryComponent {
   }
 
   protected addLineToSelectedUnifeederContainer(): void {
+    if (!this.requireInventoryEdit()) return;
     const key = this.rowSelection.soleSelectedId();
     if (!key) return;
     const group = this.visibleUnifeederContainerGroups().find((g) => g.key === key);
@@ -528,43 +568,53 @@ export class DgUnifeederInventoryComponent {
   }
 
   protected removeUnifeederContainer(group: DgUnifeederContainerDisplayGroup): void {
+    if (!this.requireInventoryEdit()) return;
     for (const rowId of this.unifeederContainerSourceRowIds(group)) {
       this.dg.removeUnifeederRow(rowId);
     }
   }
 
   protected markUnifeederContainerDischarged(group: DgUnifeederContainerDisplayGroup): void {
+    if (!this.requireInventoryEdit()) return;
     for (const rowId of this.unifeederContainerSourceRowIds(group)) {
       this.dg.setUnifeederRowStatus(rowId, 'discharged');
     }
   }
 
   protected restoreUnifeederContainer(group: DgUnifeederContainerDisplayGroup): void {
+    if (!this.requireInventoryEdit()) return;
     for (const rowId of this.unifeederContainerSourceRowIds(group)) {
       this.dg.setUnifeederRowStatus(rowId, 'onboard');
     }
   }
 
   protected dischargeSelectedUnifeederContainers(): void {
+    if (!this.requireInventoryEdit()) return;
     const keys = new Set(this.rowSelection.selectedIds());
     if (keys.size === 0) return;
     for (const group of this.visibleUnifeederContainerGroups()) {
       if (!keys.has(group.key)) continue;
-      this.markUnifeederContainerDischarged(group);
+      for (const rowId of this.unifeederContainerSourceRowIds(group)) {
+        this.dg.setUnifeederRowStatus(rowId, 'discharged');
+      }
     }
   }
 
   protected removeSelectedUnifeederContainers(): void {
+    if (!this.requireInventoryEdit()) return;
     const keys = new Set(this.rowSelection.selectedIds());
     if (keys.size === 0) return;
     for (const group of this.visibleUnifeederContainerGroups()) {
       if (!keys.has(group.key)) continue;
-      this.removeUnifeederContainer(group);
+      for (const rowId of this.unifeederContainerSourceRowIds(group)) {
+        this.dg.removeUnifeederRow(rowId);
+      }
     }
     this.rowSelection.clear();
   }
 
   protected removeUnifeederRow(rowId: string): void {
+    if (!this.requireInventoryEdit()) return;
     this.dg.removeUnifeederRow(rowId);
   }
 
@@ -638,10 +688,12 @@ export class DgUnifeederInventoryComponent {
 
   protected removeUnifeederManifest(id: string, event: Event): void {
     event.stopPropagation();
+    if (!this.requireInventoryEdit()) return;
     this.dg.removeUnifeederManifest(id);
   }
 
   protected pickUnifeederExcel(): void {
+    if (!this.requireInventoryEdit()) return;
     this.unifeederFileRef()?.nativeElement.click();
   }
 
@@ -654,6 +706,7 @@ export class DgUnifeederInventoryComponent {
 
   protected onUnifeederDragOver(event: DragEvent): void {
     event.preventDefault();
+    if (this.inventoryCopyMode()) return;
     this.unifeederDragOver.set(true);
   }
 
@@ -664,11 +717,13 @@ export class DgUnifeederInventoryComponent {
   protected onUnifeederDrop(event: DragEvent): void {
     event.preventDefault();
     this.unifeederDragOver.set(false);
+    if (!this.requireInventoryEdit()) return;
     const file = event.dataTransfer?.files?.[0];
     if (file) void this.importUnifeederFile(file);
   }
 
   private async importUnifeederFile(file: File): Promise<void> {
+    if (!this.requireInventoryEdit()) return;
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
     const isExcel =
       /\.xlsx$/i.test(file.name) ||
@@ -697,31 +752,31 @@ export class DgUnifeederInventoryComponent {
         const applied = this.dg.applyUnifeederDagosPositions(dagosResult.positions);
         if (applied.checked === 0 && applied.discharged === 0) {
           this.toast.showError('No matching onboard containers found for Dagos positions');
-        } else {
-          const parts = [
-            `Checked ${applied.checked}`,
-            `replaced ${applied.replaced}`,
-          ];
-          if (applied.discharged > 0) {
-            parts.push(`discharged ${applied.discharged}`);
-          }
+        } else if (applied.checked > 0) {
           this.toast.show(
-            `${parts.join(' · ')} container(s)`,
-            applied.replaced > 0 || applied.discharged > 0 ? 'success' : 'info',
+            [
+              `Checked ${applied.checked}`,
+              `corrected ${applied.replaced}`,
+              `left as-is ${applied.unchanged}`,
+            ].join(' · '),
+            applied.replaced > 0 ? 'success' : 'info',
           );
         }
         if (applied.discharged > 0) {
           if (!this.unifeederLibrary().showDischarged) {
             this.dg.updateUnifeederViewSettings({ showDischarged: true });
           }
+          this.rowSelection.selectIds(applied.dischargedContainers);
           this.toast.show(
-            `${applied.discharged} container(s) not in Dagos — marked discharged`,
-            'info',
+            `${applied.discharged} container(s) missing from Dagos — marked discharged`,
+            'warning',
           );
+        } else {
+          this.rowSelection.clear();
         }
         if (applied.unmatched.length) {
           this.toast.show(
-            `${applied.unmatched.length} container(s) in PDF not found onboard`,
+            `${applied.unmatched.length} container(s) in Dagos not found onboard`,
             'info',
           );
         }
@@ -789,6 +844,13 @@ export class DgUnifeederInventoryComponent {
       return formatDgWeightKgGrossDisplay(value) || '0';
     }
     return formatDgWeightKgDisplay(value) || '0';
+  }
+
+  protected stripWeightParts(value: number): { whole: string; fraction: string } {
+    const formatted = this.formatUnifeederWeight(value);
+    const dot = formatted.indexOf('.');
+    if (dot < 0) return { whole: formatted, fraction: '' };
+    return { whole: formatted.slice(0, dot), fraction: formatted.slice(dot) };
   }
 
   protected onUnifeederWeightBlur(row: DgUnifeederRowDisplay, raw: string): void {

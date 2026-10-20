@@ -3,8 +3,10 @@ import {
   createDefaultDepRepLibrary,
   normalizeDepRepDensities,
   normalizeDepRepLibrary,
+  normalizeDepRepSession,
   type DepRepDensityEntry,
   type DepRepLibrarySettings,
+  type DepRepSessionState,
 } from '../models/dep-rep.models';
 import { AppStateStore } from './app-state.store';
 
@@ -12,6 +14,10 @@ import { AppStateStore } from './app-state.store';
 export class DepRepStore {
   private readonly state = inject(AppStateStore);
   private readonly data = this.state.data;
+
+  private touch(): void {
+    this.state.markSectionsDirty(['dg']);
+  }
 
   setSourcePath(path: string): void {
     const p = path.trim();
@@ -27,6 +33,7 @@ export class DepRepStore {
         }),
       };
     });
+    this.touch();
     void this.state.persist('silent');
   }
 
@@ -41,6 +48,7 @@ export class DepRepStore {
         }),
       };
     });
+    this.touch();
     void this.state.persist('silent');
   }
 
@@ -61,6 +69,7 @@ export class DepRepStore {
         }),
       };
     });
+    this.touch();
     void this.state.persist('silent');
   }
 
@@ -77,6 +86,7 @@ export class DepRepStore {
         }),
       };
     });
+    this.touch();
     void this.state.persist('silent');
   }
 
@@ -98,6 +108,7 @@ export class DepRepStore {
         }),
       };
     });
+    this.touch();
     void this.state.persist('silent');
   }
 
@@ -113,6 +124,24 @@ export class DepRepStore {
         }),
       };
     });
+    this.touch();
+    void this.state.persist('silent');
+  }
+
+  /** Persist on-screen DEP REP form so reopen / Quit keep what the user left. */
+  saveSession(session: DepRepSessionState): void {
+    const normalized = normalizeDepRepSession(session);
+    this.data.update((d) => {
+      const prev = d.depRepLibrary ?? createDefaultDepRepLibrary();
+      return {
+        ...d,
+        depRepLibrary: normalizeDepRepLibrary({
+          ...prev,
+          session: normalized,
+        }),
+      };
+    });
+    this.touch();
     void this.state.persist('silent');
   }
 
@@ -124,6 +153,7 @@ export class DepRepStore {
         depRepLibrary: normalizeDepRepLibrary({ ...prev, ...partial }),
       };
     });
+    this.touch();
     void this.state.persist('silent');
   }
 }

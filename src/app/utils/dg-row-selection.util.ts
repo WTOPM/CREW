@@ -49,6 +49,11 @@ export class DgRowSelection {
     this.selected.set(new Set());
   }
 
+  /** Replace selection with the given ids (e.g. containers missing from Dagos). */
+  selectIds(ids: readonly string[]): void {
+    this.selected.set(new Set(ids));
+  }
+
   /**
    * Header No / ✓ toggle:
    * - something selected → clear

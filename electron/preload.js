@@ -58,6 +58,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickExcelFile: (defaultPath) => ipcRenderer.invoke('pick-excel-file', defaultPath ?? ''),
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
   writeFileBase64: (filePath, base64) => ipcRenderer.invoke('write-file-base64', filePath, base64),
+  ensureDepRepLocal: (sourcePath) =>
+    ipcRenderer.invoke('ensure-dep-rep-local', sourcePath ?? ''),
+  getDepRepLocalPath: () => ipcRenderer.invoke('get-dep-rep-local-path'),
   writeDepRepSheet: (filePath, payload) =>
     ipcRenderer.invoke('write-dep-rep-sheet', filePath, payload),
   deleteDepRepSheet: (filePath, sheetName) =>

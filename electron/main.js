@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Tray, Menu, nativeImage, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const fsp = fs.promises;
 const os = require('os');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
@@ -79,11 +80,38 @@ const MAX_ON_CLOSE_BACKUPS = 5;
 /** Rare safety copies (restore / shrink guard) — not routine autosaves. */
 const MAX_SAFETY_BACKUPS = 5;
 /**
- * Wait for renderer flush before copying crew-data.json on quit.
- * Shared-folder writes on a weak LAN can take many seconds — do not cut off
- * early or the on-close backup may snapshot a stale file.
+ * Quit flush / on-close backup budgets.
+ * Sync SMB I/O used to block the Electron main process so the timer never
+ * fired and the exe stayed locked (could not replace after “close”).
+ * Writes are async now; these caps still force a clean exit on a hung share.
  */
-const QUIT_FLUSH_TIMEOUT_MS = 45_000;
+const QUIT_FLUSH_TIMEOUT_MS = 15_000;
+const QUIT_BACKUP_TIMEOUT_MS = 8_000;
+/** Absolute ceiling — always unload even if flush/backup never settles. */
+const QUIT_HARD_EXIT_MS = 22_000;
+
+/** Resolve with { timedOut } so hung network I/O cannot block forever. */
+function raceTimeout(promise, ms) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+    const timer = setTimeout(() => finish({ timedOut: true, value: undefined }), ms);
+    Promise.resolve(promise).then(
+      (value) => {
+        clearTimeout(timer);
+        finish({ timedOut: false, value });
+      },
+      (error) => {
+        clearTimeout(timer);
+        finish({ timedOut: false, value: undefined, error });
+      },
+    );
+  });
+}
 
 /**
  * The folder that holds the .exe at runtime.
@@ -192,6 +220,15 @@ function getDataFilePath() {
 
 function getDocumentsDir() {
   return path.join(getDataDir(), 'documents');
+}
+
+/** Local DEP REP workbook under the data folder (survives reopen; not the network share). */
+function getDepRepLocalDir() {
+  return path.join(getDataDir(), 'dep-rep');
+}
+
+function getDepRepLocalWorkbookPath() {
+  return path.join(getDepRepLocalDir(), 'DEP REP.xlsx');
 }
 
 function getSignaturesDir() {
@@ -410,38 +447,42 @@ function readDataFileCached() {
 /** Serialize crew-data.json writers — overlapping Save/Quit/tray flushes must not race. */
 let dataFileWriteLock = Promise.resolve();
 
-function writeDataFile(data) {
+/**
+ * Async write so a hung SMB share cannot freeze the Electron main process
+ * (sync writeFileSync blocked quit timers → zombie process locking the exe).
+ */
+async function writeDataFile(data) {
   const filePath = getDataFilePath();
   // Compact JSON — shared/network folders: pretty-print made multi‑MB saves much slower.
   const json = JSON.stringify(data);
   const expectedSize = Buffer.byteLength(json, 'utf-8');
   const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tmp, json, 'utf-8');
+  await fsp.writeFile(tmp, json, 'utf-8');
   // Prefer rename (atomic on local NTFS). On Windows/SMB, rename-replace can leave a
   // longer stale tail — verify size and fall back to truncating overwrite.
   let replaced = false;
   try {
-    fs.renameSync(tmp, filePath);
+    await fsp.rename(tmp, filePath);
     replaced = true;
   } catch {
     /* fall through */
   }
   if (!replaced) {
-    fs.writeFileSync(filePath, json, 'utf-8');
+    await fsp.writeFile(filePath, json, 'utf-8');
     try {
-      fs.unlinkSync(tmp);
+      await fsp.unlink(tmp);
     } catch {
       /* ignore */
     }
   } else {
     try {
-      const st = fs.statSync(filePath);
+      const st = await fsp.stat(filePath);
       if (st.size !== expectedSize) {
         // Stale tail after rename-replace (seen on some network shares).
-        fs.writeFileSync(filePath, json, 'utf-8');
+        await fsp.writeFile(filePath, json, 'utf-8');
       }
     } catch {
-      fs.writeFileSync(filePath, json, 'utf-8');
+      await fsp.writeFile(filePath, json, 'utf-8');
     }
   }
   const fp = dataFileFingerprint(filePath);
@@ -454,9 +495,7 @@ function writeDataFile(data) {
 }
 
 function writeDataFileQueued(data) {
-  const run = dataFileWriteLock.then(() => {
-    writeDataFile(data);
-  });
+  const run = dataFileWriteLock.then(() => writeDataFile(data));
   dataFileWriteLock = run.catch(() => {});
   return run;
 }
@@ -543,16 +582,21 @@ function pruneRoutineBackups(dir) {
   }
 }
 
-function createTimedMachineJsonBackup(tag, maxCount) {
+async function createTimedMachineJsonBackup(tag, maxCount) {
   const source = getDataFilePath();
-  if (!fs.existsSync(source)) return null;
-  const stat = fs.statSync(source);
+  try {
+    await fsp.access(source);
+  } catch {
+    return null;
+  }
+  const stat = await fsp.stat(source);
   if (stat.size < 4) return null;
 
   const dir = getMachineBackupsDir();
   const safeTag = String(tag || 'backup').replace(/[^a-z0-9-]/gi, '-');
   const dest = path.join(dir, `crew-data-${backupTimestamp()}-${safeTag}.json`);
-  fs.copyFileSync(source, dest);
+  // Copy to local userData — source may be a slow network share.
+  await fsp.copyFile(source, dest);
   pruneBackupsBySuffix(dir, `-${safeTag}.json`, maxCount);
   logDataPathDiagnostics(`backup:${safeTag} -> ${dest}`);
   return dest;
@@ -562,14 +606,18 @@ function createTimedMachineJsonBackup(tag, maxCount) {
  * Routine backup: only on full quit (`on-close`).
  * Safety tags still used for restore / shrink guard.
  */
-function createMachineJsonBackup(tag) {
+async function createMachineJsonBackup(tag) {
   const source = getDataFilePath();
-  if (!fs.existsSync(source)) return null;
-  const stat = fs.statSync(source);
+  try {
+    await fsp.access(source);
+  } catch {
+    return null;
+  }
+  const stat = await fsp.stat(source);
   if (stat.size < 4) return null;
 
   if (tag === 'on-close' || tag === 'on-quit') {
-    const dest = createTimedMachineJsonBackup('on-close', MAX_ON_CLOSE_BACKUPS);
+    const dest = await createTimedMachineJsonBackup('on-close', MAX_ON_CLOSE_BACKUPS);
     pruneRoutineBackups(getMachineBackupsDir());
     return dest;
   }
@@ -587,7 +635,9 @@ function guardShrinkBeforeWrite(data) {
   const newJson = JSON.stringify(data);
   const newSize = Buffer.byteLength(newJson, 'utf-8');
   if (oldStat.size > 8192 && newSize < oldStat.size * 0.15) {
-    createMachineJsonBackup('blocked-shrink');
+    void createMachineJsonBackup('blocked-shrink').catch((err) => {
+      console.error('blocked-shrink backup failed', err);
+    });
     throw new Error(
       `Refusing to save: new database (${newSize} bytes) is much smaller than the existing file (${oldStat.size} bytes). ` +
         'A safety backup was saved on this computer — open Settings → Data file → Backups to restore.',
@@ -1075,7 +1125,7 @@ ipcMain.handle('list-json-backups', () => {
   return { backupsDir: dir, dataFile: getDataFilePath(), backups };
 });
 
-ipcMain.handle('restore-json-backup', (_event, fileName) => {
+ipcMain.handle('restore-json-backup', async (_event, fileName) => {
   try {
     const dir = getMachineBackupsDir();
     const safe = path.basename(String(fileName || ''));
@@ -1097,8 +1147,8 @@ ipcMain.handle('restore-json-backup', (_event, fileName) => {
       return { ok: false, error: 'Backup is empty or invalid' };
     }
     ensureDataDir();
-    createMachineJsonBackup('pre-restore');
-    writeDataFile(parsed);
+    await createMachineJsonBackup('pre-restore');
+    await writeDataFile(parsed);
     return { ok: true, dataFile: getDataFilePath(), restoredFrom: safe };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -1396,6 +1446,44 @@ ipcMain.handle('write-file-base64', async (_event, filePath, base64) => {
   }
   return { ok: false, error: formatFsReadError(p, lastError) };
 });
+
+/**
+ * Ensure data/dep-rep/DEP REP.xlsx exists.
+ * If sourcePath is given and readable, copy it into the local data folder
+ * (Load from file / pick → always work against the local copy afterwards).
+ */
+ipcMain.handle('ensure-dep-rep-local', async (_event, sourcePath) => {
+  try {
+    ensureDataDir();
+    const dir = getDepRepLocalDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const local = getDepRepLocalWorkbookPath();
+    const src = String(sourcePath || '').trim();
+    const srcAbs = src && path.isAbsolute(src) ? path.normalize(src) : '';
+    const localAbs = path.normalize(local);
+
+    if (srcAbs && fs.existsSync(srcAbs) && srcAbs.toLowerCase() !== localAbs.toLowerCase()) {
+      await fsp.copyFile(srcAbs, local);
+    } else if (!fs.existsSync(local) && srcAbs && fs.existsSync(srcAbs)) {
+      await fsp.copyFile(srcAbs, local);
+    }
+
+    if (!fs.existsSync(local)) {
+      return {
+        ok: false,
+        error:
+          'No local DEP REP.xlsx yet. Use Load from file / choose an Excel workbook once — it will be copied into the data folder.',
+        path: local,
+      };
+    }
+    return { ok: true, path: local };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg || 'Could not prepare local DEP REP.xlsx' };
+  }
+});
+
+ipcMain.handle('get-dep-rep-local-path', () => getDepRepLocalWorkbookPath());
 
 /**
  * DEP REP.xlsx: identical Worksheet.Copy via Excel COM (keeps Tables + ship drawing),
@@ -2216,17 +2304,48 @@ if (gotSingleInstanceLock) {
     event.preventDefault();
     if (quitBackupInFlight) return;
     quitBackupInFlight = true;
+
+    // Never leave a zombie holding the portable exe (update replace fails).
+    const hardExitTimer = setTimeout(() => {
+      console.error('Quit hard deadline — forcing process exit');
+      quitBackupDone = true;
+      quitBackupInFlight = false;
+      try {
+        destroyTray();
+        destroyGpsFloatWindow();
+      } catch {
+        /* ignore */
+      }
+      app.exit(0);
+    }, QUIT_HARD_EXIT_MS);
+
     void (async () => {
       try {
         // Let the renderer flush RAM → crew-data.json first, then copy locally.
         await requestRendererFlushForQuit();
-        createMachineJsonBackup('on-close');
+        const backup = await raceTimeout(
+          createMachineJsonBackup('on-close'),
+          QUIT_BACKUP_TIMEOUT_MS,
+        );
+        if (backup.timedOut) {
+          console.error('On-close backup timed out — continuing quit');
+        } else if (backup.error) {
+          console.error('Quit backup failed', backup.error);
+        }
       } catch (err) {
         console.error('Quit backup failed', err);
       } finally {
+        clearTimeout(hardExitTimer);
         quitBackupDone = true;
         quitBackupInFlight = false;
-        app.quit();
+        try {
+          destroyTray();
+          destroyGpsFloatWindow();
+        } catch {
+          /* ignore */
+        }
+        // Hard exit — app.quit() can re-enter before-quit; exit unloads for sure.
+        app.exit(0);
       }
     })();
   });

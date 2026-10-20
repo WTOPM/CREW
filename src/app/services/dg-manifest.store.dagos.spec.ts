@@ -56,6 +56,7 @@ describe('DgManifestStore.applyUnifeederDagosPositions', () => {
     expect(result.updatedLines).toBe(2);
     expect(result.checked).toBe(2);
     expect(result.replaced).toBe(1);
+    expect(result.unchanged).toBe(1);
     expect(result.discharged).toBe(0);
     expect(result.unmatched).toEqual(['HASU1202445', 'ZZZZ1234567']);
 
@@ -82,6 +83,7 @@ describe('DgManifestStore.applyUnifeederDagosPositions', () => {
 
     expect(result.checked).toBe(1);
     expect(result.replaced).toBe(1);
+    expect(result.unchanged).toBe(0);
     expect(result.discharged).toBe(1);
     expect(result.dischargedContainers).toEqual(['OLDCTR1111111']);
 

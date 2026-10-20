@@ -8,6 +8,8 @@ import {
   depRepMidDraftMetres,
   depRepSheetName,
   lookupDepRepLibraryDensity,
+  type DepRepSessionState,
+  type DepRepTabSnapshot,
 } from '../../models/dep-rep.models';
 import {
   buildManifestClassWeightRows,
@@ -124,8 +126,14 @@ export class DepRepComponent {
   private metresSnapshot = '';
   private metresDraft = signal<{ field: DraftField; value: string } | null>(null);
   private dgRowSeq = 0;
+  private sessionRestored = false;
 
   protected readonly pageContext = computed(() => this.dgLibrary().pageContext);
+
+  constructor() {
+    // Restore last on-screen form after AppData is already in RAM.
+    queueMicrotask(() => this.restoreFromLibrarySession());
+  }
 
   protected readonly polCode = computed(() =>
     portCode(this.pageContext().portOfCall, this.ports()),
@@ -313,6 +321,7 @@ export class DepRepComponent {
     this.restoreWorkspace(seeded);
     this.sheetStatus.set('New sheet — voyage/drafts from Settings. Fill the rest, then Save new sheet.');
     this.sheetStatusKind.set('draft');
+    this.persistSessionToStore();
     this.toast.show('New sheet — voyage taken from Settings', 'info');
   }
 
@@ -335,6 +344,7 @@ export class DepRepComponent {
       this.sheetStatus.set(`Editing "${name}" — Save to file will overwrite this Excel tab`);
       this.sheetStatusKind.set('ok');
     }
+    this.persistSessionToStore();
   }
 
   /**
@@ -363,6 +373,7 @@ export class DepRepComponent {
         this.sheetStatus.set('');
         this.sheetStatusKind.set('');
       }
+      this.persistSessionToStore();
       this.toast.show('New sheet discarded', 'info');
       return;
     }
@@ -377,7 +388,9 @@ export class DepRepComponent {
       return;
     }
 
-    const path = this.library().sourcePath.trim() || this.pathDraft().trim();
+    const path = await this.adoptLocalWorkbook(
+      this.library().sourcePath.trim() || this.pathDraft().trim() || undefined,
+    );
     if (!path) {
       this.toast.showError('Choose DEP REP.xlsx path first');
       return;
@@ -428,22 +441,26 @@ export class DepRepComponent {
       ...rows,
       { id: `dg-${this.dgRowSeq}`, dgClass: '', weightKg: '' },
     ]);
+    this.persistSessionToStore();
   }
 
   protected removeDgRow(id: string): void {
     this.dgEditRows.update((rows) => rows.filter((r) => r.id !== id));
+    this.persistSessionToStore();
   }
 
   protected onDgClassChange(id: string, dgClass: string): void {
     this.dgEditRows.update((rows) =>
       rows.map((r) => (r.id === id ? { ...r, dgClass } : r)),
     );
+    this.persistSessionToStore();
   }
 
   protected onDgWeightChange(id: string, weightKg: string): void {
     this.dgEditRows.update((rows) =>
       rows.map((r) => (r.id === id ? { ...r, weightKg } : r)),
     );
+    this.persistSessionToStore();
   }
 
   /** Replace editable DG rows with totals from the DG inventory page. */
@@ -460,6 +477,7 @@ export class DepRepComponent {
         weightKg: String(row.totalKg),
       })),
     );
+    this.persistSessionToStore();
     this.toast.show(`Loaded ${inv.length} class(es) from DG inventory`, 'success');
   }
 
@@ -483,9 +501,9 @@ export class DepRepComponent {
     const current = this.pathDraft().trim() || this.library().sourcePath.trim();
     const path = await window.electronAPI?.pickExcelFile(current || undefined);
     if (!path) return;
-    this.pathDraft.set(path);
-    this.depRepStore.setSourcePath(path);
-    this.toast.show('DEP REP path saved', 'success');
+    const local = await this.adoptLocalWorkbook(path);
+    if (!local) return;
+    this.toast.show('DEP REP copied to local data folder', 'success');
     void this.refreshFromSheet();
   }
 
@@ -503,15 +521,16 @@ export class DepRepComponent {
     const local = this.localShipFields();
     if (local) {
       this.localShipFields.set({ ...local, voyageNumber: value });
-      return;
+    } else {
+      // Never write Settings from DEP REP — keep an overlay so Refresh / Previous stay local.
+      const ship = this.ship();
+      this.localShipFields.set({
+        voyageNumber: value,
+        draftAft: String(ship.draftAft ?? '').trim(),
+        draftFore: String(ship.draftFore ?? '').trim(),
+      });
     }
-    // Never write Settings from DEP REP — keep an overlay so Refresh / Previous stay local.
-    const ship = this.ship();
-    this.localShipFields.set({
-      voyageNumber: value,
-      draftAft: String(ship.draftAft ?? '').trim(),
-      draftFore: String(ship.draftFore ?? '').trim(),
-    });
+    this.persistSessionToStore();
   }
 
   protected onPolChange(value: string): void {
@@ -529,6 +548,7 @@ export class DepRepComponent {
 
   protected onTotalCargoChange(value: string): void {
     this.depRepStore.setTotalCargo(value);
+    this.persistSessionToStore();
   }
 
   protected metresFieldValue(field: DraftField): string {
@@ -600,14 +620,15 @@ export class DepRepComponent {
     const local = this.localShipFields();
     if (local) {
       this.localShipFields.set({ ...local, [field]: normalized });
-      return;
+    } else {
+      const ship = this.ship();
+      this.localShipFields.set({
+        voyageNumber: String(ship.voyageNumber ?? '').trim(),
+        draftAft: field === 'draftAft' ? normalized : String(ship.draftAft ?? '').trim(),
+        draftFore: field === 'draftFore' ? normalized : String(ship.draftFore ?? '').trim(),
+      });
     }
-    const ship = this.ship();
-    this.localShipFields.set({
-      voyageNumber: String(ship.voyageNumber ?? '').trim(),
-      draftAft: field === 'draftAft' ? normalized : String(ship.draftAft ?? '').trim(),
-      draftFore: field === 'draftFore' ? normalized : String(ship.draftFore ?? '').trim(),
-    });
+    this.persistSessionToStore();
   }
 
   /** Enter leaves the field and triggers blur (apply). */
@@ -620,11 +641,6 @@ export class DepRepComponent {
 
   /** Load the latest (leftmost) sheet from DEP REP.xlsx into the form. */
   protected async refreshFromSheet(): Promise<void> {
-    const path = this.library().sourcePath.trim() || this.pathDraft().trim();
-    if (!path) {
-      this.toast.showError('Choose DEP REP.xlsx path first');
-      return;
-    }
     if (!window.electronAPI?.readFileBase64) {
       this.toast.showError('Load from file requires the desktop app');
       return;
@@ -632,6 +648,12 @@ export class DepRepComponent {
 
     this.beginBusy('Loading latest sheet…');
     try {
+      const pickedOrCurrent = this.library().sourcePath.trim() || this.pathDraft().trim();
+      const path = await this.adoptLocalWorkbook(pickedOrCurrent || undefined);
+      if (!path) {
+        this.toast.showError('Choose DEP REP.xlsx first');
+        return;
+      }
       const read = await window.electronAPI.readFileBase64(path);
       if (!read.ok || !read.base64) {
         this.toast.showError(read.error ?? 'Could not read DEP REP.xlsx');
@@ -652,6 +674,7 @@ export class DepRepComponent {
         this.sheetStatus.set('No sheets in workbook');
         this.sheetStatusKind.set('missing');
         this.toast.show('Workbook has no sheets', 'info');
+        this.persistSessionToStore();
         return;
       }
 
@@ -661,7 +684,8 @@ export class DepRepComponent {
       this.previousTab.set(this.captureWorkspace(snap.sheetName, 'update'));
       this.sheetStatus.set(`Loaded latest sheet "${snap.sheetName}"`);
       this.sheetStatusKind.set('ok');
-      this.toast.show(`Loaded "${snap.sheetName}"`, 'success');
+      this.persistSessionToStore();
+      this.toast.show(`Loaded "${snap.sheetName}" (kept on this PC)`, 'success');
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Failed to refresh from sheet');
     } finally {
@@ -670,7 +694,9 @@ export class DepRepComponent {
   }
 
   protected async exportPdf(): Promise<void> {
-    const path = this.library().sourcePath.trim() || this.pathDraft().trim();
+    const path = await this.adoptLocalWorkbook(
+      this.library().sourcePath.trim() || this.pathDraft().trim() || undefined,
+    );
     if (!path) {
       this.toast.showError('Choose DEP REP.xlsx path first');
       return;
@@ -696,12 +722,6 @@ export class DepRepComponent {
   }
 
   protected async writeToExcel(): Promise<void> {
-    const path = this.library().sourcePath.trim() || this.pathDraft().trim();
-    if (!path) {
-      this.toast.showError('Choose DEP REP.xlsx path first');
-      return;
-    }
-
     const creating = this.activeSheetTab() === 'new' && !!this.newTab();
     // Update keeps the original Excel tab name; create uses voyage + POL.
     const name = creating
@@ -721,6 +741,14 @@ export class DepRepComponent {
       const electron = window.electronAPI;
       if (!electron?.writeDepRepSheet) {
         this.toast.showError('Writing DEP REP requires the desktop app with Excel');
+        return;
+      }
+      // Always write the local data/dep-rep copy — survives reopen on this PC.
+      const path = await this.adoptLocalWorkbook(
+        this.library().sourcePath.trim() || this.pathDraft().trim() || undefined,
+      );
+      if (!path) {
+        this.toast.showError('Choose DEP REP.xlsx first (it will be kept in the local data folder)');
         return;
       }
       const ship = this.ship();
@@ -763,12 +791,14 @@ export class DepRepComponent {
         });
         this.sheetStatus.set(`Created sheet "${sheet}" — it is now the previous tab`);
         this.sheetStatusKind.set('ok');
-        this.toast.show(`Created "${sheet}" — now the previous tab`, 'success');
+        this.persistSessionToStore();
+        this.toast.show(`Created "${sheet}" in local data folder`, 'success');
       } else {
         this.previousTab.set(this.captureWorkspace(sheet, 'update'));
-        this.sheetStatus.set(`Saved to file "${sheet}"`);
+        this.sheetStatus.set(`Saved to local file "${sheet}"`);
         this.sheetStatusKind.set('ok');
-        this.toast.show(`Saved to file "${sheet}"`, 'success');
+        this.persistSessionToStore();
+        this.toast.show(`Saved to local data folder ("${sheet}")`, 'success');
       }
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Failed to write DEP REP');
@@ -824,6 +854,128 @@ export class DepRepComponent {
       const excel = this.previousTab()!.excelSheetName;
       this.previousTab.set(this.captureWorkspace(excel, 'update'));
     }
+  }
+
+  /**
+   * Copy/pick workbook into data/dep-rep/DEP REP.xlsx and point the library at it.
+   * All subsequent Save/Load use this local file.
+   */
+  private async adoptLocalWorkbook(
+    sourcePath?: string,
+    options?: { quiet?: boolean },
+  ): Promise<string | null> {
+    const api = window.electronAPI;
+    if (!api?.ensureDepRepLocal) {
+      const fallback = (sourcePath ?? this.library().sourcePath.trim() ?? '').trim();
+      return fallback || null;
+    }
+    const res = await api.ensureDepRepLocal(sourcePath?.trim() || this.library().sourcePath.trim());
+    if (!res.ok || !res.path) {
+      if (!options?.quiet) {
+        this.toast.showError(res.error ?? 'Could not prepare local DEP REP.xlsx');
+      }
+      return null;
+    }
+    this.pathDraft.set(res.path);
+    if (this.library().sourcePath !== res.path) {
+      this.depRepStore.setSourcePath(res.path);
+    }
+    return res.path;
+  }
+
+  /** Write form tabs into AppData (Quit flush keeps them on this PC). */
+  private persistSessionToStore(): void {
+    this.persistActiveTabEdits();
+    const local = this.localShipFields();
+    const ship = this.ship();
+    const session: DepRepSessionState = {
+      activeSheetTab: this.activeSheetTab(),
+      previousTab: this.snapshotTab(this.previousTab()),
+      newTab: this.snapshotTab(this.newTab()),
+      voyageNumber: local?.voyageNumber ?? ship.voyageNumber ?? '',
+      draftAft: local?.draftAft ?? ship.draftAft ?? '',
+      draftFore: local?.draftFore ?? ship.draftFore ?? '',
+      dgRows: this.dgEditRows().map((r) => ({ ...r })),
+      sheetStatus: this.sheetStatus(),
+      sheetStatusKind: this.sheetStatusKind(),
+    };
+    this.depRepStore.saveSession(session);
+  }
+
+  private snapshotTab(ws: DepRepTabWorkspace | null): DepRepTabSnapshot | null {
+    if (!ws) return null;
+    return {
+      excelSheetName: ws.excelSheetName,
+      voyage: ws.voyage,
+      portOfCall: ws.portOfCall,
+      nextPortOfCall: ws.nextPortOfCall,
+      dateOfDeparture: ws.dateOfDeparture,
+      draftAft: ws.draftAft,
+      draftFore: ws.draftFore,
+      totalCargo: ws.totalCargo,
+      dgRows: ws.dgRows.map((r) => ({ ...r })),
+      mode: ws.mode,
+    };
+  }
+
+  private workspaceFromSnapshot(snap: DepRepTabSnapshot): DepRepTabWorkspace {
+    return {
+      excelSheetName: snap.excelSheetName,
+      voyage: snap.voyage,
+      portOfCall: snap.portOfCall,
+      nextPortOfCall: snap.nextPortOfCall,
+      dateOfDeparture: snap.dateOfDeparture,
+      draftAft: snap.draftAft,
+      draftFore: snap.draftFore,
+      totalCargo: snap.totalCargo,
+      dgRows: snap.dgRows.map((r) => ({ ...r })),
+      mode: snap.mode,
+    };
+  }
+
+  private restoreFromLibrarySession(): void {
+    if (this.sessionRestored) return;
+    this.sessionRestored = true;
+    const session = this.library().session;
+    if (!session) {
+      // Still prefer local workbook path if one already exists on disk.
+      void this.adoptLocalWorkbook(this.library().sourcePath || undefined, { quiet: true });
+      return;
+    }
+
+    if (session.previousTab) {
+      this.previousTab.set(this.workspaceFromSnapshot(session.previousTab));
+    }
+    if (session.newTab) {
+      this.newTab.set(this.workspaceFromSnapshot(session.newTab));
+    } else {
+      this.newTab.set(null);
+    }
+
+    const tab =
+      session.activeSheetTab === 'new' && session.newTab
+        ? 'new'
+        : session.previousTab
+          ? 'previous'
+          : session.activeSheetTab;
+    this.activeSheetTab.set(tab === 'new' && !this.newTab() ? 'previous' : tab);
+
+    const ws =
+      this.activeSheetTab() === 'new' ? this.newTab() : this.previousTab();
+    if (ws) {
+      this.restoreWorkspace(ws);
+    } else if (session.voyageNumber || session.draftAft || session.draftFore || session.dgRows.length) {
+      this.localShipFields.set({
+        voyageNumber: session.voyageNumber,
+        draftAft: session.draftAft,
+        draftFore: session.draftFore,
+      });
+      this.dgEditRows.set(session.dgRows.map((r) => ({ ...r })));
+    }
+
+    this.sheetStatus.set(session.sheetStatus);
+    this.sheetStatusKind.set(session.sheetStatusKind);
+    void this.adoptLocalWorkbook(this.library().sourcePath || undefined, { quiet: true });
   }
 
   private applySnapshot(snap: DepRepSheetSnapshot): void {

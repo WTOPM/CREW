@@ -179,6 +179,8 @@
         [class.dg-inventory--wide]="true"
         [class.dg-inventory--cma]="activeInventoryTab() === 'cmaCgm'"
         [class.dg-inventory--unifeeder]="activeInventoryTab() === 'unifeeder'"
+        [class.dg-inventory--copy-mode]="inventoryCopyMode()"
+        [appDgCopyModeGuard]="inventoryCopyMode()"
       >
         @if (dgArchive.loaded(); as snap) {
           <div class="dg-archive-banner" role="status">
@@ -189,7 +191,11 @@
           </div>
         }
 
-        <nav class="dg-inventory-tabs" aria-label="DG inventory type">
+        <nav
+          class="dg-inventory-tabs"
+          aria-label="DG inventory type"
+          [class.dg-inventory-tabs--copy-mode]="inventoryCopyMode()"
+        >
           <button
             type="button"
             class="dg-inventory-tab"
@@ -369,43 +375,96 @@
 
               <section class="cma-header__controls-row" aria-label="Inventory controls">
                 <div class="cma-controls-panel">
-                  <div class="cma-controls-panel__actions">
-                    <label class="uf-toggle" title="Show discharged containers">
-                      <input
-                        type="checkbox"
-                        [ngModel]="library().showDischarged"
-                        (ngModelChange)="toggleShowDischarged($event)"
-                      />
-                      <span>Discharged</span>
-                    </label>
+                  <div class="cma-controls-panel__options" aria-label="Display options">
                     <label
-                      class="uf-toggle"
-                      title="Combine lines in the same container when class, UN, name and MP/LQ match (same as PDF export)"
+                      class="uf-opt-btn"
+                      [class.uf-opt-btn--on]="library().showDischarged"
+                      aria-label="Discharged"
+                      appPlainTooltipTitle="DISCHARGED"
+                      [appPlainTooltip]="
+                        library().showDischarged
+                          ? 'Click to turn OFF — hide discharged containers from the list.'
+                          : 'Click to turn ON — show discharged containers in the list.'
+                      "
                     >
                       <input
                         type="checkbox"
+                        class="uf-opt-btn__input"
+                        [ngModel]="library().showDischarged"
+                        (ngModelChange)="toggleShowDischarged($event)"
+                      />
+                      <svg class="uf-opt-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          fill="currentColor"
+                          d="M2.5 8.2h19v9.6c0 .7-.55 1.2-1.2 1.2H3.7c-.65 0-1.2-.5-1.2-1.2V8.2zm1.4 1.35v7h16.2v-7H3.9zm1.5-3.1h2.35L8.7 5h6.6l.95 1.45H18.6c.55 0 1 .4 1 .95v.55H3.4v-.55c0-.55.45-.95 1-.95z"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M6.2 11h1.7v4.4H6.2V11zm3.3 0h1.7v4.4H9.5V11zm3.3 0h1.7v4.4H12.8V11zm3.3 0h1.7v4.4H16.1V11z"
+                          opacity="0.55"
+                        />
+                      </svg>
+                    </label>
+
+                    <label
+                      class="uf-opt-btn"
+                      [class.uf-opt-btn--on]="library().manifestMergeLines"
+                      aria-label="Consolidate"
+                      appPlainTooltipTitle="CONSOLIDATE"
+                      [appPlainTooltip]="
+                        library().manifestMergeLines
+                          ? 'Click to turn OFF — show every cargo line separately again.'
+                          : 'Click to turn ON — merge matching lines in the same container (as in PDF export).'
+                      "
+                    >
+                      <input
+                        type="checkbox"
+                        class="uf-opt-btn__input"
                         [ngModel]="library().manifestMergeLines"
                         (ngModelChange)="toggleManifestMergeLines($event)"
                       />
-                      <span>Consolidate lines</span>
+                      <svg class="uf-opt-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          fill="currentColor"
+                          d="M12 3.2 20.2 7.4 12 11.6 3.8 7.4 12 3.2zm0 3.1L7.4 8.4 12 10.7l4.6-2.3L12 6.3z"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M3.8 10.2 12 14.4l8.2-4.2v2.3L12 16.7 3.8 12.5v-2.3z"
+                          opacity="0.7"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M3.8 14.3 12 18.5l8.2-4.2v2.3L12 20.8 3.8 16.6v-2.3z"
+                          opacity="0.45"
+                        />
+                      </svg>
                     </label>
                     @if (library().manifestMergeLines) {
                       <span
-                        class="dg-consolidated-legend"
+                        class="dg-consolidated-legend dg-consolidated-legend--dot"
                         title="Rows where 2+ cargo lines were combined"
                       >
-                        merged rows
+                        merged
                       </span>
                     }
+
                     <div
                       class="choice-segmented choice-segmented--row dg-weight-mode"
                       [class.dg-weight-mode--gross]="library().manifestUseGrossWeight"
                       [class.dg-weight-mode--net]="!library().manifestUseGrossWeight"
                       role="radiogroup"
                       aria-label="Weight tonnage"
-                      title="Gross or net weight for display and totals"
                     >
-                      <label class="choice-segmented__item dg-weight-mode__gross">
+                      <label
+                        class="choice-segmented__item dg-weight-mode__gross"
+                        appPlainTooltipTitle="GROSS"
+                        [appPlainTooltip]="
+                          library().manifestUseGrossWeight
+                            ? 'Already on GROSS. Click NET to switch display and totals.'
+                            : 'Click to switch display and totals to GROSS weight.'
+                        "
+                      >
                         <input
                           type="radio"
                           name="cmaWeightTonnage"
@@ -414,7 +473,15 @@
                         />
                         <span class="choice-segmented__text">Gross</span>
                       </label>
-                      <label class="choice-segmented__item dg-weight-mode__net">
+                      <label
+                        class="choice-segmented__item dg-weight-mode__net"
+                        appPlainTooltipTitle="NET"
+                        [appPlainTooltip]="
+                          !library().manifestUseGrossWeight
+                            ? 'Already on NET. Click GROSS to switch display and totals.'
+                            : 'Click to switch display and totals to NET weight.'
+                        "
+                      >
                         <input
                           type="radio"
                           name="cmaWeightTonnage"
@@ -424,40 +491,49 @@
                         <span class="choice-segmented__text">Net</span>
                       </label>
                     </div>
-                    <label class="uf-toggle" title="Round displayed weights and totals to whole kg">
+
+                    <label
+                      class="uf-opt-btn"
+                      [class.uf-opt-btn--on]="library().manifestRoundWeights"
+                      aria-label="Round"
+                      appPlainTooltipTitle="ROUND"
+                      [appPlainTooltip]="
+                        library().manifestRoundWeights
+                          ? 'Click to turn OFF — show exact kg values again (no rounding).'
+                          : 'Click to turn ON — round displayed weights and totals to whole kg.'
+                      "
+                    >
                       <input
                         type="checkbox"
+                        class="uf-opt-btn__input"
                         [ngModel]="library().manifestRoundWeights"
                         (ngModelChange)="toggleManifestRoundWeights($event)"
                       />
-                      <span>Round weight</span>
+                      <svg class="uf-opt-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          fill="currentColor"
+                          d="M4.8 8.4c1.8-1.6 4.1-2.4 7.2-2.4 2.5 0 4.3.6 5.6 1.6l-1.2 1.7c-1-.7-2.4-1.2-4.4-1.2-2.5 0-4.2.6-5.4 1.7L4.8 8.4zm0 5.8c1.8-1.6 4.1-2.4 7.2-2.4 2.5 0 4.3.6 5.6 1.6l-1.2 1.7c-1-.7-2.4-1.2-4.4-1.2-2.5 0-4.2.6-5.4 1.7l-1.8-1.4z"
+                        />
+                        <circle
+                          cx="18.4"
+                          cy="17"
+                          r="3.1"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                        />
+                        <path
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          stroke-linecap="round"
+                          d="M18.4 15.4v3.2M16.8 17h3.2"
+                        />
+                      </svg>
                     </label>
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-sm dg-pdf-btn"
-                      [disabled]="exportingPdf()"
-                      (click)="exportPdf()"
-                    >
-                      PDF
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-sm dg-excel-btn"
-                      [disabled]="exportingExcel()"
-                      (click)="exportExcel()"
-                    >
-                      Excel
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-primary btn-sm dg-add-container-btn"
-                      (click)="addContainer()"
-                    >
-                      + Container
-                    </button>
                   </div>
 
-                  <div class="cma-controls-panel__stats">
+        <div class="cma-controls-panel__primary">
                     <label
                       class="uf-search-box"
                       [class.uf-search-box--filled]="inventorySearch().trim().length > 0"
@@ -472,25 +548,81 @@
                       />
                     </label>
 
-                    <div class="uf-inventory-strip">
-                      <span
-                        ><strong>{{ stats().containerCount }}</strong> containers</span
-                      >
-                      <span class="uf-inventory-strip__sep">·</span>
-                      <span
-                        ><strong>{{ stats().lineCount }}</strong> lines</span
-                      >
-                      @if (stats().dischargedCount > 0) {
-                        <span class="uf-inventory-strip__sep">·</span>
-                        <span class="uf-inventory-strip__muted"
-                          >{{ stats().dischargedCount }} disch.</span
-                        >
-                      }
-                      <span class="uf-inventory-strip__weight"
-                        >{{ formatSummaryKg(stats().totalKg) }} kg</span
-                      >
+                    <div
+                      class="choice-segmented choice-segmented--row dg-inventory-view-mode"
+                      role="radiogroup"
+                      aria-label="Inventory table view"
+                      title="Edit: normal table. Copy: Excel-like read-only grid — select cells/rows/columns and Ctrl+C"
+                    >
+                      <label class="choice-segmented__item dg-inventory-view-mode__edit">
+                        <input
+                          type="radio"
+                          name="dgInventoryViewModeCma"
+                          [checked]="!inventoryCopyMode()"
+                          (change)="setInventoryViewMode('edit')"
+                        />
+                        <span class="choice-segmented__text">EDIT</span>
+                      </label>
+                      <label class="choice-segmented__item dg-inventory-view-mode__copy">
+                        <input
+                          type="radio"
+                          name="dgInventoryViewModeCma"
+                          [checked]="inventoryCopyMode()"
+                          (change)="setInventoryViewMode('copy')"
+                        />
+                        <span class="choice-segmented__text">VIEW</span>
+                      </label>
                     </div>
-                  </div>
+
+                    <div class="cma-controls-panel__tools">
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm dg-pdf-btn"
+                        [disabled]="exportingPdf()"
+                        (click)="exportPdf()"
+                      >
+                        PDF
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm dg-excel-btn"
+                        [disabled]="exportingExcel()"
+                        (click)="exportExcel()"
+                      >
+                        Excel
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-primary btn-sm dg-add-container-btn"
+                        (click)="addContainer()"
+                      >
+                        + Container
+                      </button>
+                    </div>
+        </div>
+
+        <div class="uf-inventory-strip">
+                      <span
+                        class="uf-inventory-strip__stat uf-inventory-strip__stat--containers"
+                        [appPlainTooltip]="stats().lineCount + ' LINES'"
+                      >
+                        CONTAINERS <strong>{{ stats().containerCount }}</strong>
+                      </span>
+                      <span class="uf-inventory-strip__sep" aria-hidden="true">·</span>
+                      <span class="uf-inventory-strip__stat uf-inventory-strip__stat--discharged">
+                        DISCHARGED <strong>{{ stats().dischargedCount }}</strong>
+                      </span>
+                      <span class="uf-inventory-strip__sep" aria-hidden="true">·</span>
+                      @let stripWt = stripWeightParts(stats().totalKg);
+                      <span class="uf-inventory-strip__weight">
+                        <span class="uf-inventory-strip__weight-whole">{{ stripWt.whole }}</span>
+                        @if (stripWt.fraction) {
+                          <span class="uf-inventory-strip__weight-frac">{{ stripWt.fraction }}</span>
+                        }
+                        <span class="uf-inventory-strip__weight-unit">KG</span>
+                      </span>
+                    </div>
+
                 </div>
               </section>
             </header>
@@ -501,7 +633,7 @@
               </p>
             } @else {
               <div class="table-wrap dg-master-wrap dg-master-card">
-                <table class="dg-master-table">
+                <table class="dg-master-table" [appDgSheetSelect]="inventoryCopyMode()">
                   <colgroup>
                     <col class="col-index" />
                     <col class="col-container" />
@@ -528,7 +660,7 @@
                             ? 'Clear selection'
                             : 'Select all containers'
                         "
-                        (click)="rowSelection.toggleSelectAll()"
+                        (click)="!inventoryCopyMode() && rowSelection.toggleSelectAll()"
                       >
                         @if (rowSelection.hasSelection()) {
                           <span class="dg-select-th__mark" aria-hidden="true">✓</span>
@@ -697,12 +829,23 @@
                           (mouseleave)="onContainerGroupLeave($event, container.id)"
                         >
                           <td
-                            class="col-index col-group dg-select-cell"
-                            title="Select container"
-                            (pointerdown)="rowSelection.onIndexPointerDown(container.id, $event)"
-                            (pointerenter)="rowSelection.onIndexPointerEnter(container.id)"
-                            (pointerup)="rowSelection.onIndexPointerUp($event)"
-                            (pointercancel)="rowSelection.onIndexPointerCancel($event)"
+                            class="col-index col-group"
+                            [class.dg-select-cell]="!inventoryCopyMode()"
+                            [attr.title]="inventoryCopyMode() ? null : 'Select container'"
+                            (pointerdown)="
+                              !inventoryCopyMode() &&
+                              rowSelection.onIndexPointerDown(container.id, $event)
+                            "
+                            (pointerenter)="
+                              !inventoryCopyMode() &&
+                              rowSelection.onIndexPointerEnter(container.id)
+                            "
+                            (pointerup)="
+                              !inventoryCopyMode() && rowSelection.onIndexPointerUp($event)
+                            "
+                            (pointercancel)="
+                              !inventoryCopyMode() && rowSelection.onIndexPointerCancel($event)
+                            "
                           >
                             {{ ci + 1 }}
                           </td>
@@ -825,23 +968,39 @@
                             (mouseenter)="setLineHover(container.id, line.id)"
                             (mouseleave)="onContainerGroupLeave($event, container.id)"
                           >
-                            @if (first) {
+                            @if (inventoryCopyMode() || first) {
                               <td
-                                class="col-index col-group dg-select-cell"
-                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                class="col-index col-group"
+                                [class.dg-select-cell]="!inventoryCopyMode()"
+                                [attr.rowspan]="
+                                  inventoryCopyMode() ? null : containerDisplayLineCount(container)
+                                "
                                 [attr.data-container-id]="container.id"
-                                title="Select container"
+                                [attr.title]="inventoryCopyMode() ? null : 'Select container'"
                                 (mouseenter)="setContainerGroupHover(container.id)"
-                                (pointerdown)="rowSelection.onIndexPointerDown(container.id, $event)"
-                                (pointerenter)="rowSelection.onIndexPointerEnter(container.id)"
-                                (pointerup)="rowSelection.onIndexPointerUp($event)"
-                                (pointercancel)="rowSelection.onIndexPointerCancel($event)"
+                                (pointerdown)="
+                                  !inventoryCopyMode() &&
+                                  rowSelection.onIndexPointerDown(container.id, $event)
+                                "
+                                (pointerenter)="
+                                  !inventoryCopyMode() &&
+                                  rowSelection.onIndexPointerEnter(container.id)
+                                "
+                                (pointerup)="
+                                  !inventoryCopyMode() && rowSelection.onIndexPointerUp($event)
+                                "
+                                (pointercancel)="
+                                  !inventoryCopyMode() &&
+                                  rowSelection.onIndexPointerCancel($event)
+                                "
                               >
                                 {{ ci + 1 }}
                               </td>
                               <td
                                 class="col-container col-group"
-                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.rowspan]="
+                                  inventoryCopyMode() ? null : containerDisplayLineCount(container)
+                                "
                                 [attr.data-container-id]="container.id"
                                 (mouseenter)="setContainerGroupHover(container.id)"
                               >
@@ -857,7 +1016,9 @@
                               </td>
                               <td
                                 class="col-type col-group"
-                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.rowspan]="
+                                  inventoryCopyMode() ? null : containerDisplayLineCount(container)
+                                "
                                 [attr.data-container-id]="container.id"
                                 (mouseenter)="setContainerGroupHover(container.id)"
                               >
@@ -876,7 +1037,9 @@
                               </td>
                               <td
                                 class="col-port col-group"
-                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.rowspan]="
+                                  inventoryCopyMode() ? null : containerDisplayLineCount(container)
+                                "
                                 [attr.data-container-id]="container.id"
                                 (mouseenter)="setContainerGroupHover(container.id)"
                               >
@@ -893,7 +1056,9 @@
                               </td>
                               <td
                                 class="col-port col-group"
-                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.rowspan]="
+                                  inventoryCopyMode() ? null : containerDisplayLineCount(container)
+                                "
                                 [attr.data-container-id]="container.id"
                                 (mouseenter)="setContainerGroupHover(container.id)"
                               >
@@ -910,7 +1075,9 @@
                               </td>
                               <td
                                 class="col-stowage col-group"
-                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.rowspan]="
+                                  inventoryCopyMode() ? null : containerDisplayLineCount(container)
+                                "
                                 [attr.data-container-id]="container.id"
                                 (mouseenter)="setContainerGroupHover(container.id)"
                               >
@@ -1132,10 +1299,12 @@
                                 </button>
                               }
                             </td>
-                            @if (first) {
+                            @if (inventoryCopyMode() || first) {
                               <td
                                 class="col-actions col-group"
-                                [attr.rowspan]="containerDisplayLineCount(container)"
+                                [attr.rowspan]="
+                                  inventoryCopyMode() ? null : containerDisplayLineCount(container)
+                                "
                                 [attr.data-container-id]="container.id"
                                 (mouseenter)="setContainerGroupHover(container.id)"
                               >

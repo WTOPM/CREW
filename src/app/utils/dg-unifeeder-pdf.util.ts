@@ -42,6 +42,9 @@ export interface UnifeederImportRowPartial {
   containerNo: string;
   loadPort: string;
   dischargePort: string;
+  /** Terminal hint from the page header that owned this container (optional). */
+  loadTerminal?: string;
+  dischargeTerminal?: string;
   unNo: string;
   packingGroup: string;
   weightKg: string;
@@ -55,6 +58,33 @@ export interface UnifeederImportRowPartial {
   subRisk: string;
   fire: string;
   spillage: string;
+}
+
+/** Active POL/POD (+ terminals) while walking multi-page manifests. */
+interface UnifeederActivePorts {
+  loadPort: string;
+  dischargePort: string;
+  loadTerminal: string;
+  dischargeTerminal: string;
+}
+
+function mergeActivePortsFromPageHeader(
+  active: UnifeederActivePorts,
+  pageHeader: Partial<UnifeederImportHeader>,
+): UnifeederActivePorts {
+  const load = (pageHeader.portOfDeparture ?? '').trim();
+  const discharge = (pageHeader.portOfArrival ?? '').trim();
+  const loadTerm = (pageHeader.terminalOfDeparture ?? '').trim();
+  const dischargeTerm = (pageHeader.terminalOfArrival ?? '').trim();
+  return {
+    loadPort: load || active.loadPort,
+    dischargePort: discharge || active.dischargePort,
+    // New port resets terminal; same port keeps previous terminal if page omits it.
+    loadTerminal: load ? loadTerm || (load === active.loadPort ? active.loadTerminal : '') : active.loadTerminal,
+    dischargeTerminal: discharge
+      ? dischargeTerm || (discharge === active.dischargePort ? active.dischargeTerminal : '')
+      : active.dischargeTerminal,
+  };
 }
 
 export interface UnifeederPdfParseResult {
@@ -629,6 +659,8 @@ function parseImoBlock(
   allowWideUnAnchors = false,
   nextAnchorX?: number,
   useGrossWeight = true,
+  loadTerminal = '',
+  dischargeTerminal = '',
 ): UnifeederImportRowPartial[] {
   const blockItems = blockItemsForColumn(items, columnX, imoY);
   const size =
@@ -731,6 +763,8 @@ function parseImoBlock(
       containerNo,
       loadPort,
       dischargePort,
+      loadTerminal,
+      dischargeTerminal,
       unNo,
       packingGroup,
       weightKg: weights.weightKg,
@@ -848,6 +882,8 @@ function parsePageRows(
   recentColumnHeaders: readonly UnifeederContainerColumnAnchor[] = [],
   useGrossWeight = true,
   pendingOrphans: readonly UnifeederImoBlockBinding[] = [],
+  loadTerminal = '',
+  dischargeTerminal = '',
 ): {
   rows: UnifeederImportRowPartial[];
   lastBinding?: UnifeederImoBlockBinding;
@@ -932,6 +968,8 @@ function parsePageRows(
       allowWideUnAnchors,
       nextAnchorX,
       useGrossWeight,
+      loadTerminal,
+      dischargeTerminal,
     );
     rows.push(...blockRows);
     if (blockRows.length) {
@@ -1027,8 +1065,12 @@ function parseLegacyUnifeederManifest(
   const warnings: string[] = [];
   const pages = [...new Set(items.map((i) => i.page))].sort((a, b) => a - b);
   const header = parseHeaderFromPage(items.filter((i) => i.page === pages[0]));
-  const loadPort = header.portOfDeparture ?? '';
-  const dischargePort = header.portOfArrival ?? '';
+  let activePorts: UnifeederActivePorts = {
+    loadPort: header.portOfDeparture ?? '',
+    dischargePort: header.portOfArrival ?? '',
+    loadTerminal: header.terminalOfDeparture ?? '',
+    dischargeTerminal: header.terminalOfArrival ?? '',
+  };
 
   let lastBinding: UnifeederImoBlockBinding | undefined;
   let columnHeaders: UnifeederContainerColumnAnchor[] = [];
@@ -1036,6 +1078,8 @@ function parseLegacyUnifeederManifest(
   const rows: UnifeederImportRowPartial[] = [];
   for (const page of pages) {
     const pageItems = items.filter((i) => i.page === page);
+    // Each page (or section) can change POD/POL — continuation pages keep the last header.
+    activePorts = mergeActivePortsFromPageHeader(activePorts, parseHeaderFromPage(pageItems));
     const {
       rows: pageRows,
       lastBinding: nextBinding,
@@ -1043,12 +1087,14 @@ function parseLegacyUnifeederManifest(
       orphanBindings,
     } = parsePageRows(
       pageItems,
-      loadPort,
-      dischargePort,
+      activePorts.loadPort,
+      activePorts.dischargePort,
       lastBinding,
       columnHeaders,
       useGrossWeight,
       pendingOrphans,
+      activePorts.loadTerminal,
+      activePorts.dischargeTerminal,
     );
     lastBinding = nextBinding;
     columnHeaders = [...nextHeaders];

@@ -190,7 +190,11 @@ export class App implements OnInit {
   private async flushPendingToDisk(): Promise<void> {
     try {
       // Always run quit flush — it commits focused fields first, then writes if dirty.
-      await this.appState.flushPersistForQuit();
+      // Cap wait: main also times out; hung SMB must not block prepare-quit-done forever.
+      await Promise.race([
+        this.appState.flushPersistForQuit(),
+        new Promise<void>((resolve) => setTimeout(resolve, 12_000)),
+      ]);
     } catch {
       /* ignore — quit path */
     }

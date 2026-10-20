@@ -128,6 +128,14 @@ declare global {
         base64: string,
       ) => Promise<{ ok: boolean; error?: string }>;
       /**
+       * Copy a picked/network DEP REP.xlsx into data/dep-rep/DEP REP.xlsx
+       * (or return the existing local copy). Save/Load then use that path.
+       */
+      ensureDepRepLocal: (
+        sourcePath?: string,
+      ) => Promise<{ ok: boolean; path?: string; error?: string }>;
+      getDepRepLocalPath: () => Promise<string>;
+      /**
        * Identical Excel Worksheet.Copy + data fill for DEP REP.xlsx (COM).
        * Preserves density Tables and ship drawings; never rewrites K:L.
        */

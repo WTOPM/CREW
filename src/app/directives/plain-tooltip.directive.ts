@@ -13,6 +13,8 @@ const SHOW_DELAY_MS = 450;
 })
 export class PlainTooltipDirective implements OnDestroy {
   @Input({ alias: 'appPlainTooltip' }) text = '';
+  /** Optional CAPS title shown above the body (action-button tips). */
+  @Input() appPlainTooltipTitle = '';
 
   private showTimer: ReturnType<typeof setTimeout> | null = null;
   private tooltipHide: (() => void) | null = null;
@@ -27,7 +29,11 @@ export class PlainTooltipDirective implements OnDestroy {
 
     this.showTimer = setTimeout(() => {
       this.hide();
-      const tip = showPlainTooltip(this.el.nativeElement, text);
+      const tip = showPlainTooltip(
+        this.el.nativeElement,
+        text,
+        this.appPlainTooltipTitle.trim() || undefined,
+      );
       this.tooltipHide = tip.hide;
     }, SHOW_DELAY_MS);
   }

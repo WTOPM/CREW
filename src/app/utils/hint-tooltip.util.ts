@@ -22,10 +22,23 @@ function positionFixedTooltip(tip: HTMLElement, host: HTMLElement): void {
   tip.style.left = `${left}px`;
 }
 
-export function showPlainTooltip(host: HTMLElement, text: string): { hide: () => void } {
+export function showPlainTooltip(
+  host: HTMLElement,
+  text: string,
+  title?: string,
+): { hide: () => void } {
   const tip = document.createElement('div');
   tip.className = 'dg-hint-tooltip dg-hint-tooltip--plain';
   tip.setAttribute('role', 'tooltip');
+
+  const heading = title?.trim();
+  if (heading) {
+    tip.classList.add('dg-hint-tooltip--action');
+    const titleEl = document.createElement('span');
+    titleEl.className = 'dg-hint-tooltip__title';
+    titleEl.textContent = heading;
+    tip.append(titleEl);
+  }
 
   const textEl = document.createElement('span');
   textEl.className = 'dg-hint-tooltip__text';

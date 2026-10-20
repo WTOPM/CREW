@@ -65,6 +65,7 @@ export class DgManifestStore {
         | 'manifestUseGrossWeight'
         | 'manifestRoundWeights'
         | 'activeInventoryTab'
+        | 'inventoryViewMode'
       >
     >,
   ): void {
@@ -539,14 +540,6 @@ export class DgManifestStore {
       const libInner = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
       const loadPort = resolveUnifeederRowPort(result.header.portOfDeparture ?? '', d.ports);
       const dischargePort = resolveUnifeederRowPort(result.header.portOfArrival ?? '', d.ports);
-      const loadTerminalHint = (result.header.terminalOfDeparture ?? '').trim();
-      const dischargeTerminalHint = (result.header.terminalOfArrival ?? '').trim();
-      const loadTerminal = resolveUnifeederTerminalAbbrev(loadPort, loadTerminalHint, d.ports);
-      const dischargeTerminal = resolveUnifeederTerminalAbbrev(
-        dischargePort,
-        dischargeTerminalHint,
-        d.ports,
-      );
       const documentDate = coerceIsoDate(result.header.departureDate);
       const doc = createDgUnifeederManifestDocument({
         sourceName: formatDgManifestSourceName(loadPort, documentDate, sourceName),
@@ -556,23 +549,36 @@ export class DgManifestStore {
       });
       const imported = result.rows
         .filter((row) => row.containerNo.trim())
-        .map((row) =>
-          createDgUnifeederRow({
+        .map((row) => {
+          const rowLoad = resolveUnifeederRowPort(
+            row.loadPort || result.header.portOfDeparture || '',
+            d.ports,
+          );
+          const rowDischarge = resolveUnifeederRowPort(
+            row.dischargePort || result.header.portOfArrival || '',
+            d.ports,
+          );
+          // Terminals follow the page that owned the container (not only page-1 header).
+          const loadTerminal = resolveUnifeederTerminalAbbrev(
+            rowLoad,
+            (row.loadTerminal || result.header.terminalOfDeparture || '').trim(),
+            d.ports,
+          );
+          const dischargeTerminal = resolveUnifeederTerminalAbbrev(
+            rowDischarge,
+            (row.dischargeTerminal || result.header.terminalOfArrival || '').trim(),
+            d.ports,
+          );
+          return createDgUnifeederRow({
             ...row,
-            loadPort: resolveUnifeederRowPort(
-              row.loadPort || result.header.portOfDeparture || '',
-              d.ports,
-            ),
-            dischargePort: resolveUnifeederRowPort(
-              row.dischargePort || result.header.portOfArrival || '',
-              d.ports,
-            ),
+            loadPort: rowLoad,
+            dischargePort: rowDischarge,
             loadTerminal,
             dischargeTerminal,
             status: 'onboard',
             sourceManifestId: doc.id,
-          }),
-        );
+          });
+        });
       const containerCount = new Set(imported.map((row) => row.containerNo).filter(Boolean)).size;
       const docWithCount = {
         ...doc,
@@ -715,6 +721,7 @@ export class DgManifestStore {
   applyUnifeederDagosPositions(positions: readonly { containerNo: string; position: string }[]): {
     checked: number;
     replaced: number;
+    unchanged: number;
     updatedLines: number;
     discharged: number;
     dischargedContainers: string[];
@@ -760,6 +767,7 @@ export class DgManifestStore {
     return {
       checked: matched.size,
       replaced: replaced.size,
+      unchanged: matched.size - replaced.size,
       updatedLines,
       discharged: dischargedContainers.size,
       dischargedContainers: [...dischargedContainers].sort(),
