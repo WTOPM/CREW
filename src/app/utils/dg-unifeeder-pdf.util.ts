@@ -100,7 +100,8 @@ const CONTAINER_RAW_RE = /^[A-Z]{4}\s*[\d\s-]{6,12}$/i;
 const ISO_SIZE_RE = /^[0-9]{2}[A-Z0-9]{2,3}$/i;
 const LETTER_SIZE_RE = /^[A-Z][0-9][A-Z0-9]{2,3}$/i;
 const SAILING_DATE_RE = /^\d{1,2}-[a-z]+-\d{4}$/i;
-const EU_WEIGHT_RE = /^\d{1,3}(?:\.\d{3})*,\d{2}$/;
+/** European weights; PDF may use space or dot thousands (`2 125,08` / `2.125,08`). */
+const EU_WEIGHT_RE = /^\d{1,3}(?:[.\s]\d{3})*,\d{2}$/;
 const PORT_SLASH_RE = /^[A-Za-z][A-Za-z\s.-]{2,}\/.+$/;
 
 /** Y offsets from the "IMO Information" row on each page. */
@@ -454,6 +455,14 @@ function dedupeImoPositions(items: readonly DgPdfTextItem[]): DgPdfTextItem[] {
 }
 
 /**
+ * Max X distance from an "IMO Information" label to a UN in the same multi-column block.
+ * Real Unifeeder pages put 3–4 DG columns under one IMO (~85 pt apart); 50 pt was too tight
+ * and spawned fake Proper-name cargo anchors that duplicated the last column.
+ * Page-break continuations still work: they have no IMO to their left on that band.
+ */
+const IMO_BLOCK_UN_MAX_DX = 320;
+
+/**
  * IMO row anchors, plus continuation columns after a page break.
  * Overflow cargo often reprints Proper ship. name + UN without a new "IMO Information"
  * label while later columns on the same page still have IMO headers — those must both count.
@@ -485,16 +494,14 @@ function findPageCargoAnchors(items: readonly DgPdfTextItem[]): Array<{ x: numbe
     if (!uns.length) continue;
 
     for (const un of uns) {
-      // Same column: "IMO Information" sits slightly left of the UN digits (~0–40 pt).
-      // Do not treat the next column's IMO (often ~80+ pt away) as covering this UN.
-      const coveredByImo = items.some(
-        (it) =>
-          it.str === 'IMO Information' &&
-          nearY(it, y, 8) &&
-          it.x <= un.x + 12 &&
-          un.x - it.x <= 50,
+      // Nearest IMO to the left on this band owns sibling DG columns of that container.
+      const imosLeft = items.filter(
+        (it) => it.str === 'IMO Information' && nearY(it, y, 8) && it.x <= un.x + 12,
       );
-      if (coveredByImo) continue;
+      if (imosLeft.length) {
+        const nearestImo = imosLeft.reduce((a, b) => (a.x >= b.x ? a : b));
+        if (un.x - nearestImo.x <= IMO_BLOCK_UN_MAX_DX) continue;
+      }
       const coveredByAnchor = anchors.some(
         (a) => Math.abs(a.y - y) <= 10 && Math.abs(a.x - un.x) <= 55,
       );

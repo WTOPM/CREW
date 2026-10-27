@@ -118,8 +118,12 @@ declare global {
           } | null,
         ) => void,
       ) => () => void;
-      pickPdfFile: () => Promise<string | null>;
+      /** Absolute path for a File from input/drag-drop (replaces removed File.path). */
+      getPathForFile: (file: File) => string;
+      pickPdfFile: (defaultPath?: string) => Promise<string | null>;
       pickExcelFile: (defaultPath?: string) => Promise<string | null>;
+      pathExists: (filePath: string) => Promise<boolean>;
+      openFilePath: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
       readFileBase64: (
         filePath: string,
       ) => Promise<{ ok: boolean; base64?: string; error?: string }>;
@@ -157,10 +161,22 @@ declare global {
         filePath: string,
         sheetName: string,
       ) => Promise<{ ok: boolean; deleted?: string; latestSheetName?: string; error?: string }>;
-      /** Excel ExportAsFixedFormat for a DEP REP sheet → PDF base64 (print layout as in Excel). */
+      /**
+       * Excel ExportAsFixedFormat from current form cells (applied in memory, workbook not saved).
+       * Pass `{ sheetName, updates }` — same payload shape as writeDepRepSheet.
+       */
       exportDepRepPdf: (
         filePath: string,
-        sheetName: string,
+        payload: {
+          sheetName: string;
+          updates: Array<{
+            address: string;
+            kind: string;
+            value?: string | number;
+            formula?: string;
+            iso?: string;
+          }>;
+        },
       ) => Promise<{ ok: boolean; base64?: string; sheetName?: string; error?: string }>;
       pickDirectory: () => Promise<string | null>;
       openDirectory: (dirPath: string) => Promise<{ ok: boolean; error?: string }>;

@@ -276,7 +276,9 @@ export class AppStateStore {
     if (!this.formSessionActive) return false;
     const snap = this.formSessionSnapshot;
     if (!snap) return this.formSessionDirty;
-    return formSessionSlicesChanged(snap, this.data());
+    // Prefer the persist flag (set on every store write) OR slice compare —
+    // slice-only missed some deletes when blur/ClickOutside raced the update.
+    return this.formSessionDirty || formSessionSlicesChanged(snap, this.data());
   }
 
   isFormSessionActive(): boolean {

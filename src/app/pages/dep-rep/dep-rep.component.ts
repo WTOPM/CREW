@@ -694,25 +694,21 @@ export class DepRepComponent {
   }
 
   protected async exportPdf(): Promise<void> {
+    const payload = this.buildCurrentSheetPayload();
+    if (!payload) return;
+
     const path = await this.adoptLocalWorkbook(
       this.library().sourcePath.trim() || this.pathDraft().trim() || undefined,
     );
     if (!path) {
-      this.toast.showError('Choose DEP REP.xlsx path first');
+      this.toast.showError('Choose DEP REP.xlsx first (template for PDF layout)');
       return;
     }
-    const name =
-      this.activeSheetTab() === 'previous'
-        ? this.previousTab()?.excelSheetName || this.sheetName()
-        : this.sheetName();
-    if (!name) {
-      this.toast.showError('Set voyage and POL first');
-      return;
-    }
-    this.beginBusy('Creating PDF from Excel…');
+
+    this.beginBusy('Creating PDF from this page…');
     try {
-      const ok = await this.depRepPdf.openFromExcel(path, name);
-      if (ok) this.toast.show('DEP REP PDF opened (from Excel)', 'success');
+      const ok = await this.depRepPdf.openFromCurrent(path, payload);
+      if (ok) this.toast.show('DEP REP PDF opened (current page)', 'success');
       else this.toast.showError('Could not open PDF');
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'PDF export failed');
@@ -723,18 +719,9 @@ export class DepRepComponent {
 
   protected async writeToExcel(): Promise<void> {
     const creating = this.activeSheetTab() === 'new' && !!this.newTab();
-    // Update keeps the original Excel tab name; create uses voyage + POL.
-    const name = creating
-      ? this.sheetName()
-      : this.previousTab()?.excelSheetName || this.sheetName();
-    if (!name) {
-      this.toast.showError('Set voyage and POL (port of call) first');
-      return;
-    }
-    if (!this.polCode()) {
-      this.toast.showError('POL needs a UN/LOCODE on the selected port');
-      return;
-    }
+    const payload = this.buildCurrentSheetPayload();
+    if (!payload) return;
+    const name = payload.sheetName;
 
     this.beginBusy(creating ? 'Creating sheet…' : 'Updating sheet…');
     try {
@@ -751,26 +738,7 @@ export class DepRepComponent {
         this.toast.showError('Choose DEP REP.xlsx first (it will be kept in the local data folder)');
         return;
       }
-      const ship = this.ship();
-      const local = this.localShipFields();
-      const updates = buildDepRepCellUpdates({
-        sheetName: name,
-        voyage: local?.voyageNumber ?? ship.voyageNumber,
-        polCode: this.polCode(),
-        podCode: this.podCode(),
-        departureDate: this.pageContext().dateOfDeparture || ship.dateOfDeparture,
-        draftAft: local?.draftAft ?? ship.draftAft,
-        draftFore: local?.draftFore ?? ship.draftFore,
-        totalCargo: this.library().totalCargo,
-        waterDensity: this.polDensity(),
-        classRows: this.classRowsForWrite(),
-        heightKeelToMastTop: ship.heightKeelToMastTop,
-        mouldedDepth: ship.mouldedDepth,
-      });
-      const result = await electron.writeDepRepSheet(path, {
-        sheetName: name,
-        updates,
-      });
+      const result = await electron.writeDepRepSheet(path, payload);
       if (!result.ok) {
         this.toast.showError(result.error ?? 'Could not write DEP REP.xlsx');
         return;
@@ -805,6 +773,48 @@ export class DepRepComponent {
     } finally {
       this.endBusy();
     }
+  }
+
+  /**
+   * Sheet name + Excel cell updates for the form as shown now.
+   * Used by Save to file (persists) and PDF (in-memory only).
+   */
+  private buildCurrentSheetPayload(): {
+    sheetName: string;
+    updates: ReturnType<typeof buildDepRepCellUpdates>;
+  } | null {
+    const creating = this.activeSheetTab() === 'new' && !!this.newTab();
+    // Update keeps the original Excel tab name; create / PDF draft uses voyage + POL.
+    const name = creating
+      ? this.sheetName()
+      : this.previousTab()?.excelSheetName || this.sheetName();
+    if (!name) {
+      this.toast.showError('Set voyage and POL (port of call) first');
+      return null;
+    }
+    if (!this.polCode()) {
+      this.toast.showError('POL needs a UN/LOCODE on the selected port');
+      return null;
+    }
+    const ship = this.ship();
+    const local = this.localShipFields();
+    return {
+      sheetName: name,
+      updates: buildDepRepCellUpdates({
+        sheetName: name,
+        voyage: local?.voyageNumber ?? ship.voyageNumber,
+        polCode: this.polCode(),
+        podCode: this.podCode(),
+        departureDate: this.pageContext().dateOfDeparture || ship.dateOfDeparture,
+        draftAft: local?.draftAft ?? ship.draftAft,
+        draftFore: local?.draftFore ?? ship.draftFore,
+        totalCargo: this.library().totalCargo,
+        waterDensity: this.polDensity(),
+        classRows: this.classRowsForWrite(),
+        heightKeelToMastTop: ship.heightKeelToMastTop,
+        mouldedDepth: ship.mouldedDepth,
+      }),
+    };
   }
 
   private captureWorkspace(

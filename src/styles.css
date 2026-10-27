@@ -2378,6 +2378,10 @@ th {
     transform 0.12s;
 }
 
+.cma-manifest-chip--clickable {
+  cursor: pointer;
+}
+
 .cma-manifest-chip:hover {
   border-color: #fca5a5;
   box-shadow: 0 2px 8px rgb(185 28 28 / 12%);
@@ -2612,6 +2616,10 @@ th {
     border-color 0.15s,
     box-shadow 0.15s,
     transform 0.12s;
+}
+
+.uf-manifest-chip--clickable {
+  cursor: pointer;
 }
 
 .uf-manifest-chip:hover {

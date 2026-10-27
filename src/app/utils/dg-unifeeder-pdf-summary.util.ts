@@ -13,7 +13,8 @@ interface UnifeederImportRowForValidation extends DgDualWeightLine {
   weightKg: string;
 }
 
-const EU_WEIGHT_RE = /^\d{1,3}(?:\.\d{3})*,\d{2}$/;
+/** European weights; PDF may use space or dot thousands (`2 125,08` / `2.125,08`). */
+const EU_WEIGHT_RE = /^\d{1,3}(?:[.\s]\d{3})*,\d{2}$/;
 const LENGTH_KEYS = ['20', '30', '40', '45'] as const;
 type LengthKey = (typeof LENGTH_KEYS)[number];
 

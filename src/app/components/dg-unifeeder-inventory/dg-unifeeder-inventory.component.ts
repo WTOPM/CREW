@@ -42,6 +42,7 @@ import {
 } from '../../models/dg-unifeeder.models';
 import { DgUnifeederImportService } from '../../services/dg-unifeeder-import.service';
 import { DgUnifeederDagosImportService } from '../../services/dg-unifeeder-dagos-import.service';
+import { DgManifestSourcePdfService } from '../../services/dg-manifest-source-pdf.service';
 import {
   formatUnifeederImportValidationError,
   formatUnifeederImportValidationOk,
@@ -51,6 +52,7 @@ import {
   buildUnifeederContentHash,
   buildUnifeederPdfBytesHash,
 } from '../../utils/dg-unifeeder-fingerprint.util';
+import { electronLocalFilePath } from '../../utils/electron-local-file-path.util';
 import { unifeederManifestSummary } from '../../utils/dg-manifest-summary.util';
 import { DgUnifeederExcelService } from '../../services/dg-unifeeder-excel.service';
 import { DgUnifeederPdfService } from '../../services/dg-unifeeder-pdf.service';
@@ -118,6 +120,7 @@ export class DgUnifeederInventoryComponent {
   private readonly dagosImporter = inject(DgUnifeederDagosImportService);
   private readonly unifeederExcel = inject(DgUnifeederExcelService);
   private readonly unifeederPdf = inject(DgUnifeederPdfService);
+  private readonly sourcePdf = inject(DgManifestSourcePdfService);
   private readonly toast = inject(ToastService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly unifeederFileRef = viewChild<ElementRef<HTMLInputElement>>('unifeederExcelFile');
@@ -336,30 +339,48 @@ export class DgUnifeederInventoryComponent {
 
   protected setUnifeederWeightTonnage(gross: boolean): void {
     this.dg.updateUnifeederViewSettings({ useGrossWeight: gross });
-    this.showUnifeederTonnageManifestCheck(gross);
+    void this.showUnifeederTonnageManifestCheck(gross);
   }
 
   protected toggleUnifeederRoundWeights(checked: boolean): void {
     this.dg.updateUnifeederViewSettings({ roundWeights: checked });
   }
 
-  private showUnifeederTonnageManifestCheck(gross: boolean): void {
+  private async showUnifeederTonnageManifestCheck(gross: boolean): Promise<void> {
     const lib = this.unifeederLibrary();
-    const rows = lib.onboard.filter((r) => r.status === 'onboard');
-    const check = validateUnifeederOnboardAgainstPdfSummaries(rows, lib.manifests, gross);
-    if (
-      !lib.manifests.some((m) => (m.pdfImoGrossWeightKg ?? 0) > 0 || (m.pdfImoNetWeightKg ?? 0) > 0)
-    ) {
+    if (!lib.manifests.length) {
+      this.toast.showError('No imported DP WORLD manifests — drop a PDF first.');
       return;
     }
+    const hasPdfTotals = lib.manifests.some(
+      (m) => (m.pdfImoGrossWeightKg ?? 0) > 0 || (m.pdfImoNetWeightKg ?? 0) > 0,
+    );
+    if (!hasPdfTotals) {
+      // Common after copying a DG save to another PC: cargo rows are there, Grand Totals aren’t.
+      const ok = await this.confirmDialog.confirm({
+        title: 'PDF totals missing',
+        message:
+          'This save has no Grand Total weights from the source PDF, so GROSS/NET cannot be checked against the manifesto.\n\n' +
+          'Locate the original DP WORLD PDF to restore those totals (inventory rows stay as they are).',
+        confirmLabel: 'Locate PDF…',
+        cancelLabel: 'Cancel',
+      });
+      if (ok) {
+        const target = lib.manifests[0];
+        if (target) await this.relinkUnifeederManifestPdf(target);
+      }
+      return;
+    }
+    const rows = lib.onboard.filter((r) => r.status === 'onboard');
+    const check = validateUnifeederOnboardAgainstPdfSummaries(rows, lib.manifests, gross);
     const error = formatUnifeederImportValidationError(check);
     if (error) {
       this.toast.showError(error);
       return;
     }
-    const ok = formatUnifeederImportValidationOk(check, gross, check.pdfKg, check.importedKg);
-    if (ok) {
-      this.toast.show(ok, 'success');
+    const okMsg = formatUnifeederImportValidationOk(check, gross, check.pdfKg, check.importedKg);
+    if (okMsg) {
+      this.toast.show(okMsg, 'success');
     }
   }
 
@@ -692,6 +713,71 @@ export class DgUnifeederInventoryComponent {
     this.dg.removeUnifeederManifest(id);
   }
 
+  /** Open the stored source PDF (or prompt to relocate if missing). */
+  protected async openUnifeederManifestSourcePdf(doc: DgUnifeederManifestDocument): Promise<void> {
+    const result = await this.sourcePdf.openOrRelink(doc.sourcePdfPath ?? '', {
+      label: this.unifeederManifestDisplayName(doc),
+    });
+    if (!result) return;
+    if (result.relocated) {
+      await this.relinkUnifeederManifestPdf(doc, result.path);
+    }
+  }
+
+  /**
+   * Point a manifest at a PDF on this PC and refresh Grand Total weights for GROSS/NET checks.
+   */
+  private async relinkUnifeederManifestPdf(
+    doc: DgUnifeederManifestDocument,
+    knownPath?: string,
+  ): Promise<void> {
+    const electron = window.electronAPI;
+    const path =
+      knownPath?.trim() ||
+      (await this.sourcePdf.pickPdfPath(doc.sourcePdfPath ?? undefined));
+    if (!path) return;
+    if (!electron?.readFileBase64) {
+      this.dg.patchUnifeederManifestSourcePdf(doc.id, { sourcePdfPath: path });
+      this.toast.show('Source PDF path updated', 'success');
+      return;
+    }
+    try {
+      const read = await electron.readFileBase64(path);
+      if (!read.ok || !read.base64) {
+        this.toast.showError(read.error || 'Could not read PDF');
+        return;
+      }
+      const binary = atob(read.base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const parsed = await this.unifeederImporter.importFromPdfBytes(bytes, this.storage.ports(), {
+        useGrossWeight: this.unifeederLibrary().useGrossWeight,
+      });
+      const pdfBytesFingerprint = await buildUnifeederPdfBytesHash(bytes);
+      this.dg.patchUnifeederManifestSourcePdf(doc.id, {
+        sourcePdfPath: path,
+        pdfImoNetWeightKg: parsed.summary?.totalImoNetWeightKg ?? 0,
+        pdfImoGrossWeightKg: parsed.summary?.totalImoGrossWeightKg ?? 0,
+        pdfBytesFingerprint,
+      });
+      const net = parsed.summary?.totalImoNetWeightKg ?? 0;
+      const gross = parsed.summary?.totalImoGrossWeightKg ?? 0;
+      if (net > 0 || gross > 0) {
+        this.toast.show(
+          `PDF linked — Grand Total net ${Math.round(net)} / gross ${Math.round(gross)} kg`,
+          'success',
+        );
+      } else {
+        this.toast.show('PDF path saved (no Grand Total found in file)', 'info');
+      }
+    } catch (err) {
+      this.dg.patchUnifeederManifestSourcePdf(doc.id, { sourcePdfPath: path });
+      this.toast.showError(
+        err instanceof Error ? err.message : 'Could not refresh PDF totals — path saved only',
+      );
+    }
+  }
+
   protected pickUnifeederExcel(): void {
     if (!this.requireInventoryEdit()) return;
     this.unifeederFileRef()?.nativeElement.click();
@@ -801,10 +887,16 @@ export class DgUnifeederInventoryComponent {
         buildUnifeederContentHash(result),
         buildUnifeederPdfBytesHash(bytes),
       ]);
-      const duplicate = this.dg.applyUnifeederImport(result, file.name, {
-        contentFingerprint,
-        pdfBytesFingerprint,
-      });
+      const sourcePdfPath = electronLocalFilePath(file);
+      const duplicate = this.dg.applyUnifeederImport(
+        result,
+        file.name,
+        {
+          contentFingerprint,
+          pdfBytesFingerprint,
+        },
+        sourcePdfPath,
+      );
       if (duplicate) {
         this.toast.showError(
           `This manifest was already imported (${duplicate.sourceName || 'existing entry'})`,

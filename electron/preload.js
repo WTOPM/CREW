@@ -1,6 +1,15 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  /** Absolute path for a File from input / drag-drop (Electron 32+; File.path is gone). */
+  getPathForFile: (file) => {
+    try {
+      if (!file) return '';
+      return String(webUtils.getPathForFile(file) || '').trim();
+    } catch {
+      return '';
+    }
+  },
   readData: () => ipcRenderer.invoke('read-data'),
   writeData: (data) => ipcRenderer.invoke('write-data', data),
   getDataPath: () => ipcRenderer.invoke('get-data-path'),
@@ -54,8 +63,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('gps-float-closed', listener);
     return () => ipcRenderer.removeListener('gps-float-closed', listener);
   },
-  pickPdfFile: () => ipcRenderer.invoke('pick-pdf-file'),
+  pickPdfFile: (defaultPath) => ipcRenderer.invoke('pick-pdf-file', defaultPath ?? ''),
   pickExcelFile: (defaultPath) => ipcRenderer.invoke('pick-excel-file', defaultPath ?? ''),
+  pathExists: (filePath) => ipcRenderer.invoke('path-exists', filePath),
+  openFilePath: (filePath) => ipcRenderer.invoke('open-file-path', filePath),
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
   writeFileBase64: (filePath, base64) => ipcRenderer.invoke('write-file-base64', filePath, base64),
   ensureDepRepLocal: (sourcePath) =>
@@ -65,8 +76,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('write-dep-rep-sheet', filePath, payload),
   deleteDepRepSheet: (filePath, sheetName) =>
     ipcRenderer.invoke('delete-dep-rep-sheet', filePath, sheetName),
-  exportDepRepPdf: (filePath, sheetName) =>
-    ipcRenderer.invoke('export-dep-rep-pdf', filePath, sheetName),
+  exportDepRepPdf: (filePath, payload) =>
+    ipcRenderer.invoke('export-dep-rep-pdf', filePath, payload),
   pickDirectory: () => ipcRenderer.invoke('pick-directory'),
   openDirectory: (dirPath) => ipcRenderer.invoke('open-directory', dirPath),
   openTempFile: (fileName, base64) => ipcRenderer.invoke('open-temp-file', fileName, base64),

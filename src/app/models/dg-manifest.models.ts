@@ -116,6 +116,8 @@ export interface DgManifestDocument {
   contentFingerprint?: string;
   /** SHA-256 of raw PDF bytes when imported from PDF. */
   pdfBytesFingerprint?: string;
+  /** Absolute path to the source PDF on this PC (for open / relink). */
+  sourcePdfPath?: string;
   /** @deprecated Containers moved to dgLibrary.onboard */
   containers?: DgContainerEntry[];
 }
@@ -230,6 +232,7 @@ export function createDgManifestDocument(
     containerCount: partial?.containerCount ?? legacyContainers.length,
     contentFingerprint: (partial?.contentFingerprint ?? '').trim(),
     pdfBytesFingerprint: (partial?.pdfBytesFingerprint ?? '').trim(),
+    sourcePdfPath: (partial?.sourcePdfPath ?? '').trim(),
   };
 }
 

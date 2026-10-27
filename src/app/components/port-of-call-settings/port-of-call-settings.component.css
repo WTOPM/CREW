@@ -1,0 +1,14 @@
+.poc-html-settings {
+  padding: 0.25rem 0 0.75rem;
+}
+
+.poc-html-settings__btn {
+  width: 100%;
+}
+
+.poc-html-settings__hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #64748b;
+}

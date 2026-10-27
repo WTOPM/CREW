@@ -35,8 +35,10 @@ import {
 import { DgPageArchiveService } from '../../services/dg-page-archive.service';
 import { StorageService } from '../../services/storage.service';
 import { DgManifestStore } from '../../services/dg-manifest.store';
+import { DgManifestSourcePdfService } from '../../services/dg-manifest-source-pdf.service';
 import { ToastService } from '../../services/toast.service';
 import { commitDgDualWeightEdit } from '../../utils/dg-weight-tonnage.util';
+import { electronLocalFilePath } from '../../utils/electron-local-file-path.util';
 import { formatDisplayDate } from '../../utils/date.util';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { PortSelectComponent } from '../../components/port-select/port-select.component';
@@ -98,6 +100,7 @@ export class DgComponent {
   private readonly dgExcel = inject(DgManifestExcelService);
   private readonly dgPdf = inject(DgManifestPdfService);
   private readonly pageArchive = inject(DgPageArchiveService);
+  private readonly sourcePdf = inject(DgManifestSourcePdfService);
   private readonly toast = inject(ToastService);
   private readonly fileRef = viewChild<ElementRef<HTMLInputElement>>('pdfFile');
 
@@ -332,6 +335,18 @@ export class DgComponent {
     event.stopPropagation();
     if (!this.requireInventoryEdit()) return;
     this.dg.removeDgManifest(id);
+  }
+
+  /** Open the stored source PDF (or prompt to relocate if missing). */
+  protected async openManifestSourcePdf(doc: DgManifestDocument): Promise<void> {
+    const result = await this.sourcePdf.openOrRelink(doc.sourcePdfPath ?? '', {
+      label: this.manifestDisplayName(doc),
+    });
+    if (!result) return;
+    if (result.relocated) {
+      this.dg.setDgManifestSourcePdfPath(doc.id, result.path);
+      this.toast.show('Source PDF path updated', 'success');
+    }
   }
 
   protected containerTotalKg(container: DgOnboardContainer): number {
@@ -705,10 +720,16 @@ export class DgComponent {
         buildDgManifestContentHash(result),
         buildDgPdfBytesHash(bytes),
       ]);
-      const duplicate = this.dg.applyDgManifestImport(result, file.name, {
-        contentFingerprint,
-        pdfBytesFingerprint,
-      });
+      const sourcePdfPath = electronLocalFilePath(file);
+      const duplicate = this.dg.applyDgManifestImport(
+        result,
+        file.name,
+        {
+          contentFingerprint,
+          pdfBytesFingerprint,
+        },
+        sourcePdfPath,
+      );
       if (duplicate) {
         this.toast.showError(
           `This manifest was already imported (${duplicate.sourceName || 'existing entry'})`,

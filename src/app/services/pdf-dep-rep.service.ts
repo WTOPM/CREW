@@ -3,27 +3,38 @@ import { pdfFileDate, pdfFileToken } from '../utils/pdf-filename.util';
 import { PdfDeliveryService } from './pdf-delivery.service';
 import { StorageService } from './storage.service';
 
+export interface DepRepPdfCellUpdate {
+  address: string;
+  kind: string;
+  value?: string | number;
+  formula?: string;
+  iso?: string;
+}
+
 /**
- * DEP REP PDF = Excel's own ExportAsFixedFormat (Print → PDF) for the named sheet.
- * Does not invent a layout — uses the sheet print area / page setup as in Excel.
+ * DEP REP PDF = Excel ExportAsFixedFormat using the sheet print area.
+ * Applies the current form cell updates in memory and does not save the workbook.
  */
 @Injectable({ providedIn: 'root' })
 export class PdfDepRepService {
   private readonly delivery = inject(PdfDeliveryService);
   private readonly storage = inject(StorageService);
 
-  async openFromExcel(filePath: string, sheetName: string): Promise<boolean> {
+  async openFromCurrent(
+    filePath: string,
+    payload: { sheetName: string; updates: DepRepPdfCellUpdate[] },
+  ): Promise<boolean> {
     const electron = window.electronAPI;
     if (!electron?.exportDepRepPdf) {
       throw new Error('Excel PDF export requires the desktop app');
     }
-    const result = await electron.exportDepRepPdf(filePath, sheetName);
+    const result = await electron.exportDepRepPdf(filePath, payload);
     if (!result.ok || !result.base64) {
       throw new Error(result.error || 'Excel PDF export failed');
     }
     const bytes = base64ToUint8(result.base64);
     const ship = this.storage.ship();
-    const fileName = this.fileName(ship.name, ship.dateOfDeparture, sheetName);
+    const fileName = this.fileName(ship.name, ship.dateOfDeparture, payload.sheetName);
     return this.delivery.deliver(bytes, fileName);
   }
 

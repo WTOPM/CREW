@@ -1297,15 +1297,49 @@ ipcMain.handle('save-pdf-to-path', (_event, dirPath, fileName, base64) => {
   return { fullPath };
 });
 
-ipcMain.handle('pick-pdf-file', async () => {
+ipcMain.handle('pick-pdf-file', async (_event, defaultPath) => {
   const win = BrowserWindow.getFocusedWindow();
-  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+  const opts = {
     title: 'Select PDF document',
     filters: [{ name: 'PDF', extensions: ['pdf'] }],
     properties: ['openFile'],
-  });
+  };
+  const hint = String(defaultPath || '').trim();
+  if (hint) {
+    try {
+      if (fs.existsSync(hint)) {
+        opts.defaultPath = hint;
+      } else {
+        const dir = path.dirname(hint);
+        if (dir && dir !== '.' && fs.existsSync(dir)) opts.defaultPath = dir;
+        else opts.defaultPath = hint;
+      }
+    } catch {
+      opts.defaultPath = hint;
+    }
+  }
+  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, opts);
   if (canceled || !filePaths?.[0]) return null;
   return filePaths[0];
+});
+
+ipcMain.handle('path-exists', (_event, filePath) => {
+  const p = String(filePath || '').trim();
+  if (!p || !path.isAbsolute(p)) return false;
+  try {
+    return fs.existsSync(p);
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('open-file-path', async (_event, filePath) => {
+  const p = String(filePath || '').trim();
+  if (!p) return { ok: false, error: 'Empty path' };
+  if (!path.isAbsolute(p)) return { ok: false, error: 'Path must be absolute' };
+  if (!fs.existsSync(p)) return { ok: false, error: 'File not found' };
+  const err = await shell.openPath(p);
+  return err ? { ok: false, error: err } : { ok: true };
 });
 
 ipcMain.handle('pick-excel-file', async (_event, defaultPath) => {
@@ -1795,27 +1829,50 @@ ipcMain.handle('delete-dep-rep-sheet', async (_event, filePath, sheetName) => {
 });
 
 /**
- * Export one DEP REP sheet to PDF via Excel ExportAsFixedFormat (same as Print → PDF).
- * Uses the sheet's print area / page setup — no custom layout.
+ * Export DEP REP PDF from the *current page* (form cell updates).
+ * Copies the workbook to a temp file, clones sheet 1 as layout template, fills cells,
+ * ExportAsFixedFormat — never opens/writes the user's DEP REP.xlsx.
+ * Independent of whether the voyage sheet exists in the file.
  */
-ipcMain.handle('export-dep-rep-pdf', async (_event, filePath, sheetName) => {
+ipcMain.handle('export-dep-rep-pdf', async (_event, filePath, payload) => {
   const { spawnSync } = require('child_process');
   try {
     const p = String(filePath || '').trim();
-    const name = String(sheetName || '').trim();
+    // Accept object payload (preferred) or legacy string sheetName.
+    let sheetName = '';
+    let updates = [];
+    if (typeof payload === 'string') {
+      sheetName = payload.trim();
+    } else if (payload && typeof payload === 'object') {
+      sheetName = String(payload.sheetName || '').trim();
+      updates = Array.isArray(payload.updates) ? payload.updates : [];
+    }
     if (!p) return { ok: false, error: 'Empty path' };
     if (!path.isAbsolute(p)) return { ok: false, error: 'Path must be absolute' };
     if (!fs.existsSync(p)) return { ok: false, error: 'File not found' };
-    if (!name) return { ok: false, error: 'Sheet name is empty' };
+    if (!sheetName) return { ok: false, error: 'Sheet name is empty' };
 
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crew-dep-rep-pdf-'));
+    const workPath = path.join(tmpDir, 'work.xlsx');
     const pdfPath = path.join(tmpDir, 'dep-rep.pdf');
+    const payloadPath = path.join(tmpDir, 'payload.json');
     const scriptPath = path.join(tmpDir, 'export-dep-rep-pdf.ps1');
+    fs.copyFileSync(p, workPath);
+    fs.writeFileSync(
+      payloadPath,
+      // Fixed working tab name — avoids collisions with sheets already in the file.
+      JSON.stringify({ sheetName: '__CREW_PDF__', label: sheetName, updates }),
+      'utf8',
+    );
     fs.writeFileSync(
       scriptPath,
       [
-        'param([string]$WorkbookPath, [string]$SheetName, [string]$PdfPath)',
+        'param([string]$WorkbookPath, [string]$PayloadPath, [string]$PdfPath)',
         "$ErrorActionPreference = 'Stop'",
+        '$raw = Get-Content -LiteralPath $PayloadPath -Raw -Encoding UTF8',
+        '$payload = $raw | ConvertFrom-Json',
+        '$workName = [string]$payload.sheetName',
+        'if (-not $workName) { $workName = \'__CREW_PDF__\' }',
         '$excel = $null',
         '$wb = $null',
         'try {',
@@ -1823,17 +1880,41 @@ ipcMain.handle('export-dep-rep-pdf', async (_event, filePath, sheetName) => {
         '  $excel.Visible = $false',
         '  $excel.DisplayAlerts = $false',
         '  $excel.ScreenUpdating = $false',
-        '  # Read-only — do not change the workbook',
-        '  $wb = $excel.Workbooks.Open($WorkbookPath, 0, $true)',
-        '  $ws = $null',
-        '  foreach ($s in @($wb.Worksheets)) {',
-        '    if ($s.Name -eq $SheetName) { $ws = $s; break }',
+        '  $wb = $excel.Workbooks.Open($WorkbookPath, 0, $false)',
+        '  # Always clone leftmost sheet (layout + pictures) — ignore existing voyage tabs',
+        '  $template = $wb.Worksheets.Item(1)',
+        '  $template.Copy($template) | Out-Null',
+        '  $ws = $wb.Worksheets.Item(1)',
+        '  try { $ws.Name = $workName } catch {',
+        '    # Name taken — keep default copy name',
         '  }',
-        '  if ($null -eq $ws) {',
-        "    throw ('Sheet not found: ' + $SheetName + '. Write to Excel first.')",
+        '  foreach ($u in @($payload.updates)) {',
+        '    $addr = [string]$u.address',
+        '    if (-not $addr) { continue }',
+        '    $cell = $ws.Range($addr)',
+        '    if ($cell.MergeCells) { $cell = $cell.MergeArea.Cells.Item(1, 1) }',
+        "    $kind = [string]$u.kind",
+        "    if ($kind -eq 'clear') { $cell.ClearContents() | Out-Null; continue }",
+        "    if ($kind -eq 'text') { $cell.Value2 = [string]$u.value; continue }",
+        "    if ($kind -eq 'number') {",
+        '      $cell.Value2 = [double]$u.value',
+        "      if ($addr -eq 'F9' -or $addr -eq 'G9' -or $addr -eq 'H9') {",
+        "        if (-not $cell.NumberFormat -or $cell.NumberFormat -eq 'General') {",
+        '          $cell.NumberFormat = \'0" t"\'',
+        '        }',
+        '      }',
+        '      continue',
+        '    }',
+        "    if ($kind -eq 'formula') { $cell.Formula = '=' + ([string]$u.formula).TrimStart('='); continue }",
+        "    if ($kind -eq 'date') {",
+        '      $iso = [string]$u.iso',
+        "      if ($iso -match '^(\\d{4})-(\\d{2})-(\\d{2})') {",
+        '        $cell.Value2 = [datetime]::new([int]$Matches[1], [int]$Matches[2], [int]$Matches[3])',
+        '      }',
+        '      continue',
+        '    }',
         '  }',
         '  $ws.Activate() | Out-Null',
-        '  # 0 = xlTypePDF, 0 = xlQualityStandard, IgnorePrintAreas=$false → use Excel print area',
         '  $ws.ExportAsFixedFormat(0, $PdfPath, 0, $true, $false) | Out-Null',
         '  $wb.Close($false) | Out-Null',
         '  $wb = $null',
@@ -1867,9 +1948,9 @@ ipcMain.handle('export-dep-rep-pdf', async (_event, filePath, sheetName) => {
         '-File',
         scriptPath,
         '-WorkbookPath',
-        p,
-        '-SheetName',
-        name,
+        workPath,
+        '-PayloadPath',
+        payloadPath,
         '-PdfPath',
         pdfPath,
       ],
@@ -1895,7 +1976,7 @@ ipcMain.handle('export-dep-rep-pdf', async (_event, filePath, sheetName) => {
       } catch {
         /* ignore */
       }
-      return { ok: true, base64, sheetName: name };
+      return { ok: true, base64, sheetName };
     }
 
     try {

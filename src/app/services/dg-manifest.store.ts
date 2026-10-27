@@ -255,6 +255,25 @@ export class DgManifestStore {
     void this.state.persist('silent');
   }
 
+  /** Relink / remember absolute path to the CMA source PDF on this PC. */
+  setDgManifestSourcePdfPath(id: string, sourcePdfPath: string): void {
+    const path = sourcePdfPath.trim();
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          manifests: lib.manifests.map((m) =>
+            m.id === id ? { ...m, sourcePdfPath: path } : m,
+          ),
+        },
+      };
+    });
+    this.state.markSectionsDirty(['dg']);
+    void this.state.persist('silent');
+  }
+
   updateUnifeederViewSettings(
     partial: Partial<
       Pick<
@@ -522,10 +541,58 @@ export class DgManifestStore {
     void this.state.persist('silent');
   }
 
+  /**
+   * Relink DP WORLD source PDF and optionally refresh Grand Total weights
+   * (GROSS/NET checks) without re-importing cargo rows.
+   */
+  patchUnifeederManifestSourcePdf(
+    id: string,
+    patch: {
+      sourcePdfPath?: string;
+      pdfImoNetWeightKg?: number;
+      pdfImoGrossWeightKg?: number;
+      pdfBytesFingerprint?: string;
+    },
+  ): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          unifeeder: {
+            ...lib.unifeeder,
+            manifests: lib.unifeeder.manifests.map((m) => {
+              if (m.id !== id) return m;
+              return {
+                ...m,
+                ...(patch.sourcePdfPath != null
+                  ? { sourcePdfPath: patch.sourcePdfPath.trim() }
+                  : {}),
+                ...(patch.pdfImoNetWeightKg != null
+                  ? { pdfImoNetWeightKg: Number(patch.pdfImoNetWeightKg) || 0 }
+                  : {}),
+                ...(patch.pdfImoGrossWeightKg != null
+                  ? { pdfImoGrossWeightKg: Number(patch.pdfImoGrossWeightKg) || 0 }
+                  : {}),
+                ...(patch.pdfBytesFingerprint != null
+                  ? { pdfBytesFingerprint: patch.pdfBytesFingerprint.trim() }
+                  : {}),
+              };
+            }),
+          },
+        },
+      };
+    });
+    this.state.markSectionsDirty(['dg']);
+    void this.state.persist('silent');
+  }
+
   applyUnifeederImport(
     result: UnifeederPdfParseResult,
     sourceName: string,
     fingerprints?: { contentFingerprint?: string; pdfBytesFingerprint?: string },
+    sourcePdfPath?: string,
   ): import('../models/dg-unifeeder.models').DgUnifeederManifestDocument | null {
     const lib = normalizeDgLibrary(
       this.data().dgLibrary,
@@ -546,6 +613,7 @@ export class DgManifestStore {
         rowCount: result.rows.length,
         contentFingerprint: fingerprints?.contentFingerprint?.trim() ?? '',
         pdfBytesFingerprint: fingerprints?.pdfBytesFingerprint?.trim() ?? '',
+        sourcePdfPath: (sourcePdfPath ?? '').trim(),
       });
       const imported = result.rows
         .filter((row) => row.containerNo.trim())
@@ -618,6 +686,7 @@ export class DgManifestStore {
     result: DgManifestImportResult,
     sourceName: string,
     fingerprints?: { contentFingerprint?: string; pdfBytesFingerprint?: string },
+    sourcePdfPath?: string,
   ): DgManifestDocument | null {
     const lib = normalizeDgLibrary(this.data().dgLibrary, undefined, this.data().ports);
     const duplicate = findDgManifestDuplicate(lib.manifests, fingerprints ?? {});
@@ -636,6 +705,7 @@ export class DgManifestStore {
         dischargePort,
         contentFingerprint: fingerprints?.contentFingerprint?.trim() ?? '',
         pdfBytesFingerprint: fingerprints?.pdfBytesFingerprint?.trim() ?? '',
+        sourcePdfPath: (sourcePdfPath ?? '').trim(),
       });
       const normalizedRows = result.rows.map((row) => ({
         ...row,

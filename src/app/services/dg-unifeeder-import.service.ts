@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { resolveManifestPortName, type Port } from '../models/crew.models';
+import type { Port } from '../models/crew.models';
+import { resolveUnifeederRowPort } from '../models/dg-unifeeder.models';
 import { extractDgPdfTextItems } from '../utils/dg-pdf-text.util';
 import {
   parseUnifeederDangerousCargoManifest,
@@ -20,8 +21,9 @@ export class DgUnifeederImportService {
     const parsed = parseUnifeederDangerousCargoManifest(items, options);
     if (parsed.format !== 'unifeeder-dg' && parsed.format !== 'dp-world-dg') return parsed;
 
-    const loadPort = resolveManifestPortName(parsed.header.portOfDeparture ?? '', ports);
-    const dischargePort = resolveManifestPortName(parsed.header.portOfArrival ?? '', ports);
+    // Keep raw PDF city when not in the user's list (do not blank the header).
+    const loadPort = resolveUnifeederRowPort(parsed.header.portOfDeparture ?? '', ports);
+    const dischargePort = resolveUnifeederRowPort(parsed.header.portOfArrival ?? '', ports);
     return {
       ...parsed,
       header: {
@@ -31,8 +33,8 @@ export class DgUnifeederImportService {
       },
       rows: parsed.rows.map((row) => ({
         ...row,
-        loadPort: row.loadPort || loadPort,
-        dischargePort: row.dischargePort || dischargePort,
+        loadPort: resolveUnifeederRowPort(row.loadPort || loadPort, ports),
+        dischargePort: resolveUnifeederRowPort(row.dischargePort || dischargePort, ports),
       })),
     };
   }

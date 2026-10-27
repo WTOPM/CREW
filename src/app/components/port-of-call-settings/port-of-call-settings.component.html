@@ -1,0 +1,17 @@
+@if (docId() === 'portOfCall' || docId() === 'portsOfCall') {
+  <div class="poc-html-settings">
+    <button
+      type="button"
+      class="btn btn-placement poc-html-settings__btn"
+      (click)="openHtmlFormSettings()"
+    >
+      ⚙ Settings
+    </button>
+    <p class="poc-html-settings__hint">
+      Open the HTML editor to place stamp and signature on
+      {{ docLabel() }}.
+    </p>
+  </div>
+} @else {
+  <app-document-stamp-options documentId="sso0108PortCalls" />
+}

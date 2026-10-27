@@ -40,7 +40,8 @@ function extractTerminalHint(raw: string): string {
     .replace(/\s+/g, ' ');
 }
 
-const EU_WEIGHT_RE = /^\d{1,3}(?:\.\d{3})*,\d{2}$/;
+/** European weights; PDF may use space or dot thousands (`2 125,08` / `2.125,08`). */
+const EU_WEIGHT_RE = /^\d{1,3}(?:[.\s]\d{3})*,\d{2}$/;
 const CONTAINER_RAW_RE = /^[A-Z]{4}\s*[\d\s-]{6,12}$/i;
 const ISO_SIZE_RE = /^[0-9]{2}[A-Z0-9]{2,3}$/i;
 const LETTER_SIZE_RE = /^[A-Z][0-9][A-Z0-9]{2,3}$/i;

@@ -42,7 +42,11 @@
               <li
                 class="uf-manifest-chip"
                 [class.uf-manifest-chip--all-discharged]="unifeederManifestFullyDischarged(doc.id)"
-                [attr.title]="unifeederManifestMeta(doc)"
+                [class.uf-manifest-chip--clickable]="true"
+                [attr.title]="
+                  doc.sourcePdfPath ? 'Open source PDF' : 'Open / locate source PDF'
+                "
+                (click)="openUnifeederManifestSourcePdf(doc)"
               >
                 <span class="uf-manifest-chip__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" focusable="false">

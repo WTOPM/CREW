@@ -1,4 +1,4 @@
-import { Injectable, inject, computed } from '@angular/core';
+import { Injectable, Injector, inject, computed } from '@angular/core';
 import {
   AppData,
   ShipInfo,
@@ -27,6 +27,8 @@ export class StorageService {
   /** Central state kernel: owns the data signal + persistence (shared with feature stores). */
   private readonly state = inject(AppStateStore);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  /** Lazy resolve — AppSnapshotArchiveService also injects StorageService. */
+  private readonly injector = inject(Injector);
   private readonly data = this.state.data;
 
   readonly ship = computed(() => this.data().ship);
@@ -140,6 +142,15 @@ export class StorageService {
     return this.state.flushPersist(notify, savedMessage);
   }
 
+  /**
+   * Write open settings-modal + RAM edits to disk, then leave the SPA for an HTML form.
+   * Without this, Form 02/01 reads stale crew-data.json (deletes / Ports in PDF lost).
+   */
+  async flushThenNavigate(url: string): Promise<void> {
+    await this.state.flushPersistForQuit();
+    window.location.href = url;
+  }
+
   beginFormSession(): Promise<void> {
     return this.state.beginFormSession();
   }
@@ -172,6 +183,14 @@ export class StorageService {
       return;
     }
     if (reason === 'done') {
+      // Keep loaded Home snapshot in sync with Port of Call / form edits (RAM only;
+      // commitFormSession writes appSnapshots with the home slice).
+      try {
+        const { AppSnapshotArchiveService } = await import('./app-snapshot-archive.service');
+        this.injector.get(AppSnapshotArchiveService).syncLoadedFromLiveMemory();
+      } catch {
+        /* archive optional during early boot */
+      }
       await this.state.commitFormSession('Settings saved');
       return;
     }

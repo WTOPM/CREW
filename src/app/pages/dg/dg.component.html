@@ -280,9 +280,16 @@
                           [class.cma-manifest-chip--all-discharged]="
                             manifestFullyDischarged(doc.id)
                           "
+                          [class.cma-manifest-chip--clickable]="true"
                           [attr.title]="
-                            manifestDischargedTooltip(doc.id) || manifestLabel(doc) || null
+                            manifestDischargedTooltip(doc.id) ||
+                            (doc.sourcePdfPath
+                              ? 'Open source PDF'
+                              : 'Open / locate source PDF') ||
+                            manifestLabel(doc) ||
+                            null
                           "
+                          (click)="openManifestSourcePdf(doc)"
                         >
                           <span class="cma-manifest-chip__icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" focusable="false">

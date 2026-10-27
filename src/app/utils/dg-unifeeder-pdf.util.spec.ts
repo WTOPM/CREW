@@ -188,6 +188,92 @@ describe('parseUnifeederDangerousCargoManifest page-break orphan header', () => 
     expect(rows.some((r) => r.netWeightKg === '1080' || r.weightKg === '1080')).toBe(true);
   });
 
+  it('keeps one row per DG column under a single IMO (no duplicate last weight)', () => {
+    // Page-1 JUDITH layout: one IMO Information, three Proper labels, three UN 3556 columns.
+    const items: DgPdfTextItem[] = [
+      item('Dangerous Cargo Manifest', 40, 40, 1),
+      item('TIIU 459062-0', 165, 505, 1),
+      item('45GP', 165, 532, 1),
+      item('IMO Information', 189, 532, 1),
+      item('220782', 165, 313, 1),
+      item('Stowage position', 165, 375, 1),
+      // Column 1
+      item('Proper ship. name:', 230, 532, 1),
+      item('3556', 217, 469, 1),
+      item('9', 217, 511, 1),
+      item('--', 217, 372, 1),
+      item('F-A', 217, 286, 1),
+      item('S-I', 217, 251, 1),
+      item('2 125,08', 217, 176, 1),
+      item('Gweight', 202, 177, 1),
+      item('2 125,08', 217, 132, 1),
+      item('Nweight', 202, 133, 1),
+      item('VEHICLE, LITHIUM ION BATTERY POWERED', 230, 466, 1),
+      item('NO', 250, 469, 1),
+      item('/ / /', 275, 466, 1),
+      // Column 2
+      item('Proper ship. name:', 316, 532, 1),
+      item('3556', 302, 469, 1),
+      item('9', 302, 511, 1),
+      item('III', 302, 373, 1),
+      item('F-A', 302, 286, 1),
+      item('S-I', 302, 251, 1),
+      item('2 131,88', 302, 176, 1),
+      item('2 131,88', 302, 132, 1),
+      item('VEHICLE, LITHIUM ION BATTERY POWERED', 316, 466, 1),
+      item('NO', 336, 469, 1),
+      item('/ / /', 361, 466, 1),
+      // Column 3
+      item('Proper ship. name:', 401, 532, 1),
+      item('3556', 388, 469, 1),
+      item('9', 388, 511, 1),
+      item('III', 388, 373, 1),
+      item('F-A', 388, 286, 1),
+      item('S-I', 388, 251, 1),
+      item('2 166,36', 388, 176, 1),
+      item('2 166,36', 388, 132, 1),
+      item('VEHICLE, LITHIUM ION BATTERY POWERED', 401, 466, 1),
+      item('NO', 421, 469, 1),
+      item('/ / /', 446, 466, 1),
+    ];
+
+    const result = parseUnifeederDangerousCargoManifest(items, {});
+    const rows = result.rows.filter((r) => r.containerNo === 'TIIU4590620');
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.weightKg)).toEqual(['2125.08', '2131.88', '2166.36']);
+    expect(rows.map((r) => r.packingGroup)).toEqual(['', 'III', 'III']);
+  });
+
+  it('reads European weights with space thousands (2 125,08)', () => {
+    const items: DgPdfTextItem[] = [
+      item('Dangerous Cargo Manifest', 40, 40, 1),
+      item('2 125,08', 138, 176, 1),
+      item('Gweight', 123, 177, 1),
+      item('2 125,08', 138, 132, 1),
+      item('Nweight', 123, 133, 1),
+      item('S-I', 138, 251, 1),
+      item('F-A', 138, 286, 1),
+      item('220782', 42, 313, 1),
+      item('Stowage position', 42, 375, 1),
+      item('III', 138, 373, 1),
+      item('3556', 138, 469, 1),
+      item('NO', 173, 469, 1),
+      item('VEHICLE, LITHIUM ION BATTERY POWERED', 152, 466, 1),
+      item('/ / /', 197, 466, 1),
+      item('9', 138, 514, 1),
+      item('TIIU 459062-0', 30, 505, 1),
+      item('45GP', 30, 532, 1),
+      item('IMO Information', 110, 532, 1),
+      item('Proper ship. name:', 152, 532, 1),
+    ];
+
+    const result = parseUnifeederDangerousCargoManifest(items, {});
+    const row = result.rows.find((r) => r.containerNo === 'TIIU4590620');
+    expect(row?.grossWeightKg).toBe('2125.08');
+    expect(row?.netWeightKg).toBe('2125.08');
+    expect(Number(row?.weightKg)).toBeGreaterThan(2000);
+  });
+
   it('merges overflow cargo on the next page into the same container (no duplicate number)', () => {
     // Page 1: container with one DG line + stow. Page 2: more DG for same box, no container/stow reprint.
     const items: DgPdfTextItem[] = [

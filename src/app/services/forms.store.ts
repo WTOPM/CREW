@@ -143,6 +143,7 @@ export class FormsStore {
       ...d,
       portOfCall: normalizePortOfCallSettings({ ...d.portOfCall, ...partial }),
     }));
+    this.state.markSectionsDirty(['home']);
     void this.state.persist('memory');
   }
 
@@ -438,6 +439,7 @@ export class FormsStore {
   addPortCallEntry(entry?: Partial<PortCallHistoryEntry>): PortCallHistoryEntry {
     const newEntry = { ...createEmptyPortCallEntry(), ...entry };
     this.data.update((d) => ({ ...d, portCallHistory: [newEntry, ...d.portCallHistory] }));
+    this.state.markSectionsDirty(['home']);
     void this.state.persist('memory');
     this.toast.showPortAdded();
     return newEntry;
@@ -475,6 +477,7 @@ export class FormsStore {
       (partial.portName != null || partial.arrivalDate != null || partial.departureDate != null
         ? 'saved'
         : 'silent');
+    this.state.markSectionsDirty(['home']);
     void this.state.persist(resolved, savedMessage);
   }
 
@@ -483,6 +486,7 @@ export class FormsStore {
       ...d,
       portCallHistory: d.portCallHistory.filter((e) => e.id !== id),
     }));
+    this.state.markSectionsDirty(['home']);
     void this.state.persist('memory');
     this.toast.showPortDeleted();
   }

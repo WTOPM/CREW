@@ -5,7 +5,8 @@
   const ZOOM_MIN = 50;
   const ZOOM_MAX = 200;
   const ZOOM_STEP = 10;
-  const APP_DATA_SCHEMA_VERSION = 19;
+  // Keep in sync with src/app/data/empty-app-data.ts APP_DATA_SCHEMA_VERSION
+  const APP_DATA_SCHEMA_VERSION = 22;
   let editorZoomPct = 100;
 
   function electronApi() {
@@ -296,6 +297,16 @@
       const prevWithoutFooterDate = global.HtmlFormEditorOverlay?.stripLiveFields
         ? global.HtmlFormEditorOverlay.stripLiveFields(prev)
         : (({ footerSignatureDate: _d, footerMasterName: _m, ...rest }) => rest)(prev);
+      const rawCellValues = global.HtmlFormLiveVoyageDate?.stripLiveVoyageKeys
+        ? global.HtmlFormLiveVoyageDate.stripLiveVoyageKeys(global._currentPositions.cellValues || {})
+        : global._currentPositions.cellValues || {};
+      // Never freeze history-table text — always re-read portCallHistory on open.
+      const cellValues = {};
+      Object.keys(rawCellValues).forEach((key) => {
+        if (/^d-\d+-\d+[a-z]*$/i.test(key)) return;
+        if (/^h-[01]-[0-3]$/.test(key)) return;
+        cellValues[key] = rawCellValues[key];
+      });
       appData.documentOverlay[overlayKey] = {
         ...prevWithoutFooterDate,
         useStamp: !!global._currentPositions.stamp.visible,
@@ -303,12 +314,11 @@
         ...(stampBox && global._currentPositions.stamp.visible ? { stampBox } : {}),
         ...(signatureBox && global._currentPositions.sig.visible ? { signatureBox } : {}),
         cellStyles: global._currentPositions.cellStyles || {},
-        cellValues: global.HtmlFormLiveVoyageDate?.stripLiveVoyageKeys
-          ? global.HtmlFormLiveVoyageDate.stripLiveVoyageKeys(global._currentPositions.cellValues || {})
-          : global._currentPositions.cellValues || {},
+        cellValues,
         dateDisplayFormat: global.HtmlFormDateFormat?.getActive?.() || global._currentPositions.dateDisplayFormat || 'dot',
         rowsPerPage: global._currentPositions.rowsPerPage ?? global.PortOfCallFormRows?.DEFAULT_ROWS ?? 11,
       };
+      // Overlay-only write: keep live portCallHistory / pdfRowCount from disk as read.
       appData.seedVersion = APP_DATA_SCHEMA_VERSION;
       global._appData = appData;
       try {

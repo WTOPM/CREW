@@ -92,6 +92,8 @@ export interface DgUnifeederManifestDocument {
   containerCount: number;
   contentFingerprint?: string;
   pdfBytesFingerprint?: string;
+  /** Absolute path to the source PDF on this PC (for open / relink). */
+  sourcePdfPath?: string;
   /** Grand Total Summary from PDF (kg, parsed). */
   pdfImoNetWeightKg?: number;
   pdfImoGrossWeightKg?: number;
@@ -203,6 +205,7 @@ export function createDgUnifeederManifestDocument(
     containerCount: partial?.containerCount ?? 0,
     contentFingerprint: (partial?.contentFingerprint ?? '').trim(),
     pdfBytesFingerprint: (partial?.pdfBytesFingerprint ?? '').trim(),
+    sourcePdfPath: (partial?.sourcePdfPath ?? '').trim(),
     pdfImoNetWeightKg: Number(partial?.pdfImoNetWeightKg) || 0,
     pdfImoGrossWeightKg: Number(partial?.pdfImoGrossWeightKg) || 0,
   };

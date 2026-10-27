@@ -1012,7 +1012,20 @@ export function resolvePortRef(ref: string, ports: Port[] = []): Port | null {
   return { name: v, code: '' };
 }
 
-/** Match manifest city names (GENOA, MARSEILLE) to the user's port list. */
+/** First name token of a port label (`La Spezia` → `la`, `Bremerhaven, DE` → `bremerhaven`). */
+function portCityToken(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .split(/[\s,(/-]/)[0]
+      ?.trim() ?? ''
+  );
+}
+
+/**
+ * Match manifest city names (GENOA, MARSEILLE, KLAIPEDA) to the user's port list.
+ * Avoids short reverse substrings: `"klaipeda".includes("la")` must not become La Spezia.
+ */
 export function resolveManifestPortName(ref: string, ports: readonly Port[] = []): string {
   const known = resolveKnownPortName(ref, ports);
   if (known) return known;
@@ -1024,19 +1037,26 @@ export function resolveManifestPortName(ref: string, ports: readonly Port[] = []
   if (byPrefix) return byPrefix.name;
 
   const byCityToken = ports.find((p) => {
-    const city =
-      p.name
-        .toLowerCase()
-        .split(/[\s,(/-]/)[0]
-        ?.trim() ?? '';
-    return city === v || city.startsWith(v) || v.startsWith(city);
+    const city = portCityToken(p.name);
+    if (!city || city.length < 3) return false;
+    if (city === v) return true;
+    // Port "Bremerhaven…" vs manifest "BREMER" / "BREMERHAVEN"
+    if (v.length >= 3 && city.startsWith(v)) return true;
+    // Manifest longer than city token — require a real prefix (not "la" ⊂ "klaipeda")
+    if (city.length >= 5 && v.startsWith(city)) return true;
+    return false;
   });
   if (byCityToken) return byCityToken.name;
 
   const byContains = ports.find((p) => {
     const n = p.name.toLowerCase();
     const c = (p.code ?? '').toLowerCase();
-    return n.includes(v) || v.includes(n.split(/\s+/)[0] ?? '') || (c && c.includes(v));
+    if (v.length >= 4 && n.includes(v)) return true;
+    if (v.length >= 3 && c && c.includes(v)) return true;
+    const token = portCityToken(p.name);
+    // Only when the port's own token is long enough to be a real city stem.
+    if (token.length >= 5 && v.includes(token)) return true;
+    return false;
   });
   if (byContains) return byContains.name;
 

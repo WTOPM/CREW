@@ -140,6 +140,33 @@ export class AppSnapshotArchiveService {
     return true;
   }
 
+  /**
+   * While a Home snapshot is loaded, fold live edits (port-call history, ship, …)
+   * back into that snapshot entry so Load again does not revive deleted ports.
+   * RAM only — caller must flush (e.g. Settings Done).
+   */
+  syncLoadedFromLiveMemory(): void {
+    const loaded = this.loaded();
+    if (!loaded) return;
+    const ship = this.storage.ship();
+    const data = cloneMainAppSnapshot(this.storage.captureMainAppSnapshot());
+    const entry: AppSnapshotEntry = {
+      ...loaded,
+      label: loaded.label,
+      savedAt: new Date().toISOString(),
+      portName: ship.portOfCall?.trim() ?? loaded.portName,
+      voyageNumber: ship.voyageNumber?.trim() ?? loaded.voyageNumber,
+      arrivalDate: ship.dateOfArrival?.trim() ?? loaded.arrivalDate,
+      data,
+    };
+    this.state.data.update((d) => ({
+      ...d,
+      appSnapshots: d.appSnapshots.map((e) => (e.id === loaded.id ? entry : e)),
+    }));
+    this.loaded.set(structuredClone(entry));
+    this.persistSession();
+  }
+
   reset(): void {
     if (this.liveBackup) {
       this.storage.applyMainAppSnapshot(this.liveBackup);
