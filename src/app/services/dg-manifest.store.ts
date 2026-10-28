@@ -786,7 +786,8 @@ export class DgManifestStore {
    * Apply MACS3 “Dagos on Board” positions onto DP WORLD onboard rows.
    * Final list wins: overwrites `stow` when different. Updates every line
    * for a matched container number.
-   * Onboard containers absent from Dagos are marked discharged (left the ship).
+   * Onboard containers absent from Dagos are marked discharged (= not on board:
+   * not loaded yet, or already left the ship).
    */
   applyUnifeederDagosPositions(positions: readonly { containerNo: string; position: string }[]): {
     checked: number;

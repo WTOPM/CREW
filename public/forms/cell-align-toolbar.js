@@ -490,4 +490,52 @@
     transformCellCase,
     applyCellCase,
   };
+
+  /** Block drag-move of selected text between cells; Ctrl+C/V still works. */
+  function isTextField(target) {
+    if (target instanceof HTMLTextAreaElement) return true;
+    if (!(target instanceof HTMLInputElement)) return false;
+    const type = (target.type || 'text').toLowerCase();
+    return (
+      type !== 'button' &&
+      type !== 'checkbox' &&
+      type !== 'radio' &&
+      type !== 'file' &&
+      type !== 'hidden' &&
+      type !== 'image' &&
+      type !== 'reset' &&
+      type !== 'submit' &&
+      type !== 'range' &&
+      type !== 'color'
+    );
+  }
+  function hasFiles(dt) {
+    if (!dt) return false;
+    if (dt.files && dt.files.length > 0) return true;
+    return Array.from(dt.types || []).includes('Files');
+  }
+  document.addEventListener(
+    'dragstart',
+    (e) => {
+      if (isTextField(e.target)) e.preventDefault();
+    },
+    true,
+  );
+  document.addEventListener(
+    'dragover',
+    (e) => {
+      if (!isTextField(e.target) || hasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+    },
+    true,
+  );
+  document.addEventListener(
+    'drop',
+    (e) => {
+      if (!isTextField(e.target) || hasFiles(e.dataTransfer)) return;
+      e.preventDefault();
+    },
+    true,
+  );
 })();

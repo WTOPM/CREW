@@ -226,19 +226,43 @@
 
   function applyFormat(prop, val) {
     selectedCells.forEach((cell) => {
-      cell.style[prop] = val;
+      if (prop === 'fontSize' && global.CrewCellFormat?.formatFontSizePt) {
+        cell.style.fontSize = global.CrewCellFormat.formatFontSizePt(val) || val;
+      } else {
+        cell.style[prop] = val;
+      }
       if (prop === 'textAlign') syncCellFlexAlignment(cell);
     });
+  }
+
+  function applyFontSizeFromToolbar() {
+    const el = document.getElementById('tb-size');
+    if (!el) return;
+    const parsed =
+      global.CrewCellFormat?.parseFontSizePt?.(el.value) ?? parseFloat(String(el.value).trim());
+    if (parsed == null || !Number.isFinite(parsed) || parsed <= 0) return;
+    const clamped = Math.min(24, Math.max(3, Math.round(parsed * 100) / 100));
+    const css = global.CrewCellFormat?.formatFontSizePt
+      ? global.CrewCellFormat.formatFontSizePt(clamped)
+      : `${clamped}pt`;
+    el.value = String(clamped);
+    applyFormat('fontSize', css);
   }
 
   function syncToolbarFromCell(cell) {
     if (!cell) return;
     const fontSel = document.getElementById('tb-font');
-    const sizeSel = document.getElementById('tb-size');
+    const sizeInp = document.getElementById('tb-size');
     const font = cell.style.fontFamily || 'Arial';
-    const size = cell.style.fontSize ? parseInt(cell.style.fontSize, 10) : 8;
+    const parsed = global.CrewCellFormat?.parseFontSizePt?.(cell.style.fontSize);
+    const size =
+      parsed != null
+        ? parsed
+        : cell.style.fontSize
+          ? Math.round(parseFloat(cell.style.fontSize) * 100) / 100 || 8
+          : 8;
     if (fontSel) fontSel.value = font.replace(/"/g, '');
-    if (sizeSel) sizeSel.value = String(size);
+    if (sizeInp) sizeInp.value = String(size);
   }
 
   function isFooterField(input) {
@@ -531,6 +555,7 @@
     root = tableRoot;
     bindEvents();
     global.applyFormat = applyFormat;
+    global.applyFontSizeFromToolbar = applyFontSizeFromToolbar;
     if (global.CrewCellAlignToolbar) {
       global.CrewCellAlignToolbar.init({
         getSelectedCells: () => selectedCells,

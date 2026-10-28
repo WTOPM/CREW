@@ -40,15 +40,27 @@
 
       @if (d.comparison; as cmp) {
         <div class="confirm-dialog__compare" id="confirm-dialog-message">
-          <div class="confirm-dialog__side confirm-dialog__side--manifest">
+          <button
+            type="button"
+            class="confirm-dialog__side confirm-dialog__side--manifest confirm-dialog__side--btn"
+            (click)="cancel()"
+            [attr.title]="'Keep ' + cmp.leftLabel"
+          >
             <span class="confirm-dialog__side-label">{{ cmp.leftLabel }}</span>
             <strong class="confirm-dialog__side-value">{{ cmp.leftValue }}</strong>
-          </div>
+            <span class="confirm-dialog__side-pick">Keep this</span>
+          </button>
           <div class="confirm-dialog__vs" aria-hidden="true">≠</div>
-          <div class="confirm-dialog__side confirm-dialog__side--reference">
+          <button
+            type="button"
+            class="confirm-dialog__side confirm-dialog__side--reference confirm-dialog__side--btn"
+            (click)="accept()"
+            [attr.title]="'Use ' + cmp.rightLabel"
+          >
             <span class="confirm-dialog__side-label">{{ cmp.rightLabel }}</span>
             <strong class="confirm-dialog__side-value">{{ cmp.rightValue }}</strong>
-          </div>
+            <span class="confirm-dialog__side-pick">Use this</span>
+          </button>
         </div>
         @if (d.message.trim()) {
           <p class="confirm-dialog__hint">{{ d.message }}</p>

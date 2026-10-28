@@ -80,31 +80,33 @@
     </section>
 
     <section class="uf-header__totals-row" aria-label="Manifest totals">
+      @let summary = unifeederManifestSummary();
       <div class="uf-totals-panel">
-        @if (unifeederManifestSummary().lengthBuckets.length > 0) {
-          <div class="uf-stat-card uf-stat-card--lengths">
-            <div class="uf-stat-card__head">
+        @if (summary.lengthBuckets.length > 0) {
+          <article class="uf-stat-card uf-stat-card--lengths">
+            <header class="uf-stat-card__head">
               <span class="uf-stat-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
                   <path fill="currentColor" d="M4 6h16v2H4V6zm0 5h10v2H4v-2zm0 5h16v2H4v-2z" />
                 </svg>
               </span>
               <span class="uf-stat-card__title">Lengths</span>
-            </div>
-            <div class="uf-stat-card__row">
-              @for (bucket of unifeederManifestSummary().lengthBuckets; track bucket.label) {
-                <span class="uf-stat-chip">
-                  <span class="uf-stat-chip__label">{{ bucket.label }}</span>
-                  <span class="uf-stat-chip__value">{{ bucket.containerCount }}</span>
+              <span class="uf-stat-card__meta">{{ summary.containerCount }} CONTAINERS</span>
+            </header>
+            <div class="uf-stat-card__metrics" role="list">
+              @for (bucket of summary.lengthBuckets; track bucket.label) {
+                <span class="uf-metric" role="listitem" [attr.aria-label]="bucket.label + ': ' + bucket.containerCount">
+                  <span class="uf-metric__key">{{ bucket.label }}</span>
+                  <span class="uf-metric__val">{{ bucket.containerCount }}</span>
                 </span>
               }
             </div>
-          </div>
+          </article>
         }
 
-        @if (unifeederManifestSummary().classRows.length > 0) {
-          <div class="uf-stat-card uf-stat-card--dg">
-            <div class="uf-stat-card__head">
+        @if (summary.classRows.length > 0) {
+          <article class="uf-stat-card uf-stat-card--dg">
+            <header class="uf-stat-card__head">
               <span class="uf-stat-card__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
                   <path
@@ -114,20 +116,36 @@
                 </svg>
               </span>
               <span class="uf-stat-card__title">DG / kg</span>
-            </div>
-            <div class="uf-stat-card__row">
-              @for (row of unifeederManifestSummary().classRows; track row.dgClass) {
-                <span class="uf-stat-chip uf-stat-chip--dg">
+              @let totalWt = stripWeightParts(summary.totalKg);
+              <span class="uf-stat-card__meta uf-stat-card__meta--weight">
+                <span class="uf-stat-card__meta-whole">{{ totalWt.whole }}</span>@if (totalWt.fraction) {
+                  <span class="uf-stat-card__meta-frac">{{ totalWt.fraction }}</span>
+                }
+                <span class="uf-stat-card__meta-unit">kg</span>
+              </span>
+            </header>
+            <div class="uf-stat-card__metrics" role="list">
+              @for (row of summary.classRows; track row.dgClass) {
+                @let classWt = stripWeightParts(row.totalKg);
+                <span
+                  class="uf-metric uf-metric--dg"
+                  role="listitem"
+                  [attr.aria-label]="'Class ' + row.dgClass + ': ' + formatUnifeederWeight(row.totalKg) + ' kg'"
+                >
                   <span
-                    class="uf-stat-chip__label dg-hint-tooltip-host"
+                    class="uf-metric__key dg-hint-tooltip-host"
                     [appDgClassTooltip]="row.dgClass"
                     >{{ row.dgClass }}</span
                   >
-                  <span class="uf-stat-chip__value">{{ formatUnifeederWeight(row.totalKg) }}</span>
+                  <span class="uf-metric__val">
+                    <span class="uf-metric__whole">{{ classWt.whole }}</span>@if (classWt.fraction) {
+                      <span class="uf-metric__frac">{{ classWt.fraction }}</span>
+                    }
+                  </span>
                 </span>
               }
             </div>
-          </div>
+          </article>
         }
       </div>
     </section>
@@ -912,9 +930,20 @@
                   <input
                     class="dg-cell-input dg-cell-input--mono dg-cell-input--weight"
                     [class.dg-cell-input--readonly]="!line.editable"
+                    [class.dg-cell-input--dagos-net-mismatch]="!!dagosNetMismatchFor(line)"
+                    [attr.title]="
+                      dagosNetMismatchFor(line)
+                        ? 'Net differs from Dagos (' +
+                          dagosNetMismatchFor(line)!.programNetKg +
+                          ' → ' +
+                          dagosNetMismatchFor(line)!.dagosNetKg +
+                          ') — click to choose'
+                        : null
+                    "
                     [ngModel]="unifeederWeightDisplay(line)"
                     [readonly]="!line.editable"
                     [tabindex]="line.editable ? 0 : -1"
+                    (click)="onDagosNetMismatchClick($event, line)"
                     (ngModelChange)="onUnifeederDisplayRowChange(line, 'weightKg', $event)"
                     (blur)="onUnifeederWeightBlur(line, $any($event.target).value)"
                     inputmode="decimal"

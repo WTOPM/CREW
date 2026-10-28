@@ -43,7 +43,8 @@ describe('applyUnifeederReferenceOrManifest', () => {
     expect(next.dgClass).toBe('6.1');
   });
 
-  it('fills packing group from DG Reference when the manifest left it blank', () => {
+  it('does not guess packing group when the manifest left it blank and several PG variants exist', () => {
+    // UN 3288 has I/II/III in the reference — wait for an explicit PG choice.
     const { row: next } = applyUnifeederReferenceOrManifest(
       row({
         unNo: '3288',
@@ -53,9 +54,9 @@ describe('applyUnifeederReferenceOrManifest', () => {
       }),
     );
 
-    expect(next.packingGroup).toBe('I');
-    expect(next.dgClass).toBe('6.1');
-    expect(next.goodsDescription.toUpperCase()).toContain('TOXIC SOLID');
+    expect(next.packingGroup).toBe('');
+    expect(next.dgClass).toBe('');
+    expect(next.goodsDescription).toBe('');
   });
 
   it('replaces packaging-note goods description with DG Reference', () => {

@@ -146,7 +146,7 @@ export class DgSheetSelectDirective implements OnDestroy {
     if (!this.cellFromEvent(event) && this.headerColFromEvent(event) == null) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    this.toast.show('Switch to Edit mode to change the inventory', 'info');
+    this.toast.show('Switch to Edit mode to make changes', 'info');
   };
 
   private readonly onCopy = (event: Event): void => {

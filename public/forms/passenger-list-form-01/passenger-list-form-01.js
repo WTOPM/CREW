@@ -240,15 +240,23 @@ const tbody = document.getElementById('tbody');
 
     function syncToolbarFromCell(cell) {
       if (!cell || cell.classList.contains('ci-rno')) return;
+      if (window.HtmlFormCrewListKit?.syncToolbarFromCell) {
+        HtmlFormCrewListKit.syncToolbarFromCell(cell);
+        return;
+      }
       const fontSel = document.getElementById('tb-font');
-      const sizeSel = document.getElementById('tb-size');
+      const sizeInp = document.getElementById('tb-size');
       const font = window.CrewCellFormat
         ? CrewCellFormat.resolveFontSelectValue(cell.style.fontFamily, fontSel)
         : (cell.style.fontFamily || 'Arial');
-      const size = cell.style.fontSize ? parseInt(cell.style.fontSize, 10) : 6;
+      const parsed = window.CrewCellFormat?.parseFontSizePt?.(cell.style.fontSize);
+      const size = parsed != null ? parsed : 6;
       if (fontSel) fontSel.value = font;
-      if (sizeSel) sizeSel.value = String(size);
+      if (sizeInp) sizeInp.value = String(size);
     }
+
+    window.applyFontSizeFromToolbar = () =>
+      HtmlFormCrewListKit.applyFontSizeFromToolbar(applyFormat);
 
     function returnUrl() {
       const raw = new URLSearchParams(window.location.search).get('return');
@@ -346,11 +354,16 @@ const tbody = document.getElementById('tbody');
     function applyFormat(prop, val) {
       selectedCells.forEach((cell) => {
         if (cell.classList.contains('ci-rno')) return;
+        if (prop === 'fontSize' && window.HtmlFormCrewListKit?.applyFontSizeToCell) {
+          HtmlFormCrewListKit.applyFontSizeToCell(cell, val);
+          return;
+        }
         cell.style[prop] = val;
         if (prop === 'textAlign') syncCellFlexAlignment(cell);
       });
       HtmlFormHeaderCells.applyFormat(prop, val);
     }
+    window.applyFormat = applyFormat;
 
     let stampImgUrl = null;
     let sigImgUrl = null;

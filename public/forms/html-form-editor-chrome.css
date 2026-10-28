@@ -195,7 +195,8 @@ body.ss-editor {
   gap: 0.35rem;
 }
 
-.side-panel__select {
+.side-panel__select,
+.side-panel__input {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -207,18 +208,44 @@ body.ss-editor {
   font-family: inherit;
   font-size: 0.78rem;
   font-weight: 500;
-  cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.side-panel__select:hover {
+.side-panel__select {
+  cursor: pointer;
+}
+
+.side-panel__select:hover,
+.side-panel__input:hover {
   border-color: #94a3b8;
 }
 
-.side-panel__select:focus-visible {
+.side-panel__select:focus-visible,
+.side-panel__input:focus-visible {
   outline: none;
   border-color: var(--sp-accent);
   box-shadow: 0 0 0 3px rgb(37 99 235 / 15%);
+}
+
+.side-panel__field-label {
+  display: block;
+  margin: 0.15rem 0 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sp-muted);
+}
+
+.side-panel__input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+  font-variant-numeric: tabular-nums;
+}
+
+.side-panel__input[type='number']::-webkit-outer-spin-button,
+.side-panel__input[type='number']::-webkit-inner-spin-button {
+  opacity: 1;
 }
 
 /* ── Zoom ── */

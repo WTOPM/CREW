@@ -25,6 +25,7 @@ import {
   mergeUnifeederRowsInContainers,
   pickUnifeederContainerHeaderField,
   planUnifeederMergedWeightDisplays,
+  unifeederContainerKey,
   type DgUnifeederContainerDisplayGroup,
   type DgUnifeederRowDisplay,
 } from '../../utils/dg-unifeeder-merge.util';
@@ -87,7 +88,12 @@ import {
   dgFlashPointTone,
   suggestUnifeederFlashPointFormat,
 } from '../../utils/dg-flash-point-display.util';
+import { preferManifestGoodsDescription } from '../../utils/dg-goods-description.util';
 import { DgRowSelection } from '../../utils/dg-row-selection.util';
+import {
+  findUnifeederDagosNetMismatches,
+  type UnifeederDagosNetMismatch,
+} from '../../utils/dg-unifeeder-dagos-net.util';
 
 /**
  * The DP WORLD / UNIFEEDER inventory tab of the DG page: import history, onboard rows
@@ -162,6 +168,18 @@ export class DgUnifeederInventoryComponent {
   protected readonly unifeederSortColumn = signal<DgUnifeederSortColumn | null>(null);
   protected readonly unifeederSortDirection = signal<DgUnifeederSortDirection>('asc');
 
+  /** rowId → Dagos net kg suggestion after Dagos import (cleared when resolved). */
+  protected readonly dagosNetMismatches = signal<ReadonlyMap<string, UnifeederDagosNetMismatch>>(
+    new Map(),
+  );
+
+  /**
+   * While a cell is focused: keep that container visible (search must not hide it mid-edit)
+   * and freeze list order (sort must not jump the row away on each Backspace).
+   */
+  protected readonly inventoryEditContainerKey = signal<string | null>(null);
+  private readonly inventoryEditOrderFreeze = signal<string[] | null>(null);
+
   /** Multi-select by list No (container groups). */
   protected readonly rowSelection = new DgRowSelection();
 
@@ -179,6 +197,41 @@ export class DgUnifeederInventoryComponent {
   @HostListener('document:keydown.escape')
   protected onEscapeClearSelection(): void {
     this.rowSelection.clear();
+  }
+
+  @HostListener('focusin', ['$event'])
+  protected onInventoryFocusIn(event: FocusEvent): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    if (target.readOnly || target.disabled) return;
+    const key = target
+      .closest('[data-uf-container-key]')
+      ?.getAttribute('data-uf-container-key');
+    if (!key) return;
+    if (!this.inventoryEditOrderFreeze()) {
+      this.inventoryEditOrderFreeze.set(
+        this.visibleUnifeederContainerGroups().map((g) => g.key),
+      );
+    }
+    this.inventoryEditContainerKey.set(key);
+  }
+
+  @HostListener('focusout', ['$event'])
+  protected onInventoryFocusOut(_event: FocusEvent): void {
+    queueMicrotask(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) {
+        const key = active
+          .closest('[data-uf-container-key]')
+          ?.getAttribute('data-uf-container-key');
+        if (key) {
+          this.inventoryEditContainerKey.set(key);
+          return;
+        }
+      }
+      this.inventoryEditContainerKey.set(null);
+      this.inventoryEditOrderFreeze.set(null);
+    });
   }
 
   @HostListener('document:pointerup')
@@ -217,14 +270,31 @@ export class DgUnifeederInventoryComponent {
 
   protected readonly visibleUnifeederContainerGroups = computed(
     (): DgUnifeederContainerDisplayGroup[] => {
-      const filtered = filterUnifeederOnboardRows(
-        this.filteredUnifeederRows(),
-        this.unifeederInventorySearch(),
-      );
+      const baseRows = this.filteredUnifeederRows();
+      let filtered = filterUnifeederOnboardRows(baseRows, this.unifeederInventorySearch());
+      const editKey = this.inventoryEditContainerKey();
+      if (editKey) {
+        const have = new Set(filtered.map((r) => r.id));
+        const pinned = baseRows.filter(
+          (r) => unifeederContainerKey(r) === editKey && !have.has(r.id),
+        );
+        if (pinned.length) filtered = [...filtered, ...pinned];
+      }
       const options = this.unifeederWeightOptions();
       let rawGroups = groupUnifeederRawRowsByContainer(filtered);
+      const freeze = this.inventoryEditOrderFreeze();
       const column = this.resolveUnifeederSortColumn();
-      if (column) {
+      if (freeze?.length) {
+        const rank = new Map(freeze.map((key, i) => [key, i]));
+        rawGroups = [...rawGroups].sort((a, b) => {
+          const ai = rank.get(a.key);
+          const bi = rank.get(b.key);
+          if (ai == null && bi == null) return 0;
+          if (ai == null) return 1;
+          if (bi == null) return -1;
+          return ai - bi;
+        });
+      } else if (column) {
         rawGroups = sortUnifeederContainerGroups(rawGroups, column, this.unifeederSortDirection());
       }
       const weightPlan = planUnifeederMergedWeightDisplays(filtered, options);
@@ -423,6 +493,11 @@ export class DgUnifeederInventoryComponent {
   }
 
   protected onUnifeederRowChange(rowId: string, field: DgUnifeederRowField, value: string): void {
+    const current = this.unifeederLibrary().onboard.find((r) => r.id === rowId);
+    const prev = String(current?.[field] ?? '').trim();
+    const nextVal = String(value ?? '').trim();
+    const changed = prev !== nextVal;
+
     const patch: Partial<Omit<DgUnifeederRow, 'id' | 'sourceManifestId'>> = { [field]: value };
     if (field === 'fire') {
       const pageRef = mfagFirePageRefFromEmsCode(value);
@@ -434,9 +509,10 @@ export class DgUnifeederInventoryComponent {
     }
     this.dg.updateUnifeederRow(rowId, patch);
 
-    // Packing group / description choose the IMDG list variant — refill empty
-    // EmS / class gaps from the newly matched row without overwriting manifesto text.
-    if (field === 'packingGroup' || field === 'goodsDescription') {
+    // Packing group / description choose the IMDG list variant — fill empty
+    // EmS / class gaps only. Skip when blur re-commits the same value (e.g. opening
+    // the MANIFEST vs DG Reference dialog steals focus and must not rewrite the row).
+    if (changed && (field === 'packingGroup' || field === 'goodsDescription')) {
       this.rematchUnifeederRowFromReference(rowId, field === 'packingGroup');
     }
   }
@@ -458,18 +534,30 @@ export class DgUnifeederInventoryComponent {
     }
 
     const next = resolved.patch;
+    const keep = (manifest: string, ref: string | undefined): string => {
+      const fromManifest = String(manifest ?? '').trim();
+      if (fromManifest) return fromManifest;
+      return String(ref ?? '').trim();
+    };
+    const dgClass = keep(current.dgClass, next.dgClass);
+    const packingGroup = keep(current.packingGroup, next.packingGroup);
+    const subRisk = keep(current.subRisk, next.subRisk);
+    const fire = keep(current.fire, next.fire);
+    const spillage = keep(current.spillage, next.spillage);
+    const goodsDescription = preferManifestGoodsDescription(
+      current.goodsDescription,
+      next.goodsDescription,
+    );
+
     this.dg.updateUnifeederRow(rowId, {
-      dgClass: next.dgClass ?? current.dgClass,
-      goodsDescription: next.goodsDescription ?? current.goodsDescription,
-      packingGroup: next.packingGroup || current.packingGroup,
-      subRisk: next.subRisk ?? current.subRisk,
-      fire: next.fire ?? current.fire,
-      spillage: next.spillage ?? current.spillage,
-      fireSchedule:
-        mfagFirePageRefFromEmsCode(next.fire ?? current.fire) || current.fireSchedule,
-      spillageSchedule:
-        mfagSpillagePageRefFromEmsCode(next.spillage ?? current.spillage) ||
-        current.spillageSchedule,
+      dgClass,
+      goodsDescription,
+      packingGroup,
+      subRisk,
+      fire,
+      spillage,
+      fireSchedule: mfagFirePageRefFromEmsCode(fire) || current.fireSchedule,
+      spillageSchedule: mfagSpillagePageRefFromEmsCode(spillage) || current.spillageSchedule,
       ...(clearKeepOnPgChange ? { referenceKeepManifest: undefined } : {}),
     });
   }
@@ -835,6 +923,10 @@ export class DgUnifeederInventoryComponent {
           );
           return;
         }
+        // Dagos Net W. is the onboard source of truth for net — switch display to NET.
+        if (this.unifeederLibrary().useGrossWeight) {
+          this.dg.updateUnifeederViewSettings({ useGrossWeight: false });
+        }
         const applied = this.dg.applyUnifeederDagosPositions(dagosResult.positions);
         if (applied.checked === 0 && applied.discharged === 0) {
           this.toast.showError('No matching onboard containers found for Dagos positions');
@@ -854,7 +946,7 @@ export class DgUnifeederInventoryComponent {
           }
           this.rowSelection.selectIds(applied.dischargedContainers);
           this.toast.show(
-            `${applied.discharged} container(s) missing from Dagos — marked discharged`,
+            `${applied.discharged} container(s) in manifesto but not in Dagos — marked not onboard (not loaded yet, or already left)`,
             'warning',
           );
         } else {
@@ -866,6 +958,7 @@ export class DgUnifeederInventoryComponent {
             'info',
           );
         }
+        await this.reconcileUnifeederDagosNetWeights(dagosResult.lines);
         return;
       }
 
@@ -936,6 +1029,133 @@ export class DgUnifeederInventoryComponent {
       return formatDgWeightKgGrossDisplay(value) || '0';
     }
     return formatDgWeightKgDisplay(value) || '0';
+  }
+
+  protected dagosNetMismatchFor(row: DgUnifeederRowDisplay): UnifeederDagosNetMismatch | null {
+    const map = this.dagosNetMismatches();
+    for (const id of row.sourceRowIds) {
+      const hit = map.get(id);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  protected async onDagosNetMismatchClick(
+    event: MouseEvent,
+    row: DgUnifeederRowDisplay,
+  ): Promise<void> {
+    const mismatch = this.dagosNetMismatchFor(row);
+    if (!mismatch) return;
+    event.preventDefault();
+    event.stopPropagation();
+    await this.promptDagosNetMismatch(mismatch);
+  }
+
+  private async reconcileUnifeederDagosNetWeights(
+    lines: Parameters<typeof findUnifeederDagosNetMismatches>[1],
+  ): Promise<void> {
+    const mismatches = findUnifeederDagosNetMismatches(this.unifeederLibrary().onboard, lines);
+    if (!mismatches.length) {
+      this.dagosNetMismatches.set(new Map());
+      return;
+    }
+    const map = new Map(mismatches.map((m) => [m.rowId, m]));
+    this.dagosNetMismatches.set(map);
+
+    const result = await this.confirmDialog.confirm({
+      title: 'Net weight differs from Dagos',
+      message:
+        `${mismatches.length} line(s) have a different Net W. than Dagos on Board.\n\n` +
+        `Display switched to NET. Highlighted weight cells can be fixed one-by-one, or apply all now.`,
+      comparison: {
+        leftLabel: 'PROGRAM (example)',
+        leftValue: `${mismatches[0].containerNo} UN${mismatches[0].unNo || '—'} · ${mismatches[0].programNetKg}`,
+        rightLabel: 'DAGOS',
+        rightValue: mismatches[0].dagosNetKg,
+      },
+      cancelLabel: 'Keep all PROGRAM',
+      confirmLabel: 'Use all DAGOS',
+      altLabel: 'Review one-by-one',
+      dismissOnBackdrop: false,
+      dismissOnEscape: false,
+    });
+
+    if (result === false) {
+      this.dagosNetMismatches.set(new Map());
+      this.toast.show(`Kept PROGRAM net on ${mismatches.length} line(s)`, 'success');
+      return;
+    }
+    if (result === true) {
+      this.applyDagosNetMismatches(mismatches);
+      this.dagosNetMismatches.set(new Map());
+      this.toast.show(`Updated ${mismatches.length} net weight(s) from Dagos`, 'success');
+      return;
+    }
+    // Review one-by-one — leave highlights; first prompt opens immediately.
+    if (result === 'alt' && mismatches[0]) {
+      this.toast.show(`${mismatches.length} net weight(s) highlighted — click a cell to choose`, 'info');
+      await this.promptDagosNetMismatch(mismatches[0]);
+    }
+  }
+
+  private async promptDagosNetMismatch(mismatch: UnifeederDagosNetMismatch): Promise<void> {
+    const remaining = [...this.dagosNetMismatches().values()];
+    const multi = remaining.length > 1;
+    const result = await this.confirmDialog.confirm({
+      title: 'Net weight — PROGRAM vs Dagos',
+      message: multi
+        ? `${remaining.length} differences left. Choose for this line or all remaining.`
+        : 'Choose which net weight to keep.',
+      comparison: {
+        leftLabel: 'PROGRAM',
+        leftValue: `${mismatch.containerNo} UN${mismatch.unNo || '—'} · ${mismatch.programNetKg}`,
+        rightLabel: 'DAGOS',
+        rightValue: mismatch.dagosNetKg,
+      },
+      cancelLabel: 'Keep PROGRAM',
+      confirmLabel: 'Use DAGOS',
+      alt2Label: multi ? `Keep all PROGRAM (${remaining.length})` : undefined,
+      altLabel: multi ? `Use all DAGOS (${remaining.length})` : undefined,
+      dismissOnBackdrop: false,
+      dismissOnEscape: false,
+    });
+
+    if (result === false) {
+      this.clearDagosNetMismatch(mismatch.rowId);
+      this.toast.show('Kept PROGRAM net', 'success');
+      return;
+    }
+    if (result === 'alt2') {
+      this.dagosNetMismatches.set(new Map());
+      this.toast.show(`Kept PROGRAM net on ${remaining.length} line(s)`, 'success');
+      return;
+    }
+    if (result === 'alt') {
+      this.applyDagosNetMismatches(remaining);
+      this.dagosNetMismatches.set(new Map());
+      this.toast.show(`Updated ${remaining.length} net weight(s) from Dagos`, 'success');
+      return;
+    }
+    if (result !== true) return;
+    this.applyDagosNetMismatches([mismatch]);
+    this.clearDagosNetMismatch(mismatch.rowId);
+    this.toast.show('Updated net weight from Dagos', 'success');
+  }
+
+  private applyDagosNetMismatches(mismatches: readonly UnifeederDagosNetMismatch[]): void {
+    const round = this.unifeederLibrary().roundWeights;
+    this.dg.updateUnifeederRows(
+      mismatches.map((m) => ({
+        id: m.rowId,
+        partial: commitDgDualWeightEdit(m.dagosNetKg, false, round),
+      })),
+    );
+  }
+
+  private clearDagosNetMismatch(rowId: string): void {
+    const next = new Map(this.dagosNetMismatches());
+    next.delete(rowId);
+    this.dagosNetMismatches.set(next);
   }
 
   protected stripWeightParts(value: number): { whole: string; fraction: string } {
@@ -1110,10 +1330,14 @@ export class DgUnifeederInventoryComponent {
       confirmLabel: 'Use DG Reference',
       alt2Label: multi ? `Fix all MANIFEST (${identical.length})` : undefined,
       altLabel: multi ? `Fix all Reference (${identical.length})` : undefined,
+      // Must pick a button — backdrop/Escape must not silently rewrite the row.
+      dismissOnBackdrop: false,
+      dismissOnEscape: false,
     });
 
     if (result === false) {
       this.dismissUnifeederRefMismatch(row, mismatch);
+      this.toast.show(`Kept MANIFEST ${label.toLowerCase()}`, 'success');
       return;
     }
     if (result === 'alt2') {
@@ -1132,10 +1356,12 @@ export class DgUnifeederInventoryComponent {
       );
       return;
     }
+    if (result !== true) return;
     this.applyUnifeederRefMismatch(
       this.sourceRowsForDisplay(row).filter((r) => !!getUnifeederReferenceMismatch(r, field)),
       mismatch,
     );
+    this.toast.show(`Updated ${label.toLowerCase()} from DG Reference`, 'success');
   }
 
   private resolveUnifeederRefMismatch(
@@ -1169,10 +1395,13 @@ export class DgUnifeederInventoryComponent {
     mismatch: UnifeederReferenceMismatch,
   ): void {
     if (!rows.length) return;
+    // Re-assert manifesto text (blur/rematch must not leave a reference value) and
+    // remember the declined suggestion so the highlight stays off.
     this.dg.updateUnifeederRows(
       rows.map((r) => ({
         id: r.id,
         partial: {
+          [mismatch.field]: mismatch.currentValue,
           referenceKeepManifest: {
             ...r.referenceKeepManifest,
             [mismatch.field]: mismatch.referenceValue,
@@ -1207,6 +1436,12 @@ export class DgUnifeederInventoryComponent {
         return { id: r.id, partial: patch };
       }),
     );
+    // After adopting a reference PG / PSN, fill only empty EmS / class gaps.
+    if (mismatch.field === 'packingGroup' || mismatch.field === 'goodsDescription') {
+      for (const r of rows) {
+        this.rematchUnifeederRowFromReference(r.id, false);
+      }
+    }
   }
 
   private buildUnifeederExportContext(): DgUnifeederExportContext {

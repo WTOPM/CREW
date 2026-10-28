@@ -49,14 +49,61 @@
   background: #f8fafc;
 }
 
+.confirm-dialog__side--btn {
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.08s ease;
+}
+
+.confirm-dialog__side--btn:hover {
+  transform: translateY(-1px);
+}
+
+.confirm-dialog__side--btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 22%);
+}
+
 .confirm-dialog__side--manifest {
   border-color: #fdba74;
   background: linear-gradient(180deg, #fff7ed 0%, #fff 100%);
 }
 
+.confirm-dialog__side--manifest.confirm-dialog__side--btn:hover {
+  border-color: #f97316;
+  box-shadow: 0 0 0 2px rgb(249 115 22 / 16%);
+}
+
 .confirm-dialog__side--reference {
   border-color: #93c5fd;
   background: linear-gradient(180deg, #eff6ff 0%, #fff 100%);
+}
+
+.confirm-dialog__side--reference.confirm-dialog__side--btn:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 16%);
+}
+
+.confirm-dialog__side-pick {
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.confirm-dialog__side--manifest .confirm-dialog__side-pick {
+  color: #ea580c;
+}
+
+.confirm-dialog__side--reference .confirm-dialog__side-pick {
+  color: #2563eb;
 }
 
 .confirm-dialog__side-label {

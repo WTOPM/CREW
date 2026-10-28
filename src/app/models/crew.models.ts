@@ -392,6 +392,182 @@ export interface CrewArrFormSettings {
   identityDocumentType: string;
 }
 
+/** Home page crew/passenger list chrome: Edit (actions) vs Table (copy cells). */
+export type HomeListViewMode = 'edit' | 'table';
+
+/**
+ * Copyable / toggleable columns in home Table view (crew).
+ * Mirrors Edit crew member fields — no scans / signature images (display-only).
+ */
+export type HomeCrewTableColumnId =
+  | 'index'
+  | 'family'
+  | 'given'
+  | 'rank'
+  | 'nationality'
+  | 'gender'
+  | 'dateOfBirth'
+  | 'placeOfBirth'
+  | 'passport'
+  | 'passportPlaceOfIssue'
+  | 'passportIssueDate'
+  | 'passportExpiryDate'
+  | 'seamansBook'
+  | 'seamansBookPlaceOfIssue'
+  | 'sbookIssueDate'
+  | 'sbookExpiryDate'
+  | 'cyprusSeamansBook'
+  | 'cyprusIssueDate'
+  | 'cyprusExpiryDate'
+  | 'visa'
+  | 'visaIssueDate'
+  | 'visaExpiryDate'
+  | 'joiningDate'
+  | 'joiningPort'
+  | 'cabin'
+  | 'vaccineMedicalProduct'
+  | 'dateOfVaccination'
+  | 'dateOfYellowFeverVaccination'
+  | 'yellowFeverExpiry';
+
+export const HOME_CREW_TABLE_COLUMN_OPTIONS: readonly {
+  id: HomeCrewTableColumnId;
+  label: string;
+}[] = [
+  { id: 'index', label: '#' },
+  { id: 'family', label: 'Family Name' },
+  { id: 'given', label: 'Given Names' },
+  { id: 'rank', label: 'Rank' },
+  { id: 'nationality', label: 'Nationality' },
+  { id: 'gender', label: 'Gender' },
+  { id: 'dateOfBirth', label: 'Date of Birth' },
+  { id: 'placeOfBirth', label: 'Place of Birth' },
+  { id: 'passport', label: 'Passport No.' },
+  { id: 'passportPlaceOfIssue', label: 'Passport Place of Issue' },
+  { id: 'passportIssueDate', label: 'Passport Issue' },
+  { id: 'passportExpiryDate', label: 'Passport Expiry' },
+  { id: 'seamansBook', label: "S/Book No." },
+  { id: 'seamansBookPlaceOfIssue', label: 'S/Book Place of Issue' },
+  { id: 'sbookIssueDate', label: 'S/Book Issue' },
+  { id: 'sbookExpiryDate', label: 'S/Book Expiry' },
+  { id: 'cyprusSeamansBook', label: 'Flag State Book No.' },
+  { id: 'cyprusIssueDate', label: 'Flag State Issue' },
+  { id: 'cyprusExpiryDate', label: 'Flag State Expiry' },
+  { id: 'visa', label: 'Visa / Type' },
+  { id: 'visaIssueDate', label: 'Visa Issue' },
+  { id: 'visaExpiryDate', label: 'Visa Expiry' },
+  { id: 'joiningDate', label: 'Joining Date' },
+  { id: 'joiningPort', label: 'Joining Port' },
+  { id: 'cabin', label: 'Cabin' },
+  { id: 'vaccineMedicalProduct', label: 'COVID Vaccine' },
+  { id: 'dateOfVaccination', label: 'COVID Vaccination Date' },
+  { id: 'dateOfYellowFeverVaccination', label: 'YF Vaccination Date' },
+  { id: 'yellowFeverExpiry', label: 'YF Expiry' },
+];
+
+/** Passenger Table view — fields that exist on passengers (+ Rank as constant). */
+export const HOME_PAX_TABLE_COLUMN_IDS: readonly HomeCrewTableColumnId[] = [
+  'index',
+  'family',
+  'given',
+  'rank',
+  'nationality',
+  'gender',
+  'dateOfBirth',
+  'placeOfBirth',
+  'passport',
+  'passportIssueDate',
+  'passportExpiryDate',
+];
+
+export const DEFAULT_HOME_CREW_TABLE_COLUMNS: readonly HomeCrewTableColumnId[] = [
+  'index',
+  'family',
+  'given',
+  'rank',
+  'nationality',
+  'passport',
+  'joiningDate',
+  'joiningPort',
+];
+
+/** Columns menu sections (Table view). */
+export const HOME_CREW_TABLE_COLUMN_GROUPS: readonly {
+  title: string;
+  ids: readonly HomeCrewTableColumnId[];
+}[] = [
+  {
+    title: 'Personal',
+    ids: [
+      'index',
+      'family',
+      'given',
+      'rank',
+      'nationality',
+      'gender',
+      'dateOfBirth',
+      'placeOfBirth',
+    ],
+  },
+  {
+    title: 'Passport',
+    ids: ['passport', 'passportPlaceOfIssue', 'passportIssueDate', 'passportExpiryDate'],
+  },
+  {
+    title: "Seaman's book",
+    ids: ['seamansBook', 'seamansBookPlaceOfIssue', 'sbookIssueDate', 'sbookExpiryDate'],
+  },
+  {
+    title: 'Flag state book',
+    ids: ['cyprusSeamansBook', 'cyprusIssueDate', 'cyprusExpiryDate'],
+  },
+  {
+    title: 'Visa',
+    ids: ['visa', 'visaIssueDate', 'visaExpiryDate'],
+  },
+  {
+    title: 'Joining',
+    ids: ['joiningDate', 'joiningPort', 'cabin'],
+  },
+  {
+    title: 'Vaccination',
+    ids: [
+      'vaccineMedicalProduct',
+      'dateOfVaccination',
+      'dateOfYellowFeverVaccination',
+      'yellowFeverExpiry',
+    ],
+  },
+];
+
+export interface HomeListViewSettings {
+  mode: HomeListViewMode;
+  /** Visible columns in Table mode (crew lists). */
+  crewTableColumns: HomeCrewTableColumnId[];
+}
+
+export function createDefaultHomeListViewSettings(): HomeListViewSettings {
+  return {
+    mode: 'edit',
+    crewTableColumns: [...DEFAULT_HOME_CREW_TABLE_COLUMNS],
+  };
+}
+
+export function normalizeHomeListViewSettings(
+  raw?: Partial<HomeListViewSettings> | null,
+): HomeListViewSettings {
+  const defaults = createDefaultHomeListViewSettings();
+  if (!raw) return defaults;
+  const allowed = new Set(HOME_CREW_TABLE_COLUMN_OPTIONS.map((c) => c.id));
+  const cols = (raw.crewTableColumns ?? defaults.crewTableColumns)
+    .map((id) => String(id).trim() as HomeCrewTableColumnId)
+    .filter((id) => allowed.has(id));
+  return {
+    mode: raw.mode === 'table' ? 'table' : 'edit',
+    crewTableColumns: cols.length ? [...new Set(cols)] : [...defaults.crewTableColumns],
+  };
+}
+
 /** MARSEC / SEC. LVL. per port call (1–3). */
 export type PortSecLvl = '1' | '2' | '3';
 
@@ -550,6 +726,8 @@ export interface AppData {
   /** Home/PDF departure order when lists diverge (member ids). */
   crewDepartureOrder?: string[];
   crewArr: CrewArrFormSettings;
+  /** Home page list display: Edit vs Table (cell copy) + column visibility. */
+  homeListView?: HomeListViewSettings;
   passengers: PassengerMember[];
   /** Home/PDF passenger arrival order when lists diverge. */
   passengerArrivalOrder?: string[];

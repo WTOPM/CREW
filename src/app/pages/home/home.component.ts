@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 
@@ -22,6 +22,11 @@ import {
   type CrewListMemberDiff,
   DepartureToArrivalSyncPreview,
   ArrivalToDepartureSyncPreview,
+  HOME_CREW_TABLE_COLUMN_GROUPS,
+  HOME_CREW_TABLE_COLUMN_OPTIONS,
+  HOME_PAX_TABLE_COLUMN_IDS,
+  type HomeCrewTableColumnId,
+  type HomeListViewMode,
   ShipInfo,
 } from '../../models/crew.models';
 
@@ -37,6 +42,11 @@ import { AppSnapshotArchiveService } from '../../services/app-snapshot-archive.s
 
 import { filterCrewArchive, filterPassengerArchive } from '../../utils/archive-search.util';
 import { formatDisplayDate } from '../../utils/date.util';
+import {
+  homeCrewTableCellText,
+  homePaxTableCellText,
+} from '../../utils/home-crew-table-cell.util';
+import { DgSheetSelectDirective } from '../../directives/dg-sheet-select.directive';
 
 export type HomeListTab = 'crew-arrival' | 'crew-departure' | 'pax-arrival' | 'pax-departure';
 
@@ -53,6 +63,7 @@ export type HomeListTab = 'crew-arrival' | 'crew-departure' | 'pax-arrival' | 'p
     CrewDocDropZoneComponent,
     CrewEditModalComponent,
     PassengerEditModalComponent,
+    DgSheetSelectDirective,
   ],
 
   templateUrl: './home.component.html',
@@ -69,6 +80,11 @@ export class HomeComponent {
   private readonly crewDocs = inject(CrewDocumentService);
   private readonly crewSignatures = inject(CrewSignatureService);
   protected readonly appSnapshot = inject(AppSnapshotArchiveService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    this.destroyRef.onDestroy(() => this.clearColPressTimer());
+  }
 
   protected readonly ship = this.storage.ship;
 
@@ -118,6 +134,56 @@ export class HomeComponent {
       : this.activePassengersDeparture(),
   );
 
+  protected readonly homeListView = this.storage.homeListView;
+  protected readonly homeTableMode = computed(() => this.homeListView().mode === 'table');
+  protected readonly showHomeColumnsPicker = signal(false);
+  /** RMB long-press on Table header to hide a column. */
+  protected readonly colPressId = signal<HomeCrewTableColumnId | null>(null);
+  private colPressTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Ordered visible columns for crew Table view. */
+  protected readonly visibleCrewTableColumns = computed(() => {
+    const on = new Set(this.homeListView().crewTableColumns);
+    return HOME_CREW_TABLE_COLUMN_OPTIONS.filter((c) => on.has(c.id));
+  });
+
+  /** Ordered visible columns for passenger Table view. */
+  protected readonly visiblePaxTableColumns = computed(() => {
+    const on = new Set(this.homeListView().crewTableColumns);
+    const pax = new Set(HOME_PAX_TABLE_COLUMN_IDS);
+    return HOME_CREW_TABLE_COLUMN_OPTIONS.filter((c) => pax.has(c.id) && on.has(c.id));
+  });
+
+  protected readonly crewTableColumnGroups = computed(() => {
+    const byId = new Map(HOME_CREW_TABLE_COLUMN_OPTIONS.map((c) => [c.id, c]));
+    return HOME_CREW_TABLE_COLUMN_GROUPS.map((g) => ({
+      title: g.title,
+      columns: g.ids.map((id) => byId.get(id)!).filter(Boolean),
+    }));
+  });
+
+  protected readonly paxTableColumnGroups = computed(() => {
+    const pax = new Set(HOME_PAX_TABLE_COLUMN_IDS);
+    return this.crewTableColumnGroups()
+      .map((g) => ({
+        title: g.title,
+        columns: g.columns.filter((c) => pax.has(c.id)),
+      }))
+      .filter((g) => g.columns.length > 0);
+  });
+
+  protected readonly crewColumnsChipSuffix = computed(() => {
+    const n = this.visibleCrewTableColumns().length;
+    const total = HOME_CREW_TABLE_COLUMN_OPTIONS.length;
+    return `${n}/${total}`;
+  });
+
+  protected readonly paxColumnsChipSuffix = computed(() => {
+    const n = this.visiblePaxTableColumns().length;
+    const total = HOME_PAX_TABLE_COLUMN_IDS.length;
+    return `${n}/${total}`;
+  });
+
   protected readonly crewArchiveSearch = signal('');
   protected readonly paxArchiveSearch = signal('');
 
@@ -143,6 +209,92 @@ export class HomeComponent {
 
   protected formatDate = formatDisplayDate;
   protected readonly passengerRank = PASSENGER_RANK;
+
+  protected setHomeListViewMode(mode: HomeListViewMode): void {
+    if (this.homeListView().mode === mode) return;
+    this.storage.updateHomeListView({ mode });
+    if (mode !== 'table') {
+      this.showHomeColumnsPicker.set(false);
+      this.clearColPressTimer();
+      this.colPressId.set(null);
+    }
+  }
+
+  protected isCrewTableColumnVisible(id: HomeCrewTableColumnId): boolean {
+    return this.homeListView().crewTableColumns.includes(id);
+  }
+
+  protected toggleCrewTableColumn(id: HomeCrewTableColumnId): void {
+    const current = this.homeListView().crewTableColumns;
+    const next = current.includes(id) ? current.filter((c) => c !== id) : [...current, id];
+    // Keep at least one data column (not only #).
+    if (!next.length || (next.length === 1 && next[0] === 'index')) {
+      this.toast.show('Keep at least one data column visible', 'info');
+      return;
+    }
+    this.storage.updateHomeListView({ crewTableColumns: next });
+  }
+
+  /** RMB hold (~0.55s) hides the column; LMB left for cell/column select + copy. */
+  protected onTableColHeadPointerDown(
+    col: { id: HomeCrewTableColumnId; label: string },
+    ev: PointerEvent,
+  ): void {
+    if (ev.button !== 2) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.clearColPressTimer();
+    this.colPressId.set(col.id);
+    this.colPressTimer = setTimeout(() => {
+      this.colPressTimer = null;
+      this.colPressId.set(null);
+      this.hideTableColumnByHold(col);
+    }, 550);
+  }
+
+  protected onTableColHeadPointerUp(): void {
+    this.clearColPressTimer();
+    this.colPressId.set(null);
+  }
+
+  protected onTableColHeadContextMenu(ev: Event): void {
+    ev.preventDefault();
+  }
+
+  private clearColPressTimer(): void {
+    if (this.colPressTimer != null) {
+      clearTimeout(this.colPressTimer);
+      this.colPressTimer = null;
+    }
+  }
+
+  private hideTableColumnByHold(col: { id: HomeCrewTableColumnId; label: string }): void {
+    const visible = this.homeListView().crewTableColumns;
+    if (visible.length <= 1 || (visible.length === 1 && visible[0] === 'index')) {
+      this.toast.show('Keep at least one data column visible', 'info');
+      return;
+    }
+    if (!visible.includes(col.id)) return;
+    const next = visible.filter((id) => id !== col.id);
+    if (!next.length || (next.length === 1 && next[0] === 'index')) {
+      this.toast.show('Keep at least one data column visible', 'info');
+      return;
+    }
+    this.storage.updateHomeListView({ crewTableColumns: next });
+    this.toast.show(`Hidden “${col.label}” — restore via Columns`, 'success');
+  }
+
+  protected crewTableCell(member: CrewMember, col: HomeCrewTableColumnId, rowIndex: number): string {
+    return homeCrewTableCellText(member, col, this.formatDate, rowIndex);
+  }
+
+  protected paxTableCell(
+    member: PassengerMember,
+    col: HomeCrewTableColumnId,
+    rowIndex: number,
+  ): string {
+    return homePaxTableCellText(member, col, this.formatDate, rowIndex);
+  }
 
   protected crewMemberDiff(member: CrewMember): CrewListMemberDiff | null {
     if (this.crewListsInSync()) return null;

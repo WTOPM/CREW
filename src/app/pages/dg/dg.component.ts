@@ -120,9 +120,26 @@ export class DgComponent {
   });
 
   protected readonly visibleContainers = computed(() => {
-    let list = filterDgOnboardContainers(this.filteredOnboardContainers(), this.inventorySearch());
+    const base = this.filteredOnboardContainers();
+    let list = filterDgOnboardContainers(base, this.inventorySearch());
+    const editId = this.inventoryEditContainerId();
+    if (editId && !list.some((c) => c.id === editId)) {
+      const pinned = base.find((c) => c.id === editId);
+      if (pinned) list = [...list, pinned];
+    }
+    const freeze = this.inventoryEditOrderFreeze();
     const column = this.inventorySortColumn();
-    if (column) {
+    if (freeze?.length) {
+      const rank = new Map(freeze.map((id, i) => [id, i]));
+      list = [...list].sort((a, b) => {
+        const ai = rank.get(a.id);
+        const bi = rank.get(b.id);
+        if (ai == null && bi == null) return 0;
+        if (ai == null) return 1;
+        if (bi == null) return -1;
+        return ai - bi;
+      });
+    } else if (column) {
       list = sortDgOnboardContainers(list, column, this.inventorySortDirection());
     }
     return list;
@@ -165,6 +182,9 @@ export class DgComponent {
   protected readonly inventorySortColumn = signal<DgInventorySortColumn | null>(null);
   protected readonly inventorySortDirection = signal<DgInventorySortDirection>('asc');
   protected readonly inventorySearch = signal('');
+  /** Keep row on screen + freeze order while a cell is being edited (Backspace in Stow etc.). */
+  protected readonly inventoryEditContainerId = signal<string | null>(null);
+  private readonly inventoryEditOrderFreeze = signal<string[] | null>(null);
   protected readonly activeInventoryTab = computed(
     (): DgInventoryTab =>
       this.library().activeInventoryTab === 'unifeeder' ? 'unifeeder' : 'cmaCgm',
@@ -201,6 +221,37 @@ export class DgComponent {
   protected onEscapeClearSelection(): void {
     if (this.activeInventoryTab() !== 'cmaCgm') return;
     this.rowSelection.clear();
+  }
+
+  @HostListener('focusin', ['$event'])
+  protected onInventoryFocusIn(event: FocusEvent): void {
+    if (this.activeInventoryTab() !== 'cmaCgm') return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    if (target.readOnly || target.disabled) return;
+    const id = target.closest('[data-container-id]')?.getAttribute('data-container-id');
+    if (!id) return;
+    if (!this.inventoryEditOrderFreeze()) {
+      this.inventoryEditOrderFreeze.set(this.visibleContainers().map((c) => c.id));
+    }
+    this.inventoryEditContainerId.set(id);
+  }
+
+  @HostListener('focusout', ['$event'])
+  protected onInventoryFocusOut(_event: FocusEvent): void {
+    if (this.activeInventoryTab() !== 'cmaCgm') return;
+    queueMicrotask(() => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) {
+        const id = active.closest('[data-container-id]')?.getAttribute('data-container-id');
+        if (id) {
+          this.inventoryEditContainerId.set(id);
+          return;
+        }
+      }
+      this.inventoryEditContainerId.set(null);
+      this.inventoryEditOrderFreeze.set(null);
+    });
   }
 
   @HostListener('document:pointerup')

@@ -19,6 +19,7 @@ import { FolderAccessService } from './services/folder-access.service';
 import { ToastService } from './services/toast.service';
 import { TitleTooltipService } from './services/title-tooltip.service';
 import { TextCaseHotkeyService } from './services/text-case-hotkey.service';
+import { TextFieldDragGuardService } from './services/text-field-drag-guard.service';
 import { DgPageArchiveService } from './services/dg-page-archive.service';
 import { ReeferPageArchiveService } from './services/reefer-page-archive.service';
 import { AppSnapshotArchiveService } from './services/app-snapshot-archive.service';
@@ -71,6 +72,7 @@ export class App implements OnInit {
   private readonly router = inject(Router);
   private readonly titleTooltips = inject(TitleTooltipService);
   private readonly textCaseHotkeys = inject(TextCaseHotkeyService);
+  private readonly textFieldDragGuard = inject(TextFieldDragGuardService);
   private readonly dgPageArchive = inject(DgPageArchiveService);
   private readonly reeferPageArchive = inject(ReeferPageArchiveService);
   private readonly appSnapshotArchive = inject(AppSnapshotArchiveService);
@@ -155,6 +157,7 @@ export class App implements OnInit {
 
     this.titleTooltips.install();
     this.textCaseHotkeys.install();
+    this.textFieldDragGuard.install();
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e) => {

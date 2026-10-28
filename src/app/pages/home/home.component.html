@@ -1,4 +1,8 @@
-<div class="page" [class.page--archive]="appSnapshot.loaded()">
+<div
+  class="page"
+  [class.page--archive]="appSnapshot.loaded()"
+  [class.page--home-table]="homeTableMode()"
+>
   <header class="page-header page-header-docs">
     <app-documents-nav />
   </header>
@@ -112,138 +116,335 @@
 
     @if (isCrewTab()) {
       <div class="section-head">
-        <h2>
-          @if (crewListKind() === 'arrival') {
-            Crew list — Arrival ({{ listCrew().length }})
-          } @else {
-            Crew list — Departure ({{ listCrew().length }})
-          }
+        <div class="section-head-status">
           @if (crewListsInSync()) {
-            <span class="list-sync-badge">Linked — same crew on both lists</span>
+            <span class="list-sync-badge">
+              <span class="list-sync-badge__title">IN SYNC</span>
+              <span class="list-sync-badge__hint">Same crew on both lists</span>
+            </span>
           } @else if (crewListKind() === 'arrival') {
             <span class="list-sync-badge list-sync-badge--split">
-              Lists differ — <span class="list-sync-legend list-sync-legend--arrival">blue</span>:
-              arrival only
+              <span class="list-sync-badge__title">NOT IN SYNC</span>
+              <span class="list-sync-badge__hint">
+                <span class="list-sync-swatch list-sync-swatch--arrival" aria-hidden="true"></span>
+                Blue rows = arrival only
+              </span>
             </span>
           } @else {
             <span class="list-sync-badge list-sync-badge--split">
-              Lists differ — <span class="list-sync-legend list-sync-legend--departure">red</span>:
-              departure only
+              <span class="list-sync-badge__title">NOT IN SYNC</span>
+              <span class="list-sync-badge__hint">
+                <span class="list-sync-swatch list-sync-swatch--departure" aria-hidden="true"></span>
+                Red rows = departure only
+              </span>
             </span>
           }
-        </h2>
+        </div>
         <div class="section-head-actions">
-          @if (crewListKind() === 'arrival') {
-            <button type="button" class="btn btn-primary" (click)="addMemberToArrival()">
-              + Add crew member
-            </button>
-          } @else {
-            <button type="button" class="btn btn-secondary" (click)="syncDepartureFromArrival()">
-              FROM ARRIVAL
-            </button>
-            <button type="button" class="btn btn-primary" (click)="applyDepartureToArrival()">
-              INTO ARRIVAL
-            </button>
+          <div
+            class="choice-segmented choice-segmented--row home-list-view-mode"
+            role="radiogroup"
+            aria-label="Crew list view"
+            title="Edit: manage crew. Table: select cells and Ctrl+C to copy"
+          >
+            <label
+              class="choice-segmented__item home-list-view-mode__edit"
+              title="Edit"
+            >
+              <input
+                type="radio"
+                name="homeListViewModeCrew"
+                [checked]="!homeTableMode()"
+                (change)="setHomeListViewMode('edit')"
+              />
+              <span class="choice-segmented__text home-list-view-mode__face">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>Edit</span>
+              </span>
+            </label>
+            <label
+              class="choice-segmented__item home-list-view-mode__table"
+              title="Table"
+            >
+              <input
+                type="radio"
+                name="homeListViewModeCrew"
+                [checked]="homeTableMode()"
+                (change)="setHomeListViewMode('table')"
+              />
+              <span class="choice-segmented__text home-list-view-mode__face">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <path d="M3 10h18M9 4v16M15 4v16" stroke-linecap="round" />
+                </svg>
+                <span>Table</span>
+              </span>
+            </label>
+          </div>
+
+          @if (homeTableMode()) {
+            <div class="home-col-picker">
+              <button
+                type="button"
+                class="btn btn-secondary home-col-picker__btn"
+                [class.home-col-picker__btn--open]="showHomeColumnsPicker()"
+                [attr.aria-expanded]="showHomeColumnsPicker()"
+                (click)="showHomeColumnsPicker.set(!showHomeColumnsPicker())"
+              >
+                Columns
+                <span class="home-col-picker__count">{{ crewColumnsChipSuffix() }}</span>
+              </button>
+              @if (showHomeColumnsPicker()) {
+                <div class="home-col-picker__panel" role="menu" aria-label="Visible table columns">
+                  <header class="home-col-picker__head">
+                    <span class="home-col-picker__title">Visible columns</span>
+                    <span class="home-col-picker__meta">{{ crewColumnsChipSuffix() }}</span>
+                  </header>
+                  <div class="home-col-picker__body">
+                    @for (group of crewTableColumnGroups(); track group.title) {
+                      <section class="home-col-picker__group">
+                        <h3 class="home-col-picker__group-title">{{ group.title }}</h3>
+                        <div class="home-col-picker__grid">
+                          @for (col of group.columns; track col.id) {
+                            <button
+                              type="button"
+                              class="home-col-chip"
+                              [class.home-col-chip--on]="isCrewTableColumnVisible(col.id)"
+                              role="menuitemcheckbox"
+                              [attr.aria-checked]="isCrewTableColumnVisible(col.id)"
+                              (click)="toggleCrewTableColumn(col.id)"
+                            >
+                              <span class="home-col-chip__check" aria-hidden="true">
+                                @if (isCrewTableColumnVisible(col.id)) {
+                                  <svg viewBox="0 0 24 24" focusable="false">
+                                    <path
+                                      fill="currentColor"
+                                      d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+                                    />
+                                  </svg>
+                                }
+                              </span>
+                              <span class="home-col-chip__label">{{ col.label }}</span>
+                            </button>
+                          }
+                        </div>
+                      </section>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          @if (!homeTableMode()) {
+            @if (crewListKind() === 'arrival') {
+              <button type="button" class="btn btn-primary" (click)="addMemberToArrival()">
+                + Add crew member
+              </button>
+            } @else {
+              <button type="button" class="btn btn-secondary" (click)="syncDepartureFromArrival()">
+                FROM ARRIVAL
+              </button>
+              <button type="button" class="btn btn-primary" (click)="applyDepartureToArrival()">
+                INTO ARRIVAL
+              </button>
+            }
           }
         </div>
       </div>
 
-      @if (crewListKind() === 'arrival') {
-        <app-crew-doc-drop-zone [crew]="listCrew()" (attached)="onCrewDocAttached()" />
-      }
+      @if (!homeTableMode()) {
+        @if (crewListKind() === 'arrival') {
+          <app-crew-doc-drop-zone [crew]="listCrew()" (attached)="onCrewDocAttached()" />
+        }
 
-      <div class="table-wrap">
-        <table class="crew-table">
-          <thead>
-            <tr>
-              <th class="col-drag" aria-hidden="true"></th>
-              <th class="col-index" data-col="index">#</th>
-              <th data-col="family">Family Name</th>
-              <th data-col="given">Given Names</th>
-              <th class="col-nowrap" data-col="rank">Rank</th>
-              <th class="col-nowrap" data-col="nationality">Nationality</th>
-              <th class="col-nowrap" data-col="passport">Passport</th>
-              <th
-                class="col-scans"
-                data-col="scans"
-                title="P passport · S seaman's book · CY Cyprus book · hold filled icon to delete"
-              >
-                Scans
-              </th>
-              <th class="col-nowrap" data-col="joiningDate">Joining Date</th>
-              <th data-col="joiningPort">Joining Port</th>
-              <th class="col-actions"></th>
-            </tr>
-          </thead>
-          <tbody cdkDropList (cdkDropListDropped)="dropCrew($event)">
-            @for (member of listCrew(); track member.id; let i = $index) {
-              <tr
-                cdkDrag
-                [class.crew-row--diff-arrival]="crewMemberDiff(member) === 'arrival-only'"
-                [class.crew-row--diff-departure]="crewMemberDiff(member) === 'departure-only'"
-                [attr.title]="crewMemberDiffTitle(member)"
-              >
-                <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
-                <td class="col-index" data-col="index">{{ i + 1 }}</td>
-                <td data-col="family">{{ member.familyName }}</td>
-                <td data-col="given">{{ member.givenNames }}</td>
-                <td class="col-nowrap" data-col="rank">{{ member.rank }}</td>
-                <td class="col-nowrap" data-col="nationality">{{ member.nationality }}</td>
-                <td class="col-nowrap" data-col="passport">{{ member.passport }}</td>
-                <td class="col-scans" data-col="scans">
-                  <div class="crew-doc-icons">
-                    <app-crew-doc-icon
-                      [member]="member"
-                      docType="passport"
-                      (attached)="onCrewDocAttached()"
-                    />
-                    <app-crew-doc-icon
-                      [member]="member"
-                      docType="seamansBook"
-                      (attached)="onCrewDocAttached()"
-                    />
-                    <app-crew-doc-icon
-                      [member]="member"
-                      docType="cyprusPassport"
-                      (attached)="onCrewDocAttached()"
-                    />
-                  </div>
-                </td>
-                <td class="col-nowrap" data-col="joiningDate">{{ formatDate(member.joiningDate) }}</td>
-                <td data-col="joiningPort">{{ member.joiningPort }}</td>
-                <td class="actions col-actions">
-                  <div class="actions-icons">
-                    @if (crewListKind() === 'arrival') {
-                      <button
-                        type="button"
-                        class="crew-action crew-action--edit"
-                        title="Edit"
-                        aria-label="Edit"
-                        (click)="startEdit(member)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="18"
-                          height="18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </button>
-                      @if (!crewListsInSync() && member.onDepartureList) {
+        <div class="table-wrap">
+          <table class="crew-table">
+            <thead>
+              <tr>
+                <th class="col-drag" aria-hidden="true"></th>
+                <th class="col-index" data-col="index">#</th>
+                <th data-col="family">Family Name</th>
+                <th data-col="given">Given Names</th>
+                <th class="col-nowrap" data-col="rank">Rank</th>
+                <th class="col-nowrap" data-col="nationality">Nationality</th>
+                <th class="col-nowrap" data-col="passport">Passport</th>
+                <th
+                  class="col-scans"
+                  data-col="scans"
+                  title="P passport · S seaman's book · CY Cyprus book · hold filled icon to delete"
+                >
+                  Scans
+                </th>
+                <th class="col-nowrap" data-col="joiningDate">Joining Date</th>
+                <th data-col="joiningPort">Joining Port</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody cdkDropList (cdkDropListDropped)="dropCrew($event)">
+              @for (member of listCrew(); track member.id; let i = $index) {
+                <tr
+                  cdkDrag
+                  [class.crew-row--diff-arrival]="crewMemberDiff(member) === 'arrival-only'"
+                  [class.crew-row--diff-departure]="crewMemberDiff(member) === 'departure-only'"
+                  [attr.title]="crewMemberDiffTitle(member)"
+                >
+                  <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
+                  <td class="col-index" data-col="index">{{ i + 1 }}</td>
+                  <td data-col="family">{{ member.familyName }}</td>
+                  <td data-col="given">{{ member.givenNames }}</td>
+                  <td class="col-nowrap" data-col="rank">{{ member.rank }}</td>
+                  <td class="col-nowrap" data-col="nationality">{{ member.nationality }}</td>
+                  <td class="col-nowrap" data-col="passport">{{ member.passport }}</td>
+                  <td class="col-scans" data-col="scans">
+                    <div class="crew-doc-icons">
+                      <app-crew-doc-icon
+                        [member]="member"
+                        docType="passport"
+                        (attached)="onCrewDocAttached()"
+                      />
+                      <app-crew-doc-icon
+                        [member]="member"
+                        docType="seamansBook"
+                        (attached)="onCrewDocAttached()"
+                      />
+                      <app-crew-doc-icon
+                        [member]="member"
+                        docType="cyprusPassport"
+                        (attached)="onCrewDocAttached()"
+                      />
+                    </div>
+                  </td>
+                  <td class="col-nowrap" data-col="joiningDate">
+                    {{ formatDate(member.joiningDate) }}
+                  </td>
+                  <td data-col="joiningPort">{{ member.joiningPort }}</td>
+                  <td class="actions col-actions">
+                    <div class="actions-icons">
+                      @if (crewListKind() === 'arrival') {
                         <button
                           type="button"
-                          class="crew-action crew-action--off-arrival"
-                          title="Remove from arrival (stays on departure for exit print)"
-                          aria-label="Remove from arrival only"
-                          (click)="removeFromArrival(member.id)"
+                          class="crew-action crew-action--edit"
+                          title="Edit"
+                          aria-label="Edit"
+                          (click)="startEdit(member)"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        @if (!crewListsInSync() && member.onDepartureList) {
+                          <button
+                            type="button"
+                            class="crew-action crew-action--off-arrival"
+                            title="Remove from arrival (stays on departure for exit print)"
+                            aria-label="Remove from arrival only"
+                            (click)="removeFromArrival(member.id)"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              width="18"
+                              height="18"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              aria-hidden="true"
+                            >
+                              <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
+                            </svg>
+                          </button>
+                        } @else {
+                          <span class="crew-action crew-action-spacer" aria-hidden="true"></span>
+                        }
+                        <button
+                          type="button"
+                          class="crew-action crew-action--archive"
+                          title="Move to archive"
+                          aria-label="Move to archive"
+                          (click)="archive(member.id)"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      }
+                      @if (crewListKind() === 'departure') {
+                        <button
+                          type="button"
+                          class="crew-action crew-action--view"
+                          title="View (edit on Arrival)"
+                          aria-label="View crew member"
+                          (click)="startViewCrew(member)"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="crew-action crew-action--off-departure"
+                          title="Remove from departure list (to departure archive)"
+                          aria-label="Remove from departure list"
+                          (click)="removeFromDeparture(member.id)"
                         >
                           <svg
                             viewBox="0 0 24 24"
@@ -257,211 +458,395 @@
                             <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
                           </svg>
                         </button>
-                      } @else {
-                        <span class="crew-action crew-action-spacer" aria-hidden="true"></span>
                       }
-                      <button
-                        type="button"
-                        class="crew-action crew-action--archive"
-                        title="Move to archive"
-                        aria-label="Move to archive"
-                        (click)="archive(member.id)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="18"
-                          height="18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    }
-                    @if (crewListKind() === 'departure') {
-                      <button
-                        type="button"
-                        class="crew-action crew-action--view"
-                        title="View (edit on Arrival)"
-                        aria-label="View crew member"
-                        (click)="startViewCrew(member)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="18"
-                          height="18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        class="crew-action crew-action--off-departure"
-                        title="Remove from departure list (to departure archive)"
-                        aria-label="Remove from departure list"
-                        (click)="removeFromDeparture(member.id)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="18"
-                          height="18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
-                        </svg>
-                      </button>
-                    }
-                  </div>
-                </td>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="home-table-hint">
+          Hold right mouse button on a column header to hide it · select cells and Ctrl+C · display
+          only
+        </p>
+        <div class="table-wrap home-list--table-mode" [appDgSheetSelect]="true">
+          <table class="crew-table crew-table--copy">
+            <thead>
+              <tr>
+                @for (col of visibleCrewTableColumns(); track col.id) {
+                  <th
+                    class="home-col-head"
+                    [class.home-col-head--pressing]="colPressId() === col.id"
+                    [class.col-index]="col.id === 'index'"
+                    [class.col-nowrap]="
+                      col.id !== 'index' &&
+                      col.id !== 'family' &&
+                      col.id !== 'given' &&
+                      col.id !== 'placeOfBirth'
+                    "
+                    [attr.data-col]="col.id"
+                    [attr.title]="'Hold right button to hide “' + col.label + '”'"
+                    (pointerdown)="onTableColHeadPointerDown(col, $event)"
+                    (pointerup)="onTableColHeadPointerUp()"
+                    (pointercancel)="onTableColHeadPointerUp()"
+                    (pointerleave)="onTableColHeadPointerUp()"
+                    (contextmenu)="onTableColHeadContextMenu($event)"
+                  >
+                    <span class="home-col-head__label">{{ col.label }}</span>
+                    <span class="home-col-head__hold" aria-hidden="true"></span>
+                  </th>
+                }
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              @for (member of listCrew(); track member.id; let i = $index) {
+                <tr
+                  [class.crew-row--diff-arrival]="crewMemberDiff(member) === 'arrival-only'"
+                  [class.crew-row--diff-departure]="crewMemberDiff(member) === 'departure-only'"
+                >
+                  @for (col of visibleCrewTableColumns(); track col.id) {
+                    <td
+                      [class.col-index]="col.id === 'index'"
+                      [class.col-nowrap]="
+                        col.id !== 'index' &&
+                        col.id !== 'family' &&
+                        col.id !== 'given' &&
+                        col.id !== 'placeOfBirth'
+                      "
+                      [attr.data-col]="col.id"
+                    >
+                      {{ crewTableCell(member, col.id, i) }}
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     } @else {
       <div class="section-head">
-        <h2>
-          @if (paxListKind() === 'arrival') {
-            Passenger list — Arrival ({{ listPassengers().length }})
-          } @else {
-            Passenger list — Departure ({{ listPassengers().length }})
-          }
+        <div class="section-head-status">
           @if (passengerListsInSync()) {
-            <span class="list-sync-badge">Linked — same passengers on both lists</span>
+            <span class="list-sync-badge">
+              <span class="list-sync-badge__title">IN SYNC</span>
+              <span class="list-sync-badge__hint">Same passengers on both lists</span>
+            </span>
           } @else if (paxListKind() === 'arrival') {
             <span class="list-sync-badge list-sync-badge--split">
-              Lists differ — edit on Arrival; Departure is read-only for exit print
+              <span class="list-sync-badge__title">NOT IN SYNC</span>
+              <span class="list-sync-badge__hint"
+                >Edit on Arrival · Departure is read-only for exit print</span
+              >
             </span>
           } @else {
             <span class="list-sync-badge list-sync-badge--split">
-              Lists differ — drag to reorder; sync with FROM ARRIVAL / INTO ARRIVAL
+              <span class="list-sync-badge__title">NOT IN SYNC</span>
+              <span class="list-sync-badge__hint"
+                >Drag to reorder · sync with From Arrival / Into Arrival</span
+              >
             </span>
           }
-        </h2>
+        </div>
         <div class="section-head-actions">
-          @if (paxListKind() === 'arrival') {
-            <button type="button" class="btn btn-primary" (click)="addPassengerToArrival()">
-              + Add passenger
-            </button>
-          } @else {
-            <button
-              type="button"
-              class="btn btn-secondary"
-              (click)="syncPassengerDepartureFromArrival()"
+          <div
+            class="choice-segmented choice-segmented--row home-list-view-mode"
+            role="radiogroup"
+            aria-label="Passenger list view"
+            title="Edit: manage passengers. Table: select cells and Ctrl+C to copy"
+          >
+            <label
+              class="choice-segmented__item home-list-view-mode__edit"
+              title="Edit"
             >
-              FROM ARRIVAL
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary"
-              (click)="applyPassengerDepartureToArrival()"
+              <input
+                type="radio"
+                name="homeListViewModePax"
+                [checked]="!homeTableMode()"
+                (change)="setHomeListViewMode('edit')"
+              />
+              <span class="choice-segmented__text home-list-view-mode__face">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>Edit</span>
+              </span>
+            </label>
+            <label
+              class="choice-segmented__item home-list-view-mode__table"
+              title="Table"
             >
-              INTO ARRIVAL
-            </button>
+              <input
+                type="radio"
+                name="homeListViewModePax"
+                [checked]="homeTableMode()"
+                (change)="setHomeListViewMode('table')"
+              />
+              <span class="choice-segmented__text home-list-view-mode__face">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <path d="M3 10h18M9 4v16M15 4v16" stroke-linecap="round" />
+                </svg>
+                <span>Table</span>
+              </span>
+            </label>
+          </div>
+
+          @if (homeTableMode()) {
+            <div class="home-col-picker">
+              <button
+                type="button"
+                class="btn btn-secondary home-col-picker__btn"
+                [class.home-col-picker__btn--open]="showHomeColumnsPicker()"
+                [attr.aria-expanded]="showHomeColumnsPicker()"
+                (click)="showHomeColumnsPicker.set(!showHomeColumnsPicker())"
+              >
+                Columns
+                <span class="home-col-picker__count">{{ paxColumnsChipSuffix() }}</span>
+              </button>
+              @if (showHomeColumnsPicker()) {
+                <div class="home-col-picker__panel" role="menu" aria-label="Visible table columns">
+                  <header class="home-col-picker__head">
+                    <span class="home-col-picker__title">Visible columns</span>
+                    <span class="home-col-picker__meta">{{ paxColumnsChipSuffix() }}</span>
+                  </header>
+                  <div class="home-col-picker__body">
+                    @for (group of paxTableColumnGroups(); track group.title) {
+                      <section class="home-col-picker__group">
+                        <h3 class="home-col-picker__group-title">{{ group.title }}</h3>
+                        <div class="home-col-picker__grid">
+                          @for (col of group.columns; track col.id) {
+                            <button
+                              type="button"
+                              class="home-col-chip"
+                              [class.home-col-chip--on]="isCrewTableColumnVisible(col.id)"
+                              role="menuitemcheckbox"
+                              [attr.aria-checked]="isCrewTableColumnVisible(col.id)"
+                              (click)="toggleCrewTableColumn(col.id)"
+                            >
+                              <span class="home-col-chip__check" aria-hidden="true">
+                                @if (isCrewTableColumnVisible(col.id)) {
+                                  <svg viewBox="0 0 24 24" focusable="false">
+                                    <path
+                                      fill="currentColor"
+                                      d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+                                    />
+                                  </svg>
+                                }
+                              </span>
+                              <span class="home-col-chip__label">{{ col.label }}</span>
+                            </button>
+                          }
+                        </div>
+                      </section>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          @if (!homeTableMode()) {
+            @if (paxListKind() === 'arrival') {
+              <button type="button" class="btn btn-primary" (click)="addPassengerToArrival()">
+                + Add passenger
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="btn btn-secondary"
+                (click)="syncPassengerDepartureFromArrival()"
+              >
+                FROM ARRIVAL
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                (click)="applyPassengerDepartureToArrival()"
+              >
+                INTO ARRIVAL
+              </button>
+            }
           }
         </div>
       </div>
 
-      @if (paxListKind() === 'arrival') {
-        <app-crew-doc-drop-zone
-          owner="passenger"
-          [passengers]="listPassengers()"
-          (attached)="onCrewDocAttached()"
-        />
-      }
+      @if (!homeTableMode()) {
+        @if (paxListKind() === 'arrival') {
+          <app-crew-doc-drop-zone
+            owner="passenger"
+            [passengers]="listPassengers()"
+            (attached)="onCrewDocAttached()"
+          />
+        }
 
-      <div class="table-wrap">
-        <table class="crew-table crew-table--pax">
-          <thead>
-            <tr>
-              <th class="col-drag" aria-hidden="true"></th>
-              <th class="col-index" data-col="index">#</th>
-              <th data-col="family">Family Name</th>
-              <th data-col="given">Given Names</th>
-              <th class="col-nowrap" data-col="rank">Rank</th>
-              <th class="col-nowrap" data-col="nationality">Nationality</th>
-              <th class="col-nowrap" data-col="passport">Passport</th>
-              <th
-                class="col-scans col-scans--passport-only"
-                data-col="scans"
-                title="P passport · hold filled icon to delete"
-              >
-                Scans
-              </th>
-              <th class="col-actions"></th>
-            </tr>
-          </thead>
-          <tbody cdkDropList (cdkDropListDropped)="dropPassengers($event)">
-            @for (member of listPassengers(); track member.id; let i = $index) {
-              <tr cdkDrag>
-                <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
-                <td class="col-index" data-col="index">{{ i + 1 }}</td>
-                <td data-col="family">{{ member.familyName }}</td>
-                <td data-col="given">{{ member.givenNames }}</td>
-                <td class="col-nowrap" data-col="rank">{{ passengerRank }}</td>
-                <td class="col-nowrap" data-col="nationality">{{ member.nationality }}</td>
-                <td class="col-nowrap" data-col="passport">{{ member.passport }}</td>
-                <td class="col-scans col-scans--passport-only" data-col="scans">
-                  <div class="crew-doc-icons">
-                    <app-crew-doc-icon
-                      [member]="member"
-                      docType="passport"
-                      owner="passenger"
-                      (attached)="onCrewDocAttached()"
-                    />
-                  </div>
-                </td>
-                <td class="actions col-actions">
-                  <div class="actions-icons">
-                    @if (paxListKind() === 'arrival') {
-                      <button
-                        type="button"
-                        class="crew-action crew-action--edit"
-                        title="Edit"
-                        aria-label="Edit"
-                        (click)="startPassengerEdit(member)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="18"
-                          height="18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </button>
-                      @if (!passengerListsInSync() && member.onDepartureList) {
+        <div class="table-wrap">
+          <table class="crew-table crew-table--pax">
+            <thead>
+              <tr>
+                <th class="col-drag" aria-hidden="true"></th>
+                <th class="col-index" data-col="index">#</th>
+                <th data-col="family">Family Name</th>
+                <th data-col="given">Given Names</th>
+                <th class="col-nowrap" data-col="rank">Rank</th>
+                <th class="col-nowrap" data-col="nationality">Nationality</th>
+                <th class="col-nowrap" data-col="passport">Passport</th>
+                <th
+                  class="col-scans col-scans--passport-only"
+                  data-col="scans"
+                  title="P passport · hold filled icon to delete"
+                >
+                  Scans
+                </th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody cdkDropList (cdkDropListDropped)="dropPassengers($event)">
+              @for (member of listPassengers(); track member.id; let i = $index) {
+                <tr cdkDrag>
+                  <td class="drag-handle" cdkDragHandle title="Drag to reorder">⠿</td>
+                  <td class="col-index" data-col="index">{{ i + 1 }}</td>
+                  <td data-col="family">{{ member.familyName }}</td>
+                  <td data-col="given">{{ member.givenNames }}</td>
+                  <td class="col-nowrap" data-col="rank">{{ passengerRank }}</td>
+                  <td class="col-nowrap" data-col="nationality">{{ member.nationality }}</td>
+                  <td class="col-nowrap" data-col="passport">{{ member.passport }}</td>
+                  <td class="col-scans col-scans--passport-only" data-col="scans">
+                    <div class="crew-doc-icons">
+                      <app-crew-doc-icon
+                        [member]="member"
+                        docType="passport"
+                        owner="passenger"
+                        (attached)="onCrewDocAttached()"
+                      />
+                    </div>
+                  </td>
+                  <td class="actions col-actions">
+                    <div class="actions-icons">
+                      @if (paxListKind() === 'arrival') {
                         <button
                           type="button"
-                          class="crew-action crew-action--off-arrival"
-                          title="Remove from arrival (stays on departure for exit print)"
-                          aria-label="Remove from arrival only"
-                          (click)="removePassengerFromArrival(member.id)"
+                          class="crew-action crew-action--edit"
+                          title="Edit"
+                          aria-label="Edit"
+                          (click)="startPassengerEdit(member)"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        @if (!passengerListsInSync() && member.onDepartureList) {
+                          <button
+                            type="button"
+                            class="crew-action crew-action--off-arrival"
+                            title="Remove from arrival (stays on departure for exit print)"
+                            aria-label="Remove from arrival only"
+                            (click)="removePassengerFromArrival(member.id)"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              width="18"
+                              height="18"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              aria-hidden="true"
+                            >
+                              <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
+                            </svg>
+                          </button>
+                        } @else {
+                          <span class="crew-action crew-action-spacer" aria-hidden="true"></span>
+                        }
+                        <button
+                          type="button"
+                          class="crew-action crew-action--archive"
+                          title="Move to archive"
+                          aria-label="Move to archive"
+                          (click)="archivePassenger(member.id)"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      }
+                      @if (paxListKind() === 'departure') {
+                        <button
+                          type="button"
+                          class="crew-action crew-action--view"
+                          title="View (edit on Arrival)"
+                          aria-label="View passenger"
+                          (click)="startViewPassenger(member)"
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="18"
+                            height="18"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="crew-action crew-action--off-departure"
+                          title="Remove from departure list (to departure archive)"
+                          aria-label="Remove from departure list"
+                          (click)="removePassengerFromDeparture(member.id)"
                         >
                           <svg
                             viewBox="0 0 24 24"
@@ -475,89 +860,75 @@
                             <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
                           </svg>
                         </button>
-                      } @else {
-                        <span class="crew-action crew-action-spacer" aria-hidden="true"></span>
                       }
-                      <button
-                        type="button"
-                        class="crew-action crew-action--archive"
-                        title="Move to archive"
-                        aria-label="Move to archive"
-                        (click)="archivePassenger(member.id)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="18"
-                          height="18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    }
-                    @if (paxListKind() === 'departure') {
-                      <button
-                        type="button"
-                        class="crew-action crew-action--view"
-                        title="View (edit on Arrival)"
-                        aria-label="View passenger"
-                        (click)="startViewPassenger(member)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="18"
-                          height="18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        class="crew-action crew-action--off-departure"
-                        title="Remove from departure list (to departure archive)"
-                        aria-label="Remove from departure list"
-                        (click)="removePassengerFromDeparture(member.id)"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="18"
-                          height="18"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <path d="M7 17L17 7M7 7l10 10" stroke-linecap="round" />
-                        </svg>
-                      </button>
-                    }
-                  </div>
-                </td>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="home-table-hint">
+          Hold right mouse button on a column header to hide it · select cells and Ctrl+C · display
+          only
+        </p>
+        <div class="table-wrap home-list--table-mode" [appDgSheetSelect]="true">
+          <table class="crew-table crew-table--pax crew-table--copy">
+            <thead>
+              <tr>
+                @for (col of visiblePaxTableColumns(); track col.id) {
+                  <th
+                    class="home-col-head"
+                    [class.home-col-head--pressing]="colPressId() === col.id"
+                    [class.col-index]="col.id === 'index'"
+                    [class.col-nowrap]="
+                      col.id !== 'index' &&
+                      col.id !== 'family' &&
+                      col.id !== 'given' &&
+                      col.id !== 'placeOfBirth'
+                    "
+                    [attr.data-col]="col.id"
+                    [attr.title]="'Hold right button to hide “' + col.label + '”'"
+                    (pointerdown)="onTableColHeadPointerDown(col, $event)"
+                    (pointerup)="onTableColHeadPointerUp()"
+                    (pointercancel)="onTableColHeadPointerUp()"
+                    (pointerleave)="onTableColHeadPointerUp()"
+                    (contextmenu)="onTableColHeadContextMenu($event)"
+                  >
+                    <span class="home-col-head__label">{{ col.label }}</span>
+                    <span class="home-col-head__hold" aria-hidden="true"></span>
+                  </th>
+                }
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              @for (member of listPassengers(); track member.id; let i = $index) {
+                <tr>
+                  @for (col of visiblePaxTableColumns(); track col.id) {
+                    <td
+                      [class.col-index]="col.id === 'index'"
+                      [class.col-nowrap]="
+                        col.id !== 'index' &&
+                        col.id !== 'family' &&
+                        col.id !== 'given' &&
+                        col.id !== 'placeOfBirth'
+                      "
+                      [attr.data-col]="col.id"
+                    >
+                      {{ paxTableCell(member, col.id, i) }}
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     }
   </section>
 
-  @if (isCrewTab()) {
+  @if (isCrewTab() && !homeTableMode()) {
     <section class="card">
       <div class="section-head section-head--archive">
         <h2>Crew archive ({{ crewArchiveCountLabel() }})</h2>
@@ -626,6 +997,29 @@
                     <div class="actions-icons">
                       <button
                         type="button"
+                        class="crew-action crew-action--edit"
+                        title="Edit"
+                        aria-label="Edit"
+                        (click)="startEdit(member)"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="18"
+                          height="18"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
                         class="crew-action crew-action--restore"
                         [title]="restoreListLabel()"
                         [attr.aria-label]="restoreListLabel()"
@@ -679,7 +1073,7 @@
         </div>
       }
     </section>
-  } @else {
+  } @else if (!homeTableMode()) {
     <section class="card">
       <div class="section-head section-head--archive">
         <h2>Passenger archive ({{ paxArchiveCountLabel() }})</h2>
@@ -745,6 +1139,29 @@
                   </td>
                   <td class="actions">
                     <div class="actions-icons">
+                      <button
+                        type="button"
+                        class="crew-action crew-action--edit"
+                        title="Edit"
+                        aria-label="Edit"
+                        (click)="startPassengerEdit(member)"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="18"
+                          height="18"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </button>
                       <button
                         type="button"
                         class="crew-action crew-action--restore"

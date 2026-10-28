@@ -1,6 +1,15 @@
 import type { DgPdfTextItem } from './dg-pdf-text.util';
 
-/** One container → final bay position from MACS3 “Dagos on Board”. */
+/** One cargo line from MACS3 “Dagos on Board” (position + optional UN / net). */
+export interface UnifeederDagosLineRow {
+  containerNo: string;
+  position: string;
+  unNo: string;
+  /** Net weight kg from the “Net W.” column when present. */
+  netWeightKg: string;
+}
+
+/** Unique container → final bay position (last page wins). */
 export interface UnifeederDagosPositionRow {
   containerNo: string;
   position: string;
@@ -8,13 +17,26 @@ export interface UnifeederDagosPositionRow {
 
 const CONTAINER_RE = /^[A-Z]{4}\d{7}$/;
 const POSITION_RE = /^\d{6}$/;
+const UN_RE = /^\d{4}$/;
+/** Net weights are decimals like 18000.0 / 15713.5 — not UN (4) or Pos (6). */
+const NET_RE = /^\d+\.\d+$/;
 
-/** Landscape MACS3 table: Pos. ~x44, Serial Number ~x71–77 (varies by export). */
+/** Landscape MACS3 table columns (x ranges, pt). */
 const POS_COL: readonly [number, number] = [25, 65];
 const SERIAL_COL: readonly [number, number] = [65, 150];
+const UN_COL: readonly [number, number] = [175, 210];
+const NET_COL: readonly [number, number] = [515, 570];
 
 function normalizeContainerNo(raw: string): string {
   return raw.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+}
+
+function normalizeNetWeightKg(raw: string): string {
+  const n = Number.parseFloat(raw.trim().replace(',', '.'));
+  if (!Number.isFinite(n) || n < 0) return '';
+  // Keep one decimal when PDF has it; strip trailing .0 for whole kg.
+  const rounded = Math.round(n * 1000) / 1000;
+  return String(rounded);
 }
 
 function inCol(x: number, range: readonly [number, number]): boolean {
@@ -51,17 +73,33 @@ function pickInCol(
   return '';
 }
 
-function extractPagePositions(pageItems: readonly DgPdfTextItem[]): UnifeederDagosPositionRow[] {
-  const rows: UnifeederDagosPositionRow[] = [];
+function extractPageLines(pageItems: readonly DgPdfTextItem[]): UnifeederDagosLineRow[] {
+  const rows: UnifeederDagosLineRow[] = [];
+  let lastPosition = '';
+
   for (const group of groupRowItems(pageItems)) {
     const position = pickInCol(group.items, POS_COL, (value) => POSITION_RE.test(value));
     const serialRaw = pickInCol(group.items, SERIAL_COL, (value) =>
       CONTAINER_RE.test(normalizeContainerNo(value)),
     );
-    if (!position || !serialRaw) continue;
+    const unNo = pickInCol(group.items, UN_COL, (value) => UN_RE.test(value));
+    const netRaw = pickInCol(group.items, NET_COL, (value) => NET_RE.test(value));
+
+    if (position) lastPosition = position;
+    if (!serialRaw) continue; // ghost Pos/UN rows without Serial Number
+
+    // Continuation lines omit Pos but still have UN / Net W.
+    // A lone serial without Pos/UN/net is not a row (see CBHU fixture).
+    if (!position && !unNo && !netRaw) continue;
+
+    const resolvedPos = position || lastPosition;
+    if (!resolvedPos) continue;
+
     rows.push({
       containerNo: normalizeContainerNo(serialRaw),
-      position,
+      position: resolvedPos,
+      unNo,
+      netWeightKg: netRaw ? normalizeNetWeightKg(netRaw) : '',
     });
   }
   return rows;
@@ -79,6 +117,19 @@ export function isUnifeederDagosPositionsPdf(items: readonly DgPdfTextItem[]): b
 }
 
 /**
+ * All Dagos cargo lines (container may repeat). Later pages append after earlier ones;
+ * position for a container is still “last seen Pos” when a continuation omits Pos.
+ */
+export function parseUnifeederDagosLines(items: readonly DgPdfTextItem[]): UnifeederDagosLineRow[] {
+  const pages = [...new Set(items.map((it) => it.page))].sort((a, b) => a - b);
+  const out: UnifeederDagosLineRow[] = [];
+  for (const page of pages) {
+    out.push(...extractPageLines(items.filter((it) => it.page === page)));
+  }
+  return out;
+}
+
+/**
  * Parse Pos. + Serial Number across every page.
  * Later pages overwrite earlier ones for the same container (final list wins).
  */
@@ -86,13 +137,8 @@ export function parseUnifeederDagosPositions(
   items: readonly DgPdfTextItem[],
 ): UnifeederDagosPositionRow[] {
   const byContainer = new Map<string, string>();
-  const pages = [...new Set(items.map((it) => it.page))].sort((a, b) => a - b);
-
-  for (const page of pages) {
-    const pageItems = items.filter((it) => it.page === page);
-    for (const row of extractPagePositions(pageItems)) {
-      byContainer.set(row.containerNo, row.position);
-    }
+  for (const row of parseUnifeederDagosLines(items)) {
+    byContainer.set(row.containerNo, row.position);
   }
 
   return [...byContainer.entries()]

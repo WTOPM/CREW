@@ -2,6 +2,8 @@ import { Injectable, Injector, inject, computed } from '@angular/core';
 import {
   AppData,
   ShipInfo,
+  createDefaultHomeListViewSettings,
+  normalizeHomeListViewSettings,
   crewRankOrder,
   filterActiveCrewList,
   sortCrewByRank,
@@ -9,6 +11,7 @@ import {
   areCrewListsInSync,
   crewListDiffCounts,
   normalizeShipStoresDocId,
+  type HomeListViewSettings,
 } from '../models/crew.models';
 import {
   sortPassengersByName,
@@ -33,6 +36,9 @@ export class StorageService {
 
   readonly ship = computed(() => this.data().ship);
   readonly crewArr = computed(() => this.data().crewArr);
+  readonly homeListView = computed(() =>
+    normalizeHomeListViewSettings(this.data().homeListView ?? createDefaultHomeListViewSettings()),
+  );
   readonly ports = computed(() => this.data().ports);
   readonly ranks = computed(() => this.data().ranks);
   readonly nationalities = computed(() => this.data().nationalities);
@@ -233,6 +239,21 @@ export class StorageService {
 
   updateCrewArr(partial: Partial<AppData['crewArr']>, notify: PersistNotify = 'memory'): void {
     this.data.update((d) => ({ ...d, crewArr: { ...d.crewArr, ...partial } }));
+    void this.persist(notify);
+  }
+
+  updateHomeListView(
+    partial: Partial<HomeListViewSettings>,
+    notify: PersistNotify = 'silent',
+  ): void {
+    this.data.update((d) => ({
+      ...d,
+      homeListView: normalizeHomeListViewSettings({
+        ...createDefaultHomeListViewSettings(),
+        ...d.homeListView,
+        ...partial,
+      }),
+    }));
     void this.persist(notify);
   }
 

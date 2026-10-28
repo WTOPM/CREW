@@ -18,6 +18,7 @@ import {
   Port,
   PortCallHistoryEntry,
   createDefaultCrewArrSettings,
+  normalizeHomeListViewSettings,
   createDefaultOutputSettings,
   createDefaultOutputFolderPrefs,
   OUTPUT_FOLDER_SECTIONS,
@@ -114,6 +115,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
   ship.dateOfDeparture = coerceIsoDate(ship.dateOfDeparture);
   let crew = (raw.crew ?? []).map((m) => normalizeMember(m, raw.ports));
   const crewArr = { ...createDefaultCrewArrSettings(), ...raw.crewArr };
+  const homeListView = normalizeHomeListViewSettings(raw.homeListView);
   // Ports/ranks/nationalities are user-managed suggestion lists: keep exactly what
   // was saved (so Settings deletions are permanent) and only derive from referenced
   // data / defaults on first run, when the field is absent.
@@ -210,6 +212,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     crewArrivalOrder: normalizeListOrder(raw.crewArrivalOrder),
     crewDepartureOrder: normalizeListOrder(raw.crewDepartureOrder),
     crewArr,
+    homeListView,
     passengers,
     passengerArrivalOrder: normalizeListOrder(raw.passengerArrivalOrder),
     passengerDepartureOrder: normalizeListOrder(raw.passengerDepartureOrder),

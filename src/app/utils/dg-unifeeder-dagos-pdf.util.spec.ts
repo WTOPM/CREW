@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DgPdfTextItem } from './dg-pdf-text.util';
 import {
   isUnifeederDagosPositionsPdf,
+  parseUnifeederDagosLines,
   parseUnifeederDagosPositions,
 } from './dg-unifeeder-dagos-pdf.util';
 
@@ -64,6 +65,50 @@ describe('dg-unifeeder-dagos-pdf', () => {
       { containerNo: 'BGBU4706312', position: '071099' },
       { containerNo: 'HASU1202445', position: '110404' },
       { containerNo: 'MRKU9861852', position: '090284' },
+    ]);
+  });
+
+  it('parses Net W. column and skips ghost rows without Serial Number', () => {
+    const items: DgPdfTextItem[] = [
+      item('Dagos on Board (IMDG-Code Amendment 42) - Dangerous goods, All items', 42.5, 78.8, 1),
+      item('Pos.', 43.7, 89.9, 1),
+      item('Serial Number', 77.2, 89.9, 1),
+      item('Net W. LQ', 538.8, 89.9, 1),
+      item('030184', 43.7, 97.8, 1),
+      item('NYKU9888653', 77.2, 97.8, 1),
+      item('3267', 185.9, 97.8, 1),
+      item('18000.0', 536.3, 97.8, 1),
+      // Ghost Pos/UN without serial (discharged leftover) — ignored
+      item('130382', 43.7, 113.6, 1),
+      item('3082', 185.9, 113.6, 1),
+      item('16680.0', 536.3, 113.6, 1),
+      item('220182', 43.7, 137.4, 1),
+      item('HLBU1607884', 77.2, 137.4, 1),
+      item('3166', 185.9, 137.4, 1),
+      item('2010.0', 539.1, 137.4, 1),
+      item('HLBU1607884', 77.2, 145.3, 1),
+      item('3166', 185.9, 145.3, 1),
+      item('1971.0', 539.1, 145.3, 1),
+    ];
+    expect(parseUnifeederDagosLines(items)).toEqual([
+      {
+        containerNo: 'NYKU9888653',
+        position: '030184',
+        unNo: '3267',
+        netWeightKg: '18000',
+      },
+      {
+        containerNo: 'HLBU1607884',
+        position: '220182',
+        unNo: '3166',
+        netWeightKg: '2010',
+      },
+      {
+        containerNo: 'HLBU1607884',
+        position: '220182',
+        unNo: '3166',
+        netWeightKg: '1971',
+      },
     ]);
   });
 

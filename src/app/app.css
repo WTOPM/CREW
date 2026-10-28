@@ -617,7 +617,8 @@
   .top-nav__center {
     order: 3;
     flex-basis: 100%;
-    justify-content: flex-start;
+    justify-content: stretch;
+    min-width: 0;
   }
 
   .top-nav__end {
