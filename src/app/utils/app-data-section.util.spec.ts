@@ -92,9 +92,16 @@ describe('app-data-section.util', () => {
     };
     memory.etaLibrary = { ...memory.etaLibrary, draft: { ...memory.etaLibrary.draft, name: 'MEM-ETA' } };
 
+    memory.adWorkspace = {
+      ...memory.adWorkspace,
+      folderPath: 'D:\\AandD',
+      selectedFile: 'report.xlsx',
+    };
     const saved = mergeSectionsForSave(disk, memory, ['home', 'fuel']);
     expect(saved.crew[0]?.familyName).toBe('MEM');
     expect(saved.fuelLibrary.events).toHaveLength(1);
+    expect(saved.adWorkspace.folderPath).toBe('D:\\AandD');
+    expect(saved.adWorkspace.selectedFile).toBe('report.xlsx');
     // ETA was not dirty — disk wins (other PC / older shared value).
     expect(saved.etaLibrary.draft.name).toBe('DISK-ETA');
   });

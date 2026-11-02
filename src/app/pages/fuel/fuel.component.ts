@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { AAndDPanelComponent } from '../../components/a-and-d-panel/a-and-d-panel.component';
 import { DatePickerComponent } from '../../components/date-picker/date-picker.component';
 import { FuelDisplayModalsComponent } from '../../components/fuel-display-modals/fuel-display-modals.component';
 import { FuelDistanceForecastModalComponent } from '../../components/fuel-distance-forecast-modal/fuel-distance-forecast-modal.component';
@@ -225,6 +226,7 @@ interface FuelPathSegment {
   imports: [
     RouterLink,
     FormsModule,
+    AAndDPanelComponent,
     DatePickerComponent,
     FuelEventEditModalComponent,
     FuelEtaVoyagePreviewModalComponent,
@@ -260,6 +262,11 @@ export class FuelComponent {
     const t = this.localPrefs.fuelUi().activeTab;
     return t === 'edit' ? 'edit' : 'view';
   });
+  /**
+   * A&D (Arrival & Departure) report tab — unrelated to fuel Excel.
+   * Kept as a local UI flag so fuel View/Edit prefs stay untouched.
+   */
+  protected readonly showAdTab = signal(false);
   protected readonly showAddModal = signal(false);
   /** Stable seed for Add modal (new object only when opening — avoids draft reset). */
   protected readonly addModalSeed = signal<Partial<FuelLogEvent> | null>(null);
@@ -1031,12 +1038,18 @@ export class FuelComponent {
   }
 
   protected setActiveTab(tab: FuelPageTab): void {
+    this.showAdTab.set(false);
     // Persist on this PC — stays after leave Fuel / close app. Draft is never discarded.
     if (tab === this.localPrefs.fuelUi().activeTab) {
       this.closeMenus();
       return;
     }
     void this.localPrefs.setFuelUi({ activeTab: tab });
+    this.closeMenus();
+  }
+
+  protected openAdTab(): void {
+    this.showAdTab.set(true);
     this.closeMenus();
   }
 

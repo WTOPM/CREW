@@ -1,0 +1,917 @@
+{
+  "tag": "filled",
+  "sheets": [
+    "A&D report NEW",
+    "How to fill out"
+  ],
+  "sheetsDetail": {
+    "A&D report NEW": {
+      "ref": "A1:IY73",
+      "merges": 15,
+      "cellCount": 158,
+      "cells": [
+        {
+          "addr": "A10",
+          "v": "River/sea pilot",
+          "t": "s"
+        },
+        {
+          "addr": "A22",
+          "v": "Harbour pilot  ",
+          "t": "s"
+        },
+        {
+          "addr": "A34",
+          "v": "Pilot - anchorage",
+          "t": "s"
+        },
+        {
+          "addr": "A46",
+          "v": "Tug assistance ",
+          "t": "s"
+        },
+        {
+          "addr": "A60",
+          "v": "Boatmen waiting time",
+          "t": "s"
+        },
+        {
+          "addr": "A63",
+          "v": "General remarks, each terminal",
+          "t": "s"
+        },
+        {
+          "addr": "A70",
+          "v": "Remarks",
+          "t": "s"
+        },
+        {
+          "addr": "B10",
+          "v": "IN ",
+          "t": "s"
+        },
+        {
+          "addr": "B16",
+          "v": "OUT ",
+          "t": "s"
+        },
+        {
+          "addr": "B22",
+          "v": "IN ",
+          "t": "s"
+        },
+        {
+          "addr": "B28",
+          "v": "OUT ",
+          "t": "s"
+        },
+        {
+          "addr": "B34",
+          "v": "TO",
+          "t": "s"
+        },
+        {
+          "addr": "B39",
+          "v": "FROM ",
+          "t": "s"
+        },
+        {
+          "addr": "B46",
+          "v": "MOORING",
+          "t": "s"
+        },
+        {
+          "addr": "B52",
+          "v": "UN-\r\nMOORING ",
+          "t": "s"
+        },
+        {
+          "addr": "C2",
+          "v": "Vessel:",
+          "t": "s"
+        },
+        {
+          "addr": "C3",
+          "v": "Master:",
+          "t": "s"
+        },
+        {
+          "addr": "C4",
+          "v": "Port call ID:",
+          "t": "s"
+        },
+        {
+          "addr": "C5",
+          "v": "Port code:",
+          "t": "s"
+        },
+        {
+          "addr": "C6",
+          "v": "Terminals:",
+          "t": "s"
+        },
+        {
+          "addr": "C7",
+          "v": "Is the terminal Lay-by? (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C9",
+          "v": "Pilot data",
+          "t": "s"
+        },
+        {
+          "addr": "C10",
+          "v": "Pilot used (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C11",
+          "v": "PEC (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C12",
+          "v": "Time onboarding (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C13",
+          "v": "Time disembarkment (date + time)",
+          "t": "s"
+        },
+        {
+          "addr": "C14",
+          "v": "Waiting time (mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C15",
+          "v": "Tour in vain (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C16",
+          "v": "Pilot used (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C17",
+          "v": "PEC (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C18",
+          "v": "Time onboarding (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C19",
+          "v": "Time disembarkment (date + time)",
+          "t": "s"
+        },
+        {
+          "addr": "C20",
+          "v": "Waiting time (mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C21",
+          "v": "Tour in vain (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C22",
+          "v": "Pilot used (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C23",
+          "v": "PEC (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C24",
+          "v": "Time onboarding (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C25",
+          "v": "Time disembarkment (date + time)",
+          "t": "s"
+        },
+        {
+          "addr": "C26",
+          "v": "Waiting time (mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C27",
+          "v": "Tour in vain (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C28",
+          "v": "Pilot used (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C29",
+          "v": "PEC (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C30",
+          "v": "Time onboarding (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C31",
+          "v": "Time disembarkment (date + time)",
+          "t": "s"
+        },
+        {
+          "addr": "C32",
+          "v": "Waiting time (mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C33",
+          "v": "Tour in vain (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C34",
+          "v": "Pilot to anchorage used (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C35",
+          "v": "Time onboarding (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C36",
+          "v": "Time disembarkment (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C37",
+          "v": "Waiting time (mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C38",
+          "v": "Tour in vain (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C39",
+          "v": "Pilot from anchorage used (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C40",
+          "v": "Time onboarding (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C41",
+          "v": "Time disembarkment (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C42",
+          "v": "Waiting time (mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C43",
+          "v": "Tour in vain (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C45",
+          "v": "Tug data",
+          "t": "s"
+        },
+        {
+          "addr": "C46",
+          "v": "Tug assistance (quant.)",
+          "t": "s"
+        },
+        {
+          "addr": "C47",
+          "v": "Start time (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C48",
+          "v": "End time (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C49",
+          "v": "Reason for tug assistance (choose reason)",
+          "t": "s"
+        },
+        {
+          "addr": "C50",
+          "v": "Waiting time(mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C51",
+          "v": "Tug tour in vain (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C52",
+          "v": "Tug assistance (quant.)",
+          "t": "s"
+        },
+        {
+          "addr": "C53",
+          "v": "Start time (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C54",
+          "v": "End time (date+ time)",
+          "t": "s"
+        },
+        {
+          "addr": "C55",
+          "v": "Reason for tug assistance (choose reason)",
+          "t": "s"
+        },
+        {
+          "addr": "C56",
+          "v": "Waiting time(mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C57",
+          "v": "Tug tour in vain (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C59",
+          "v": "Boatmen waiting time",
+          "t": "s"
+        },
+        {
+          "addr": "C60",
+          "v": "Signed boatmen waiting time (mins)",
+          "t": "s"
+        },
+        {
+          "addr": "C62",
+          "v": "General remarks, each terminal",
+          "t": "s"
+        },
+        {
+          "addr": "C63",
+          "v": "Shore gangway usage (GS) (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C64",
+          "v": "Shore gangway shifting (GSS) (Y/N)",
+          "t": "s"
+        },
+        {
+          "addr": "C65",
+          "v": "Hatch cover movement (quant.)",
+          "t": "s"
+        },
+        {
+          "addr": "C66",
+          "v": "Draft arrival each terminal ",
+          "t": "s"
+        },
+        {
+          "addr": "C67",
+          "v": "Draft depature each terminal",
+          "t": "s"
+        },
+        {
+          "addr": "C69",
+          "v": "Remarks",
+          "t": "s"
+        },
+        {
+          "addr": "C70",
+          "v": "Misc. Remarks",
+          "t": "s"
+        },
+        {
+          "addr": "D2",
+          "v": "M/V JUDITH",
+          "t": "s"
+        },
+        {
+          "addr": "D3",
+          "v": "NAKONECHNII V.",
+          "t": "s"
+        },
+        {
+          "addr": "D4",
+          "v": 701216,
+          "t": "n"
+        },
+        {
+          "addr": "D5",
+          "v": "DEBRV",
+          "t": "s"
+        },
+        {
+          "addr": "D6",
+          "v": "EGB",
+          "t": "s"
+        },
+        {
+          "addr": "D7",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D10",
+          "v": "Yes",
+          "t": "s"
+        },
+        {
+          "addr": "D11",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D12",
+          "v": "2026-10-14T09:48:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D13",
+          "v": "2026-10-14T11:00:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D14",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "D15",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D22",
+          "v": "Yes",
+          "t": "s"
+        },
+        {
+          "addr": "D23",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D24",
+          "v": "2026-10-14T11:00:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D25",
+          "v": "2026-10-14T11:36:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D26",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "D27",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D28",
+          "v": "Yes",
+          "t": "s"
+        },
+        {
+          "addr": "D29",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D30",
+          "v": "2026-10-14T09:48:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D31",
+          "v": "2026-10-14T16:36:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D32",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "D33",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D46",
+          "v": 2,
+          "t": "n"
+        },
+        {
+          "addr": "D47",
+          "v": "2026-10-14T11:05:59.999Z",
+          "t": "d"
+        },
+        {
+          "addr": "D48",
+          "v": "2026-10-14T11:30:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D49",
+          "v": "Safety",
+          "t": "s"
+        },
+        {
+          "addr": "D50",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "D51",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D52",
+          "v": 1,
+          "t": "n"
+        },
+        {
+          "addr": "D53",
+          "v": "2026-10-14T16:42:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D54",
+          "v": "2026-10-14T17:30:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "D55",
+          "v": "Safety",
+          "t": "s"
+        },
+        {
+          "addr": "D56",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "D57",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D60",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "D63",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D64",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "D65",
+          "v": 4,
+          "t": "n"
+        },
+        {
+          "addr": "D66",
+          "v": 9.4,
+          "t": "n"
+        }
+      ],
+      "cellsTail": [
+        {
+          "addr": "D65",
+          "v": 4,
+          "t": "n"
+        },
+        {
+          "addr": "D66",
+          "v": 9.4,
+          "t": "n"
+        },
+        {
+          "addr": "D67",
+          "v": 9.4,
+          "t": "n"
+        },
+        {
+          "addr": "E6",
+          "v": "NTB",
+          "t": "s"
+        },
+        {
+          "addr": "E7",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "E16",
+          "v": "Yes",
+          "t": "s"
+        },
+        {
+          "addr": "E17",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "E18",
+          "v": "2026-10-15T10:36:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "E19",
+          "v": "2026-10-15T14:12:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "E20",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "E21",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "E28",
+          "v": "Yes",
+          "t": "s"
+        },
+        {
+          "addr": "E29",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "E30",
+          "v": "2026-10-15T10:36:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "E31",
+          "v": "2026-10-15T11:12:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "E32",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "E33",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "E52",
+          "v": 1,
+          "t": "n"
+        },
+        {
+          "addr": "E53",
+          "v": "2026-10-15T10:48:00.000Z",
+          "t": "d"
+        },
+        {
+          "addr": "E54",
+          "v": "2026-10-15T11:05:59.999Z",
+          "t": "d"
+        },
+        {
+          "addr": "E55",
+          "v": "Safety",
+          "t": "s"
+        },
+        {
+          "addr": "E56",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "E57",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "E60",
+          "v": 0,
+          "t": "n"
+        },
+        {
+          "addr": "E63",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "E64",
+          "v": "No",
+          "t": "s"
+        },
+        {
+          "addr": "E65",
+          "v": 22,
+          "t": "n"
+        },
+        {
+          "addr": "E66",
+          "v": 9.4,
+          "t": "n"
+        },
+        {
+          "addr": "E67",
+          "v": 7.5,
+          "t": "n"
+        },
+        {
+          "addr": "I1",
+          "v": "DPW Shipping Solutions Arrival & Departure report",
+          "t": "s"
+        },
+        {
+          "addr": "I6",
+          "v": "Terminal 6",
+          "t": "s"
+        },
+        {
+          "addr": "J6",
+          "v": "Terminal 7",
+          "t": "s"
+        },
+        {
+          "addr": "K6",
+          "v": "Terminal 8",
+          "t": "s"
+        },
+        {
+          "addr": "L6",
+          "v": "Terminal 9",
+          "t": "s"
+        },
+        {
+          "addr": "M6",
+          "v": "Terminal 10",
+          "t": "s"
+        },
+        {
+          "addr": "N6",
+          "v": "Terminal 11",
+          "t": "s"
+        },
+        {
+          "addr": "O6",
+          "v": "Terminal 12",
+          "t": "s"
+        },
+        {
+          "addr": "P6",
+          "v": "Terminal 13",
+          "t": "s"
+        },
+        {
+          "addr": "Q6",
+          "v": "Terminal 14",
+          "t": "s"
+        },
+        {
+          "addr": "R6",
+          "v": "Terminal 15",
+          "t": "s"
+        }
+      ]
+    },
+    "How to fill out": {
+      "ref": "A3:A29",
+      "merges": 0,
+      "cellCount": 9,
+      "cells": [
+        {
+          "addr": "A3",
+          "v": "1. Please fill in Vessel name, Master name, Portcall ID and Port UN Locode",
+          "t": "s"
+        },
+        {
+          "addr": "A4",
+          "v": "2. Please fill in the terminal names in the blue \"Terminals\" line of the report",
+          "t": "s"
+        },
+        {
+          "addr": "A5",
+          "v": "3. For pilot and tug shiftings: in case of terminal shifts within the same port, tug/pilot usage should be entered only once for the shifting movement, and recorded under the departure terminal like in the example",
+          "t": "s"
+        },
+        {
+          "addr": "A6",
+          "v": "4. All times must be local time",
+          "t": "s"
+        },
+        {
+          "addr": "A9",
+          "v": "For Kiel Canal Passage, Insert Port code \"DENOK\" and terminals \"BRU\" and \"HOL\". Insert use of pilots through locks under Harbour Pilot. ",
+          "t": "s"
+        },
+        {
+          "addr": "A13",
+          "v": "Please send the A&D report in the following manner:",
+          "t": "s"
+        },
+        {
+          "addr": "A14",
+          "v": "Send the email to edocs@unifeeder.com",
+          "t": "s"
+        },
+        {
+          "addr": "A15",
+          "v": "Attach the completed report",
+          "t": "s"
+        },
+        {
+          "addr": "A16",
+          "v": "Include the Port Call ID (and nothing else) in the email subject line",
+          "t": "s"
+        }
+      ],
+      "cellsTail": [
+        {
+          "addr": "A3",
+          "v": "1. Please fill in Vessel name, Master name, Portcall ID and Port UN Locode",
+          "t": "s"
+        },
+        {
+          "addr": "A4",
+          "v": "2. Please fill in the terminal names in the blue \"Terminals\" line of the report",
+          "t": "s"
+        },
+        {
+          "addr": "A5",
+          "v": "3. For pilot and tug shiftings: in case of terminal shifts within the same port, tug/pilot usage should be entered only once for the shifting movement, and recorded under the departure terminal like in the example",
+          "t": "s"
+        },
+        {
+          "addr": "A6",
+          "v": "4. All times must be local time",
+          "t": "s"
+        },
+        {
+          "addr": "A9",
+          "v": "For Kiel Canal Passage, Insert Port code \"DENOK\" and terminals \"BRU\" and \"HOL\". Insert use of pilots through locks under Harbour Pilot. ",
+          "t": "s"
+        },
+        {
+          "addr": "A13",
+          "v": "Please send the A&D report in the following manner:",
+          "t": "s"
+        },
+        {
+          "addr": "A14",
+          "v": "Send the email to edocs@unifeeder.com",
+          "t": "s"
+        },
+        {
+          "addr": "A15",
+          "v": "Attach the completed report",
+          "t": "s"
+        },
+        {
+          "addr": "A16",
+          "v": "Include the Port Call ID (and nothing else) in the email subject line",
+          "t": "s"
+        }
+      ]
+    }
+  }
+}

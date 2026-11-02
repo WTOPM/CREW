@@ -1,0 +1,881 @@
+<section
+  class="ad"
+  [class.ad--busy]="busy()"
+  [attr.aria-busy]="busy() ? 'true' : null"
+  aria-label="A and D report editor"
+  appClickOutside
+  (appClickOutside)="closeSettings()"
+>
+  @if (busy()) {
+    <div class="ad-busy-overlay" role="alertdialog" aria-modal="true" aria-live="assertive">
+      <div class="ad-busy-card">
+        <div class="ad-busy-spinner" aria-hidden="true"></div>
+        <strong class="ad-busy-title">{{ busyLabel() || 'Working…' }}</strong>
+        <span class="ad-busy-text">Please wait — the page is locked until this finishes.</span>
+        <div class="ad-busy-bar" aria-hidden="true">
+          <div class="ad-busy-bar__fill"></div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <header class="ad-toolbar">
+    <h2 class="ad-toolbar__title">A&amp;D report</h2>
+  </header>
+
+  <div class="ad-path card" [class.ad-path--empty]="!folderPath()">
+    <div class="ad-path__folder">
+      <span class="ad-path__label">Folder</span>
+      <div class="ad-path__row">
+        <div class="ad-path-crumbs" [class.ad-path-crumbs--empty]="!pathSegments().length">
+          @if (pathSegments().length) {
+            @for (seg of pathSegments(); track seg.openPath; let last = $last) {
+              <button
+                type="button"
+                class="ad-path-seg"
+                [class.ad-path-seg--root]="seg.isRoot"
+                [class.ad-path-seg--last]="last"
+                [title]="last ? 'LMB open · RMB go up one folder' : 'Open folder'"
+                (mousedown)="onPathSegmentPress(seg, last, $event)"
+                (contextmenu)="$event.preventDefault()"
+              >
+                {{ seg.label }}
+              </button>
+              @if (!last) {
+                <span class="ad-path-sep" aria-hidden="true">\</span>
+              }
+            }
+          } @else {
+            <span class="ad-path-placeholder">Choose a folder…</span>
+          }
+        </div>
+        @if (hasElectron) {
+          <button
+            type="button"
+            class="ad-path-folder-btn"
+            title="Choose folder"
+            aria-label="Choose folder"
+            (click)="pickFolder()"
+            [disabled]="busy()"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              aria-hidden="true"
+            >
+              <path d="M12 8v8M8 12h8" stroke-linecap="round" />
+              <path
+                d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        }
+      </div>
+    </div>
+    <div class="ad-path__file">
+      <span class="ad-path__label">Excel</span>
+      <select
+        class="ad-path-select"
+        [ngModel]="selectedFile()"
+        (ngModelChange)="onFileSelect($event)"
+        (contextmenu)="onExcelSelectContextMenu($event)"
+        [disabled]="busy() || !folderPath()"
+        [attr.title]="hasOpenFile() ? 'RIGHT CLICK TO OPEN' : null"
+        aria-label="Excel workbook in folder"
+      >
+        <option value="">
+          {{ folderPath() ? 'New document (not saved)…' : 'Choose folder first' }}
+        </option>
+        @for (name of folderFiles(); track name) {
+          <option [value]="name">{{ name }}</option>
+        }
+      </select>
+    </div>
+    <div class="ad-path__actions">
+      <button
+        type="button"
+        class="btn ad-btn ad-btn--new"
+        (click)="newDocument()"
+        [disabled]="busy()"
+      >
+        New
+      </button>
+      <button
+        type="button"
+        class="btn ad-btn ad-btn--copy"
+        (click)="copyAsNew()"
+        [disabled]="busy() || !hasOpenFile()"
+        title="Keep current data as a new unsaved document"
+      >
+        Copy
+      </button>
+      <button
+        type="button"
+        class="btn ad-btn ad-btn--refresh"
+        (click)="refreshOpenFile()"
+        [disabled]="busy() || !hasOpenFile()"
+        title="Reload data from the open Excel file"
+      >
+        Refresh
+      </button>
+      <button
+        type="button"
+        class="btn ad-btn ad-btn--save"
+        (click)="saveDocument()"
+        [disabled]="busy()"
+      >
+        {{ busy() ? 'Saving…' : 'Save' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="ad-meta card">
+    <div class="ad-meta__stack">
+      <label class="ad-meta-field ad-meta-field--id" [class.ad-meta-field--missing]="isBlank(draft().portCallId)">
+        <span class="ad-meta-field__label">Port call ID</span>
+        <input
+          class="ad-meta-field__input"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          spellcheck="false"
+          [ngModel]="draft().portCallId"
+          (ngModelChange)="updateHeader('portCallId', $event)"
+        />
+      </label>
+      <label class="ad-meta-field ad-meta-field--code" [class.ad-meta-field--missing]="isBlank(draft().portCode)">
+        <span class="ad-meta-field__label">Port code</span>
+        <div
+          class="ad-combo"
+          [class.ad-combo--open]="portComboOpen()"
+          appClickOutside
+          (appClickOutside)="confirmPortCombo()"
+        >
+          <input
+            class="ad-meta-field__input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Pick or type…"
+            [ngModel]="draft().portCode"
+            (ngModelChange)="updatePortCode($event)"
+            (focus)="openPortCombo()"
+            (keydown.enter)="confirmPortCombo($event)"
+          />
+          <button
+            type="button"
+            class="ad-combo__arrow"
+            tabindex="-1"
+            aria-label="Toggle port list"
+            [attr.aria-expanded]="portComboOpen()"
+            (mousedown)="togglePortCombo($event)"
+          >
+            ▾
+          </button>
+          @if (portComboOpen()) {
+            <ul class="ad-combo__list" role="listbox">
+              @for (p of filteredPortCodeOptions(); track p.code) {
+                <li
+                  role="option"
+                  class="ad-combo__item"
+                  (mousedown)="selectPortCode(p.code, $event)"
+                >
+                  <strong>{{ p.code }}</strong>
+                  <span>{{ p.label }}</span>
+                </li>
+              } @empty {
+                <li class="ad-combo__empty">No ports</li>
+              }
+            </ul>
+          }
+        </div>
+      </label>
+    </div>
+    <div class="ad-palette" aria-label="Action blocks">
+      <span class="ad-palette__title" tabindex="0">
+        Blocks
+        <span class="ad-palette__tip" role="tooltip">
+          DRAG ONTO +
+          <br />
+          TOP = ARRIVAL · BOTTOM = DEPARTURE
+          <br />
+          TOP STRIP · BLOCK DEFAULTS
+        </span>
+      </span>
+      <div class="ad-palette__list">
+        @for (g of paletteGroups; track g.id) {
+          <div
+            class="ad-chip"
+            [attr.data-group]="g.id"
+            [class.ad-chip--dragging]="dragGroup() === g.id"
+            [class.ad-chip--settings]="settingsOpen() === g.id"
+            appClickOutside
+            (appClickOutside)="onBlockSettingsOutside(g.id)"
+          >
+            <button
+              type="button"
+              class="ad-chip__strip"
+              aria-label="Block defaults"
+              [attr.aria-expanded]="settingsOpen() === g.id"
+              (click)="toggleSettings(g.id, $event)"
+              (mousedown)="$event.stopPropagation()"
+            >
+              <span class="ad-chip__strip-bar" aria-hidden="true"></span>
+            </button>
+            <button
+              type="button"
+              class="ad-chip__body"
+              draggable="true"
+              (dragstart)="onPaletteDragStart(g.id, $event)"
+              (dragend)="onPaletteDragEnd()"
+            >
+              <span class="ad-chip__label">{{ g.label }}</span>
+            </button>
+            @if (settingsOpen() === g.id) {
+              <div
+                class="ad-chip-pop"
+                role="dialog"
+                [attr.aria-label]="g.label + ' defaults'"
+                (click)="$event.stopPropagation()"
+                (mousedown)="$event.stopPropagation()"
+              >
+                <p class="ad-chip-pop__hint">Defaults for new {{ g.label }} blocks</p>
+                @if (g.shape === 'pilot') {
+                  @if (g.id !== 'anchorage') {
+                    <label class="ad-field">
+                      <span>PEC</span>
+                      <select
+                        [ngModel]="pilotDefaults(g.id).pec"
+                        (ngModelChange)="patchPilotDefaults(g.id, { pec: $event })"
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </label>
+                  }
+                  <label class="ad-field">
+                    <span>Wait (mins)</span>
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      [ngModel]="pilotDefaults(g.id).waitMins"
+                      (ngModelChange)="patchPilotDefaults(g.id, { waitMins: $event })"
+                    />
+                  </label>
+                  <label class="ad-field">
+                    <span>Tour in vain</span>
+                    <select
+                      [ngModel]="pilotDefaults(g.id).vain"
+                      (ngModelChange)="patchPilotDefaults(g.id, { vain: $event })"
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </label>
+                } @else {
+                  <label class="ad-field">
+                    <span>Qty</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      [ngModel]="blockDefaults().tug.quantity"
+                      (ngModelChange)="patchTugDefaults({ quantity: +$event || 1 })"
+                    />
+                  </label>
+                  <label class="ad-field">
+                    <span>Reason</span>
+                    <input
+                      type="text"
+                      [ngModel]="blockDefaults().tug.reason"
+                      (ngModelChange)="patchTugDefaults({ reason: $event })"
+                      placeholder="Safety"
+                    />
+                  </label>
+                  <label class="ad-field">
+                    <span>Wait (mins)</span>
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      [ngModel]="blockDefaults().tug.waitMins"
+                      (ngModelChange)="patchTugDefaults({ waitMins: $event })"
+                    />
+                  </label>
+                  <label class="ad-field">
+                    <span>Tour in vain</span>
+                    <select
+                      [ngModel]="blockDefaults().tug.vain"
+                      (ngModelChange)="patchTugDefaults({ vain: $event })"
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </label>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="ad-terminals">
+    <div class="ad-terminals__bar">
+      <h3 class="ad-terminals__title">
+        Terminals
+        <span class="ad-terminals__count">{{ terminalCount() }}</span>
+      </h3>
+      <button
+        type="button"
+        class="ad-terminals__add"
+        (click)="addTerminal()"
+        [disabled]="terminalCount() >= maxTerminals"
+        title="Add terminal"
+        aria-label="Add terminal"
+      >
+        <span aria-hidden="true">+</span>
+      </button>
+    </div>
+
+    <div
+      class="ad-terminals__stack"
+      [class.ad-terminals__stack--reordering]="terminalReordering()"
+      cdkDropList
+      [cdkDropListData]="draft().terminals"
+      [cdkDropListDisabled]="terminalCount() < 2 || !!dragGroup()"
+      (cdkDropListDropped)="onTerminalCdkDrop($event)"
+    >
+      @for (term of draft().terminals; track term.id) {
+        <article
+          class="ad-term card"
+          cdkDrag
+          [cdkDragDisabled]="terminalCount() < 2 || !!dragGroup()"
+          [class.ad-term--drop]="!!dragGroup()"
+          (cdkDragStarted)="onTerminalCdkDragStarted()"
+          (cdkDragEnded)="onTerminalCdkDragEnded()"
+        >
+          <div class="ad-term-placeholder" *cdkDragPlaceholder></div>
+          <div class="ad-term-preview card" *cdkDragPreview>
+            <strong>{{ term.code || 'Terminal' }}</strong>
+            <span>{{ term.actions.length }} block{{ term.actions.length === 1 ? '' : 's' }}</span>
+          </div>
+          <div class="ad-term__events" [attr.data-term-scroll]="term.id">
+            <div
+              class="ad-block ad-block--terminal"
+              [class.ad-block--terminal-missing]="isBlank(term.code)"
+              (contextmenu)="openTerminalEdit(term, $event)"
+            >
+              <div class="ad-block__head">
+                <span
+                  class="ad-term-drag"
+                  cdkDragHandle
+                  [class.ad-term-drag--off]="terminalCount() < 2"
+                  role="button"
+                  tabindex="0"
+                  title="Drag to reorder"
+                  aria-label="Drag to reorder"
+                >
+                  <span aria-hidden="true">⋮⋮</span>
+                </span>
+                <span
+                  class="ad-block__label"
+                  cdkDragHandle
+                  title="Drag to reorder · right-click to edit"
+                >
+                  <span class="ad-block__title">
+                    <span class="ad-block__name">Terminal</span>
+                    <strong
+                      class="ad-block__code"
+                      [class.ad-block__code--empty]="isBlank(term.code)"
+                    >
+                      {{ term.code || '—' }}
+                    </strong>
+                  </span>
+                </span>
+                @if (term.layBy) {
+                  <span class="ad-term-pill">Lay-by</span>
+                }
+                <button
+                  type="button"
+                  class="ad-block__del"
+                  title="Remove terminal"
+                  aria-label="Remove terminal"
+                  (click)="removeTerminal(term.id, $event)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="28"
+                    height="28"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div class="ad-term-facts">
+                <div class="ad-term-facts__row">
+                  <div
+                    class="ad-term-fact ad-term-fact--gangway"
+                    [class.ad-term-fact--yes]="term.remarks.shoreGangway === 'Yes'"
+                    title="Shore gangway"
+                  >
+                    <span>Gangway</span>
+                    <strong>{{ term.remarks.shoreGangway }}</strong>
+                  </div>
+                  <div
+                    class="ad-term-fact ad-term-fact--hatch"
+                    [class.ad-term-fact--miss]="isBlank(term.remarks.hatchCoverQty)"
+                    title="Hatch cover movements"
+                  >
+                    <span>Hatch</span>
+                    <strong>{{ term.remarks.hatchCoverQty || '—' }}</strong>
+                  </div>
+                </div>
+                @if (term.remarks.miscRemarks.trim()) {
+                  <div class="ad-term-fact ad-term-fact--remarks">
+                    <span>Remarks</span>
+                    <strong>{{ term.remarks.miscRemarks }}</strong>
+                  </div>
+                }
+              </div>
+              <div
+                class="ad-term-drafts"
+                [class.ad-term-drafts--miss]="
+                  isBlank(term.remarks.draftArrival) || isBlank(term.remarks.draftDeparture)
+                "
+              >
+                <div class="ad-term-drafts__side ad-term-drafts__side--in">
+                  <span>Arrival</span>
+                  <strong>{{ term.remarks.draftArrival || '—' }}</strong>
+                </div>
+                <div class="ad-term-drafts__mid" aria-hidden="true">Drafts</div>
+                <div class="ad-term-drafts__side ad-term-drafts__side--out">
+                  <span>Departure</span>
+                  <strong>{{ term.remarks.draftDeparture || '—' }}</strong>
+                </div>
+              </div>
+              <p class="ad-term-hint">Right-click to edit · drag ⋮⋮ to reorder</p>
+            </div>
+
+            @for (action of sortedActions(term); track action.kind) {
+              @let g = groupOf(action.kind);
+              @let def = defOf(action.kind);
+              <div
+                class="ad-block"
+                [attr.data-group]="g.id"
+                [attr.data-tone]="def.tone"
+              >
+                <div class="ad-block__head">
+                  <span class="ad-block__label">
+                    <span class="ad-block__title">
+                      <span class="ad-block__name">{{ g.label }}</span>
+                      <strong class="ad-block__dir">{{ def.direction }}</strong>
+                    </span>
+                    @if (isTug(action)) {
+                      <input
+                        class="ad-block__qty"
+                        type="number"
+                        min="1"
+                        step="1"
+                        title="Number of tugs"
+                        aria-label="Number of tugs"
+                        [ngModel]="action.quantity"
+                        (ngModelChange)="
+                          patchAction(term.id, action.kind, { quantity: +$event || 1 })
+                        "
+                      />
+                    }
+                  </span>
+                  <button
+                    type="button"
+                    class="ad-block__del"
+                    title="Remove block"
+                    aria-label="Remove block"
+                    (click)="removeAction(term.id, action.kind); $event.stopPropagation()"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="28"
+                      height="28"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                @if (isPilot(action)) {
+                  <label
+                    class="ad-block__field"
+                    [class.ad-field--missing]="isDateTimeMissing(action.onboarding)"
+                  >
+                    <span>On board</span>
+                    <div class="ad-dt">
+                      <app-date-picker
+                        [value]="datePart(action.onboarding)"
+                        [showTime]="true"
+                        [time]="timePart(action.onboarding)"
+                        (valueChange)="setActionDate(term.id, action.kind, 'onboarding', $event)"
+                        (timeChange)="setActionTime(term.id, action.kind, 'onboarding', $event)"
+                      />
+                      <app-time-input
+                        [value]="timePart(action.onboarding)"
+                        (valueChange)="setActionTime(term.id, action.kind, 'onboarding', $event)"
+                      />
+                    </div>
+                  </label>
+                  <label
+                    class="ad-block__field"
+                    [class.ad-field--missing]="isDateTimeMissing(action.disembarkment)"
+                  >
+                    <span>Disembark</span>
+                    <div class="ad-dt">
+                      <app-date-picker
+                        [value]="datePart(action.disembarkment)"
+                        [showTime]="true"
+                        [time]="timePart(action.disembarkment)"
+                        (valueChange)="
+                          setActionDate(term.id, action.kind, 'disembarkment', $event)
+                        "
+                        (timeChange)="
+                          setActionTime(term.id, action.kind, 'disembarkment', $event)
+                        "
+                      />
+                      <app-time-input
+                        [value]="timePart(action.disembarkment)"
+                        (valueChange)="
+                          setActionTime(term.id, action.kind, 'disembarkment', $event)
+                        "
+                      />
+                    </div>
+                  </label>
+                } @else if (isTug(action)) {
+                  <label
+                    class="ad-block__field"
+                    [class.ad-field--missing]="isDateTimeMissing(action.start)"
+                  >
+                    <span>Start</span>
+                    <div class="ad-dt">
+                      <app-date-picker
+                        [value]="datePart(action.start)"
+                        [showTime]="true"
+                        [time]="timePart(action.start)"
+                        (valueChange)="setActionDate(term.id, action.kind, 'start', $event)"
+                        (timeChange)="setActionTime(term.id, action.kind, 'start', $event)"
+                      />
+                      <app-time-input
+                        [value]="timePart(action.start)"
+                        (valueChange)="setActionTime(term.id, action.kind, 'start', $event)"
+                      />
+                    </div>
+                  </label>
+                  <label
+                    class="ad-block__field"
+                    [class.ad-field--missing]="isDateTimeMissing(action.end)"
+                  >
+                    <span>End</span>
+                    <div class="ad-dt">
+                      <app-date-picker
+                        [value]="datePart(action.end)"
+                        [showTime]="true"
+                        [time]="timePart(action.end)"
+                        (valueChange)="setActionDate(term.id, action.kind, 'end', $event)"
+                        (timeChange)="setActionTime(term.id, action.kind, 'end', $event)"
+                      />
+                      <app-time-input
+                        [value]="timePart(action.end)"
+                        (valueChange)="setActionTime(term.id, action.kind, 'end', $event)"
+                      />
+                    </div>
+                  </label>
+                }
+              </div>
+            }
+
+            @if (canAddMore(term)) {
+              <div
+                class="ad-add"
+                [class.ad-add--drag]="!!dragGroup()"
+                [class.ad-add--choose]="!!dragGroup() && dropHover()?.terminalId === term.id"
+                (dragover)="onAddSlotDragOver(term, $event)"
+                (dragleave)="onAddSlotDragLeave($event)"
+                (drop)="onAddSlotDrop(term, $event)"
+              >
+                @if (dragGroup()) {
+                  <div
+                    class="ad-add__half ad-add__half--in"
+                    [class.ad-add__half--hot]="halfIsHot(term, 'in')"
+                    [class.ad-add__half--taken]="halfIsTaken(term, 'in')"
+                  >
+                    @if (halfIsTaken(term, 'in')) {
+                      Arrival · taken
+                    } @else {
+                      Arrival · IN
+                    }
+                  </div>
+                  <div
+                    class="ad-add__half ad-add__half--out"
+                    [class.ad-add__half--hot]="halfIsHot(term, 'out')"
+                    [class.ad-add__half--taken]="halfIsTaken(term, 'out')"
+                  >
+                    @if (halfIsTaken(term, 'out')) {
+                      Departure · taken
+                    } @else {
+                      Departure · OUT
+                    }
+                  </div>
+                } @else {
+                  <span class="ad-add__plus" aria-hidden="true">+</span>
+                  <span class="ad-add__hint">Drop block</span>
+                }
+              </div>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+@if (editDraft(); as ed) {
+  <div
+    class="modal-backdrop ad-term-modal-backdrop"
+    (mousedown)="onTerminalBackdropPress($event)"
+    (contextmenu)="onTerminalBackdropPress($event)"
+  >
+    <div
+      class="modal ad-term-modal"
+      role="dialog"
+      aria-label="Terminal"
+      (mousedown)="$event.stopPropagation()"
+      (contextmenu)="$event.stopPropagation()"
+    >
+      <div class="ad-term-modal__body">
+        <header class="ad-term-modal__head">
+          <h3 class="ad-term-modal__title">Terminal</h3>
+          <p class="ad-term-modal__hint">Esc to close · pick or type codes</p>
+        </header>
+
+        <div class="ad-term-modal__code-row">
+          <label
+            class="ad-term-modal__field ad-term-modal__field--code"
+            [class.ad-term-modal__field--missing]="isBlank(ed.code)"
+          >
+            <span>Terminal code</span>
+            <div
+              class="ad-combo"
+              [class.ad-combo--open]="terminalComboOpen()"
+              appClickOutside
+              (appClickOutside)="confirmTerminalCombo()"
+            >
+              <input
+                type="text"
+                maxlength="12"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Pick or type…"
+                [ngModel]="ed.code"
+                (ngModelChange)="onTerminalCodeTyped($event)"
+                (focus)="openTerminalCombo()"
+                (keydown.enter)="confirmTerminalCombo($event)"
+              />
+              <button
+                type="button"
+                class="ad-combo__arrow"
+                tabindex="-1"
+                aria-label="Toggle terminal list"
+                [attr.aria-expanded]="terminalComboOpen()"
+                (mousedown)="toggleTerminalCombo($event)"
+              >
+                ▾
+              </button>
+              @if (terminalComboOpen()) {
+                <ul class="ad-combo__list" role="listbox">
+                  @for (t of filteredTerminalCodeOptions(); track t.code) {
+                    <li
+                      role="option"
+                      class="ad-combo__item"
+                      (mousedown)="selectTerminalCode(t.code, $event)"
+                    >
+                      <strong>{{ t.code }}</strong>
+                      <span>{{ t.label }}</span>
+                    </li>
+                  } @empty {
+                    <li class="ad-combo__empty">No terminals for this port</li>
+                  }
+                </ul>
+              }
+            </div>
+          </label>
+          <label class="ad-term-modal__check">
+            <input
+              type="checkbox"
+              [ngModel]="ed.layBy"
+              (ngModelChange)="patchEditDraft({ layBy: $event })"
+            />
+            Lay-by
+          </label>
+        </div>
+
+        <div class="ad-term-modal__row">
+          <label class="ad-term-modal__field ad-term-modal__field--gangway">
+            <span>Shore gangway</span>
+            <select
+              [ngModel]="ed.shoreGangway"
+              (ngModelChange)="patchEditDraft({ shoreGangway: $event })"
+            >
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </label>
+          <label class="ad-term-modal__field ad-term-modal__field--shift">
+            <span>Gangway shift</span>
+            <select
+              [ngModel]="ed.shoreGangwayShift"
+              (ngModelChange)="patchEditDraft({ shoreGangwayShift: $event })"
+            >
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="ad-term-modal__row">
+          <div
+            class="ad-term-modal__field ad-term-modal__field--hatch"
+            [class.ad-term-modal__field--missing]="isBlank(ed.hatchCoverQty)"
+          >
+            <span>Hatch cover movements</span>
+            <div class="ad-term-stepper">
+              <button
+                type="button"
+                class="ad-term-stepper__btn"
+                aria-label="Decrease hatch covers"
+                (click)="nudgeHatch(-1)"
+              >
+                −
+              </button>
+              <input
+                type="text"
+                inputmode="numeric"
+                [ngModel]="ed.hatchCoverQty"
+                (ngModelChange)="patchEditDraft({ hatchCoverQty: $event })"
+                (keydown)="onHatchKeydown($event)"
+              />
+              <button
+                type="button"
+                class="ad-term-stepper__btn"
+                aria-label="Increase hatch covers"
+                (click)="nudgeHatch(1)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <label class="ad-term-modal__field ad-term-modal__field--boatmen">
+            <span>Boatmen wait (mins)</span>
+            <input
+              type="text"
+              inputmode="numeric"
+              [ngModel]="ed.boatmenWaitMins"
+              (ngModelChange)="patchEditDraft({ boatmenWaitMins: $event })"
+            />
+          </label>
+        </div>
+
+        <div
+          class="ad-term-modal__drafts"
+          [class.ad-term-modal__drafts--miss]="
+            isBlank(ed.draftArrival) || isBlank(ed.draftDeparture)
+          "
+        >
+          <div class="ad-term-modal__draft-side ad-term-modal__draft-side--in">
+            <span>Arrival</span>
+            <div class="ad-term-stepper">
+              <button
+                type="button"
+                class="ad-term-stepper__btn"
+                aria-label="Decrease arrival draft"
+                (click)="nudgeDraft('draftArrival', -0.1)"
+              >
+                −
+              </button>
+              <input
+                type="text"
+                inputmode="decimal"
+                [ngModel]="ed.draftArrival"
+                (ngModelChange)="patchEditDraft({ draftArrival: $event })"
+                (keydown)="onDraftKeydown($event, 'draftArrival')"
+              />
+              <button
+                type="button"
+                class="ad-term-stepper__btn"
+                aria-label="Increase arrival draft"
+                (click)="nudgeDraft('draftArrival', 0.1)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div class="ad-term-modal__draft-mid">Drafts</div>
+          <div class="ad-term-modal__draft-side ad-term-modal__draft-side--out">
+            <span>Departure</span>
+            <div class="ad-term-stepper">
+              <button
+                type="button"
+                class="ad-term-stepper__btn"
+                aria-label="Decrease departure draft"
+                (click)="nudgeDraft('draftDeparture', -0.1)"
+              >
+                −
+              </button>
+              <input
+                type="text"
+                inputmode="decimal"
+                [ngModel]="ed.draftDeparture"
+                (ngModelChange)="patchEditDraft({ draftDeparture: $event })"
+                (keydown)="onDraftKeydown($event, 'draftDeparture')"
+              />
+              <button
+                type="button"
+                class="ad-term-stepper__btn"
+                aria-label="Increase departure draft"
+                (click)="nudgeDraft('draftDeparture', 0.1)"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <label class="ad-term-modal__field ad-term-modal__field--remarks">
+          <span>Misc. remarks</span>
+          <input
+            type="text"
+            [ngModel]="ed.miscRemarks"
+            (ngModelChange)="patchEditDraft({ miscRemarks: $event })"
+          />
+        </label>
+      </div>
+    </div>
+  </div>
+}

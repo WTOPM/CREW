@@ -45,7 +45,10 @@ export function timeFromMask(text: string): string | null {
 
 export type TimeMaskSegment = 'hours' | 'minutes';
 
-/** Adjust hours or minutes in an HH:MM mask by ±1 (wraps at range ends). */
+/**
+ * Adjust hours or minutes in an HH:MM mask by ±delta.
+ * Clamps at ends (00↔23 hours, 00↔59 minutes) — does not wrap around.
+ */
 export function adjustTimeMaskSegment(
   mask: string,
   segment: TimeMaskSegment,
@@ -58,9 +61,9 @@ export function adjustTimeMaskSegment(
   let mm = parseInt(mmStr, 10);
 
   if (segment === 'hours') {
-    hh = (hh + delta + 24) % 24;
+    hh = Math.min(23, Math.max(0, hh + delta));
   } else {
-    mm = (mm + delta + 60) % 60;
+    mm = Math.min(59, Math.max(0, mm + delta));
   }
 
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;

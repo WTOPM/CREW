@@ -92,11 +92,62 @@
           </button>
         }
       </div>
+      @if (showTime()) {
+        <div class="cal-time" aria-label="Time">
+          <div
+            class="cal-time__col"
+            title="Scroll wheel — hours 00…23 (no wrap)"
+            (wheel)="onHourWheel($event)"
+          >
+            <button type="button" class="cal-time__step" (click)="nudgePopupHour(1)" aria-label="Hour up">
+              ▲
+            </button>
+            <div class="cal-time__value">{{ popupHour() }}</div>
+            <button
+              type="button"
+              class="cal-time__step"
+              (click)="nudgePopupHour(-1)"
+              aria-label="Hour down"
+            >
+              ▼
+            </button>
+            <span class="cal-time__label">Hour</span>
+          </div>
+          <div class="cal-time__sep" aria-hidden="true">:</div>
+          <div
+            class="cal-time__col"
+            title="Scroll wheel — minutes 00…59 (no wrap)"
+            (wheel)="onMinuteWheel($event)"
+          >
+            <button
+              type="button"
+              class="cal-time__step"
+              (click)="nudgePopupMinute(1)"
+              aria-label="Minute up"
+            >
+              ▲
+            </button>
+            <div class="cal-time__value">{{ popupMinute() }}</div>
+            <button
+              type="button"
+              class="cal-time__step"
+              (click)="nudgePopupMinute(-1)"
+              aria-label="Minute down"
+            >
+              ▼
+            </button>
+            <span class="cal-time__label">Min</span>
+          </div>
+        </div>
+      }
       <div class="cal-foot">
         <button type="button" class="cal-foot-btn" (click)="selectToday()">Today</button>
         <button type="button" class="cal-foot-btn cal-foot-btn--muted" (click)="clear()">
           Clear
         </button>
+        @if (showTime()) {
+          <button type="button" class="cal-foot-btn" (click)="confirmPopup()">Done</button>
+        }
       </div>
     </div>
   </ng-template>

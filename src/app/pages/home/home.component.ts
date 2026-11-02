@@ -640,6 +640,7 @@ export class HomeComponent {
       nationality: draft.nationality,
       dateOfBirth: draft.dateOfBirth,
       placeOfBirth: draft.placeOfBirth,
+      phone: draft.phone,
       passport: draft.passport,
       passportIssueDate: draft.passportIssueDate,
       passportExpiryDate: draft.passportExpiryDate,

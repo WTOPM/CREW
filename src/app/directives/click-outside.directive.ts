@@ -55,7 +55,8 @@ export class ClickOutsideDirective {
       target.closest('.confirm-backdrop') ||
       target.closest('.cdk-overlay-container') ||
       target.closest('.date-picker-popup') ||
-      target.closest('.form-save-busy-overlay')
+      target.closest('.form-save-busy-overlay') ||
+      target.closest('.ad-busy-overlay')
     );
   }
 }

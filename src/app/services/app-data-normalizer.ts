@@ -82,6 +82,7 @@ import { unNumberReferenceVariantKey } from '../utils/dg-un-reference-variant.ut
 import { normalizeReeferLibrary } from '../models/reefer.models';
 import { normalizeEtaLibrary } from '../models/eta.models';
 import { normalizeFuelLibrary } from '../models/fuel.models';
+import { normalizeAdWorkspace } from '../models/a-and-d.models';
 import { normalizePhoneLibrary } from '../models/phone.models';
 import { normalizeDepRepLibrary } from '../models/dep-rep.models';
 import type { AppSnapshotEntry } from '../models/app-snapshot.models';
@@ -194,6 +195,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
   const reeferLibrary = normalizeReeferLibrary(raw.reeferLibrary, ports, ship);
   const etaLibrary = normalizeEtaLibrary(raw.etaLibrary);
   const fuelLibrary = normalizeFuelLibrary(raw.fuelLibrary);
+  const adWorkspace = normalizeAdWorkspace(raw.adWorkspace);
   const phoneLibrary = normalizePhoneLibrary(raw.phoneLibrary);
   const depRepLibrary = normalizeDepRepLibrary(raw.depRepLibrary);
   const appSnapshots = normalizeAppSnapshotEntries(raw.appSnapshots);
@@ -240,6 +242,7 @@ export function normalizeAppData(raw: Partial<AppData> & { ports?: unknown }): A
     reeferLibrary,
     etaLibrary,
     fuelLibrary,
+    adWorkspace,
     phoneLibrary,
     depRepLibrary,
     appSnapshots,

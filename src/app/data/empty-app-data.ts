@@ -29,6 +29,7 @@ import { createDefaultDgEmsReference } from '../models/dg-ems-reference.models';
 import { createDefaultReeferLibrary } from '../models/reefer.models';
 import { createDefaultEtaLibrary } from '../models/eta.models';
 import { createDefaultFuelLibrary } from '../models/fuel.models';
+import { createDefaultAdWorkspace } from '../models/a-and-d.models';
 import { createDefaultPhoneLibrary } from '../models/phone.models';
 import { createDefaultDepRepLibrary } from '../models/dep-rep.models';
 import {
@@ -72,6 +73,7 @@ export function createEmptyAppData(): AppData {
     reeferLibrary: createDefaultReeferLibrary(),
     etaLibrary: createDefaultEtaLibrary(),
     fuelLibrary: createDefaultFuelLibrary(),
+    adWorkspace: createDefaultAdWorkspace(),
     phoneLibrary: createDefaultPhoneLibrary(),
     depRepLibrary: createDefaultDepRepLibrary(),
     appSnapshots: [],

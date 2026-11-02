@@ -140,6 +140,15 @@
     0 0 0 1px rgb(234 88 12 / 18%);
 }
 
+.fuel-page-tab--ad.fuel-page-tab--active {
+  border-color: #7c3aed;
+  background: linear-gradient(135deg, #ede9fe 0%, #fff 68%);
+  color: #6d28d9;
+  box-shadow:
+    0 2px 10px rgb(124 58 237 / 22%),
+    0 0 0 1px rgb(124 58 237 / 18%);
+}
+
 .fuel-ready-btn {
   width: 1.85rem;
   height: 1.85rem;

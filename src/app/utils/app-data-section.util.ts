@@ -70,7 +70,7 @@ export function pickSectionSlice(data: AppData, section: AppSection): Partial<Ap
     case 'eta':
       return { etaLibrary: data.etaLibrary };
     case 'fuel':
-      return { fuelLibrary: data.fuelLibrary };
+      return { fuelLibrary: data.fuelLibrary, adWorkspace: data.adWorkspace };
     case 'phone':
       return { phoneLibrary: data.phoneLibrary };
     case 'settings':

@@ -408,6 +408,7 @@ export type HomeCrewTableColumnId =
   | 'gender'
   | 'dateOfBirth'
   | 'placeOfBirth'
+  | 'phone'
   | 'passport'
   | 'passportPlaceOfIssue'
   | 'passportIssueDate'
@@ -442,6 +443,7 @@ export const HOME_CREW_TABLE_COLUMN_OPTIONS: readonly {
   { id: 'gender', label: 'Gender' },
   { id: 'dateOfBirth', label: 'Date of Birth' },
   { id: 'placeOfBirth', label: 'Place of Birth' },
+  { id: 'phone', label: 'Phone' },
   { id: 'passport', label: 'Passport No.' },
   { id: 'passportPlaceOfIssue', label: 'Passport Place of Issue' },
   { id: 'passportIssueDate', label: 'Passport Issue' },
@@ -475,6 +477,7 @@ export const HOME_PAX_TABLE_COLUMN_IDS: readonly HomeCrewTableColumnId[] = [
   'gender',
   'dateOfBirth',
   'placeOfBirth',
+  'phone',
   'passport',
   'passportIssueDate',
   'passportExpiryDate',
@@ -507,6 +510,7 @@ export const HOME_CREW_TABLE_COLUMN_GROUPS: readonly {
       'gender',
       'dateOfBirth',
       'placeOfBirth',
+      'phone',
     ],
   },
   {
@@ -772,6 +776,8 @@ export interface AppData {
   etaLibrary: import('./eta.models').EtaLibrarySettings;
   /** Fuel log from FO-VPC / SHAPOLI Excel (VPS report prep). */
   fuelLibrary: import('./fuel.models').FuelLibrarySettings;
+  /** A&D report workspace (folder + draft under Fuel → A&D). */
+  adWorkspace: import('./a-and-d.models').AdWorkspace;
   /** Cabin / phone directory from CREW CABIN PHONE.xlsx (editable + write-back). */
   phoneLibrary: import('./phone.models').PhoneLibrarySettings;
   /** Departure Cargo Report (DEP REP.xlsx) path + TOTAL CARGO. */

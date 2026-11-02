@@ -214,13 +214,7 @@ export class TimeInputComponent {
       const delta = key === 'ArrowUp' ? 1 : -1;
       const seg = timeSegmentBounds(pos);
       const which: 'hours' | 'minutes' = seg.start === 0 ? 'hours' : 'minutes';
-      const current = clampMinutesSegment(clampHoursSegment(ensureTimeMaskText(el.value, this.value())));
-      const next = adjustTimeMaskSegment(current, which, delta);
-      if (!next) return;
-      el.value = next;
-      this.text.set(next);
-      this.emitFromMask(next);
-      queueMicrotask(() => this.selectSegment(which));
+      this.nudgeSegment(which, delta);
       return;
     }
     if (key === 'Backspace') {
@@ -257,6 +251,23 @@ export class TimeInputComponent {
       return;
     }
     event.preventDefault();
+  }
+
+  private nudgeSegment(which: 'hours' | 'minutes', delta: number): void {
+    const el = this.fieldRef()?.nativeElement;
+    if (!el) return;
+    const current = clampMinutesSegment(
+      clampHoursSegment(ensureTimeMaskText(el.value || this.text(), this.value() || '00:00')),
+    );
+    const next = adjustTimeMaskSegment(current, which, delta);
+    if (!next || next === current) {
+      queueMicrotask(() => this.selectSegment(which));
+      return;
+    }
+    el.value = next;
+    this.text.set(next);
+    this.emitFromMask(next);
+    queueMicrotask(() => this.selectSegment(which));
   }
 
   private nextCaretAfter(writePos: number): number | null {

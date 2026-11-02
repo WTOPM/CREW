@@ -81,7 +81,12 @@ function isoFromMask(text: string): string | null {
 export class DatePickerComponent implements OnDestroy {
   readonly value = input('');
   readonly size = input<DatePickerSize>('md');
+  /** Show hour/minute wheels in the calendar popup (wheel scrolls, clamps at ends). */
+  readonly showTime = input(false);
+  /** Optional HH:MM paired with the calendar when showTime is on. */
+  readonly time = input('');
   readonly valueChange = output<string>();
+  readonly timeChange = output<string>();
   /** Fires when a full date is committed (blur after entry, calendar pick, Today). */
   readonly committed = output<string>();
 
@@ -92,6 +97,8 @@ export class DatePickerComponent implements OnDestroy {
 
   protected readonly open = signal(false);
   protected readonly text = signal('');
+  /** Draft HH:MM while the calendar popup is open (showTime mode). */
+  protected readonly popupTime = signal('00:00');
   /** True while the field is being edited — pauses external text syncing. */
   private readonly focused = signal(false);
   private readonly viewYear = signal(new Date().getFullYear());
@@ -155,7 +162,55 @@ export class DatePickerComponent implements OnDestroy {
       return;
     }
     this.syncViewToValue();
+    this.syncPopupTimeFromInput();
     this.open.set(true);
+  }
+
+  private syncPopupTimeFromInput(): void {
+    const t = this.time().trim();
+    this.popupTime.set(/^\d{2}:\d{2}$/.test(t) ? t : '00:00');
+  }
+
+  protected popupHour(): string {
+    return this.popupTime().slice(0, 2);
+  }
+
+  protected popupMinute(): string {
+    return this.popupTime().slice(3, 5);
+  }
+
+  protected nudgePopupHour(delta: number): void {
+    if (!this.showTime()) return;
+    const [hhStr, mmStr] = this.popupTime().split(':');
+    const hh = Math.min(23, Math.max(0, (parseInt(hhStr, 10) || 0) + delta));
+    const next = `${String(hh).padStart(2, '0')}:${mmStr}`;
+    this.popupTime.set(next);
+    this.timeChange.emit(next);
+  }
+
+  protected nudgePopupMinute(delta: number): void {
+    if (!this.showTime()) return;
+    const [hhStr, mmStr] = this.popupTime().split(':');
+    const mm = Math.min(59, Math.max(0, (parseInt(mmStr, 10) || 0) + delta));
+    const next = `${hhStr}:${String(mm).padStart(2, '0')}`;
+    this.popupTime.set(next);
+    this.timeChange.emit(next);
+  }
+
+  protected onHourWheel(event: WheelEvent): void {
+    if (!this.showTime()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const delta = event.deltaY < 0 ? 1 : event.deltaY > 0 ? -1 : 0;
+    if (delta) this.nudgePopupHour(delta);
+  }
+
+  protected onMinuteWheel(event: WheelEvent): void {
+    if (!this.showTime()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const delta = event.deltaY < 0 ? 1 : event.deltaY > 0 ? -1 : 0;
+    if (delta) this.nudgePopupMinute(delta);
   }
 
   protected close(): void {
@@ -173,14 +228,17 @@ export class DatePickerComponent implements OnDestroy {
   }
 
   protected popupWidth(): number {
-    switch (this.size()) {
-      case 'lg':
-        return 352;
-      case 'sm':
-        return 272;
-      default:
-        return 320;
-    }
+    const base = (() => {
+      switch (this.size()) {
+        case 'lg':
+          return 352;
+        case 'sm':
+          return 272;
+        default:
+          return 320;
+      }
+    })();
+    return this.showTime() ? Math.max(base, 300) : base;
   }
 
   protected onFocus(): void {
@@ -503,7 +561,8 @@ export class DatePickerComponent implements OnDestroy {
     this.valueChange.emit(iso);
     this.committed.emit(iso);
     this.text.set(formatDisplayDate(iso));
-    this.close();
+    // Keep open when picking a day so the user can still scroll time.
+    if (!this.showTime()) this.close();
   }
 
   protected selectToday(): void {
@@ -514,6 +573,14 @@ export class DatePickerComponent implements OnDestroy {
     this.valueChange.emit('');
     this.committed.emit('');
     this.text.set('');
+    if (this.showTime()) {
+      this.popupTime.set('00:00');
+      this.timeChange.emit('');
+    }
+    this.close();
+  }
+
+  protected confirmPopup(): void {
     this.close();
   }
 

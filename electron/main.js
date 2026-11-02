@@ -1162,12 +1162,17 @@ ipcMain.handle('open-json-backups-folder', async () => {
   return err ? { ok: false, error: err } : { ok: true, path: dir };
 });
 
-ipcMain.handle('pick-directory', async () => {
+ipcMain.handle('pick-directory', async (_event, defaultPath) => {
   const win = BrowserWindow.getFocusedWindow();
-  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, {
+  const opts = {
     title: 'Select output folder',
     properties: ['openDirectory', 'createDirectory'],
-  });
+  };
+  const start = String(defaultPath || '').trim();
+  if (start && fs.existsSync(start)) {
+    opts.defaultPath = start;
+  }
+  const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, opts);
   if (canceled || !filePaths?.[0]) return null;
   return filePaths[0];
 });
@@ -1342,6 +1347,29 @@ ipcMain.handle('open-file-path', async (_event, filePath) => {
   return err ? { ok: false, error: err } : { ok: true };
 });
 
+/** List Excel workbook names in a folder (.xlsx / .xlsm only; skip Excel lock ~$ files). */
+ipcMain.handle('list-excel-files', (_event, dirPath) => {
+  try {
+    const dir = String(dirPath || '').trim();
+    if (!dir || !fs.existsSync(dir)) return [];
+    const st = fs.statSync(dir);
+    if (!st.isDirectory()) return [];
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter(
+        (e) =>
+          e.isFile() &&
+          /\.(xlsx|xlsm)$/i.test(e.name) &&
+          !e.name.startsWith('~$') &&
+          !e.name.startsWith('.'),
+      )
+      .map((e) => e.name)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  } catch {
+    return [];
+  }
+});
+
 ipcMain.handle('pick-excel-file', async (_event, defaultPath) => {
   const win = BrowserWindow.getFocusedWindow();
   const opts = {
@@ -1367,6 +1395,25 @@ ipcMain.handle('pick-excel-file', async (_event, defaultPath) => {
   const { canceled, filePaths } = await dialog.showOpenDialog(win ?? undefined, opts);
   if (canceled || !filePaths?.[0]) return null;
   return filePaths[0];
+});
+
+ipcMain.handle('pick-save-excel-file', async (_event, defaultPath) => {
+  const win = BrowserWindow.getFocusedWindow();
+  const opts = {
+    title: 'Save Excel file',
+    filters: [{ name: 'Excel', extensions: ['xlsx'] }],
+  };
+  const hint = String(defaultPath || '').trim();
+  if (hint) {
+    try {
+      opts.defaultPath = hint.toLowerCase().endsWith('.xlsx') ? hint : `${hint}.xlsx`;
+    } catch {
+      opts.defaultPath = hint;
+    }
+  }
+  const { canceled, filePath } = await dialog.showSaveDialog(win ?? undefined, opts);
+  if (canceled || !filePath) return null;
+  return filePath.toLowerCase().endsWith('.xlsx') ? filePath : `${filePath}.xlsx`;
 });
 
 function normalizeFsPath(filePath) {

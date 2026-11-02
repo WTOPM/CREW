@@ -266,6 +266,7 @@ export class CrewListHtmlFormExcelService {
       reeferLibrary: this.storage.reeferLibrary(),
       etaLibrary: this.storage.etaLibrary(),
       fuelLibrary: this.storage.fuelLibrary(),
+      adWorkspace: this.storage.adWorkspace(),
       phoneLibrary: this.storage.phoneLibrary(),
       depRepLibrary: this.storage.depRepLibrary(),
       appSnapshots: this.storage.appSnapshots(),

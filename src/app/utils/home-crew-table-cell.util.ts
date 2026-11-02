@@ -26,6 +26,8 @@ export function homeCrewTableCellText(
       return formatDate(member.dateOfBirth);
     case 'placeOfBirth':
       return member.placeOfBirth ?? '';
+    case 'phone':
+      return '';
     case 'passport':
       return member.passport ?? '';
     case 'passportPlaceOfIssue':
@@ -100,6 +102,8 @@ export function homePaxTableCellText(
       return formatDate(member.dateOfBirth);
     case 'placeOfBirth':
       return member.placeOfBirth ?? '';
+    case 'phone':
+      return member.phone ?? '';
     case 'passport':
       return member.passport ?? '';
     case 'passportIssueDate':

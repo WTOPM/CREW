@@ -100,38 +100,113 @@
           </button>
 
           @if (canSaveToFolder) {
-            <select
-              class="output-select"
-              [ngModel]="activeFolderId()"
-              (ngModelChange)="selectFolder($event)"
-              [disabled]="folderOptions().length === 0"
-              title="Active save folder"
-            >
-              @if (folderOptions().length === 0) {
-                <option value="">No folder — click 📁</option>
-              }
-              @for (f of folderOptions(); track f.id) {
-                <option [value]="f.id">{{ f.label }}</option>
-              }
-            </select>
+            <div class="output-path" [title]="activeFolderTitle()">
+              <svg
+                class="output-path__icon"
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <select
+                class="output-select"
+                [ngModel]="activeFolderId()"
+                (ngModelChange)="selectFolder($event)"
+                [disabled]="folderOptions().length === 0"
+                [attr.aria-label]="activeFolderTitle()"
+              >
+                @if (folderOptions().length === 0) {
+                  <option value="">Choose a folder…</option>
+                }
+                @for (f of folderOptions(); track f.id) {
+                  <option [value]="f.id" [title]="f.label">{{ f.shortLabel }}</option>
+                }
+              </select>
+            </div>
             <button
               type="button"
-              class="output-btn"
-              [title]="folderBtnTitle()"
-              (mousedown)="onFolderBtnDown($event)"
-              (mouseup)="onFolderBtnUp()"
-              (mouseleave)="onFolderBtnLeave()"
+              class="output-btn output-btn--browse"
+              title="Choose folder"
+              aria-label="Choose folder"
+              (click)="addFolder()"
             >
-              📁
+              <svg
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 8v8M8 12h8"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
+                  stroke-linejoin="round"
+                />
+              </svg>
             </button>
+            @if (hasElectron) {
+              <button
+                type="button"
+                class="output-btn output-btn--open"
+                title="Open in Explorer"
+                aria-label="Open in Explorer"
+                [disabled]="!activeFolderId()"
+                (click)="openActiveFolder()"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="15"
+                  height="15"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M14 3h7v7M21 3l-9 9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            }
             <button
               type="button"
-              class="output-btn"
-              title="Remove selected folder"
+              class="output-btn output-btn--remove"
+              title="Remove from list"
+              aria-label="Remove from list"
               [disabled]="!activeFolderId()"
               (click)="removeActiveFolder()"
             >
-              ×
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                aria-hidden="true"
+              >
+                <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
+              </svg>
             </button>
           } @else {
             <span class="output-note">Folder saving needs Chrome or Edge</span>

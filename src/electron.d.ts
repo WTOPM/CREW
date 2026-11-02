@@ -122,6 +122,10 @@ declare global {
       getPathForFile: (file: File) => string;
       pickPdfFile: (defaultPath?: string) => Promise<string | null>;
       pickExcelFile: (defaultPath?: string) => Promise<string | null>;
+      /** Save-as dialog for .xlsx — returns absolute path or null if cancelled. */
+      pickSaveExcelFile: (defaultPath?: string) => Promise<string | null>;
+      /** File names (.xlsx/.xlsm) in a folder — not full paths. */
+      listExcelFiles: (dirPath: string) => Promise<string[]>;
       pathExists: (filePath: string) => Promise<boolean>;
       openFilePath: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
       readFileBase64: (
@@ -178,7 +182,7 @@ declare global {
           }>;
         },
       ) => Promise<{ ok: boolean; base64?: string; sheetName?: string; error?: string }>;
-      pickDirectory: () => Promise<string | null>;
+      pickDirectory: (defaultPath?: string) => Promise<string | null>;
       openDirectory: (dirPath: string) => Promise<{ ok: boolean; error?: string }>;
       openTempFile: (
         fileName: string,

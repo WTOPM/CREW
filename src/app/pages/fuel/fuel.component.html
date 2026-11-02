@@ -23,8 +23,8 @@
     <button
       type="button"
       class="fuel-page-tab fuel-page-tab--view"
-      [class.fuel-page-tab--active]="activeTab() === 'view'"
-      [attr.aria-selected]="activeTab() === 'view'"
+      [class.fuel-page-tab--active]="!showAdTab() && activeTab() === 'view'"
+      [attr.aria-selected]="!showAdTab() && activeTab() === 'view'"
       title="View — Excel snapshot"
       (click)="setActiveTab('view')"
     >
@@ -33,15 +33,28 @@
     <button
       type="button"
       class="fuel-page-tab fuel-page-tab--edit"
-      [class.fuel-page-tab--active]="activeTab() === 'edit'"
-      [attr.aria-selected]="activeTab() === 'edit'"
+      [class.fuel-page-tab--active]="!showAdTab() && activeTab() === 'edit'"
+      [attr.aria-selected]="!showAdTab() && activeTab() === 'edit'"
       title="Edit — write back to Excel"
       (click)="setActiveTab('edit')"
     >
       EDIT
     </button>
+    <button
+      type="button"
+      class="fuel-page-tab fuel-page-tab--ad"
+      [class.fuel-page-tab--active]="showAdTab()"
+      [attr.aria-selected]="showAdTab()"
+      title="A&amp;D — Arrival &amp; Departure report (Unifeeder)"
+      (click)="openAdTab()"
+    >
+      A&amp;D
+    </button>
   </nav>
 
+  @if (showAdTab()) {
+    <app-a-and-d-panel />
+  } @else {
   <section class="fuel-toolbar card">
     <div class="fuel-toolbar__source">
       <div class="fuel-path-field">
@@ -929,9 +942,10 @@
       </div>
     }
   </section>
+  }
 </div>
 
-@if (hScrollActive()) {
+@if (!showAdTab() && hScrollActive()) {
   <div
     class="fuel-hscroll-dock"
     #hDock

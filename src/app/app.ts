@@ -44,7 +44,18 @@ const MAIN_NAV_WARM_PATHS = ['/', '/dg', '/eta', '/fuel', '/phone', '/settings']
 
 interface FolderOption {
   id: string;
+  /** Full path (Electron) or folder name (browser). */
   label: string;
+  /** Short display name — last folder segment. */
+  shortLabel: string;
+}
+
+/** Last path segment for a friendlier folder chip. */
+function shortFolderLabel(pathOrName: string): string {
+  const normalized = pathOrName.replace(/[\\/]+$/, '').trim();
+  if (!normalized) return pathOrName;
+  const parts = normalized.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] ?? normalized;
 }
 
 @Component({
@@ -63,8 +74,6 @@ interface FolderOption {
   styleUrl: './app.css',
 })
 export class App implements OnInit {
-  private static readonly FOLDER_HOLD_MS = 500;
-
   private readonly storage = inject(StorageService);
   private readonly docSettings = inject(DocumentSettingsStore);
   private readonly folderAccess = inject(FolderAccessService);
@@ -87,8 +96,6 @@ export class App implements OnInit {
   private readonly networkForceQuit = inject(NetworkForceQuitService);
   private readonly sectionLock = inject(SectionLockService);
   private readonly routeReuse = inject(RouteReuseStrategy);
-  private folderHoldTimer: ReturnType<typeof setTimeout> | null = null;
-  private folderHoldTriggered = false;
 
   protected readonly outputSettings = this.storage.outputSettings;
   /** Settings modal Done / Save — blocking write to the working folder. */
@@ -122,15 +129,38 @@ export class App implements OnInit {
   /** Unified folder list for the dropdown (desktop paths or website folders). */
   protected readonly folderOptions = computed<FolderOption[]>(() => {
     if (!this.hasElectron) {
-      return this.folderAccess.folders().map((f) => ({ id: f.id, label: f.name }));
+      return this.folderAccess.folders().map((f) => ({
+        id: f.id,
+        label: f.name,
+        shortLabel: shortFolderLabel(f.name),
+      }));
     }
     const prefs = this.sectionOutputPrefs();
-    return (prefs?.savedPaths ?? []).map((p) => ({ id: p, label: p }));
+    const paths = prefs?.savedPaths ?? [];
+    const shorts = paths.map(shortFolderLabel);
+    return paths.map((p, i) => {
+      const short = shorts[i]!;
+      const dup = shorts.filter((s) => s === short).length > 1;
+      const parent = p.replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean).slice(-2, -1)[0];
+      return {
+        id: p,
+        label: p,
+        shortLabel: dup && parent ? `${parent}/${short}` : short,
+      };
+    });
   });
 
   protected readonly activeFolderId = computed(() => {
     if (!this.hasElectron) return this.folderAccess.activeId();
     return this.sectionOutputPrefs()?.activePath ?? '';
+  });
+
+  /** Full path of the active folder — tooltip / title. */
+  protected readonly activeFolderTitle = computed(() => {
+    const id = this.activeFolderId();
+    if (!id) return 'No folder selected';
+    const hit = this.folderOptions().find((f) => f.id === id);
+    return hit?.label ?? id;
   });
 
   /** Package bar — hidden on DG / Reefer inventory pages. */
@@ -351,43 +381,7 @@ export class App implements OnInit {
     return this.outputFolderSection();
   }
 
-  protected folderBtnTitle(): string {
-    return this.hasElectron ? 'ADD A FOLDER OR HOLD TO OPEN' : 'Add a folder';
-  }
-
-  protected onFolderBtnDown(event: MouseEvent): void {
-    if (event.button !== 0) return;
-    this.folderHoldTriggered = false;
-    this.clearFolderHoldTimer();
-    if (!this.hasElectron) return;
-    this.folderHoldTimer = setTimeout(() => {
-      this.folderHoldTriggered = true;
-      void this.openActiveFolder();
-    }, App.FOLDER_HOLD_MS);
-  }
-
-  protected onFolderBtnUp(): void {
-    this.clearFolderHoldTimer();
-    if (this.folderHoldTriggered) {
-      this.folderHoldTriggered = false;
-      return;
-    }
-    void this.addFolder();
-  }
-
-  protected onFolderBtnLeave(): void {
-    if (this.folderHoldTriggered) return;
-    this.clearFolderHoldTimer();
-  }
-
-  private clearFolderHoldTimer(): void {
-    if (this.folderHoldTimer != null) {
-      clearTimeout(this.folderHoldTimer);
-      this.folderHoldTimer = null;
-    }
-  }
-
-  private async openActiveFolder(): Promise<void> {
+  protected async openActiveFolder(): Promise<void> {
     const dir = this.activeFolderId();
     if (!dir) {
       this.toast.showError('Choose a folder first');

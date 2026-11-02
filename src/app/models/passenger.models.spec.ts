@@ -33,4 +33,14 @@ describe('passenger voyage stays', () => {
     const without = migratePassengerMember(createEmptyPassenger());
     expect(without.documents?.passport).toBe(false);
   });
+
+  it('keeps phone from raw data and defaults empty', () => {
+    expect(createEmptyPassenger().phone).toBe('');
+    const withPhone = migratePassengerMember({
+      ...createEmptyPassenger(),
+      phone: '  +49 170 1234567 ',
+    });
+    expect(withPhone.phone).toBe('+49 170 1234567');
+    expect(migratePassengerMember({ familyName: 'Test' } as never).phone).toBe('');
+  });
 });

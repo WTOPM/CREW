@@ -55,6 +55,15 @@
               (ngModelChange)="updateField('placeOfBirth', $event)"
             />
           </label>
+          <label>
+            <span>Phone</span>
+            <input
+              type="tel"
+              [ngModel]="draft().phone"
+              (ngModelChange)="updateField('phone', $event)"
+              autocomplete="tel"
+            />
+          </label>
         </div>
       </section>
 

@@ -5610,6 +5610,71 @@ html.html-form-excel-embed app-root {
   background: #f1f5f9;
 }
 
+.date-picker-popup .cal-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.35rem 0.35rem;
+  border-top: 1px solid #e2e8f0;
+  user-select: none;
+}
+
+.date-picker-popup .cal-time__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 3.6rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.date-picker-popup .cal-time__step {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #0369a1;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.2rem;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.date-picker-popup .cal-time__step:hover {
+  background: #e0f2fe;
+}
+
+.date-picker-popup .cal-time__value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: #0f172a;
+  line-height: 1.2;
+  min-width: 2ch;
+  text-align: center;
+}
+
+.date-picker-popup .cal-time__label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.date-picker-popup .cal-time__sep {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #64748b;
+  padding-bottom: 1rem;
+}
+
 /* Fuel Add-event modal: freeze page scroll; only the modal body scrolls. */
 html.fuel-event-modal-scroll-lock,
 html.fuel-event-modal-scroll-lock body {

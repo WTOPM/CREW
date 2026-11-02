@@ -40,6 +40,7 @@
 .pkg-bar--port {
   min-width: 0;
   flex: 1 1 auto;
+  /* Keep bar contents clipped; when the package panel is open, allow it to paint outside. */
   overflow: hidden;
 }
 
@@ -285,6 +286,18 @@
 
 .pkg-bar--port-open {
   z-index: 3200;
+  overflow: visible;
+}
+
+.pkg-bar-cluster:has(.pkg-bar--port-open) {
+  z-index: 3200;
+  overflow: visible;
+}
+
+:host:has(.pkg-bar--port-open) {
+  z-index: 3200;
+  overflow: visible;
+  position: relative;
 }
 
 .pkg-panel-pop {

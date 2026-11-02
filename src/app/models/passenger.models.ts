@@ -121,6 +121,8 @@ export interface PassengerMember {
   nationality: string;
   dateOfBirth: string;
   placeOfBirth: string;
+  /** Contact phone (edit form; optional). */
+  phone: string;
   passport: string;
   passportIssueDate: string;
   passportExpiryDate: string;
@@ -253,6 +255,7 @@ export function createEmptyPassenger(): PassengerMember {
     nationality: '',
     dateOfBirth: '',
     placeOfBirth: '',
+    phone: '',
     passport: '',
     passportIssueDate: '',
     passportExpiryDate: '',
@@ -326,6 +329,7 @@ export function migratePassengerMember(
     base.passportExpiryDate = expiry;
   }
   base.gender = normalizePersonGender(base.gender);
+  base.phone = String(base.phone ?? '').trim();
   return normalizePassengerDocuments(base);
 }
 

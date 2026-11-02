@@ -64,6 +64,7 @@ export class StorageService {
   readonly reeferLibrary = computed(() => this.data().reeferLibrary);
   readonly etaLibrary = computed(() => this.data().etaLibrary);
   readonly fuelLibrary = computed(() => this.data().fuelLibrary);
+  readonly adWorkspace = computed(() => this.data().adWorkspace);
   readonly phoneLibrary = computed(() => this.data().phoneLibrary);
   readonly depRepLibrary = computed(() => this.data().depRepLibrary);
   readonly appSnapshots = computed(() => this.data().appSnapshots);

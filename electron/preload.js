@@ -65,6 +65,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   pickPdfFile: (defaultPath) => ipcRenderer.invoke('pick-pdf-file', defaultPath ?? ''),
   pickExcelFile: (defaultPath) => ipcRenderer.invoke('pick-excel-file', defaultPath ?? ''),
+  pickSaveExcelFile: (defaultPath) =>
+    ipcRenderer.invoke('pick-save-excel-file', defaultPath ?? ''),
+  listExcelFiles: (dirPath) => ipcRenderer.invoke('list-excel-files', dirPath ?? ''),
   pathExists: (filePath) => ipcRenderer.invoke('path-exists', filePath),
   openFilePath: (filePath) => ipcRenderer.invoke('open-file-path', filePath),
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),
@@ -78,7 +81,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('delete-dep-rep-sheet', filePath, sheetName),
   exportDepRepPdf: (filePath, payload) =>
     ipcRenderer.invoke('export-dep-rep-pdf', filePath, payload),
-  pickDirectory: () => ipcRenderer.invoke('pick-directory'),
+  pickDirectory: (defaultPath) => ipcRenderer.invoke('pick-directory', defaultPath),
   openDirectory: (dirPath) => ipcRenderer.invoke('open-directory', dirPath),
   openTempFile: (fileName, base64) => ipcRenderer.invoke('open-temp-file', fileName, base64),
   listDirectories: (input) => ipcRenderer.invoke('list-directories', input),
