@@ -13,37 +13,55 @@
   <div class="ss-sync">
     <div class="ss-sync__head">
       <h4 class="ss-section-title">Sync between forms</h4>
-      <p class="ss-sync__hint">
-        Articles + place of storage. Only rows that fit are copied; toast shows overflow.
-      </p>
+      <span class="ss-sync__current">
+        Editing <strong>{{ syncShortLabel(docId()) }}</strong>
+      </span>
     </div>
-    <div class="ss-sync__grid">
-      <div class="ss-sync__row">
-        <span class="ss-sync__label">From</span>
+
+    <div class="ss-sync__lanes">
+      <div class="ss-sync__lane ss-sync__lane--pull">
+        <div class="ss-sync__lane-head">
+          <span class="ss-sync__lane-badge" aria-hidden="true">↓</span>
+          <div class="ss-sync__lane-text">
+            <span class="ss-sync__lane-title">Pull into this form</span>
+            <span class="ss-sync__lane-sub">Replace articles here from…</span>
+          </div>
+        </div>
         <div class="ss-sync__btns">
           @for (id of otherDocIds(); track id) {
             <button
               type="button"
-              class="ss-sync__btn ss-sync__btn--from"
-              [title]="'Copy from ' + otherDocLabel(id)"
+              class="ss-sync__btn ss-sync__btn--pull"
+              [title]="'Copy articles from ' + otherDocLabel(id) + ' into this form'"
               (click)="syncFrom(id)"
             >
-              ← {{ syncShortLabel(id) }}
+              <span class="ss-sync__btn-src">{{ syncShortLabel(id) }}</span>
+              <span class="ss-sync__btn-arrow" aria-hidden="true">→</span>
+              <span class="ss-sync__btn-dst">Here</span>
             </button>
           }
         </div>
       </div>
-      <div class="ss-sync__row">
-        <span class="ss-sync__label">Into</span>
+
+      <div class="ss-sync__lane ss-sync__lane--push">
+        <div class="ss-sync__lane-head">
+          <span class="ss-sync__lane-badge" aria-hidden="true">↑</span>
+          <div class="ss-sync__lane-text">
+            <span class="ss-sync__lane-title">Push to other form</span>
+            <span class="ss-sync__lane-sub">Send this form’s articles to…</span>
+          </div>
+        </div>
         <div class="ss-sync__btns">
           @for (id of otherDocIds(); track id) {
             <button
               type="button"
-              class="ss-sync__btn ss-sync__btn--into"
-              [title]="'Copy into ' + otherDocLabel(id)"
+              class="ss-sync__btn ss-sync__btn--push"
+              [title]="'Copy articles from this form into ' + otherDocLabel(id)"
               (click)="syncInto(id)"
             >
-              → {{ syncShortLabel(id) }}
+              <span class="ss-sync__btn-src">Here</span>
+              <span class="ss-sync__btn-arrow" aria-hidden="true">→</span>
+              <span class="ss-sync__btn-dst">{{ syncShortLabel(id) }}</span>
             </button>
           }
         </div>
@@ -56,6 +74,7 @@
       <h4 class="ss-section-title">Articles</h4>
       <p class="ss-hint">
         Edit cells directly. Drag <span class="ss-hint__icon" aria-hidden="true">⠿</span> to reorder.
+        Use the calculator on Article to multiply packs × units (Qty shows the total).
         Quantity <strong>0</strong> prints as <strong>NIL</strong>; empty quantity stays blank.
       </p>
     </div>
@@ -81,23 +100,135 @@
               </td>
               <td class="ss-col-no">{{ $index + 1 }}</td>
               <td class="ss-col-article">
-                <input
-                  type="text"
-                  class="ss-cell-input"
-                  [value]="row.name"
-                  placeholder="Article description"
-                  (focus)="onCellFocus($index, 'name', $event)"
-                  (blur)="onCellCommit($index, 'name', $event)"
-                  (keydown)="onCellKeydown($index, 'name', $event)"
-                />
+                <div class="ss-article-cell">
+                  <input
+                    type="text"
+                    class="ss-cell-input ss-cell-input--article"
+                    [value]="row.name"
+                    placeholder="Article description"
+                    (focus)="onCellFocus($index, 'name', $event)"
+                    (blur)="onCellCommit($index, 'name', $event)"
+                    (keydown)="onCellKeydown($index, 'name', $event)"
+                  />
+                  <div class="ss-qty-calc" [class.ss-qty-calc--open]="qtyCalcOpen() === $index">
+                    <button
+                      type="button"
+                      class="ss-qty-calc__btn"
+                      [class.ss-qty-calc__btn--active]="rowHasQtyCalc(row)"
+                      [attr.aria-expanded]="qtyCalcOpen() === $index"
+                      title="Quantity calculator"
+                      aria-label="Quantity calculator"
+                      (click)="toggleQtyCalc($index, $event)"
+                      (mousedown)="$event.stopPropagation()"
+                    >
+                      <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                        <rect
+                          x="4"
+                          y="3"
+                          width="16"
+                          height="18"
+                          rx="2.5"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                        />
+                        <path
+                          d="M8 7h8M8 11h2.2M11.9 11h2.2M15.8 11H18M8 15h2.2M11.9 15h2.2M15.8 15H18M8 18.5h2.2M11.9 18.5h2.2M15.8 18.5H18"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                        />
+                      </svg>
+                    </button>
+                    @if (qtyCalcOpen() === $index) {
+                      <div
+                        class="ss-qty-calc__pop"
+                        role="dialog"
+                        aria-label="Quantity calculator"
+                        (mousedown)="$event.stopPropagation()"
+                        (click)="$event.stopPropagation()"
+                      >
+                        <p class="ss-qty-calc__title">Qty = product of factors</p>
+                        <div class="ss-qty-calc__factors">
+                          @for (factor of qtyCalcDraft(); track $index; let fi = $index; let last = $last) {
+                            <div class="ss-qty-calc__factor-wrap">
+                              <input
+                                type="text"
+                                class="ss-qty-calc__factor"
+                                inputmode="decimal"
+                                [ngModel]="factor"
+                                (ngModelChange)="onQtyFactorChange(fi, $event)"
+                                [attr.aria-label]="'Factor ' + (fi + 1)"
+                                placeholder=""
+                              />
+                              @if (qtyCalcDraft().length > 2) {
+                                <button
+                                  type="button"
+                                  class="ss-qty-calc__remove"
+                                  title="Remove factor"
+                                  aria-label="Remove factor"
+                                  (click)="removeQtyFactor(fi)"
+                                >
+                                  ×
+                                </button>
+                              }
+                            </div>
+                            @if (!last) {
+                              <span class="ss-qty-calc__times" aria-hidden="true">×</span>
+                            }
+                          }
+                          @if (qtyCalcDraft().length < qtyFactorMax) {
+                            <button
+                              type="button"
+                              class="ss-qty-calc__add"
+                              title="Add factor"
+                              aria-label="Add factor"
+                              (click)="addQtyFactor()"
+                            >
+                              +
+                            </button>
+                          }
+                        </div>
+                        <div class="ss-qty-calc__result">
+                          <span>Qty</span>
+                          <strong>{{ qtyCalcPreview() ?? '—' }}</strong>
+                        </div>
+                        <div class="ss-qty-calc__actions">
+                          <button
+                            type="button"
+                            class="ss-qty-calc__clear"
+                            (click)="clearQtyCalc($index)"
+                          >
+                            Clear formula
+                          </button>
+                          <button
+                            type="button"
+                            class="ss-qty-calc__done"
+                            (click)="closeQtyCalc()"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
               </td>
               <td class="ss-col-qty">
                 <input
                   type="text"
                   class="ss-cell-input ss-cell-input--qty"
+                  [class.ss-cell-input--calc]="rowHasQtyCalc(row)"
                   [value]="row.quantity"
                   placeholder="—"
                   inputmode="decimal"
+                  [readOnly]="rowHasQtyCalc(row)"
+                  [title]="
+                    rowHasQtyCalc(row)
+                      ? 'Locked — change factors in the calculator'
+                      : null
+                  "
                   (focus)="onCellFocus($index, 'quantity', $event)"
                   (blur)="onCellCommit($index, 'quantity', $event)"
                   (keydown)="onCellKeydown($index, 'quantity', $event)"

@@ -23,7 +23,7 @@ export const SHIP_STORES_03_FIELDS = {
   arrivalMark: { x: 285, y: 775, fontSize: SHIP_STORES_03_FONT },
   departureMark: { x: 430, y: 775, fontSize: SHIP_STORES_03_FONT },
   pageNo: { x: 545, y: 778, fontSize: SHIP_STORES_03_FONT },
-  portOfCall: { x: 314, y: 749, fontSize: SHIP_STORES_03_FONT, maxWidth: 128 },
+  portOfCall: { x: 291, y: 749, fontSize: SHIP_STORES_03_FONT, maxWidth: 128 },
   voyageDate: { x: 450, y: 749, fontSize: SHIP_STORES_03_FONT, maxWidth: 88 },
   portsRoute: { x: 302, y: 726, fontSize: SHIP_STORES_03_FONT, maxWidth: 238 },
   personsOnBoard: { x: 150, y: 698, fontSize: SHIP_STORES_03_FONT, maxWidth: 82 },

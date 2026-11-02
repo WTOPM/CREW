@@ -8,6 +8,11 @@ export interface ShipStoresRow {
   name: string;
   quantity: string;
   unit: string;
+  /**
+   * Optional qty calculator multipliers (e.g. `10 × 200` cigarettes, `10 × 24 × 0.33` beer).
+   * When set (≥2 factors), `quantity` is the product shown/printed.
+   */
+  qtyFactors?: string[];
 }
 
 export interface ShipStoresFormSettings {
@@ -16,8 +21,11 @@ export interface ShipStoresFormSettings {
   rows: ShipStoresRow[];
 }
 
+/** Max multipliers in the per-row qty calculator. */
+export const SHIP_STORES_QTY_FACTOR_MAX = 4;
+
 export function createEmptyShipStoresRow(): ShipStoresRow {
-  return { name: '', quantity: '', unit: '' };
+  return { name: '', quantity: '', unit: '', qtyFactors: [] };
 }
 
 export function createDefaultShipStoresForm(
@@ -74,8 +82,61 @@ export function normalizeShipStoresForm(
       name: (r?.name ?? '').trim(),
       quantity: (r?.quantity ?? '').trim(),
       unit: normalizeShipStoresRowUnit(r?.unit),
+      qtyFactors: normalizeShipStoresQtyFactors(
+        (r as Partial<ShipStoresRow> | null | undefined)?.qtyFactors,
+      ),
     })),
   };
+}
+
+/** Keep numeric factor strings only (additive; missing → []). */
+export function normalizeShipStoresQtyFactors(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    const s = String(item ?? '').trim().replace(',', '.');
+    if (!s || parseShipStoresQtyFactor(s) == null) continue;
+    out.push(s);
+    if (out.length >= SHIP_STORES_QTY_FACTOR_MAX) break;
+  }
+  return out;
+}
+
+export function parseShipStoresQtyFactor(raw: string): number | null {
+  const s = String(raw ?? '')
+    .trim()
+    .replace(/\s/g, '')
+    .replace(',', '.');
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Pretty product for the Qty cell (strip float junk / trailing zeros). */
+export function formatShipStoresQtyProduct(value: number): string {
+  if (!Number.isFinite(value)) return '';
+  const rounded = Math.round(value * 1e6) / 1e6;
+  if (Object.is(rounded, -0) || rounded === 0) return '0';
+  let s = rounded.toFixed(6).replace(/\.?0+$/, '');
+  return s;
+}
+
+/**
+ * Product of ≥2 valid non-empty factors → quantity string.
+ * Returns null when the expression is incomplete / invalid (do not overwrite Qty).
+ */
+export function evaluateShipStoresQtyFactors(factors: readonly string[]): string | null {
+  const cleaned = normalizeShipStoresQtyFactors(factors);
+  if (cleaned.length < 2) return null;
+  const nums = cleaned.map(parseShipStoresQtyFactor);
+  if (nums.some((n) => n == null)) return null;
+  let product = 1;
+  for (const n of nums) product *= n!;
+  return formatShipStoresQtyProduct(product);
+}
+
+export function shipStoresRowHasQtyCalc(row: ShipStoresRow): boolean {
+  return (row.qtyFactors?.length ?? 0) >= 2;
 }
 
 export function normalizeShipStoresForm02(
