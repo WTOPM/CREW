@@ -1,5 +1,4 @@
-import { formatDisplayDate } from './date.util';
-import { todayIsoLocal } from './date-calendar.util';
+import { DATE_EMPTY_MASK, formatDisplayDate } from './date.util';
 
 export function currentMonthYear(): { mm: string; yyyy: string; isoPrefix: string } {
   const d = new Date();
@@ -13,10 +12,10 @@ export function defaultIsoDateInCurrentMonth(day = '01'): string {
   return `${isoPrefix}${day}`;
 }
 
+/** Focus an empty date field: show `--.--.----` without inventing today's date. */
 export function preparePartialDateOnFocus(iso: string): { text: string; iso: string } {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-    const newIso = todayIsoLocal();
-    return { text: formatDisplayDate(newIso), iso: newIso };
+    return { text: DATE_EMPTY_MASK, iso: '' };
   }
   return { text: formatDisplayDate(iso), iso };
 }

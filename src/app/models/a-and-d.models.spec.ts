@@ -7,6 +7,12 @@ import {
   createEmptyAdDraft,
   isAdPilotAction,
   isAdTugAction,
+  buildAdFileNameFromPattern,
+  buildAdFileNameStem,
+  createAdFileNameBlock,
+  createDefaultAdFileNamePattern,
+  nextAdFolderSequence,
+  normalizeAdFileNamePattern,
   normalizeAdWorkspace,
 } from './a-and-d.models';
 
@@ -99,6 +105,52 @@ describe('a-and-d.models', () => {
     expect(ws.draft.terminals.length).toBeGreaterThan(0);
     expect(ws.blockDefaults.tug.reason).toBe('Safety');
     expect(ws.blockDefaults.river.pec).toBe('No');
+    expect(ws.fileNamePattern.blocks.length).toBeGreaterThan(0);
+    expect(ws.actionDisplaySort).toBe('document');
+  });
+
+  it('nextAdFolderSequence uses max leading number or file count', () => {
+    expect(nextAdFolderSequence([])).toBe(1);
+    expect(nextAdFolderSequence(['A&D.xlsx', 'notes.xlsx'])).toBe(3);
+    expect(nextAdFolderSequence(['3 A&D.xlsx', '12 A&D.xlsx', 'A&D.xlsx'])).toBe(13);
+  });
+
+  it('buildAdFileNameStem joins non-empty blocks with delimiter', () => {
+    const pattern = normalizeAdFileNamePattern({
+      delimiter: ' ',
+      blocks: [
+        createAdFileNameBlock('sequence'),
+        createAdFileNameBlock('empty'),
+        createAdFileNameBlock('custom', 'A&D'),
+        createAdFileNameBlock('portCallId'),
+      ],
+    });
+    expect(
+      buildAdFileNameStem(pattern, {
+        portCallId: '701216',
+        folderFiles: ['1 A&D.xlsx'],
+        sequence: 2,
+      }),
+    ).toBe('2 A&D 701216');
+  });
+
+  it('buildAdFileNameFromPattern appends .xlsx and falls back when empty', () => {
+    const draft = {
+      ...createEmptyAdDraft(),
+      portCode: 'DEBRV',
+      portCallId: '701216',
+    };
+    const named = buildAdFileNameFromPattern(createDefaultAdFileNamePattern(), draft, []);
+    expect(named).toBe('1 A&D 701216.xlsx');
+
+    const emptyPattern = normalizeAdFileNamePattern({
+      delimiter: ' ',
+      blocks: [createAdFileNameBlock('empty')],
+    });
+    const when = new Date('2026-10-15T12:00:00');
+    expect(buildAdFileNameFromPattern(emptyPattern, draft, [], when)).toBe(
+      adExportFileName(draft, when),
+    );
   });
 
   it('createAdAction copies pilot/tug extras from defaults', () => {

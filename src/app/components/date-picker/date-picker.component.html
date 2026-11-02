@@ -8,10 +8,11 @@
       #field
       class="date-picker-input"
       [class.date-picker-input--copied]="copied()"
+      [class.date-picker-input--empty]="showingEmptyMask()"
       type="text"
       inputmode="numeric"
       autocomplete="off"
-      placeholder="DD.MM.YYYY"
+      placeholder="--.--.----"
       maxlength="10"
       [ngModel]="text()"
       (ngModelChange)="onTextChange($event)"

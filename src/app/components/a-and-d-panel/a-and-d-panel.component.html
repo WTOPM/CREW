@@ -79,22 +79,49 @@
     </div>
     <div class="ad-path__file">
       <span class="ad-path__label">Excel</span>
-      <select
-        class="ad-path-select"
-        [ngModel]="selectedFile()"
-        (ngModelChange)="onFileSelect($event)"
-        (contextmenu)="onExcelSelectContextMenu($event)"
-        [disabled]="busy() || !folderPath()"
-        [attr.title]="hasOpenFile() ? 'RIGHT CLICK TO OPEN' : null"
-        aria-label="Excel workbook in folder"
-      >
-        <option value="">
-          {{ folderPath() ? 'New document (not saved)…' : 'Choose folder first' }}
-        </option>
-        @for (name of folderFiles(); track name) {
-          <option [value]="name">{{ name }}</option>
-        }
-      </select>
+      <div class="ad-path__file-row">
+        <select
+          class="ad-path-select"
+          [ngModel]="selectedFile()"
+          (ngModelChange)="onFileSelect($event)"
+          (contextmenu)="onExcelSelectContextMenu($event)"
+          [disabled]="busy() || !folderPath()"
+          [attr.title]="hasOpenFile() ? 'RIGHT CLICK TO OPEN' : null"
+          aria-label="Excel workbook in folder"
+        >
+          <option value="">
+            {{ folderPath() ? 'New document (not saved)…' : 'Choose folder first' }}
+          </option>
+          @for (name of folderFiles(); track name) {
+            <option [value]="name">{{ name }}</option>
+          }
+        </select>
+        <button
+          type="button"
+          class="ad-path-name-btn"
+          title="Auto Excel name — blocks + delimiter"
+          aria-label="Auto Excel name"
+          (click)="openFileNameModal()"
+          [disabled]="busy()"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.1"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 7h10M4 12h16M4 17h8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path d="M18 4v6M15 7h6" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
     </div>
     <div class="ad-path__actions">
       <button
@@ -341,6 +368,26 @@
       >
         <span aria-hidden="true">+</span>
       </button>
+      <div class="ad-terminals__sort" role="group" aria-label="Block display order">
+        <button
+          type="button"
+          class="ad-terminals__sort-btn"
+          [class.ad-terminals__sort-btn--on]="actionDisplaySort() === 'document'"
+          title="Document order (as in Excel rows)"
+          (click)="setActionDisplaySort('document')"
+        >
+          Doc
+        </button>
+        <button
+          type="button"
+          class="ad-terminals__sort-btn"
+          [class.ad-terminals__sort-btn--on]="actionDisplaySort() === 'timeline'"
+          title="Timeline — by event date &amp; time (incomplete stay at end)"
+          (click)="setActionDisplaySort('timeline')"
+        >
+          Time
+        </button>
+      </div>
     </div>
 
     <div
@@ -878,4 +925,14 @@
       </div>
     </div>
   </div>
+}
+
+@if (fileNameModalOpen()) {
+  <app-a-and-d-filename-modal
+    [pattern]="fileNamePattern()"
+    [draft]="draft()"
+    [folderFiles]="folderFiles()"
+    (save)="saveFileNamePattern($event)"
+    (cancel)="closeFileNameModal()"
+  />
 }

@@ -341,10 +341,6 @@
         <span class="ref-modal__mark" aria-hidden="true">⚓</span>
         <div class="ref-modal__head-text">
           <h3>Ports</h3>
-          <p class="ref-modal__hint">
-            Port directory for forms, manifests and document packages. Terminals are optional per
-            port.
-          </p>
         </div>
       </header>
 
@@ -352,7 +348,6 @@
         <label class="ref-field">
           <span>Name</span>
           <input
-            placeholder="Hamburg"
             [ngModel]="newPortName()"
             (ngModelChange)="newPortName.set($event)"
           />
@@ -360,7 +355,6 @@
         <label class="ref-field ref-field--code">
           <span>UN/LOCODE</span>
           <input
-            placeholder="DEHAM"
             [ngModel]="newPortCode()"
             (ngModelChange)="newPortCode.set($event)"
           />
@@ -368,7 +362,6 @@
         <label class="ref-field">
           <span>Country</span>
           <input
-            placeholder="GERMANY"
             [ngModel]="newPortCountry()"
             (ngModelChange)="newPortCountry.set($event)"
             (keyup.enter)="addPortItem()"
@@ -428,21 +421,6 @@
               </div>
               @if (expandedPort() === p.name) {
                 <div class="port-terminals">
-                  @if (portTerminalCount(p) === 0) {
-                    <div class="port-term-intro">
-                      <span class="port-term-intro__icon" aria-hidden="true">🏗</span>
-                      <div class="port-term-intro__text">
-                        <strong>Terminals are optional</strong>
-                        <p>
-                          Leave empty if this port has a single berth. Otherwise add
-                          <span class="port-term-example"
-                            ><kbd>EGH</kbd> Eurogate Terminal Hamburg</span
-                          >
-                          — short code first, then full name.
-                        </p>
-                      </div>
-                    </div>
-                  }
                   @for (t of p.terminals ?? []; track $index) {
                     <div class="port-terminal-row">
                       <span class="port-terminal-abbrev">{{ t.abbrev || '—' }}</span>
@@ -461,7 +439,6 @@
                     <label class="ref-field ref-field--inline">
                       <span>Abbrev</span>
                       <input
-                        placeholder="EGH"
                         [ngModel]="newTerminalAbbrev()"
                         (ngModelChange)="newTerminalAbbrev.set($event)"
                         (keyup.enter)="addPortTerminalItem(p.name)"
@@ -470,7 +447,6 @@
                     <label class="ref-field ref-field--inline ref-field--grow">
                       <span>Full name</span>
                       <input
-                        placeholder="Eurogate Terminal Hamburg"
                         [ngModel]="newTerminalName()"
                         (ngModelChange)="newTerminalName.set($event)"
                         (keyup.enter)="addPortTerminalItem(p.name)"

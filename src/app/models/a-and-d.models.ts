@@ -447,12 +447,173 @@ export function adExportFileName(draft: AdReportDraft, when = new Date()): strin
   return `A&D ${port} ${stamp} - ${id}.xlsx`;
 }
 
+/** One segment of an auto-generated Excel file name. */
+export type AdFileNameBlockType = 'empty' | 'sequence' | 'custom' | 'portCallId';
+
+export interface AdFileNameBlock {
+  id: string;
+  type: AdFileNameBlockType;
+  /** Used when type === 'custom'. */
+  text: string;
+}
+
+/** User-built Excel name: blocks joined by `delimiter`, then `.xlsx`. */
+export interface AdFileNamePattern {
+  delimiter: string;
+  blocks: AdFileNameBlock[];
+}
+
+export const AD_FILE_NAME_BLOCK_TYPES: readonly {
+  type: AdFileNameBlockType;
+  label: string;
+}[] = [
+  { type: 'empty', label: 'Empty (skip)' },
+  { type: 'sequence', label: 'Sequence # in folder' },
+  { type: 'custom', label: 'Custom text' },
+  { type: 'portCallId', label: 'Port call ID' },
+];
+
+function newAdFileNameBlockId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `fnb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createAdFileNameBlock(
+  type: AdFileNameBlockType = 'custom',
+  text = '',
+): AdFileNameBlock {
+  return { id: newAdFileNameBlockId(), type, text };
+}
+
+export function createDefaultAdFileNamePattern(): AdFileNamePattern {
+  return {
+    delimiter: ' ',
+    blocks: [
+      createAdFileNameBlock('sequence'),
+      createAdFileNameBlock('custom', 'A&D'),
+      createAdFileNameBlock('portCallId'),
+    ],
+  };
+}
+
+export function normalizeAdFileNameBlock(raw: unknown): AdFileNameBlock | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Partial<AdFileNameBlock>;
+  const type = String(r.type ?? '').trim() as AdFileNameBlockType;
+  if (!AD_FILE_NAME_BLOCK_TYPES.some((t) => t.type === type)) return null;
+  return {
+    id: String(r.id ?? '').trim() || newAdFileNameBlockId(),
+    type,
+    text: String(r.text ?? ''),
+  };
+}
+
+export function normalizeAdFileNamePattern(
+  raw?: Partial<AdFileNamePattern> | null,
+): AdFileNamePattern {
+  const defaults = createDefaultAdFileNamePattern();
+  if (!raw || typeof raw !== 'object') return defaults;
+  const blocksRaw = Array.isArray(raw.blocks) ? raw.blocks : null;
+  const blocks = blocksRaw
+    ? blocksRaw.map(normalizeAdFileNameBlock).filter((b): b is AdFileNameBlock => !!b)
+    : defaults.blocks;
+  return {
+    delimiter: typeof raw.delimiter === 'string' ? raw.delimiter : defaults.delimiter,
+    blocks: blocks.length ? blocks : defaults.blocks,
+  };
+}
+
+/**
+ * Next document sequence for the folder: max leading number in existing
+ * Excel names + 1, or file count + 1 when none start with digits.
+ */
+export function nextAdFolderSequence(folderFiles: readonly string[]): number {
+  let max = 0;
+  let found = false;
+  for (const name of folderFiles) {
+    const m = /^(\d+)/.exec(String(name ?? '').trim());
+    if (!m) continue;
+    found = true;
+    const n = parseInt(m[1]!, 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  if (found) return max + 1;
+  return folderFiles.length + 1;
+}
+
+export interface AdFileNameBuildContext {
+  portCallId: string;
+  folderFiles: readonly string[];
+  /** Override sequence (tests / preview freeze). */
+  sequence?: number;
+}
+
+/** Build stem (no extension) from pattern; empty parts are skipped. */
+export function buildAdFileNameStem(
+  pattern: AdFileNamePattern,
+  ctx: AdFileNameBuildContext,
+): string {
+  const seq = ctx.sequence ?? nextAdFolderSequence(ctx.folderFiles);
+  const parts: string[] = [];
+  for (const block of pattern.blocks) {
+    let part = '';
+    switch (block.type) {
+      case 'empty':
+        part = '';
+        break;
+      case 'sequence':
+        part = String(seq);
+        break;
+      case 'custom':
+        part = String(block.text ?? '').trim();
+        break;
+      case 'portCallId':
+        part = String(ctx.portCallId ?? '').trim();
+        break;
+    }
+    if (part) parts.push(part);
+  }
+  return parts.join(pattern.delimiter);
+}
+
+/** Full suggested `.xlsx` name from pattern (falls back to legacy export name). */
+export function buildAdFileNameFromPattern(
+  pattern: AdFileNamePattern,
+  draft: AdReportDraft,
+  folderFiles: readonly string[],
+  when = new Date(),
+): string {
+  const stem = buildAdFileNameStem(pattern, {
+    portCallId: draft.portCallId,
+    folderFiles,
+  }).trim();
+  if (!stem) return adExportFileName(draft, when);
+  const safe = stem.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/\.+$/g, '');
+  return /\.xlsx$/i.test(safe) ? safe : `${safe}.xlsx`;
+}
+
+/**
+ * UI-only block order inside each terminal.
+ * `document` = palette / Excel row order; `timeline` = by event date+time.
+ * Never changes Excel write.
+ */
+export type AdActionDisplaySort = 'document' | 'timeline';
+
+export function normalizeAdActionDisplaySort(raw: unknown): AdActionDisplaySort {
+  return raw === 'timeline' ? 'timeline' : 'document';
+}
+
 /** Persisted A&D workspace (folder + draft survive app restart). */
 export interface AdWorkspace {
   folderPath: string;
   selectedFile: string;
   draft: AdReportDraft;
   blockDefaults: AdBlockDefaults;
+  /** Auto Excel name builder (delimiter + blocks). */
+  fileNamePattern: AdFileNamePattern;
+  /** Display-only action order inside terminals. */
+  actionDisplaySort: AdActionDisplaySort;
 }
 
 export function createDefaultAdWorkspace(): AdWorkspace {
@@ -461,6 +622,8 @@ export function createDefaultAdWorkspace(): AdWorkspace {
     selectedFile: '',
     draft: createEmptyAdDraft(),
     blockDefaults: normalizeAdBlockDefaults(DEFAULT_AD_BLOCK_DEFAULTS),
+    fileNamePattern: createDefaultAdFileNamePattern(),
+    actionDisplaySort: 'document',
   };
 }
 
@@ -548,6 +711,8 @@ export function normalizeAdWorkspace(raw?: Partial<AdWorkspace> | null): AdWorks
     selectedFile: String(raw.selectedFile ?? '').trim(),
     draft: normalizeAdDraft(raw.draft),
     blockDefaults: normalizeAdBlockDefaults(raw.blockDefaults),
+    fileNamePattern: normalizeAdFileNamePattern(raw.fileNamePattern),
+    actionDisplaySort: normalizeAdActionDisplaySort(raw.actionDisplaySort),
   };
 }
 

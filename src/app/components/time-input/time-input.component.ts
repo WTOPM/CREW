@@ -1,13 +1,15 @@
 import { Component, ElementRef, effect, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
+  TIME_EMPTY_MASK,
   adjustTimeMaskSegment,
   clampHoursSegment,
   clampMinutesSegment,
+  clearTimeMaskByBackspace,
   digitAtOrAfterTime,
   ensureTimeMaskText,
+  isTimeMaskEmpty,
   prepareTimeOnFocus,
-  prevTimeDigitPos,
   timeFromMask,
   timeSegmentBounds,
 } from '../../utils/time-input.util';
@@ -22,10 +24,11 @@ import {
     <input
       #field
       class="time-input"
+      [class.time-input--empty]="showingEmptyMask()"
       type="text"
       inputmode="numeric"
       autocomplete="off"
-      placeholder="HH:MM"
+      [placeholder]="emptyPlaceholder"
       maxlength="5"
       [ngModel]="text()"
       (ngModelChange)="onTextChange($event)"
@@ -47,9 +50,14 @@ import {
       font-variant-numeric: tabular-nums;
     }
 
+    .time-input--empty {
+      color: #94a3b8;
+    }
+
     .time-input:focus {
       outline: 2px solid var(--accent-soft);
       border-color: var(--accent);
+      color: inherit;
     }
 
     :host(.time-input-host--lg) .time-input {
@@ -74,6 +82,8 @@ export class TimeInputComponent {
   readonly size = input<'md' | 'lg'>('md');
   readonly valueChange = output<string>();
 
+  protected readonly emptyPlaceholder = TIME_EMPTY_MASK;
+
   private readonly fieldRef = viewChild<ElementRef<HTMLInputElement>>('field');
   protected readonly text = signal('');
   private readonly focused = signal(false);
@@ -82,9 +92,13 @@ export class TimeInputComponent {
     effect(() => {
       const value = this.value();
       if (!this.focused()) {
-        this.text.set(value && /^\d{2}:\d{2}$/.test(value) ? value : '');
+        this.text.set(value && /^\d{2}:\d{2}$/.test(value) ? value : TIME_EMPTY_MASK);
       }
     });
+  }
+
+  protected showingEmptyMask(): boolean {
+    return !this.value() || !/^\d{2}:\d{2}$/.test(this.value());
   }
 
   protected onFocus(): void {
@@ -127,24 +141,45 @@ export class TimeInputComponent {
   protected onBlur(): void {
     this.focused.set(false);
     const el = this.fieldRef()?.nativeElement;
-    const current = ensureTimeMaskText(el?.value ?? this.text(), this.value());
+    const raw = (el?.value ?? this.text()).trim();
+    if (!raw || isTimeMaskEmpty(raw)) {
+      this.text.set(TIME_EMPTY_MASK);
+      if (this.value()) this.valueChange.emit('');
+      return;
+    }
+    const current = ensureTimeMaskText(raw, this.value());
+    if (!/^\d{2}:\d{2}$/.test(current)) {
+      // Incomplete clear — restore last committed value (or empty mask).
+      this.text.set(
+        this.value() && /^\d{2}:\d{2}$/.test(this.value()) ? this.value() : TIME_EMPTY_MASK,
+      );
+      return;
+    }
     const clamped = clampMinutesSegment(clampHoursSegment(current));
     const normalized = timeFromMask(clamped);
     if (normalized) {
       if (normalized !== this.value()) this.valueChange.emit(normalized);
       this.text.set(normalized);
     } else {
-      this.text.set(this.value() || '');
+      this.text.set(
+        this.value() && /^\d{2}:\d{2}$/.test(this.value()) ? this.value() : TIME_EMPTY_MASK,
+      );
     }
   }
 
   protected onTextChange(raw: string): void {
-    const normalized = timeFromMask(ensureTimeMaskText(raw, this.value()));
+    const mask = ensureTimeMaskText(raw, this.value());
+    if (isTimeMaskEmpty(mask)) {
+      this.text.set(TIME_EMPTY_MASK);
+      if (this.value()) this.valueChange.emit('');
+      return;
+    }
+    const normalized = timeFromMask(mask);
     if (normalized) {
       this.text.set(normalized);
       if (normalized !== this.value()) this.valueChange.emit(normalized);
     } else {
-      this.text.set(raw);
+      this.text.set(mask);
     }
   }
 
@@ -217,9 +252,23 @@ export class TimeInputComponent {
       this.nudgeSegment(which, delta);
       return;
     }
-    if (key === 'Backspace') {
+    if (key === 'Backspace' || key === 'Delete') {
       event.preventDefault();
-      this.selectDigit(prevTimeDigitPos(pos));
+      const current = ensureTimeMaskText(el.value, this.value());
+      const cleared = clearTimeMaskByBackspace(current);
+      if (cleared.select === 'empty') {
+        el.value = TIME_EMPTY_MASK;
+        this.text.set(TIME_EMPTY_MASK);
+        if (this.value()) this.valueChange.emit('');
+        queueMicrotask(() => this.selectSegment('hours'));
+        return;
+      }
+      el.value = cleared.text;
+      this.text.set(cleared.text);
+      // Partial clear is not a valid HH:MM — clear committed value until complete again.
+      if (this.value()) this.valueChange.emit('');
+      const select = cleared.select;
+      queueMicrotask(() => this.selectSegment(select));
       return;
     }
     if (key === 'Home') {
@@ -256,9 +305,22 @@ export class TimeInputComponent {
   private nudgeSegment(which: 'hours' | 'minutes', delta: number): void {
     const el = this.fieldRef()?.nativeElement;
     if (!el) return;
-    const current = clampMinutesSegment(
-      clampHoursSegment(ensureTimeMaskText(el.value || this.text(), this.value() || '00:00')),
-    );
+    const base = ensureTimeMaskText(el.value || this.text(), this.value());
+    if (!timeFromMask(base)) {
+      // Empty / partial — seed from 00:00 only for arrow nudge, don't persist until blur-complete.
+      const seeded = which === 'hours' ? '00:00' : '00:00';
+      const next = adjustTimeMaskSegment(seeded, which, delta);
+      if (!next) {
+        queueMicrotask(() => this.selectSegment(which));
+        return;
+      }
+      el.value = next;
+      this.text.set(next);
+      this.emitFromMask(next);
+      queueMicrotask(() => this.selectSegment(which));
+      return;
+    }
+    const current = clampMinutesSegment(clampHoursSegment(base));
     const next = adjustTimeMaskSegment(current, which, delta);
     if (!next || next === current) {
       queueMicrotask(() => this.selectSegment(which));
@@ -281,6 +343,11 @@ export class TimeInputComponent {
   private finishEntry(text: string): void {
     const el = this.fieldRef()?.nativeElement;
     if (!el) return;
+    if (!timeFromMask(text)) {
+      el.value = text;
+      this.text.set(text);
+      return;
+    }
     el.value = text;
     this.text.set(text);
     this.emitFromMask(text);

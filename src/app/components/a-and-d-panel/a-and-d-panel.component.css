@@ -101,7 +101,7 @@
 
 .ad-path {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(11rem, 0.85fr) auto;
+  grid-template-columns: minmax(0, 1.55fr) minmax(8.5rem, 0.55fr) auto;
   gap: 0.55rem 0.75rem;
   align-items: end;
   padding: 0.7rem 0.85rem;
@@ -248,8 +248,17 @@
   cursor: not-allowed;
 }
 
+.ad-path__file-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .ad-path-select {
+  flex: 1 1 auto;
   width: 100%;
+  min-width: 0;
   min-height: 2.45rem;
   padding: 0.4rem 0.55rem;
   border: 1px solid #fcd34d;
@@ -263,6 +272,37 @@
 
 .ad-path-select:disabled {
   opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ad-path-name-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.45rem;
+  min-height: 2.45rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #b45309;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.ad-path-name-btn:hover:not(:disabled) {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+
+.ad-path-name-btn:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -361,7 +401,7 @@
 
 @media (max-width: 1100px) {
   .ad-path {
-    grid-template-columns: minmax(0, 1fr) minmax(11rem, 0.7fr);
+    grid-template-columns: minmax(0, 1fr) minmax(8rem, 0.55fr);
   }
 
   .ad-path__actions {
@@ -1017,6 +1057,50 @@
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.ad-terminals__sort {
+  display: inline-flex;
+  align-items: stretch;
+  margin-left: 0.1rem;
+  padding: 0.12rem;
+  border: 1px solid #c4b5fd;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 70%);
+  gap: 0.1rem;
+}
+
+.ad-terminals__sort-btn {
+  margin: 0;
+  padding: 0.18rem 0.55rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6d28d9;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.ad-terminals__sort-btn:hover {
+  background: #ede9fe;
+}
+
+.ad-terminals__sort-btn--on {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.ad-terminals__sort-btn--on:hover {
+  background: #6d28d9;
+  color: #fff;
 }
 
 .ad-terminals__stack {

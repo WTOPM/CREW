@@ -32,14 +32,14 @@ describe('adjustDisplayDateSegment', () => {
 describe('clearDisplayDateByBackspace', () => {
   it('clears year, then month, then the whole date', () => {
     expect(clearDisplayDateByBackspace('15.03.2026')).toEqual({
-      text: '15.03.____',
+      text: '15.03.----',
       select: 'year',
     });
-    expect(clearDisplayDateByBackspace('15.03.____')).toEqual({
-      text: '15.__.____',
+    expect(clearDisplayDateByBackspace('15.03.----')).toEqual({
+      text: '15.--.----',
       select: 'month',
     });
-    expect(clearDisplayDateByBackspace('15.__.____')).toEqual({
+    expect(clearDisplayDateByBackspace('15.--.----')).toEqual({
       text: '',
       select: 'empty',
     });
@@ -47,6 +47,7 @@ describe('clearDisplayDateByBackspace', () => {
 
   it('treats empty / junk as a full clear', () => {
     expect(clearDisplayDateByBackspace('')).toEqual({ text: '', select: 'empty' });
+    expect(clearDisplayDateByBackspace('--.--.----')).toEqual({ text: '', select: 'empty' });
     expect(clearDisplayDateByBackspace('nope')).toEqual({ text: '', select: 'empty' });
   });
 });

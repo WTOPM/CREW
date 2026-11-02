@@ -18,11 +18,17 @@
   font: inherit;
   font-size: 0.95rem;
   background: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-picker-input--empty {
+  color: #94a3b8;
 }
 
 .date-picker-input:focus {
   outline: 2px solid var(--accent-soft);
   border-color: var(--accent);
+  color: inherit;
 }
 
 .date-picker-input--copied {

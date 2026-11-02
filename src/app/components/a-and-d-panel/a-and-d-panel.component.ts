@@ -19,16 +19,19 @@ import {
 } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
+import { AAndDFilenameModalComponent } from '../a-and-d-filename-modal/a-and-d-filename-modal.component';
 import { DatePickerComponent } from '../date-picker/date-picker.component';
 import { TimeInputComponent } from '../time-input/time-input.component';
 import {
   AD_ACTION_DEFS,
   AD_MAX_TERMINALS,
   AD_PALETTE_GROUPS,
+  buildAdFileNameFromPattern,
+  normalizeAdActionDisplaySort,
   normalizeAdBlockDefaults,
+  normalizeAdFileNamePattern,
   normalizeAdWorkspace,
   adActionDef,
-  adExportFileName,
   adKindForDrop,
   adPaletteGroupOfKind,
   createAdAction,
@@ -37,9 +40,11 @@ import {
   isAdPilotAction,
   isAdTugAction,
   type AdAction,
+  type AdActionDisplaySort,
   type AdActionKind,
   type AdActionTone,
   type AdBlockDefaults,
+  type AdFileNamePattern,
   type AdPaletteGroupId,
   type AdPilotBlockDefaults,
   type AdReportDraft,
@@ -52,6 +57,7 @@ import { AdStore } from '../../services/ad.store';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { StorageService } from '../../services/storage.service';
 import { ToastService } from '../../services/toast.service';
+import { sortAdActionsForDisplay } from '../../utils/ad-action-display-sort.util';
 import { base64ToUint8, uint8ToBase64 } from '../../utils/base64.util';
 import { registerPendingEditCommit } from '../../utils/commit-pending-dom-edits.util';
 import { openExcelBytes } from '../../utils/excel-open.util';
@@ -161,6 +167,7 @@ type AdTerminalEditDraft = {
     ClickOutsideDirective,
     DatePickerComponent,
     TimeInputComponent,
+    AAndDFilenameModalComponent,
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
@@ -215,6 +222,16 @@ export class AAndDPanelComponent {
   protected readonly selectedFile = signal(this.restored.selectedFile);
   /** .xlsx/.xlsm names in the current folder. */
   protected readonly folderFiles = signal<string[]>([]);
+  /** Auto Excel name pattern (blocks + delimiter). */
+  protected readonly fileNamePattern = signal<AdFileNamePattern>(
+    normalizeAdFileNamePattern(this.restored.fileNamePattern),
+  );
+  /** UI-only block order inside terminals (Excel write unchanged). */
+  protected readonly actionDisplaySort = signal<AdActionDisplaySort>(
+    normalizeAdActionDisplaySort(this.restored.actionDisplaySort),
+  );
+  /** Auto-name builder popup. */
+  protected readonly fileNameModalOpen = signal(false);
   protected readonly hasElectron =
     !!window.electronAPI?.pickDirectory && !!window.electronAPI?.writeFileBase64;
 
@@ -243,9 +260,18 @@ export class AAndDPanelComponent {
       const selectedFile = this.selectedFile();
       const draft = this.draft();
       const blockDefaults = this.blockDefaults();
+      const fileNamePattern = this.fileNamePattern();
+      const actionDisplaySort = this.actionDisplaySort();
       if (!persistReady) return;
       untracked(() =>
-        this.adStore.saveWorkspace({ folderPath, selectedFile, draft, blockDefaults }),
+        this.adStore.saveWorkspace({
+          folderPath,
+          selectedFile,
+          draft,
+          blockDefaults,
+          fileNamePattern,
+          actionDisplaySort,
+        }),
       );
     });
     // Quit/Save flush runs before destroy — push modal + workspace into AppData sync.
@@ -267,8 +293,28 @@ export class AAndDPanelComponent {
       selectedFile: this.selectedFile(),
       draft: this.draft(),
       blockDefaults: this.blockDefaults(),
+      fileNamePattern: this.fileNamePattern(),
+      actionDisplaySort: this.actionDisplaySort(),
     });
     if (flushDisk) void this.adStore.flushToDisk('silent');
+  }
+
+  protected setActionDisplaySort(mode: AdActionDisplaySort): void {
+    this.actionDisplaySort.set(normalizeAdActionDisplaySort(mode));
+  }
+
+  protected openFileNameModal(): void {
+    this.fileNameModalOpen.set(true);
+  }
+
+  protected closeFileNameModal(): void {
+    this.fileNameModalOpen.set(false);
+  }
+
+  protected saveFileNamePattern(pattern: AdFileNamePattern): void {
+    this.fileNamePattern.set(normalizeAdFileNamePattern(pattern));
+    this.fileNameModalOpen.set(false);
+    this.toast.showSaved('Auto name pattern saved');
   }
 
   /** Restore last draft from AppData, or seed a blank one. */
@@ -299,15 +345,9 @@ export class AAndDPanelComponent {
     v == null || String(v).trim() === '';
   protected isDateTimeMissing = adDateTimeMissing;
 
+  /** Display order only — never rewrites stored `term.actions` / Excel layout. */
   protected sortedActions(term: AdTerminal): AdAction[] {
-    const order = new Map<AdActionKind, number>();
-    AD_PALETTE_GROUPS.forEach((g, i) => {
-      order.set(g.inKind, i * 2);
-      order.set(g.outKind, i * 2 + 1);
-    });
-    return [...term.actions].sort(
-      (a, b) => (order.get(a.kind) ?? 99) - (order.get(b.kind) ?? 99),
-    );
+    return sortAdActionsForDisplay(term.actions, this.actionDisplaySort());
   }
 
   private actionDateTimeField(
@@ -611,6 +651,10 @@ export class AAndDPanelComponent {
 
   @HostListener('document:keydown.escape')
   protected onEscape(): void {
+    if (this.fileNameModalOpen()) {
+      this.closeFileNameModal();
+      return;
+    }
     if (this.portComboOpen() || this.terminalComboOpen()) {
       this.closeCombos();
       return;
@@ -1102,7 +1146,11 @@ export class AAndDPanelComponent {
     try {
       const toSave = this.withProgramShip(d);
       this.draft.set(toSave);
-      const suggested = adExportFileName(toSave);
+      const suggested = buildAdFileNameFromPattern(
+        this.fileNamePattern(),
+        toSave,
+        this.folderFiles(),
+      );
       const api = window.electronAPI;
 
       // Ask for path first (no overlay) when this is a new / Copy document.

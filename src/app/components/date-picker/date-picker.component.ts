@@ -14,6 +14,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { CdkConnectedOverlay, CdkOverlayOrigin, type ConnectedPosition } from '@angular/cdk/overlay';
 import {
+  DATE_EMPTY_MASK,
   coerceIsoDate,
   formatDisplayDate,
   parsePastedDateToIso,
@@ -34,7 +35,7 @@ export type DatePickerSize = 'sm' | 'md' | 'lg';
 
 /** Editable digit positions in the fixed "DD.MM.YYYY" mask (dots at 2 and 5). */
 const MASK_DIGIT_POS = [0, 1, 3, 4, 6, 7, 8, 9];
-const DATE_MASK_EDIT_RE = /^[\d_]{2}\.[\d_]{2}\.[\d_]{4}$/;
+const DATE_MASK_EDIT_RE = /^[\d_-]{2}\.[\d_-]{2}\.[\d_-]{4}$/;
 
 function digitAtOrAfter(p: number): number {
   for (const e of MASK_DIGIT_POS) if (e >= p) return e;
@@ -134,7 +135,7 @@ export class DatePickerComponent implements OnDestroy {
       const value = coerceIsoDate(this.value());
       // Don't overwrite what the user is typing; resync happens on blur.
       if (!this.focused()) {
-        this.text.set(formatDisplayDate(value) || '');
+        this.text.set(formatDisplayDate(value) || DATE_EMPTY_MASK);
       }
       const parts = partsFromIso(value);
       if (parts) {
@@ -142,6 +143,11 @@ export class DatePickerComponent implements OnDestroy {
         this.viewMonth.set(parts.monthIndex);
       }
     });
+  }
+
+  protected showingEmptyMask(): boolean {
+    const v = this.value();
+    return !v || !/^\d{4}-\d{2}-\d{2}$/.test(v);
   }
 
   ngOnDestroy(): void {
@@ -283,15 +289,15 @@ export class DatePickerComponent implements OnDestroy {
     this.focused.set(false);
     const el = this.fieldRef()?.nativeElement;
     const raw = (el?.value ?? this.text()).trim();
-    if (!raw) {
-      this.text.set('');
+    if (!raw || raw === DATE_EMPTY_MASK) {
+      this.text.set(DATE_EMPTY_MASK);
       if (this.value()) this.valueChange.emit('');
       return;
     }
     const current = this.ensureMaskText(raw);
     if (!/^\d{2}\.\d{2}\.\d{4}$/.test(current)) {
       // Incomplete backspace clear (e.g. year wiped) — restore last committed value.
-      this.text.set(formatDisplayDate(this.value()) || '');
+      this.text.set(formatDisplayDate(this.value()) || DATE_EMPTY_MASK);
       return;
     }
     const clamped = clampMonthSegment(clampDaySegment(current));
@@ -301,7 +307,7 @@ export class DatePickerComponent implements OnDestroy {
       this.text.set(formatDisplayDate(iso));
       this.committed.emit(iso);
     } else {
-      this.text.set(formatDisplayDate(this.value()) || '');
+      this.text.set(formatDisplayDate(this.value()) || DATE_EMPTY_MASK);
     }
   }
 
@@ -390,20 +396,23 @@ export class DatePickerComponent implements OnDestroy {
       queueMicrotask(() => this.selectSegment(which));
       return;
     }
-    if (key === 'Backspace') {
+    if (key === 'Backspace' || key === 'Delete') {
       event.preventDefault();
       const current = DATE_MASK_EDIT_RE.test(el.value.trim())
         ? el.value.trim()
         : this.ensureMaskText(el.value);
       const cleared = clearDisplayDateByBackspace(current);
       if (cleared.select === 'empty') {
-        el.value = '';
-        this.text.set('');
+        el.value = DATE_EMPTY_MASK;
+        this.text.set(DATE_EMPTY_MASK);
         if (this.value()) this.valueChange.emit('');
+        queueMicrotask(() => this.selectSegment('day'));
         return;
       }
       el.value = cleared.text;
       this.text.set(cleared.text);
+      // Partial clear is not a valid date — clear committed value until complete again.
+      if (this.value()) this.valueChange.emit('');
       const select = cleared.select;
       queueMicrotask(() => this.selectSegment(select));
       return;
@@ -572,7 +581,7 @@ export class DatePickerComponent implements OnDestroy {
   protected clear(): void {
     this.valueChange.emit('');
     this.committed.emit('');
-    this.text.set('');
+    this.text.set(DATE_EMPTY_MASK);
     if (this.showTime()) {
       this.popupTime.set('00:00');
       this.timeChange.emit('');

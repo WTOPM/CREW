@@ -1,0 +1,223 @@
+.ad-fname-backdrop {
+  z-index: 1200;
+}
+
+.ad-fname-modal {
+  width: min(34rem, calc(100vw - 1.5rem));
+  max-height: min(90vh, 40rem);
+  overflow: auto;
+  padding: 1rem 1.1rem 0.9rem;
+}
+
+.ad-fname-modal__head {
+  margin-bottom: 0.85rem;
+}
+
+.ad-fname-modal__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #0f172a;
+}
+
+.ad-fname-modal__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+.ad-fname-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.9rem;
+}
+
+.ad-fname-field__label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.ad-fname-field__input {
+  min-height: 2.2rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.ad-fname-field__input--delim {
+  width: 5.5rem;
+  font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
+}
+
+.ad-fname-field__note {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.ad-fname-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.ad-fname-blocks__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.ad-fname-add {
+  min-height: 1.85rem;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ad-fname-block {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(8.5rem, 11rem) minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.4rem 0.45rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.ad-fname-block__idx {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.ad-fname-block__type,
+.ad-fname-block__text {
+  min-width: 0;
+  min-height: 2rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 0.84rem;
+  background: #fff;
+}
+
+.ad-fname-block__hint {
+  font-size: 0.78rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ad-fname-block__ops {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.ad-fname-icon-btn {
+  width: 1.65rem;
+  height: 1.65rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ad-fname-icon-btn:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.ad-fname-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ad-fname-icon-btn--danger {
+  color: #b91c1c;
+}
+
+.ad-fname-icon-btn--danger:hover:not(:disabled) {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.ad-fname-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px dashed #fbbf24;
+  border-radius: 9px;
+  background: #fffbeb;
+}
+
+.ad-fname-preview__label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #92400e;
+}
+
+.ad-fname-preview__value {
+  font-size: 0.92rem;
+  font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
+  color: #9a3412;
+  word-break: break-all;
+}
+
+.ad-fname-actions {
+  margin: 0;
+  padding-top: 0.15rem;
+}
+
+@media (max-width: 560px) {
+  .ad-fname-block {
+    grid-template-columns: 1.2rem 1fr auto;
+    grid-template-areas:
+      'idx type ops'
+      'idx text ops';
+  }
+
+  .ad-fname-block__idx {
+    grid-area: idx;
+  }
+
+  .ad-fname-block__type {
+    grid-area: type;
+  }
+
+  .ad-fname-block__text,
+  .ad-fname-block__hint {
+    grid-area: text;
+  }
+
+  .ad-fname-block__ops {
+    grid-area: ops;
+    flex-direction: column;
+  }
+}
