@@ -61,6 +61,7 @@
       class="date-picker-popup"
       [class.date-picker-popup--sm]="size() === 'sm'"
       [class.date-picker-popup--lg]="size() === 'lg'"
+      [class.date-picker-popup--with-time]="showTime()"
       role="dialog"
       aria-label="Choose date"
       (click)="$event.stopPropagation()"

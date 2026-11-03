@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickSaveExcelFile: (defaultPath) =>
     ipcRenderer.invoke('pick-save-excel-file', defaultPath ?? ''),
   listExcelFiles: (dirPath) => ipcRenderer.invoke('list-excel-files', dirPath ?? ''),
+  renamePath: (fromPath, toPath) => ipcRenderer.invoke('rename-path', fromPath, toPath),
   pathExists: (filePath) => ipcRenderer.invoke('path-exists', filePath),
   openFilePath: (filePath) => ipcRenderer.invoke('open-file-path', filePath),
   readFileBase64: (filePath) => ipcRenderer.invoke('read-file-base64', filePath),

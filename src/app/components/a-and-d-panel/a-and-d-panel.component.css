@@ -8,18 +8,20 @@
 .ad--busy {
   pointer-events: none;
   user-select: none;
+  opacity: 0.72;
+  filter: saturate(0.8);
 }
 
 .ad-busy-overlay {
   position: fixed;
   inset: 0;
-  z-index: 4000;
+  z-index: 9000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
-  background: rgb(15 23 42 / 48%);
-  backdrop-filter: blur(2px);
+  background: rgb(15 23 42 / 55%);
+  backdrop-filter: blur(3px);
   pointer-events: auto;
   cursor: wait;
 }
@@ -255,11 +257,19 @@
   min-width: 0;
 }
 
-.ad-path-select {
+.ad-excel-combo {
+  position: relative;
   flex: 1 1 auto;
-  width: 100%;
   min-width: 0;
+}
+
+.ad-excel-combo__trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
   min-height: 2.45rem;
+  margin: 0;
   padding: 0.4rem 0.55rem;
   border: 1px solid #fcd34d;
   border-radius: 10px;
@@ -268,11 +278,119 @@
   font: inherit;
   font-size: 0.86rem;
   font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
+  text-align: left;
+  cursor: pointer;
 }
 
-.ad-path-select:disabled {
+.ad-excel-combo__trigger:disabled,
+.ad-excel-combo--disabled .ad-excel-combo__trigger {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.ad-excel-combo--open .ad-excel-combo__trigger {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgb(245 158 11 / 22%);
+}
+
+.ad-excel-combo__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ad-excel-combo__label--empty {
+  color: #b45309;
+  opacity: 0.7;
+}
+
+.ad-excel-combo__chev {
+  flex: 0 0 auto;
+  color: #d97706;
+  font-size: 0.85rem;
+}
+
+.ad-excel-combo--rename {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  min-height: 2.45rem;
+  padding: 0.15rem 0.35rem 0.15rem 0.45rem;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  background: #fffbeb;
+  box-shadow: 0 0 0 2px rgb(245 158 11 / 25%);
+}
+
+.ad-excel-combo__rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0.35rem 0.25rem;
+  border: 0;
+  background: transparent;
+  color: #9a3412;
+  font: inherit;
+  font-size: 0.86rem;
+  font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
+  outline: none;
+}
+
+.ad-excel-combo__ext {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding-right: 0.25rem;
+  color: #b45309;
+  font-size: 0.8rem;
+  font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
+  user-select: none;
+}
+
+.ad-excel-combo__list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  right: 0;
+  max-height: 14rem;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  overflow: auto;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 16%);
+}
+
+.ad-excel-combo__item {
+  padding: 0.4rem 0.5rem;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
+  color: #0f172a;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ad-excel-combo__item:hover {
+  background: #fffbeb;
+}
+
+.ad-excel-combo__item--on {
+  background: #fef3c7;
+  font-weight: 650;
+}
+
+.ad-excel-combo__empty {
+  padding: 0.45rem 0.5rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
 }
 
 .ad-path-name-btn {
@@ -947,6 +1065,48 @@
 .ad-field--missing > span,
 .ad-block__field.ad-field--missing > span {
   color: #dc2626;
+}
+
+.ad-copy-banner {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fef2f2 0%, #fff 100%);
+  color: #991b1b;
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.ad-copy-pending.ad-meta-field .ad-meta-field__input,
+.ad-copy-pending.ad-block__qty,
+input.ad-copy-pending {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  box-shadow: 0 0 0 1px rgb(239 68 68 / 25%);
+}
+
+/* Pierce date/time child components so copy review is visible. */
+:host ::ng-deep .ad-copy-pending .date-picker-input,
+:host ::ng-deep .ad-copy-pending .time-input {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  box-shadow: 0 0 0 1px rgb(239 68 68 / 25%);
+}
+
+.ad-copy-pending.ad-block--terminal {
+  border-color: #f87171;
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 18%);
+  background: linear-gradient(180deg, #fef2f2 0%, #fff 70%);
+}
+
+.ad-copy-pending.ad-block--terminal .ad-block__code,
+.ad-copy-pending.ad-block--terminal .ad-term-fact strong,
+.ad-copy-pending.ad-block--terminal .ad-term-drafts strong {
+  color: #b91c1c;
 }
 
 .ad-field input,

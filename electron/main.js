@@ -1347,6 +1347,22 @@ ipcMain.handle('open-file-path', async (_event, filePath) => {
   return err ? { ok: false, error: err } : { ok: true };
 });
 
+/** Rename a file/folder path (same-volume). Returns { ok, error? }. */
+ipcMain.handle('rename-path', async (_event, fromPath, toPath) => {
+  try {
+    const from = normalizeFsPath(fromPath);
+    const to = normalizeFsPath(toPath);
+    if (!from || !to) return { ok: false, error: 'Missing path' };
+    if (from === to) return { ok: true };
+    if (!fs.existsSync(from)) return { ok: false, error: 'Source not found' };
+    if (fs.existsSync(to)) return { ok: false, error: 'Target already exists' };
+    await fsp.rename(from, to);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
 /** List Excel workbook names in a folder (.xlsx / .xlsm only; skip Excel lock ~$ files). */
 ipcMain.handle('list-excel-files', (_event, dirPath) => {
   try {

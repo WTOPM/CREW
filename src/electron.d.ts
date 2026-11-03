@@ -126,6 +126,11 @@ declare global {
       pickSaveExcelFile: (defaultPath?: string) => Promise<string | null>;
       /** File names (.xlsx/.xlsm) in a folder — not full paths. */
       listExcelFiles: (dirPath: string) => Promise<string[]>;
+      /** Rename a path on disk (same volume). */
+      renamePath: (
+        fromPath: string,
+        toPath: string,
+      ) => Promise<{ ok: boolean; error?: string }>;
       pathExists: (filePath: string) => Promise<boolean>;
       openFilePath: (filePath: string) => Promise<{ ok: boolean; error?: string }>;
       readFileBase64: (

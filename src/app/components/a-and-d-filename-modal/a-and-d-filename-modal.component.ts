@@ -21,18 +21,20 @@ export class AAndDFilenameModalComponent {
   readonly pattern = input.required<AdFileNamePattern>();
   readonly draft = input.required<AdReportDraft>();
   readonly folderFiles = input.required<readonly string[]>();
+  /** Settings ports — used to resolve Port name from Port code. */
+  readonly ports = input<readonly { code?: string; name?: string }[]>([]);
 
   readonly save = output<AdFileNamePattern>();
   readonly cancel = output<void>();
 
   protected readonly blockTypes = AD_FILE_NAME_BLOCK_TYPES;
 
-  protected readonly edit = linkedSignal(() =>
-    normalizeAdFileNamePattern(this.pattern()),
-  );
+  protected readonly edit = linkedSignal(() => normalizeAdFileNamePattern(this.pattern()));
 
   protected readonly previewName = computed(() =>
-    buildAdFileNameFromPattern(this.edit(), this.draft(), this.folderFiles()),
+    buildAdFileNameFromPattern(this.edit(), this.draft(), this.folderFiles(), {
+      ports: this.ports(),
+    }),
   );
 
   protected onBackdrop(event: MouseEvent): void {
@@ -40,14 +42,12 @@ export class AAndDFilenameModalComponent {
     this.cancel.emit();
   }
 
-  protected setDelimiter(value: string): void {
-    this.edit.update((p) => ({ ...p, delimiter: value }));
-  }
-
-  protected setBlockType(id: string, type: AdFileNameBlockType): void {
+  protected setBlockType(id: string, type: string): void {
+    const next = type as AdFileNameBlockType;
+    if (!AD_FILE_NAME_BLOCK_TYPES.some((t) => t.type === next)) return;
     this.edit.update((p) => ({
       ...p,
-      blocks: p.blocks.map((b) => (b.id === id ? { ...b, type } : b)),
+      blocks: p.blocks.map((b) => (b.id === id ? { ...b, type: next } : b)),
     }));
   }
 
@@ -58,10 +58,17 @@ export class AAndDFilenameModalComponent {
     }));
   }
 
+  protected setBlockSep(id: string, sepAfter: string): void {
+    this.edit.update((p) => ({
+      ...p,
+      blocks: p.blocks.map((b) => (b.id === id ? { ...b, sepAfter } : b)),
+    }));
+  }
+
   protected addBlock(): void {
     this.edit.update((p) => ({
       ...p,
-      blocks: [...p.blocks, createAdFileNameBlock('custom', '')],
+      blocks: [...p.blocks, createAdFileNameBlock('custom', '', ' ')],
     }));
   }
 
@@ -70,7 +77,7 @@ export class AAndDFilenameModalComponent {
       const next = p.blocks.filter((b) => b.id !== id);
       return {
         ...p,
-        blocks: next.length ? next : [createAdFileNameBlock('empty')],
+        blocks: next.length ? next : [createAdFileNameBlock('empty', '', ' ')],
       };
     });
   }

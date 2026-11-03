@@ -5427,8 +5427,78 @@ html.html-form-excel-embed app-root {
   background: #fff;
   box-shadow: 0 12px 32px rgb(15 23 42 / 18%);
   box-sizing: border-box;
-  max-height: min(24rem, calc(100dvh - 16px));
+  max-height: min(36rem, calc(100dvh - 16px));
   overflow-y: auto;
+}
+
+/* Calendar + hour/min + footer must fit without an inner scrollbar on typical screens. */
+.date-picker-popup--with-time {
+  max-height: min(40rem, calc(100dvh - 12px));
+  padding: 0.65rem 0.7rem 0.6rem;
+  /* Compact layout fits calendar+time+footer; scroll only on very short screens. */
+  overflow-y: auto;
+}
+
+.date-picker-popup--with-time .cal-head {
+  margin-bottom: 0.4rem;
+}
+
+.date-picker-popup--with-time .cal-nav {
+  width: 1.9rem;
+  height: 1.9rem;
+  font-size: 1.15rem;
+}
+
+.date-picker-popup--with-time .cal-title {
+  font-size: 0.92rem;
+}
+
+.date-picker-popup--with-time .cal-weekdays {
+  margin-bottom: 0.2rem;
+  font-size: 0.66rem;
+}
+
+.date-picker-popup--with-time .cal-day {
+  min-height: 1.65rem;
+  font-size: 0.82rem;
+  border-radius: 6px;
+}
+
+.date-picker-popup--with-time .cal-time {
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.25rem 0.2rem;
+  gap: 0.4rem;
+}
+
+.date-picker-popup--with-time .cal-time__col {
+  min-width: 3.1rem;
+  padding: 0.15rem 0.25rem;
+  gap: 0.1rem;
+}
+
+.date-picker-popup--with-time .cal-time__value {
+  font-size: 1.15rem;
+}
+
+.date-picker-popup--with-time .cal-time__step {
+  padding: 0.1rem;
+  font-size: 0.65rem;
+}
+
+.date-picker-popup--with-time .cal-time__sep {
+  font-size: 1.15rem;
+  padding-bottom: 0.65rem;
+}
+
+.date-picker-popup--with-time .cal-foot {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  gap: 0.35rem;
+}
+
+.date-picker-popup--with-time .cal-foot-btn {
+  padding: 0.35rem 0.45rem;
+  font-size: 0.78rem;
 }
 
 .date-picker-popup--sm {

@@ -448,17 +448,30 @@ export function adExportFileName(draft: AdReportDraft, when = new Date()): strin
 }
 
 /** One segment of an auto-generated Excel file name. */
-export type AdFileNameBlockType = 'empty' | 'sequence' | 'custom' | 'portCallId';
+export type AdFileNameBlockType =
+  | 'empty'
+  | 'sequence'
+  | 'custom'
+  | 'portCallId'
+  | 'portCode'
+  | 'portName'
+  | 'reportDate';
 
 export interface AdFileNameBlock {
   id: string;
   type: AdFileNameBlockType;
   /** Used when type === 'custom'. */
   text: string;
+  /** Separator inserted after this block before the next non-empty block. */
+  sepAfter: string;
 }
 
-/** User-built Excel name: blocks joined by `delimiter`, then `.xlsx`. */
+/** User-built Excel name: blocks + per-block separators, then `.xlsx`. */
 export interface AdFileNamePattern {
+  /**
+   * Legacy global delimiter — kept for old saves; migrated into `sepAfter`
+   * when a block has no own separator.
+   */
   delimiter: string;
   blocks: AdFileNameBlock[];
 }
@@ -467,11 +480,72 @@ export const AD_FILE_NAME_BLOCK_TYPES: readonly {
   type: AdFileNameBlockType;
   label: string;
 }[] = [
-  { type: 'empty', label: 'Empty (skip)' },
-  { type: 'sequence', label: 'Sequence # in folder' },
-  { type: 'custom', label: 'Custom text' },
-  { type: 'portCallId', label: 'Port call ID' },
+  { type: 'empty', label: 'Skip' },
+  { type: 'sequence', label: 'Number' },
+  { type: 'custom', label: 'Text' },
+  { type: 'portCallId', label: 'Port ID' },
+  { type: 'portCode', label: 'Code' },
+  { type: 'portName', label: 'Port' },
+  { type: 'reportDate', label: 'Date' },
 ];
+
+/** Resolve Settings port name for a draft port code. */
+export function resolveAdPortName(
+  portCode: string,
+  ports: readonly { code?: string; name?: string }[],
+): string {
+  const code = String(portCode ?? '')
+    .trim()
+    .toUpperCase();
+  if (!code) return '';
+  const hit = ports.find((p) => String(p.code ?? '').trim().toUpperCase() === code);
+  return String(hit?.name ?? '').trim();
+}
+
+/** Format sequence as 01, 02, … 09, 10, … */
+export function formatAdFolderSequence(n: number): string {
+  const v = Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+  return String(v).padStart(2, '0');
+}
+
+/**
+ * Latest complete date/time across all actions in the draft → `DD.MM.YYYY`.
+ * Empty string when nothing is filled yet.
+ */
+export function latestAdReportDisplayDate(draft: AdReportDraft): string {
+  let bestMs = Number.NEGATIVE_INFINITY;
+  let bestIso = '';
+
+  const consider = (raw: string): void => {
+    const m = /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?/.exec(String(raw ?? '').trim());
+    if (!m?.[1]) return;
+    const iso = m[1];
+    const time = m[2] && /^\d{2}:\d{2}$/.test(m[2]) ? m[2] : '00:00';
+    const ms = Date.parse(`${iso}T${time}:00`);
+    if (!Number.isFinite(ms)) return;
+    if (ms > bestMs) {
+      bestMs = ms;
+      bestIso = iso;
+    }
+  };
+
+  for (const term of draft.terminals) {
+    for (const action of term.actions) {
+      if (isAdPilotAction(action)) {
+        consider(action.onboarding);
+        consider(action.disembarkment);
+      } else if (isAdTugAction(action)) {
+        consider(action.start);
+        consider(action.end);
+      }
+    }
+  }
+
+  if (!bestIso) return '';
+  const [yyyy, mm, dd] = bestIso.split('-');
+  if (!yyyy || !mm || !dd) return '';
+  return `${dd}.${mm}.${yyyy}`;
+}
 
 function newAdFileNameBlockId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -482,30 +556,37 @@ function newAdFileNameBlockId(): string {
 export function createAdFileNameBlock(
   type: AdFileNameBlockType = 'custom',
   text = '',
+  sepAfter = ' ',
 ): AdFileNameBlock {
-  return { id: newAdFileNameBlockId(), type, text };
+  return { id: newAdFileNameBlockId(), type, text, sepAfter };
 }
 
 export function createDefaultAdFileNamePattern(): AdFileNamePattern {
   return {
     delimiter: ' ',
     blocks: [
-      createAdFileNameBlock('sequence'),
-      createAdFileNameBlock('custom', 'A&D'),
-      createAdFileNameBlock('portCallId'),
+      createAdFileNameBlock('sequence', '', ' '),
+      createAdFileNameBlock('custom', 'A&D', ' '),
+      createAdFileNameBlock('portCallId', '', ' '),
     ],
   };
 }
 
-export function normalizeAdFileNameBlock(raw: unknown): AdFileNameBlock | null {
+export function normalizeAdFileNameBlock(
+  raw: unknown,
+  fallbackSep = ' ',
+): AdFileNameBlock | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Partial<AdFileNameBlock>;
   const type = String(r.type ?? '').trim() as AdFileNameBlockType;
   if (!AD_FILE_NAME_BLOCK_TYPES.some((t) => t.type === type)) return null;
+  const sepAfter =
+    typeof r.sepAfter === 'string' ? r.sepAfter : fallbackSep;
   return {
     id: String(r.id ?? '').trim() || newAdFileNameBlockId(),
     type,
     text: String(r.text ?? ''),
+    sepAfter,
   };
 }
 
@@ -514,12 +595,15 @@ export function normalizeAdFileNamePattern(
 ): AdFileNamePattern {
   const defaults = createDefaultAdFileNamePattern();
   if (!raw || typeof raw !== 'object') return defaults;
+  const delimiter = typeof raw.delimiter === 'string' ? raw.delimiter : defaults.delimiter;
   const blocksRaw = Array.isArray(raw.blocks) ? raw.blocks : null;
   const blocks = blocksRaw
-    ? blocksRaw.map(normalizeAdFileNameBlock).filter((b): b is AdFileNameBlock => !!b)
+    ? blocksRaw
+        .map((b) => normalizeAdFileNameBlock(b, delimiter))
+        .filter((b): b is AdFileNameBlock => !!b)
     : defaults.blocks;
   return {
-    delimiter: typeof raw.delimiter === 'string' ? raw.delimiter : defaults.delimiter,
+    delimiter,
     blocks: blocks.length ? blocks : defaults.blocks,
   };
 }
@@ -545,36 +629,66 @@ export function nextAdFolderSequence(folderFiles: readonly string[]): number {
 export interface AdFileNameBuildContext {
   portCallId: string;
   folderFiles: readonly string[];
+  /** Draft port code (e.g. DEBRV). */
+  portCode?: string;
+  /** Port display name from Settings. */
+  portName?: string;
+  /** Latest report date as `DD.MM.YYYY` (from draft events). */
+  reportDate?: string;
   /** Override sequence (tests / preview freeze). */
   sequence?: number;
 }
 
-/** Build stem (no extension) from pattern; empty parts are skipped. */
+export interface AdFileNameFromPatternOptions {
+  when?: Date;
+  ports?: readonly { code?: string; name?: string }[];
+}
+
+/** Resolve one block to its text contribution (may be empty → skipped). */
+function resolveAdFileNameBlockPart(
+  block: AdFileNameBlock,
+  ctx: AdFileNameBuildContext,
+  seq: number,
+): string {
+  switch (block.type) {
+    case 'empty':
+      return '';
+    case 'sequence':
+      return formatAdFolderSequence(seq);
+    case 'custom':
+      return String(block.text ?? '').trim();
+    case 'portCallId':
+      return String(ctx.portCallId ?? '').trim();
+    case 'portCode':
+      return String(ctx.portCode ?? '').trim().toUpperCase();
+    case 'portName':
+      return String(ctx.portName ?? '').trim();
+    case 'reportDate':
+      return String(ctx.reportDate ?? '').trim();
+    default:
+      return '';
+  }
+}
+
+/**
+ * Build stem (no extension) from pattern.
+ * Empty blocks are skipped; each block’s `sepAfter` joins to the next non-empty part.
+ */
 export function buildAdFileNameStem(
   pattern: AdFileNamePattern,
   ctx: AdFileNameBuildContext,
 ): string {
   const seq = ctx.sequence ?? nextAdFolderSequence(ctx.folderFiles);
-  const parts: string[] = [];
+  let out = '';
+  let pendingSep = '';
+  const fallbackSep = typeof pattern.delimiter === 'string' ? pattern.delimiter : ' ';
   for (const block of pattern.blocks) {
-    let part = '';
-    switch (block.type) {
-      case 'empty':
-        part = '';
-        break;
-      case 'sequence':
-        part = String(seq);
-        break;
-      case 'custom':
-        part = String(block.text ?? '').trim();
-        break;
-      case 'portCallId':
-        part = String(ctx.portCallId ?? '').trim();
-        break;
-    }
-    if (part) parts.push(part);
+    const part = resolveAdFileNameBlockPart(block, ctx, seq);
+    if (!part) continue;
+    out += (out ? pendingSep : '') + part;
+    pendingSep = typeof block.sepAfter === 'string' ? block.sepAfter : fallbackSep;
   }
-  return parts.join(pattern.delimiter);
+  return out;
 }
 
 /** Full suggested `.xlsx` name from pattern (falls back to legacy export name). */
@@ -582,11 +696,18 @@ export function buildAdFileNameFromPattern(
   pattern: AdFileNamePattern,
   draft: AdReportDraft,
   folderFiles: readonly string[],
-  when = new Date(),
+  opts: AdFileNameFromPatternOptions | Date = {},
 ): string {
+  const options: AdFileNameFromPatternOptions =
+    opts instanceof Date ? { when: opts } : (opts ?? {});
+  const when = options.when ?? new Date();
+  const ports = options.ports ?? [];
   const stem = buildAdFileNameStem(pattern, {
     portCallId: draft.portCallId,
+    portCode: draft.portCode,
+    portName: resolveAdPortName(draft.portCode, ports),
     folderFiles,
+    reportDate: latestAdReportDisplayDate(draft),
   }).trim();
   if (!stem) return adExportFileName(draft, when);
   const safe = stem.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/\.+$/g, '');
@@ -610,7 +731,7 @@ export interface AdWorkspace {
   selectedFile: string;
   draft: AdReportDraft;
   blockDefaults: AdBlockDefaults;
-  /** Auto Excel name builder (delimiter + blocks). */
+  /** Auto Excel name builder (blocks + per-block separators). */
   fileNamePattern: AdFileNamePattern;
   /** Display-only action order inside terminals. */
   actionDisplaySort: AdActionDisplaySort;

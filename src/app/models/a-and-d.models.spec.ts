@@ -3,17 +3,20 @@ import {
   adExportFileName,
   adKindForDrop,
   adPaletteGroupOfKind,
-  createAdAction,
-  createEmptyAdDraft,
-  isAdPilotAction,
-  isAdTugAction,
   buildAdFileNameFromPattern,
   buildAdFileNameStem,
+  createAdAction,
   createAdFileNameBlock,
   createDefaultAdFileNamePattern,
+  createEmptyAdDraft,
+  formatAdFolderSequence,
+  isAdPilotAction,
+  isAdTugAction,
+  latestAdReportDisplayDate,
   nextAdFolderSequence,
   normalizeAdFileNamePattern,
   normalizeAdWorkspace,
+  resolveAdPortName,
 } from './a-and-d.models';
 
 describe('a-and-d.models', () => {
@@ -113,25 +116,61 @@ describe('a-and-d.models', () => {
     expect(nextAdFolderSequence([])).toBe(1);
     expect(nextAdFolderSequence(['A&D.xlsx', 'notes.xlsx'])).toBe(3);
     expect(nextAdFolderSequence(['3 A&D.xlsx', '12 A&D.xlsx', 'A&D.xlsx'])).toBe(13);
+    expect(formatAdFolderSequence(1)).toBe('01');
+    expect(formatAdFolderSequence(12)).toBe('12');
   });
 
-  it('buildAdFileNameStem joins non-empty blocks with delimiter', () => {
+  it('buildAdFileNameStem joins non-empty blocks with per-block sepAfter', () => {
     const pattern = normalizeAdFileNamePattern({
       delimiter: ' ',
       blocks: [
-        createAdFileNameBlock('sequence'),
-        createAdFileNameBlock('empty'),
-        createAdFileNameBlock('custom', 'A&D'),
-        createAdFileNameBlock('portCallId'),
+        createAdFileNameBlock('sequence', '', ' '),
+        createAdFileNameBlock('empty', '', '-'),
+        createAdFileNameBlock('custom', 'A&D', ' '),
+        createAdFileNameBlock('portCallId', '', '_'),
+        createAdFileNameBlock('portCode', '', ' '),
+        createAdFileNameBlock('portName', '', ' '),
+        createAdFileNameBlock('reportDate', '', ''),
       ],
     });
     expect(
       buildAdFileNameStem(pattern, {
         portCallId: '701216',
-        folderFiles: ['1 A&D.xlsx'],
+        portCode: 'debrv',
+        portName: 'Bremerhaven',
+        folderFiles: ['01 A&D.xlsx'],
         sequence: 2,
+        reportDate: '14.10.2026',
       }),
-    ).toBe('2 A&D 701216');
+    ).toBe('02 A&D 701216_DEBRV Bremerhaven 14.10.2026');
+    expect(resolveAdPortName('DEBRV', [{ code: 'DEBRV', name: 'Bremerhaven' }])).toBe(
+      'Bremerhaven',
+    );
+  });
+
+  it('normalizeAdFileNamePattern migrates legacy delimiter into missing sepAfter', () => {
+    const pattern = normalizeAdFileNamePattern({
+      delimiter: '-',
+      blocks: [
+        { id: 'a', type: 'sequence', text: '' },
+        { id: 'b', type: 'custom', text: 'A&D' },
+        { id: 'c', type: 'portCallId', text: '', sepAfter: ' · ' },
+      ] as never,
+    });
+    expect(pattern.blocks[0]!.sepAfter).toBe('-');
+    expect(pattern.blocks[1]!.sepAfter).toBe('-');
+    expect(pattern.blocks[2]!.sepAfter).toBe(' · ');
+  });
+
+  it('latestAdReportDisplayDate takes the latest event date', () => {
+    const draft = createEmptyAdDraft({ portCallId: '1' });
+    const harbour = createAdAction('harbour_in');
+    const tug = createAdAction('tug_mooring');
+    if (!isAdPilotAction(harbour) || !isAdTugAction(tug)) throw new Error('bad');
+    harbour.onboarding = '2026-10-14T13:48';
+    tug.start = '2026-10-15T09:00';
+    draft.terminals[0]!.actions = [harbour, tug];
+    expect(latestAdReportDisplayDate(draft)).toBe('15.10.2026');
   });
 
   it('buildAdFileNameFromPattern appends .xlsx and falls back when empty', () => {
@@ -141,14 +180,14 @@ describe('a-and-d.models', () => {
       portCallId: '701216',
     };
     const named = buildAdFileNameFromPattern(createDefaultAdFileNamePattern(), draft, []);
-    expect(named).toBe('1 A&D 701216.xlsx');
+    expect(named).toBe('01 A&D 701216.xlsx');
 
     const emptyPattern = normalizeAdFileNamePattern({
       delimiter: ' ',
       blocks: [createAdFileNameBlock('empty')],
     });
     const when = new Date('2026-10-15T12:00:00');
-    expect(buildAdFileNameFromPattern(emptyPattern, draft, [], when)).toBe(
+    expect(buildAdFileNameFromPattern(emptyPattern, draft, [], { when })).toBe(
       adExportFileName(draft, when),
     );
   });

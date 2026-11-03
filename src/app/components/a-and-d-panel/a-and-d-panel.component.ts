@@ -3,10 +3,12 @@ import {
   computed,
   DestroyRef,
   effect,
+  ElementRef,
   HostListener,
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import {
   CdkDrag,
@@ -191,8 +193,14 @@ export class AAndDPanelComponent {
   protected readonly paletteGroups = AD_PALETTE_GROUPS;
   protected readonly maxTerminals = AD_MAX_TERMINALS;
   protected readonly busy = signal(false);
-  /** Shown on the full-screen busy overlay (Save / Open / Refresh). */
+  /** Shown on the full-screen busy overlay (Save / Open / Refresh / Copy). */
   protected readonly busyLabel = signal('');
+  /**
+   * After Copy: highlight copied fields in red until the user focuses/clicks them.
+   * UI-only — does not affect Excel.
+   */
+  protected readonly copyReview = signal(false);
+  private readonly reviewedCopyKeys = signal<ReadonlySet<string>>(new Set());
   protected readonly dragGroup = signal<AdPaletteGroupId | null>(null);
   /** Applied to newly dropped blocks / terminals (existing cards keep their own values). */
   protected readonly blockDefaults = signal<AdBlockDefaults>(
@@ -203,6 +211,12 @@ export class AAndDPanelComponent {
   /** Custom combo lists (datalist cannot toggle closed on 2nd arrow click). */
   protected readonly portComboOpen = signal(false);
   protected readonly terminalComboOpen = signal(false);
+  /** Excel file picker (custom — native select opens on press and breaks hold-rename). */
+  protected readonly excelComboOpen = signal(false);
+  protected readonly excelRenaming = signal(false);
+  protected readonly excelRenameDraft = signal('');
+  protected readonly excelRenameExt = signal('.xlsx');
+  private readonly excelRenameField = viewChild<ElementRef<HTMLInputElement>>('excelRenameField');
   /** Typeahead text only — selected value must not hide the rest of Settings ports. */
   protected readonly portComboFilter = signal('');
   protected readonly terminalComboFilter = signal('');
@@ -222,7 +236,7 @@ export class AAndDPanelComponent {
   protected readonly selectedFile = signal(this.restored.selectedFile);
   /** .xlsx/.xlsm names in the current folder. */
   protected readonly folderFiles = signal<string[]>([]);
-  /** Auto Excel name pattern (blocks + delimiter). */
+  /** Auto Excel name pattern (blocks + per-block separators). */
   protected readonly fileNamePattern = signal<AdFileNamePattern>(
     normalizeAdFileNamePattern(this.restored.fileNamePattern),
   );
@@ -366,6 +380,7 @@ export class AAndDPanelComponent {
     field: 'onboarding' | 'disembarkment' | 'start' | 'end',
     date: string,
   ): void {
+    this.markCopyReviewed(this.actKey(terminalId, kind, field));
     const term = this.draft().terminals.find((t) => t.id === terminalId);
     const action = term?.actions.find((a) => a.kind === kind);
     if (!action) return;
@@ -379,6 +394,7 @@ export class AAndDPanelComponent {
     field: 'onboarding' | 'disembarkment' | 'start' | 'end',
     time: string,
   ): void {
+    this.markCopyReviewed(this.actKey(terminalId, kind, field));
     const term = this.draft().terminals.find((t) => t.id === terminalId);
     const action = term?.actions.find((a) => a.kind === kind);
     if (!action) return;
@@ -415,6 +431,9 @@ export class AAndDPanelComponent {
       }),
     );
   }
+
+  /** Settings ports (code + name) for auto Excel name / port combo. */
+  protected readonly settingsPorts = computed(() => this.storage.ports());
 
   /** Port codes from Settings — free text still allowed in the input. */
   protected readonly portCodeOptions = computed(() => {
@@ -464,6 +483,7 @@ export class AAndDPanelComponent {
   });
 
   protected updateHeader<K extends 'portCallId' | 'portCode'>(key: K, value: string): void {
+    this.markCopyReviewed(`hdr:${key}`);
     this.draft.update((d) => ({ ...d, [key]: value }));
   }
 
@@ -607,6 +627,7 @@ export class AAndDPanelComponent {
   }
 
   private closeCombos(): void {
+    this.excelComboOpen.set(false);
     this.portComboOpen.set(false);
     this.terminalComboOpen.set(false);
     this.portComboFilter.set('');
@@ -614,6 +635,7 @@ export class AAndDPanelComponent {
   }
 
   protected openTerminalEdit(term: AdTerminal, event: MouseEvent): void {
+    this.markCopyReviewed(`term:${term.id}`);
     event.preventDefault();
     event.stopPropagation();
     this.closeSettings();
@@ -655,7 +677,11 @@ export class AAndDPanelComponent {
       this.closeFileNameModal();
       return;
     }
-    if (this.portComboOpen() || this.terminalComboOpen()) {
+    if (this.excelRenaming()) {
+      this.cancelExcelRename();
+      return;
+    }
+    if (this.excelComboOpen() || this.portComboOpen() || this.terminalComboOpen()) {
       this.closeCombos();
       return;
     }
@@ -953,33 +979,75 @@ export class AAndDPanelComponent {
     }));
   }
 
-  /** Paint overlay before heavy Excel work so the UI does not look frozen. */
+  /**
+   * Paint overlay before heavy Excel work so the UI does not look frozen.
+   * Double-rAF lets Angular flush paint; keep overlay ≥ ~500ms so it is noticeable.
+   */
   private async withBusy<T>(label: string, work: () => Promise<T>): Promise<T> {
     this.busyLabel.set(label);
     this.busy.set(true);
-    await new Promise<void>((r) => setTimeout(r, 0));
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    const started = performance.now();
     try {
       return await work();
     } finally {
+      const left = 500 - (performance.now() - started);
+      if (left > 0) await new Promise<void>((r) => setTimeout(r, left));
       this.busy.set(false);
       this.busyLabel.set('');
     }
   }
 
-  protected newDocument(): void {
-    this.closeTerminalEditIfOpen();
-    this.draft.set(this.buildSeed());
-    this.selectedFile.set('');
+  protected copyPending(key: string): boolean {
+    return this.copyReview() && !this.reviewedCopyKeys().has(key);
+  }
+
+  protected actKey(terminalId: string, kind: AdActionKind, field: string): string {
+    return `act:${terminalId}:${kind}:${field}`;
+  }
+
+  protected markCopyReviewed(key: string): void {
+    if (!this.copyReview()) return;
+    this.reviewedCopyKeys.update((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }
+
+  private beginCopyReview(): void {
+    this.reviewedCopyKeys.set(new Set());
+    this.copyReview.set(true);
+  }
+
+  private clearCopyReview(): void {
+    this.copyReview.set(false);
+    this.reviewedCopyKeys.set(new Set());
+  }
+
+  protected async newDocument(): Promise<void> {
+    await this.withBusy('New document…', async () => {
+      this.closeTerminalEditIfOpen();
+      this.clearCopyReview();
+      this.draft.set(this.buildSeed());
+      this.selectedFile.set('');
+    });
     this.toast.show('New A&D document', 'info');
   }
 
   /** Detach the open file — keep current data as a new unsaved document. */
-  protected copyAsNew(): void {
+  protected async copyAsNew(): Promise<void> {
     if (!this.hasOpenFile()) return;
-    this.closeTerminalEditIfOpen();
-    this.selectedFile.set('');
-    this.draft.update((d) => this.withProgramShip(d));
-    this.toast.show('Copy — Save to write a new file', 'info');
+    await this.withBusy('Copying document…', async () => {
+      this.closeTerminalEditIfOpen();
+      this.selectedFile.set('');
+      this.draft.update((d) => this.withProgramShip(d));
+      this.beginCopyReview();
+    });
+    this.toast.show('Copy — red fields need a click · Save to write a new file', 'info');
   }
 
   private closeTerminalEditIfOpen(): void {
@@ -1038,9 +1106,28 @@ export class AAndDPanelComponent {
     await this.loadFileAt(joinAdPath(folder, name));
   }
 
-  /** RMB on the Excel select — open the chosen workbook in the system app. */
-  protected onExcelSelectContextMenu(event: MouseEvent): void {
+  private excelHoldTimer: ReturnType<typeof setTimeout> | null = null;
+  private excelHoldOrigin: { x: number; y: number } | null = null;
+  private excelHoldFired = false;
+  private excelRenameCommitLock = false;
+  private static readonly EXCEL_HOLD_MS = 480;
+  private static readonly EXCEL_HOLD_MOVE_PX = 6;
+
+  protected closeExcelCombo(): void {
+    this.excelComboOpen.set(false);
+  }
+
+  /** Hover hint — three actions, ultra short. */
+  protected excelHint(): string {
+    if (!this.folderPath()) return 'Choose folder first';
+    if (!this.hasOpenFile()) return 'LMB Click - Open List';
+    return 'LMB Click - Open List\nLMB Hold - Rename File\nRMB Click - Open Excel File';
+  }
+
+  /** RMB — open the selected workbook in Excel. */
+  protected onExcelContextMenu(event: MouseEvent): void {
     event.preventDefault();
+    this.onExcelHoldEnd();
     void this.openSelectedExcelFile();
   }
 
@@ -1057,6 +1144,136 @@ export class AAndDPanelComponent {
     }
     const res = await api.openFilePath(path);
     if (!res.ok) this.toast.showError(res.error || 'Could not open Excel file');
+  }
+
+  /** LMB press — start hold-to-rename when a file is selected (list opens on release). */
+  protected onExcelHoldStart(event: PointerEvent): void {
+    if (this.busy() || !this.folderPath()) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    this.clearExcelHoldTimer();
+    this.excelHoldFired = false;
+    this.excelHoldOrigin = { x: event.clientX, y: event.clientY };
+    if (!this.hasOpenFile()) return;
+    this.excelHoldTimer = setTimeout(() => {
+      this.excelHoldTimer = null;
+      this.excelHoldFired = true;
+      this.excelHoldOrigin = null;
+      this.beginExcelRename();
+    }, AAndDPanelComponent.EXCEL_HOLD_MS);
+  }
+
+  protected onExcelHoldMove(event: PointerEvent): void {
+    if (!this.excelHoldTimer || !this.excelHoldOrigin) return;
+    const dx = event.clientX - this.excelHoldOrigin.x;
+    const dy = event.clientY - this.excelHoldOrigin.y;
+    if (Math.hypot(dx, dy) > AAndDPanelComponent.EXCEL_HOLD_MOVE_PX) {
+      this.clearExcelHoldTimer();
+      this.excelHoldOrigin = null;
+    }
+  }
+
+  /** LMB release — open/close list unless hold already started rename. */
+  protected onExcelPointerUp(event: PointerEvent): void {
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+      this.onExcelHoldEnd();
+      return;
+    }
+    const held = this.excelHoldFired;
+    this.onExcelHoldEnd();
+    if (held || this.excelRenaming() || this.busy() || !this.folderPath()) return;
+    this.excelComboOpen.update((open) => !open);
+  }
+
+  protected onExcelHoldEnd(): void {
+    this.clearExcelHoldTimer();
+    this.excelHoldOrigin = null;
+  }
+
+  private clearExcelHoldTimer(): void {
+    if (this.excelHoldTimer == null) return;
+    clearTimeout(this.excelHoldTimer);
+    this.excelHoldTimer = null;
+  }
+
+  protected pickExcelFile(name: string, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.excelComboOpen.set(false);
+    void this.onFileSelect(name);
+  }
+
+  private beginExcelRename(): void {
+    const current = this.selectedFile().trim();
+    if (!current) return;
+    this.excelComboOpen.set(false);
+    const extMatch = current.match(/(\.xlsx|\.xlsm)$/i);
+    const ext = extMatch?.[1] ?? '.xlsx';
+    const stem = current.slice(0, current.length - ext.length);
+    this.excelRenameExt.set(ext);
+    this.excelRenameDraft.set(stem);
+    this.excelRenaming.set(true);
+    queueMicrotask(() => {
+      const el = this.excelRenameField()?.nativeElement;
+      if (!el) return;
+      el.focus();
+      el.select();
+    });
+  }
+
+  protected cancelExcelRename(event?: Event): void {
+    event?.preventDefault();
+    this.excelRenaming.set(false);
+    this.excelRenameDraft.set('');
+    this.excelHoldFired = false;
+  }
+
+  protected async commitExcelRename(event?: Event): Promise<void> {
+    event?.preventDefault();
+    if (this.excelRenameCommitLock || !this.excelRenaming()) return;
+    this.excelRenameCommitLock = true;
+    try {
+      const folder = this.folderPath().trim();
+      const current = this.selectedFile().trim();
+      const ext = this.excelRenameExt();
+      let nextStem = this.excelRenameDraft()
+        .trim()
+        .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_');
+      nextStem = nextStem.replace(/\.(xlsx|xlsm)$/i, '').replace(/\.+$/g, '').trim();
+      this.excelRenaming.set(false);
+      this.excelHoldFired = false;
+      if (!folder || !current) return;
+      if (!nextStem) {
+        this.toast.showError('Name cannot be empty');
+        return;
+      }
+      const nextName = `${nextStem}${ext}`;
+      if (nextName === current) return;
+
+      const api = window.electronAPI;
+      if (!api?.renamePath) {
+        this.toast.showError('Rename needs the desktop app — restart the app once');
+        return;
+      }
+
+      const fromPath = joinAdPath(folder, current);
+      const toPath = joinAdPath(folder, nextName);
+      await this.withBusy('Renaming…', async () => {
+        const res = await api.renamePath(fromPath, toPath);
+        if (!res.ok) {
+          this.toast.showError(res.error || 'Could not rename file');
+          return;
+        }
+        this.selectedFile.set(nextName);
+        await this.refreshFolderFiles();
+        this.syncWorkspaceToStore(true);
+        this.toast.showSaved(`Renamed to ${nextName}`);
+      });
+    } catch (e) {
+      this.toast.showError(e instanceof Error ? e.message : 'Could not rename file');
+    } finally {
+      this.excelRenameCommitLock = false;
+    }
   }
 
   /**
@@ -1111,6 +1328,7 @@ export class AAndDPanelComponent {
           return;
         }
         const draft = await parseAdReportFromXlsxBytes(base64ToUint8(read.base64));
+        this.clearCopyReview();
         this.draft.set(this.withProgramShip(draft));
         const folder = dirnameAdPath(fullPath);
         const name = basenameAdPath(fullPath);
@@ -1150,6 +1368,7 @@ export class AAndDPanelComponent {
         this.fileNamePattern(),
         toSave,
         this.folderFiles(),
+        { ports: this.storage.ports() },
       );
       const api = window.electronAPI;
 
@@ -1159,6 +1378,7 @@ export class AAndDPanelComponent {
         if (!api.pickSaveExcelFile) {
           const bytes = await this.withBusy('Saving Excel…', () => buildAdReportXlsxBytes(toSave));
           await openExcelBytes(suggested, bytes);
+          this.clearCopyReview();
           this.syncWorkspaceToStore(true);
           this.toast.showSaved(`Downloaded ${suggested}`);
           return;
@@ -1182,12 +1402,14 @@ export class AAndDPanelComponent {
           const name = basenameAdPath(targetPath);
           if (dir) this.folderPath.set(dir);
           this.selectedFile.set(name);
+          this.clearCopyReview();
           await this.refreshFolderFiles();
           this.syncWorkspaceToStore(true);
           this.toast.showSaved(`Saved ${name}`);
           return;
         }
         await openExcelBytes(suggested, bytes);
+        this.clearCopyReview();
         this.syncWorkspaceToStore(true);
         this.toast.showSaved(`Downloaded ${suggested}`);
       });

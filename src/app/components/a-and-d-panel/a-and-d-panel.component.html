@@ -1,27 +1,21 @@
 <section
   class="ad"
   [class.ad--busy]="busy()"
+  [class.ad--copy-review]="copyReview()"
   [attr.aria-busy]="busy() ? 'true' : null"
   aria-label="A and D report editor"
   appClickOutside
   (appClickOutside)="closeSettings()"
 >
-  @if (busy()) {
-    <div class="ad-busy-overlay" role="alertdialog" aria-modal="true" aria-live="assertive">
-      <div class="ad-busy-card">
-        <div class="ad-busy-spinner" aria-hidden="true"></div>
-        <strong class="ad-busy-title">{{ busyLabel() || 'Working…' }}</strong>
-        <span class="ad-busy-text">Please wait — the page is locked until this finishes.</span>
-        <div class="ad-busy-bar" aria-hidden="true">
-          <div class="ad-busy-bar__fill"></div>
-        </div>
-      </div>
-    </div>
-  }
-
   <header class="ad-toolbar">
     <h2 class="ad-toolbar__title">A&amp;D report</h2>
   </header>
+
+  @if (copyReview()) {
+    <div class="ad-copy-banner" role="status">
+      Copied data is marked in red — click or edit a field to clear its highlight.
+    </div>
+  }
 
   <div class="ad-path card" [class.ad-path--empty]="!folderPath()">
     <div class="ad-path__folder">
@@ -80,26 +74,84 @@
     <div class="ad-path__file">
       <span class="ad-path__label">Excel</span>
       <div class="ad-path__file-row">
-        <select
-          class="ad-path-select"
-          [ngModel]="selectedFile()"
-          (ngModelChange)="onFileSelect($event)"
-          (contextmenu)="onExcelSelectContextMenu($event)"
-          [disabled]="busy() || !folderPath()"
-          [attr.title]="hasOpenFile() ? 'RIGHT CLICK TO OPEN' : null"
-          aria-label="Excel workbook in folder"
+        <div
+          class="ad-excel-combo"
+          [class.ad-excel-combo--open]="excelComboOpen()"
+          [class.ad-excel-combo--rename]="excelRenaming()"
+          [class.ad-excel-combo--disabled]="busy() || !folderPath()"
+          appClickOutside
+          (appClickOutside)="closeExcelCombo()"
         >
-          <option value="">
-            {{ folderPath() ? 'New document (not saved)…' : 'Choose folder first' }}
-          </option>
-          @for (name of folderFiles(); track name) {
-            <option [value]="name">{{ name }}</option>
+          @if (excelRenaming()) {
+            <input
+              #excelRenameField
+              class="ad-excel-combo__rename"
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              [ngModel]="excelRenameDraft()"
+              (ngModelChange)="excelRenameDraft.set($event)"
+              (keydown.enter)="commitExcelRename($event)"
+              (keydown.escape)="cancelExcelRename($event)"
+              (blur)="commitExcelRename()"
+              aria-label="Rename Excel file"
+            />
+            <span class="ad-excel-combo__ext" aria-hidden="true">{{ excelRenameExt() }}</span>
+          } @else {
+            <button
+              type="button"
+              class="ad-excel-combo__trigger"
+              [disabled]="busy() || !folderPath()"
+              [attr.title]="excelHint()"
+              aria-label="Excel workbook in folder"
+              [attr.aria-expanded]="excelComboOpen()"
+              (pointerdown)="onExcelHoldStart($event)"
+              (pointermove)="onExcelHoldMove($event)"
+              (pointerup)="onExcelPointerUp($event)"
+              (pointercancel)="onExcelHoldEnd()"
+              (contextmenu)="onExcelContextMenu($event)"
+            >
+              <span
+                class="ad-excel-combo__label"
+                [class.ad-excel-combo__label--empty]="!selectedFile()"
+              >
+                {{
+                  selectedFile() ||
+                    (folderPath() ? 'New document (not saved)…' : 'Choose folder first')
+                }}
+              </span>
+              <span class="ad-excel-combo__chev" aria-hidden="true">▾</span>
+            </button>
           }
-        </select>
+          @if (excelComboOpen()) {
+            <ul class="ad-excel-combo__list" role="listbox">
+              <li
+                role="option"
+                class="ad-excel-combo__item"
+                [class.ad-excel-combo__item--on]="!selectedFile()"
+                (mousedown)="pickExcelFile('', $event)"
+              >
+                New document (not saved)…
+              </li>
+              @for (name of folderFiles(); track name) {
+                <li
+                  role="option"
+                  class="ad-excel-combo__item"
+                  [class.ad-excel-combo__item--on]="selectedFile() === name"
+                  (mousedown)="pickExcelFile(name, $event)"
+                >
+                  {{ name }}
+                </li>
+              } @empty {
+                <li class="ad-excel-combo__empty">No Excel files in folder</li>
+              }
+            </ul>
+          }
+        </div>
         <button
           type="button"
           class="ad-path-name-btn"
-          title="Auto Excel name — blocks + delimiter"
+          title="Auto Excel name"
           aria-label="Auto Excel name"
           (click)="openFileNameModal()"
           [disabled]="busy()"
@@ -163,7 +215,12 @@
 
   <div class="ad-meta card">
     <div class="ad-meta__stack">
-      <label class="ad-meta-field ad-meta-field--id" [class.ad-meta-field--missing]="isBlank(draft().portCallId)">
+      <label
+        class="ad-meta-field ad-meta-field--id"
+        [class.ad-meta-field--missing]="isBlank(draft().portCallId)"
+        [class.ad-copy-pending]="copyPending('hdr:portCallId')"
+        (focusin)="markCopyReviewed('hdr:portCallId')"
+      >
         <span class="ad-meta-field__label">Port call ID</span>
         <input
           class="ad-meta-field__input"
@@ -175,7 +232,12 @@
           (ngModelChange)="updateHeader('portCallId', $event)"
         />
       </label>
-      <label class="ad-meta-field ad-meta-field--code" [class.ad-meta-field--missing]="isBlank(draft().portCode)">
+      <label
+        class="ad-meta-field ad-meta-field--code"
+        [class.ad-meta-field--missing]="isBlank(draft().portCode)"
+        [class.ad-copy-pending]="copyPending('hdr:portCode')"
+        (focusin)="markCopyReviewed('hdr:portCode')"
+      >
         <span class="ad-meta-field__label">Port code</span>
         <div
           class="ad-combo"
@@ -416,7 +478,9 @@
             <div
               class="ad-block ad-block--terminal"
               [class.ad-block--terminal-missing]="isBlank(term.code)"
+              [class.ad-copy-pending]="copyPending('term:' + term.id)"
               (contextmenu)="openTerminalEdit(term, $event)"
+              (click)="markCopyReviewed('term:' + term.id)"
             >
               <div class="ad-block__head">
                 <span
@@ -534,13 +598,16 @@
                     @if (isTug(action)) {
                       <input
                         class="ad-block__qty"
+                        [class.ad-copy-pending]="copyPending(actKey(term.id, action.kind, 'qty'))"
                         type="number"
                         min="1"
                         step="1"
                         title="Number of tugs"
                         aria-label="Number of tugs"
                         [ngModel]="action.quantity"
+                        (focus)="markCopyReviewed(actKey(term.id, action.kind, 'qty'))"
                         (ngModelChange)="
+                          markCopyReviewed(actKey(term.id, action.kind, 'qty'));
                           patchAction(term.id, action.kind, { quantity: +$event || 1 })
                         "
                       />
@@ -574,6 +641,8 @@
                   <label
                     class="ad-block__field"
                     [class.ad-field--missing]="isDateTimeMissing(action.onboarding)"
+                    [class.ad-copy-pending]="copyPending(actKey(term.id, action.kind, 'onboarding'))"
+                    (focusin)="markCopyReviewed(actKey(term.id, action.kind, 'onboarding'))"
                   >
                     <span>On board</span>
                     <div class="ad-dt">
@@ -593,6 +662,10 @@
                   <label
                     class="ad-block__field"
                     [class.ad-field--missing]="isDateTimeMissing(action.disembarkment)"
+                    [class.ad-copy-pending]="
+                      copyPending(actKey(term.id, action.kind, 'disembarkment'))
+                    "
+                    (focusin)="markCopyReviewed(actKey(term.id, action.kind, 'disembarkment'))"
                   >
                     <span>Disembark</span>
                     <div class="ad-dt">
@@ -619,6 +692,8 @@
                   <label
                     class="ad-block__field"
                     [class.ad-field--missing]="isDateTimeMissing(action.start)"
+                    [class.ad-copy-pending]="copyPending(actKey(term.id, action.kind, 'start'))"
+                    (focusin)="markCopyReviewed(actKey(term.id, action.kind, 'start'))"
                   >
                     <span>Start</span>
                     <div class="ad-dt">
@@ -638,6 +713,8 @@
                   <label
                     class="ad-block__field"
                     [class.ad-field--missing]="isDateTimeMissing(action.end)"
+                    [class.ad-copy-pending]="copyPending(actKey(term.id, action.kind, 'end'))"
+                    (focusin)="markCopyReviewed(actKey(term.id, action.kind, 'end'))"
                   >
                     <span>End</span>
                     <div class="ad-dt">
@@ -702,6 +779,19 @@
     </div>
   </div>
 </section>
+
+@if (busy()) {
+  <div class="ad-busy-overlay" role="alertdialog" aria-modal="true" aria-live="assertive">
+    <div class="ad-busy-card">
+      <div class="ad-busy-spinner" aria-hidden="true"></div>
+      <strong class="ad-busy-title">{{ busyLabel() || 'Working…' }}</strong>
+      <span class="ad-busy-text">Please wait — the page is locked until this finishes.</span>
+      <div class="ad-busy-bar" aria-hidden="true">
+        <div class="ad-busy-bar__fill"></div>
+      </div>
+    </div>
+  </div>
+}
 
 @if (editDraft(); as ed) {
   <div
@@ -932,6 +1022,7 @@
     [pattern]="fileNamePattern()"
     [draft]="draft()"
     [folderFiles]="folderFiles()"
+    [ports]="settingsPorts()"
     (save)="saveFileNamePattern($event)"
     (cancel)="closeFileNameModal()"
   />

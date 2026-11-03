@@ -12,77 +12,59 @@
   >
     <header class="ad-fname-modal__head">
       <h3 class="ad-fname-modal__title">Auto Excel name</h3>
-      <p class="ad-fname-modal__hint">
-        Build the save name from blocks. Empty blocks are skipped. Used when saving a
-        <strong>new</strong> document.
-      </p>
     </header>
 
-    <label class="ad-fname-field">
-      <span class="ad-fname-field__label">Delimiter between blocks</span>
-      <input
-        class="ad-fname-field__input ad-fname-field__input--delim"
-        type="text"
-        maxlength="8"
-        autocomplete="off"
-        spellcheck="false"
-        [ngModel]="edit().delimiter"
-        (ngModelChange)="setDelimiter($event)"
-        title="Space, hyphen, underscore…"
-      />
-      <span class="ad-fname-field__note">Tip: leave one space for “12 A&amp;D 701216”</span>
-    </label>
-
     <div class="ad-fname-blocks">
-      <div class="ad-fname-blocks__head">
-        <span>Name blocks</span>
-        <button type="button" class="btn ad-fname-add" (click)="addBlock()">+ Add block</button>
-      </div>
-
-      @for (block of edit().blocks; track trackBlock($index, block); let i = $index) {
-        <div class="ad-fname-block">
-          <span class="ad-fname-block__idx" aria-hidden="true">{{ i + 1 }}</span>
+      @for (block of edit().blocks; track trackBlock($index, block); let i = $index; let last = $last) {
+        <div class="ad-fname-row">
           <select
-            class="ad-fname-block__type"
+            class="ad-fname-type"
             [ngModel]="block.type"
             (ngModelChange)="setBlockType(block.id, $event)"
-            aria-label="Block type"
+            aria-label="Block"
           >
             @for (opt of blockTypes; track opt.type) {
               <option [value]="opt.type">{{ opt.label }}</option>
             }
           </select>
+
           @if (block.type === 'custom') {
             <input
-              class="ad-fname-block__text"
+              class="ad-fname-text"
               type="text"
               maxlength="64"
               autocomplete="off"
               spellcheck="false"
-              placeholder="e.g. A&amp;D"
+              placeholder="Text"
               [ngModel]="block.text"
               (ngModelChange)="setBlockText(block.id, $event)"
             />
           } @else {
-            <span class="ad-fname-block__hint">
-              @switch (block.type) {
-                @case ('sequence') {
-                  Next # from folder Excel list
-                }
-                @case ('portCallId') {
-                  From Port call ID field
-                }
-                @default {
-                  Nothing written
-                }
-              }
-            </span>
+            <span class="ad-fname-spacer" aria-hidden="true"></span>
           }
-          <div class="ad-fname-block__ops">
+
+          @if (!last) {
+            <input
+              class="ad-fname-sep"
+              type="text"
+              maxlength="8"
+              autocomplete="off"
+              spellcheck="false"
+              title="Separator after this block"
+              aria-label="Separator"
+              [ngModel]="block.sepAfter"
+              (ngModelChange)="setBlockSep(block.id, $event)"
+              placeholder=" "
+            />
+          } @else {
+            <span class="ad-fname-sep-slot" aria-hidden="true"></span>
+          }
+
+          <div class="ad-fname-ops">
             <button
               type="button"
               class="ad-fname-icon-btn"
-              title="Move up"
+              title="Up"
               aria-label="Move up"
               [disabled]="i === 0"
               (click)="moveBlock(block.id, -1)"
@@ -92,9 +74,9 @@
             <button
               type="button"
               class="ad-fname-icon-btn"
-              title="Move down"
+              title="Down"
               aria-label="Move down"
-              [disabled]="i === edit().blocks.length - 1"
+              [disabled]="last"
               (click)="moveBlock(block.id, 1)"
             >
               ▼
@@ -102,8 +84,8 @@
             <button
               type="button"
               class="ad-fname-icon-btn ad-fname-icon-btn--danger"
-              title="Remove block"
-              aria-label="Remove block"
+              title="Remove"
+              aria-label="Remove"
               (click)="removeBlock(block.id)"
             >
               ✕
@@ -112,6 +94,8 @@
         </div>
       }
     </div>
+
+    <button type="button" class="btn ad-fname-add" (click)="addBlock()">+ Add</button>
 
     <div class="ad-fname-preview" aria-live="polite">
       <span class="ad-fname-preview__label">Preview</span>
