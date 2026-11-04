@@ -31,6 +31,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('app-restored-from-tray', listener);
   },
   setWindowAlwaysOnTop: (enabled) => ipcRenderer.invoke('set-window-always-on-top', !!enabled),
+  /** FUEL ghost fill: keep window above other apps while transferring values. */
+  setGhostFillMode: (enabled) => ipcRenderer.invoke('set-ghost-fill-mode', !!enabled),
+  /** While dragging a value: hide window so the drop can hit the app below (then showInactive). */
+  setGhostDragActive: (active) => ipcRenderer.invoke('set-ghost-drag-active', !!active),
+  /** Main forced Ghost off (Esc / safety) — sync UI toggle. */
+  onGhostFillModeEnded: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('ghost-fill-mode-ended', listener);
+    return () => ipcRenderer.removeListener('ghost-fill-mode-ended', listener);
+  },
   getWindowActive: () => ipcRenderer.invoke('get-window-active'),
   onAppWindowActive: (callback) => {
     const listener = (_event, active) => callback(!!active);

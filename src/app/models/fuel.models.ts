@@ -732,11 +732,11 @@ export interface FuelViewPrefs {
   limitCount: number;
 }
 
-export type FuelPageTab = 'view' | 'edit';
+/** FUEL page table tab. Legacy `'edit'` (Edit tab removed) normalizes to `'view'`. */
+export type FuelPageTab = 'view';
 
 /**
- * Per-tab filter/layout on this PC (View and Edit are independent).
- * Not shared via the data folder.
+ * Per-tab filter/layout on this PC. Not shared via the data folder.
  */
 export interface FuelTabLocalPrefs extends FuelViewPrefs {
   visibleColumns: FuelColumnId[];
@@ -758,9 +758,12 @@ export interface FuelLocalUiPrefs {
    * Displayed UTC = local − this value.
    */
   utcOffsetHours: number;
-  /** Last FUEL page tab on this PC (View / Edit). */
+  /** Always `'view'` (kept for local-prefs compatibility). */
   activeTab: FuelPageTab;
-  /** Independent Events / Columns / date / Show / search for View vs Edit. */
+  /**
+   * Events / Columns / date / Show / search. Only `view` is used;
+   * `edit` is legacy (Edit tab removed) and kept so old prefs round-trip.
+   */
   tabs: { view: FuelTabLocalPrefs; edit: FuelTabLocalPrefs };
   /**
    * True after one-time seed of `tabs` from shared `fuelLibrary.view`
@@ -800,19 +803,16 @@ export interface FuelLibrarySettings {
   sourceFileName: string;
   importedAt: string;
   sheetName: string;
-  /**
-   * View tab — last load from Excel (Update from file).
-   * Independent of the Edit draft.
-   */
+  /** FUEL table — read-only snapshot from the last Excel load (Upload / Update from file). */
   events: FuelLogEvent[];
   /**
-   * Edit tab working copy. Survives app restart until Write to Excel.
-   * Mutations (add/edit/delete) only touch this list.
+   * Legacy Edit tab draft (Edit tab removed). Still normalized so old data loads;
+   * no longer read or mutated by the UI.
    */
   editEvents: FuelLogEvent[];
-  /** Clean Edit snapshot for Discard (last Write or last sync from Excel). */
+  /** Legacy Edit baseline (Edit tab removed). */
   editBaseline: FuelLogEvent[];
-  /** True while Edit has changes not yet written to Excel. */
+  /** Legacy Edit dirty flag (Edit tab removed). */
   editDirty: boolean;
   view: FuelViewPrefs;
   /** Named column layouts — shared across PCs via the data folder. */
@@ -1369,8 +1369,7 @@ export function normalizeFuelLocalUiPrefs(
     tabsRaw && typeof tabsRaw === 'object' ? (tabsRaw as FuelLocalUiPrefs['tabs']).edit : null,
     legacyCols,
   );
-  const activeTab: FuelPageTab =
-    raw?.activeTab === 'edit' ? 'edit' : 'view';
+  const activeTab: FuelPageTab = 'view';
   return {
     visibleColumns: [...viewTab.visibleColumns],
     hoursAsHm: raw?.hoursAsHm === true,
@@ -1406,6 +1405,17 @@ export function formatFuelTimeDisplay(time: string, showUtc: boolean): string {
   const t = String(time ?? '').trim();
   if (!t) return '';
   return showUtc ? `${t} UTC` : t;
+}
+
+/** Split clock `HH:mm` for separate hour / minute copy targets. */
+export function splitFuelClockTime(
+  time: string,
+): { hours: string; minutes: string; full: string } | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? '').trim());
+  if (!m) return null;
+  const hours = String(m[1]).padStart(2, '0');
+  const minutes = m[2]!;
+  return { hours, minutes, full: `${hours}:${minutes}` };
 }
 
 /** Accept `12:00` or `12:00 UTC` (case-insensitive) → `HH:MM`. */

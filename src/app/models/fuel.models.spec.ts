@@ -9,6 +9,7 @@ import {
   filterFuelEvents,
   formatFuelHoursHm,
   formatFuelTimeDisplay,
+  splitFuelClockTime,
   fuelEventReadyForWrite,
   splitFuelHoursHm,
   createDefaultFuelLibrary,
@@ -878,6 +879,13 @@ describe('formatFuelTimeDisplay / parseFuelTimeDisplay', () => {
     expect(parseFuelTimeDisplay('12:00 utc')).toBe('12:00');
     expect(parseFuelTimeDisplay('25:00')).toBeNull();
     expect(parseFuelTimeDisplay('noon')).toBeNull();
+  });
+
+  it('splits clock time for separate hour / minute copy', () => {
+    expect(splitFuelClockTime('5:06')).toEqual({ hours: '05', minutes: '06', full: '05:06' });
+    expect(splitFuelClockTime('22:20')).toEqual({ hours: '22', minutes: '20', full: '22:20' });
+    expect(splitFuelClockTime('')).toBeNull();
+    expect(splitFuelClockTime('—')).toBeNull();
   });
 });
 

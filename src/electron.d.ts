@@ -17,10 +17,10 @@ export interface ElectronLocalPrefs {
   fuelShowUtc?: boolean;
   /** Ship local = UTC+N (hours). */
   fuelUtcOffsetHours?: number;
-  /** Last FUEL View/Edit tab on this PC. */
+  /** Last FUEL tab on this PC. Legacy `'edit'` (Edit tab removed) is read as `'view'`. */
   fuelActiveTab?: 'view' | 'edit';
   /**
-   * Per-tab Events / Columns / filters on this PC (View ≠ Edit).
+   * Events / Columns / filters on this PC. Only `view` is used; `edit` is legacy.
    * `fuelVisibleColumns` remains a View-tab mirror for older builds.
    */
   fuelTabPrefs?: {
@@ -82,6 +82,19 @@ declare global {
       onAppRestoredFromTray: (callback: () => void) => () => void;
       /** Float the main window above other apps (legacy; GPS uses openGpsFloat). */
       setWindowAlwaysOnTop: (enabled: boolean) => Promise<{ ok: boolean; enabled?: boolean }>;
+      /**
+       * FUEL ghost fill mode: window stays above the browser.
+       * While dragging a cell value, pair with setGhostDragActive(true).
+       */
+      setGhostFillMode: (enabled: boolean) => Promise<{ ok: boolean; enabled?: boolean }>;
+      /**
+       * During an active value drag: temporarily hide the window so the HTML5
+       * text drop can hit the app underneath (click-through aborts Chromium drag).
+       * Restored with showInactive so the browser field keeps focus.
+       */
+      setGhostDragActive: (active: boolean) => Promise<{ ok: boolean; active?: boolean; error?: string }>;
+      /** Esc (or main safety) forced Ghost off — update the FUEL toggle. */
+      onGhostFillModeEnded: (callback: () => void) => () => void;
       getWindowActive: () => Promise<boolean>;
       onAppWindowActive: (callback: (active: boolean) => void) => () => void;
       /** Fired on full Quit — flush pending writes, then main writes the on-close backup. */

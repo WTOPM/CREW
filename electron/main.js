@@ -1,4 +1,17 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, Tray, Menu, nativeImage, screen } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  protocol,
+  net,
+  shell,
+  Tray,
+  Menu,
+  nativeImage,
+  screen,
+  globalShortcut,
+} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -2373,6 +2386,165 @@ ipcMain.handle('set-window-always-on-top', (_event, enabled) => {
   if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
   if (!enabled) mainWindow.setAlwaysOnTop(false);
   return { ok: true, enabled: false };
+});
+
+/**
+ * FUEL ghost fill: mild always-on-top above the browser. While dragging we hide
+ * the window so the drop can hit the app underneath.
+ *
+ * Do NOT use:
+ * - setIgnoreMouseEvents during HTML5 drag (Chromium aborts the drag)
+ * - always-on-top level 'screen-saver' (breaks Alt+Tab / focus on Windows)
+ */
+let ghostFillModeEnabled = false;
+let ghostDragSafetyTimer = null;
+let ghostWindowHiddenForDrag = false;
+
+function notifyGhostFillModeEnded() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    mainWindow.webContents.send('ghost-fill-mode-ended');
+  } catch {
+    /* ignore */
+  }
+}
+
+function unregisterGhostEscapeShortcut() {
+  try {
+    globalShortcut.unregister('Escape');
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Esc exits Ghost entirely (not only the in-progress drag). */
+function registerGhostEscapeShortcut() {
+  unregisterGhostEscapeShortcut();
+  try {
+    globalShortcut.register('Escape', () => {
+      forceDisableGhostFillMode();
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+function applyGhostFillAlwaysOnTop(enabled) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (enabled) {
+    // 'floating' stays above a normal browser window without locking the desktop.
+    try {
+      mainWindow.setAlwaysOnTop(true, 'floating');
+    } catch {
+      mainWindow.setAlwaysOnTop(true);
+    }
+  } else {
+    mainWindow.setAlwaysOnTop(false);
+  }
+}
+
+/** Restore visibility after a drag — keep focus on the browser field. */
+function restoreGhostWindowAfterDrag() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    mainWindow.setIgnoreMouseEvents(false);
+  } catch {
+    /* ignore */
+  }
+  try {
+    mainWindow.setOpacity(1);
+  } catch {
+    /* ignore */
+  }
+  if (!(ghostWindowHiddenForDrag || !mainWindow.isVisible())) return;
+  ghostWindowHiddenForDrag = false;
+  try {
+    mainWindow.showInactive();
+  } catch {
+    try {
+      mainWindow.show();
+    } catch {
+      /* ignore */
+    }
+  }
+  // Always-on-top can still activate us on show — drop focus again.
+  try {
+    mainWindow.blur();
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearGhostDragVisualState() {
+  if (ghostDragSafetyTimer) {
+    clearTimeout(ghostDragSafetyTimer);
+    ghostDragSafetyTimer = null;
+  }
+  restoreGhostWindowAfterDrag();
+  if (ghostFillModeEnabled) {
+    // Drop then re-apply mild topmost — clears a stuck 'screen-saver' lock from older builds.
+    applyGhostFillAlwaysOnTop(false);
+    applyGhostFillAlwaysOnTop(true);
+  }
+}
+
+function forceDisableGhostFillMode() {
+  ghostFillModeEnabled = false;
+  if (ghostDragSafetyTimer) {
+    clearTimeout(ghostDragSafetyTimer);
+    ghostDragSafetyTimer = null;
+  }
+  unregisterGhostEscapeShortcut();
+  restoreGhostWindowAfterDrag();
+  applyGhostFillAlwaysOnTop(false);
+  notifyGhostFillModeEnded();
+}
+
+ipcMain.handle('set-ghost-fill-mode', (_event, enabled) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
+  ghostFillModeEnabled = !!enabled;
+  if (!ghostFillModeEnabled) {
+    if (ghostDragSafetyTimer) {
+      clearTimeout(ghostDragSafetyTimer);
+      ghostDragSafetyTimer = null;
+    }
+    unregisterGhostEscapeShortcut();
+    restoreGhostWindowAfterDrag();
+    applyGhostFillAlwaysOnTop(false);
+    return { ok: true, enabled: false };
+  }
+  applyGhostFillAlwaysOnTop(true);
+  registerGhostEscapeShortcut();
+  return { ok: true, enabled: true };
+});
+
+ipcMain.handle('set-ghost-drag-active', (_event, active) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
+  if (active && !ghostFillModeEnabled) {
+    return { ok: false, error: 'ghost-fill-off' };
+  }
+  if (ghostDragSafetyTimer) {
+    clearTimeout(ghostDragSafetyTimer);
+    ghostDragSafetyTimer = null;
+  }
+  if (!active) {
+    clearGhostDragVisualState();
+    return { ok: true, active: false };
+  }
+  if (!ghostWindowHiddenForDrag && mainWindow.isVisible()) {
+    ghostWindowHiddenForDrag = true;
+    try {
+      mainWindow.hide();
+    } catch {
+      ghostWindowHiddenForDrag = false;
+      return { ok: false, error: 'hide-failed' };
+    }
+  }
+  // Escape already registered for full Ghost exit while mode is on.
+  ghostDragSafetyTimer = setTimeout(() => {
+    clearGhostDragVisualState();
+  }, 45000);
+  return { ok: true, active: true };
 });
 
 ipcMain.handle('get-window-active', () => {

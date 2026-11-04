@@ -61,10 +61,9 @@ export class ElectronLocalPrefsService {
     await this.persistFuelUi(next);
   }
 
-  /** Active tab’s Events / Columns / date / Show / search (this PC only). */
+  /** FUEL table Events / Columns / date / Show / search (this PC only). */
   activeTabPrefs(): FuelTabLocalPrefs {
-    const ui = this.fuelUi();
-    return ui.tabs[ui.activeTab === 'edit' ? 'edit' : 'view'];
+    return this.fuelUi().tabs.view;
   }
 
   /** View-tab prefs as `FuelViewPrefs` (Stats always follows View). */
@@ -73,12 +72,10 @@ export class ElectronLocalPrefsService {
   }
 
   async updateActiveTabPrefs(partial: Partial<FuelTabLocalPrefs>): Promise<void> {
-    const ui = this.fuelUi();
-    const tab: 'view' | 'edit' = ui.activeTab === 'edit' ? 'edit' : 'view';
-    await this.updateTabPrefs(tab, partial);
+    await this.updateTabPrefs('view', partial);
   }
 
-  async updateTabPrefs(tab: 'view' | 'edit', partial: Partial<FuelTabLocalPrefs>): Promise<void> {
+  async updateTabPrefs(tab: FuelPageTab, partial: Partial<FuelTabLocalPrefs>): Promise<void> {
     const ui = this.fuelUi();
     const cur = ui.tabs[tab];
     const nextTab = createDefaultFuelTabLocalPrefs(
@@ -185,12 +182,8 @@ export class ElectronLocalPrefsService {
           typeof next.fuelUtcOffsetHours === 'number'
             ? next.fuelUtcOffsetHours
             : prevUi.utcOffsetHours,
-        activeTab:
-          next.fuelActiveTab === 'edit'
-            ? 'edit'
-            : next.fuelActiveTab === 'view' || next.fuelActiveTab === 'cyl'
-              ? 'view'
-              : prevUi.activeTab,
+        // Legacy 'edit' / 'cyl' on disk → FUEL (view); Edit tab was removed.
+        activeTab: 'view',
         tabs: tabsFromDisk as FuelLocalUiPrefs['tabs'],
         tabsReady:
           typeof tabBundle?.tabsReady === 'boolean' ? tabBundle.tabsReady : prevUi.tabsReady,

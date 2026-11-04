@@ -1,6 +1,7 @@
 <div
   class="page fuel-page"
   [class.fuel-page--hscroll-dock]="hScrollActive()"
+  [class.fuel-page--ghost]="ghostFillMode()"
   (click)="closeMenus()"
 >
   <header class="fuel-page-header">
@@ -8,37 +9,18 @@
       <a routerLink="/" class="back-link">Home</a>
       <h1>FUEL</h1>
     </div>
-    <div class="fuel-page-header__badges">
-      @if (dirty()) {
-        <span
-          class="fuel-dirty-pill"
-          title="Edit draft not yet written to Excel — kept if you close the app"
-          >Unsaved Edit</span
-        >
-      }
-    </div>
   </header>
 
-  <nav class="fuel-page-tabs" aria-label="Fuel mode">
+  <nav class="fuel-page-tabs" aria-label="Fuel page">
     <button
       type="button"
       class="fuel-page-tab fuel-page-tab--view"
-      [class.fuel-page-tab--active]="!showAdTab() && activeTab() === 'view'"
-      [attr.aria-selected]="!showAdTab() && activeTab() === 'view'"
-      title="View — Excel snapshot"
-      (click)="setActiveTab('view')"
+      [class.fuel-page-tab--active]="!showAdTab()"
+      [attr.aria-selected]="!showAdTab()"
+      title="FUEL — Excel fuel log (read only)"
+      (click)="openFuelTab()"
     >
-      VIEW
-    </button>
-    <button
-      type="button"
-      class="fuel-page-tab fuel-page-tab--edit"
-      [class.fuel-page-tab--active]="!showAdTab() && activeTab() === 'edit'"
-      [attr.aria-selected]="!showAdTab() && activeTab() === 'edit'"
-      title="Edit — write back to Excel"
-      (click)="setActiveTab('edit')"
-    >
-      EDIT
+      FUEL
     </button>
     <button
       type="button"
@@ -102,134 +84,33 @@
             {{ busy() ? 'Loading…' : library().events.length ? 'Update from file' : 'Upload' }}
           </button>
         </span>
-        @if (activeTab() === 'edit') {
-          <div
-            class="fuel-sync"
-            [class.fuel-sync--dirty]="dirty() && canWriteExcel"
-            [class.fuel-sync--idle]="!dirty() || !canWriteExcel"
-            [class.fuel-sync--busy]="busy()"
-            [attr.title]="syncTitle()"
-          >
-            <div class="fuel-sync__face">
-              <span class="fuel-sync__icon" aria-hidden="true">
-                @if (dirty() && canWriteExcel) {
-                  <svg viewBox="0 0 24 24" focusable="false">
-                    <path
-                      fill="currentColor"
-                      d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
-                    />
-                  </svg>
-                } @else {
-                  <svg viewBox="0 0 24 24" focusable="false">
-                    <path
-                      fill="currentColor"
-                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"
-                      opacity="0.35"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
-                    />
-                  </svg>
-                }
-              </span>
-              <span class="fuel-sync__text">
-                <span class="fuel-sync__label">
-                  @if (!canWriteExcel) {
-                    Save to file
-                  } @else if (hasReadyToWrite()) {
-                    {{ readyCount() }} ready to write
-                  } @else if (dirty()) {
-                    Drafts pending
-                  } @else {
-                    Save to file
-                  }
-                </span>
-                <span class="fuel-sync__sub">
-                  @if (!canWriteExcel) {
-                    desktop only
-                  } @else if (dirty()) {
-                    hover · Write / Discard
-                  } @else {
-                    no changes
-                  }
-                </span>
-              </span>
-            </div>
-            <div class="fuel-sync__split" [attr.aria-hidden]="!(dirty() && canWriteExcel)">
-              <button
-                type="button"
-                class="fuel-sync__write"
-                (click)="confirmWriteToFile($event)"
-                [disabled]="busy() || !hasReadyToWrite() || !canWriteExcel"
-              >
-                Write
-              </button>
-              <button
-                type="button"
-                class="fuel-sync__discard"
-                (click)="confirmDiscardEdits($event)"
-                [disabled]="busy() || !dirty()"
-              >
-                Discard
-              </button>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="btn btn-secondary fuel-clear-btn"
-            (click)="clearData()"
-            [disabled]="busy() || !library().editEvents.length"
-            title="Clear Edit draft (View / Excel unchanged)"
-          >
-            CLEAR
-          </button>
-        }
       </div>
     </div>
   </section>
 
   <section class="fuel-filters card">
     <div class="fuel-filters-head">
-      <h2 class="fuel-section-title">
-        Fuel log
-        <span class="fuel-section-title__mode">
-          · {{ activeTab() === 'edit' ? 'Edit' : 'View' }}
-        </span>
-      </h2>
+      <h2 class="fuel-section-title">Fuel log</h2>
       <div class="fuel-filter-presets">
-        @if (activeTab() === 'view') {
-          <div class="fuel-filter-presets__tools">
-            <button
-              type="button"
-              class="fuel-chip fuel-chip--summary"
-              [disabled]="!library().masterSummary"
-              title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
-              (click)="showMasterSummaryModal.set(true)"
-            >
-              S1–AC4
-            </button>
-            <a
-              routerLink="/fuel/stats"
-              class="fuel-chip fuel-chip--stats"
-              title="Statistics for the View log (current period, events, search and Show)"
-            >
-              STATS
-            </a>
-            <button
-              type="button"
-              class="fuel-chip fuel-chip--forecast"
-              title="Forecast FO burn from ETA nm/kn (Excel Fuel-Distance Calc. principle)"
-              (click)="openDistanceForecast()"
-            >
-              FORECAST
-            </button>
-          </div>
-        }
-        <div
-          class="fuel-filter-presets__layouts"
-          [class.fuel-filter-presets__layouts--solo]="activeTab() !== 'view'"
-        >
+        <div class="fuel-filter-presets__tools">
+          <button
+            type="button"
+            class="fuel-chip fuel-chip--summary"
+            [disabled]="!library().masterSummary"
+            title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
+            (click)="showMasterSummaryModal.set(true)"
+          >
+            S1–AC4
+          </button>
+          <a
+            routerLink="/fuel/stats"
+            class="fuel-chip fuel-chip--stats"
+            title="Statistics for the FUEL log (current period, events, search and Show)"
+          >
+            STATS
+          </a>
+        </div>
+        <div class="fuel-filter-presets__layouts">
           <button
             type="button"
             class="btn btn-secondary dg-page-action-btn dg-page-action-btn--save"
@@ -332,13 +213,6 @@
 
   <section class="fuel-table-card card">
     <div class="fuel-table-toolbar">
-      @if (activeTab() === 'edit') {
-        <span class="fuel-edit-tab-badge" title="Edit tab — changes write to Excel via Save to file">
-          <span class="fuel-edit-tab-badge__label">Editing</span>
-          <span class="fuel-edit-tab-badge__sub">this tab</span>
-        </span>
-      }
-
       <span class=" fuel-table-toolbar__view">
         <button
           type="button"
@@ -373,6 +247,26 @@
             <span class="fuel-mode-btn__sub">{{ hoursAsHm() ? 'as 1:06' : 'as 1.1' }}</span>
           </span>
         </button>
+
+        @if (canGhostFill) {
+          <button
+            type="button"
+            class="fuel-mode-btn fuel-mode-btn--ghost"
+            [class.fuel-mode-btn--on]="ghostFillMode()"
+            [attr.aria-pressed]="ghostFillMode()"
+            title="Ghost fill: stay above the browser. Drag a value — CREW hides for the drop, then returns without stealing focus. Click-copy off while Ghost is on. Esc turns Ghost off completely."
+            (click)="toggleGhostFillMode()"
+          >
+            <span class="fuel-mode-btn__sample fuel-ghost-sample" aria-hidden="true">
+              <span class="fuel-ghost-sample__win"></span>
+              <span class="fuel-ghost-sample__chip">05</span>
+            </span>
+            <span class="fuel-mode-btn__text">
+              <span class="fuel-mode-btn__label">Ghost</span>
+              <span class="fuel-mode-btn__sub">{{ ghostFillMode() ? 'ON — drag only' : 'fill mode' }}</span>
+            </span>
+          </button>
+        }
 
         <div class="fuel-utc" (click)="$event.stopPropagation()">
           <button
@@ -557,66 +451,13 @@
           </div>
         </div>
       </span>
-
-      @if (activeTab() === 'edit') {
-        <button
-          type="button"
-          class="fuel-add-btn fuel-add-btn--voyage"
-          [class.fuel-add-btn--ready]="canEdit()"
-          [class.fuel-add-btn--locked]="!canEdit()"
-          (click)="addVoyageFromEta()"
-          [disabled]="!canEdit()"
-          [attr.aria-disabled]="!canEdit()"
-          title="Add the open ETA voyage as Fuel draft rows (Ship LT + auto Noon)"
-        >
-          <span class="fuel-add-btn__text">
-            <span class="fuel-add-btn__label">Add voyage</span>
-            <span class="fuel-add-btn__sub">from ETA</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          class="fuel-add-btn"
-          [class.fuel-add-btn--ready]="canEdit()"
-          [class.fuel-add-btn--locked]="!canEdit()"
-          (click)="openAddModal()"
-          [disabled]="!canEdit()"
-          [attr.aria-disabled]="!canEdit()"
-          title="Add a new fuel log row"
-        >
-          <span class="fuel-add-btn__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path
-                fill="currentColor"
-                opacity="0.35"
-                d="M4 5h16a1 1 0 0 1 1 1v2H3V6a1 1 0 0 1 1-1zm-1 5h18v3H3v-3zm0 5h10v3H4a1 1 0 0 1-1-1v-2z"
-              />
-              <circle cx="17.5" cy="17.5" r="5.5" fill="currentColor" />
-              <path
-                fill="#fff"
-                d="M17.5 14.25a.75.75 0 0 1 .75.75v1.75H20a.75.75 0 0 1 0 1.5h-1.75V20a.75.75 0 0 1-1.5 0v-1.75H15a.75.75 0 0 1 0-1.5h1.75V15a.75.75 0 0 1 .75-.75z"
-              />
-            </svg>
-          </span>
-          <span class="fuel-add-btn__text">
-            <span class="fuel-add-btn__label">Add row</span>
-            <span class="fuel-add-btn__sub">new event</span>
-          </span>
-        </button>
-      }
     </div>
 
     @if (visibleEvents().length === 0) {
       <div class="fuel-empty">
         @if (activeEvents().length === 0) {
-          <strong>{{ activeTab() === 'edit' ? 'Edit draft empty' : 'No log loaded' }}</strong>
-          <span>
-            @if (activeTab() === 'edit') {
-              Update from file while Edit is clean to seed the draft, or Add row.
-            } @else {
-              Upload the FO-VPC Excel to fill this table.
-            }
-          </span>
+          <strong>No log loaded</strong>
+          <span>Upload the FO-VPC Excel to fill this table.</span>
         } @else {
           <strong>Nothing matches</strong>
           <span>Open Events and enable kinds, or clear the date / search filters.</span>
@@ -632,11 +473,6 @@
           <table class="fuel-table">
             <thead>
               <tr>
-                @if (canEdit()) {
-                  <th class="fuel-col-actions" scope="col" title="Row status / delete">
-                    <span class="fuel-col-head__label fuel-col-actions__label" aria-hidden="true"></span>
-                  </th>
-                }
                 @for (col of visibleColumnDefs(); track col.id) {
                   <th
                     class="fuel-col-head"
@@ -663,69 +499,7 @@
             </thead>
             <tbody>
               @for (e of visibleEvents(); track e.id) {
-                <tr
-                  [attr.data-kind]="e.kind"
-                  [class.fuel-row--voyage-linked]="!!e.voyageChainId"
-                  [attr.data-voyage-chain]="e.voyageChainId || null"
-                  [attr.data-voyage-index]="e.voyageChainIndex != null ? e.voyageChainIndex : null"
-                  [attr.title]="
-                    e.voyageChainId
-                      ? 'Linked voyage · editing this row shifts later linked events until Ready / Write'
-                      : null
-                  "
-                >
-                  @if (canEdit()) {
-                    <td class="fuel-col-actions">
-                      <div class="fuel-col-actions__btns">
-                        <button
-                          type="button"
-                          class="fuel-row-status"
-                          [class.fuel-row-status--synced]="e.writeStatus === 'synced'"
-                          [class.fuel-row-status--ready]="e.writeStatus === 'ready'"
-                          [class.fuel-row-status--draft]="e.writeStatus === 'draft'"
-                          [class.fuel-row-status--linked]="!!e.voyageChainId"
-                          [attr.title]="
-                            e.voyageChainId
-                              ? writeStatusTitle(e.writeStatus) +
-                                ' · Linked voyage (Ready clears link on this row)'
-                              : writeStatusTitle(e.writeStatus)
-                          "
-                          [attr.aria-label]="writeStatusTitle(e.writeStatus)"
-                          (click)="toggleWriteReady(e, $event)"
-                        >
-                          @if (e.writeStatus === 'draft') {
-                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                              <path
-                                fill="currentColor"
-                                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-.9 3.5h1.8v6.2h-1.8V7.5zm0 7.4h1.8V17h-1.8v-2.1z"
-                              />
-                            </svg>
-                          } @else {
-                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                              <path
-                                fill="currentColor"
-                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2-4.2-4.2 1.4-1.4 2.8 2.8 5.9-5.9 1.4 1.4-7.3 7.3z"
-                              />
-                            </svg>
-                          }
-                        </button>
-                        <button
-                          type="button"
-                          class="fuel-row-delete"
-                          title="Delete this row"
-                          aria-label="Delete row"
-                          (click)="confirmDeleteEvent(e, $event)"
-                        >
-                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path
-                              fill="currentColor"
-                              d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9zm-1 12h12a1 1 0 0 0 1-1V8H5v12a1 1 0 0 0 1 1z"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  }
+                <tr [attr.data-kind]="e.kind">
                   @for (col of visibleColumnDefs(); track col.id) {
                     <td [class.num]="col.numeric" [class]="toneClass(col)">
                       @if (col.id === 'kind') {
@@ -742,187 +516,129 @@
                           <span class="fuel-kind-badge__label">{{ kindLabels[e.kind] }}</span>
                           <span class="fuel-kind-badge__hold" aria-hidden="true"></span>
                         </span>
-                      } @else if (canEdit()) {
-                        @if (col.id === 'date') {
-                          <app-date-picker
-                            size="sm"
-                            [class.fuel-date--draft]="e.writeStatus === 'draft'"
-                            [class.fuel-date--ready]="e.writeStatus === 'ready'"
-                            [value]="e.date"
-                            (valueChange)="onCellDate(e.id, $event)"
-                          />
-                        } @else if (col.id === 'place') {
-                          <app-ref-choice-suggest
-                            [value]="e.place"
-                            [options]="placeChoices()"
-                            matchMode="prefix"
-                            listTone="fuel"
-                            [inputClass]="
-                              'fuel-cell-input' +
-                              (isCellInherited(e.id, 'place') ? ' fuel-cell-input--inherited' : '')
-                            "
-                            (valueChange)="onPlaceCommit(e.id, $event)"
-                            (commit)="onPlaceCommit(e.id, $event)"
-                          />
-                        } @else if (col.id === 'rawEvent') {
-                          <app-ref-choice-suggest
-                            [value]="e.rawEvent"
-                            [options]="rawEventChoices()"
-                            matchMode="prefix"
-                            listTone="fuel"
-                            [inputClass]="
-                              'fuel-cell-input' +
-                              (isCellInherited(e.id, 'rawEvent') ? ' fuel-cell-input--inherited' : '')
-                            "
-                            (valueChange)="onRawEventCommit(e.id, $event)"
-                            (commit)="onRawEventCommit(e.id, $event)"
-                          />
-                        } @else if (col.id === 'time') {
-                          <span class="fuel-time-edit">
-                            <input
-                              class="fuel-cell-input fuel-cell-input--time"
-                              [value]="editValue(e, col)"
-                              autocomplete="off"
-                              spellcheck="false"
-                              (input)="onEditLive(e, col, $event)"
-                              (change)="onEditCommit(e, col, $any($event.target).value)"
-                              (keydown)="onCellKeydown(e, col, $event)"
-                            />
-                            @if (showUtc()) {
-                              <span class="fuel-time-utc" aria-hidden="true">UTC</span>
+                      } @else if (col.id === 'time' && clockTimeParts(e); as tp) {
+                        <span
+                          class="fuel-copy-parts"
+                          role="group"
+                          [attr.aria-label]="'Time ' + tp.full"
+                        >
+                          <button
+                            type="button"
+                            class="fuel-copy fuel-copy--part"
+                            [title]="ghostFillMode() ? 'Drag hours into form below' : 'Copy hours'"
+                            [attr.draggable]="ghostFillMode() ? true : null"
+                            (dragstart)="onGhostDragStart($event, tp.hours)"
+                            (drag)="onGhostDragMove($event)"
+                            (dragend)="onGhostDragEnd()"
+                            (click)="copyCell(tp.hours, $event)"
+                          >
+                            <span class="fuel-hm__h">{{ tp.hours }}</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="fuel-copy fuel-copy--part fuel-copy--sep"
+                            [title]="ghostFillMode() ? 'Drag full time into form below' : 'Copy full time'"
+                            [attr.draggable]="ghostFillMode() ? true : null"
+                            (dragstart)="onGhostDragStart($event, tp.full)"
+                            (drag)="onGhostDragMove($event)"
+                            (dragend)="onGhostDragEnd()"
+                            (click)="copyCell(tp.full, $event)"
+                          >
+                            <span class="fuel-hm__sep">:</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="fuel-copy fuel-copy--part"
+                            [title]="ghostFillMode() ? 'Drag minutes into form below' : 'Copy minutes'"
+                            [attr.draggable]="ghostFillMode() ? true : null"
+                            (dragstart)="onGhostDragStart($event, tp.minutes)"
+                            (drag)="onGhostDragMove($event)"
+                            (dragend)="onGhostDragEnd()"
+                            (click)="copyCell(tp.minutes, $event)"
+                          >
+                            <span class="fuel-hm__m">{{ tp.minutes }}</span>
+                          </button>
+                          @if (showUtc()) {
+                            <button
+                              type="button"
+                              class="fuel-copy fuel-copy--part fuel-copy--utc"
+                              [title]="ghostFillMode() ? 'Drag full time into form below' : 'Copy full time'"
+                              [attr.draggable]="ghostFillMode() ? true : null"
+                              (dragstart)="onGhostDragStart($event, tp.full)"
+                              (drag)="onGhostDragMove($event)"
+                              (dragend)="onGhostDragEnd()"
+                              (click)="copyCell(tp.full, $event)"
+                            >
+                              <span class="fuel-time-utc">UTC</span>
+                            </button>
+                          }
+                        </span>
+                      } @else if (hoursHmParts(e, col); as hm) {
+                        <span
+                          class="fuel-copy-parts"
+                          role="group"
+                          [attr.aria-label]="'Hours ' + hm.sign + hm.hours + ':' + hm.minutes"
+                        >
+                          <button
+                            type="button"
+                            class="fuel-copy fuel-copy--part"
+                            [title]="ghostFillMode() ? 'Drag hours into form below' : 'Copy hours'"
+                            [attr.draggable]="ghostFillMode() ? true : null"
+                            (dragstart)="onGhostDragStart($event, hm.sign + hm.hours)"
+                            (drag)="onGhostDragMove($event)"
+                            (dragend)="onGhostDragEnd()"
+                            (click)="copyCell(hm.sign + hm.hours, $event)"
+                          >
+                            @if (hm.sign) {
+                              <span class="fuel-hm__h">{{ hm.sign }}</span>
                             }
-                          </span>
-                        } @else if (col.id === 'totalMt') {
-                          <span
-                            class="fuel-density-cell"
-                            (contextmenu)="onTotalMtContextMenu(e, $event)"
+                            <span class="fuel-hm__h">{{ hm.hours }}</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="fuel-copy fuel-copy--part fuel-copy--sep"
+                            [title]="ghostFillMode() ? 'Drag full H:MM into form below' : 'Copy full H:MM'"
+                            [attr.draggable]="ghostFillMode() ? true : null"
+                            (dragstart)="onGhostDragStart($event, hm.sign + hm.hours + ':' + hm.minutes)"
+                            (drag)="onGhostDragMove($event)"
+                            (dragend)="onGhostDragEnd()"
+                            (click)="copyCell(hm.sign + hm.hours + ':' + hm.minutes, $event)"
                           >
-                            <input
-                              class="fuel-cell-input fuel-cell-input--auto fuel-cell-input--density"
-                              [value]="editValue(e, col)"
-                              [attr.tabindex]="-1"
-                              autocomplete="off"
-                              spellcheck="false"
-                              readonly
-                              (contextmenu)="onTotalMtContextMenu(e, $event)"
-                            />
-                            <button
-                              type="button"
-                              class="fuel-density-badge"
-                              [attr.title]="densityBadgeTip(e)"
-                              tabindex="-1"
-                              (click)="openDensityHud(e, $event)"
-                              (contextmenu)="onTotalMtContextMenu(e, $event)"
-                            >
-                              D
-                            </button>
-                          </span>
-                        } @else if (col.id === 'dmaConsMt') {
-                          <span
-                            class="fuel-density-cell fuel-density-cell--dma"
-                            (contextmenu)="onDmaConsMtContextMenu(e, $event)"
+                            <span class="fuel-hm__sep">:</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="fuel-copy fuel-copy--part"
+                            [title]="ghostFillMode() ? 'Drag minutes into form below' : 'Copy minutes'"
+                            [attr.draggable]="ghostFillMode() ? true : null"
+                            (dragstart)="onGhostDragStart($event, hm.minutes)"
+                            (drag)="onGhostDragMove($event)"
+                            (dragend)="onGhostDragEnd()"
+                            (click)="copyCell(hm.minutes, $event)"
                           >
-                            <input
-                              class="fuel-cell-input fuel-cell-input--dma"
-                              [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
-                              [value]="editValue(e, col)"
-                              autocomplete="off"
-                              spellcheck="false"
-                              (input)="onEditLive(e, col, $event)"
-                              (change)="onEditCommit(e, col, $any($event.target).value)"
-                              (keydown)="onCellKeydown(e, col, $event)"
-                              (contextmenu)="onDmaConsMtContextMenu(e, $event)"
-                            />
-                            <span class="fuel-density-cell__badges">
-                              <button
-                                type="button"
-                                class="fuel-density-badge fuel-density-badge--dma"
-                                [attr.title]="dmaDensityBadgeTip(e)"
-                                tabindex="-1"
-                                (click)="openDensityHud(e, $event, 'dma')"
-                                (contextmenu)="onDmaConsMtContextMenu(e, $event)"
-                              >
-                                D
-                              </button>
-                              <button
-                                type="button"
-                                class="fuel-rob-badge"
-                                [attr.title]="robBadgeTip(e, col)"
-                                tabindex="-1"
-                                (click)="openRobTankMenu(e, col, $event)"
-                              >
-                                F
-                              </button>
-                            </span>
-                          </span>
-                        } @else if (isConsumptionFuelCol(col)) {
-                          <span class="fuel-density-cell">
-                            <input
-                              class="fuel-cell-input fuel-cell-input--density"
-                              [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
-                              [value]="editValue(e, col)"
-                              autocomplete="off"
-                              spellcheck="false"
-                              (input)="onEditLive(e, col, $event)"
-                              (change)="onEditCommit(e, col, $any($event.target).value)"
-                              (keydown)="onCellKeydown(e, col, $event)"
-                            />
-                            <button
-                              type="button"
-                              class="fuel-rob-badge"
-                              [attr.title]="robBadgeTip(e, col)"
-                              tabindex="-1"
-                              (click)="openRobTankMenu(e, col, $event)"
+                            <span class="fuel-hm__m">{{ hm.minutes }}</span>
+                          </button>
+                          @if (col.id === 'hrs' && e.rolledFromCount > 1) {
+                            <span
+                              class="fuel-roll-tag"
+                              [title]="'Sum of ' + e.rolledFromCount + ' events'"
+                              >×{{ e.rolledFromCount }}</span
                             >
-                              F
-                            </button>
-                          </span>
-                        } @else {
-                          <input
-                            class="fuel-cell-input"
-                            [class.fuel-cell-input--auto]="isAutoCalcCol(col)"
-                            [class.fuel-cell-input--fm-bad]="col.id === 'fmMeAe' && isFmInvalid(e)"
-                            [class.fuel-cell-input--inherited]="isCellInherited(e.id, col.field)"
-                            [attr.tabindex]="isAutoCalcCol(col) ? -1 : null"
-                            [value]="editValue(e, col)"
-                            [appPlainTooltip]="
-                              col.id === 'fmMeAe' && isFmInvalid(e)
-                                ? 'FM must be greater than the previous counter'
-                                : ''
-                            "
-                            autocomplete="off"
-                            spellcheck="false"
-                            (input)="onEditLive(e, col, $event)"
-                            (change)="onEditCommit(e, col, $any($event.target).value)"
-                            (keydown)="onCellKeydown(e, col, $event)"
-                          />
-                        }
+                          }
+                        </span>
                       } @else {
                         <button
                           type="button"
                           class="fuel-copy"
                           [disabled]="cellText(e, col) === '—'"
+                          [attr.draggable]="ghostFillMode() && cellText(e, col) !== '—' ? true : null"
+                          [title]="ghostFillMode() ? 'Drag into form below' : 'Copy'"
+                          (dragstart)="onGhostDragStart($event, cellText(e, col))"
+                          (drag)="onGhostDragMove($event)"
+                          (dragend)="onGhostDragEnd()"
                           (click)="copyCell(cellText(e, col), $event)"
                         >
-                          <span class="fuel-copy__text">
-                            @if (hoursHmParts(e, col); as hm) {
-                              <span class="fuel-hm">
-                                @if (hm.sign) {
-                                  <span class="fuel-hm__h">{{ hm.sign }}</span>
-                                }
-                                <span class="fuel-hm__h">{{ hm.hours }}</span
-                                ><span class="fuel-hm__sep">:</span
-                                ><span class="fuel-hm__m">{{ hm.minutes }}</span>
-                              </span>
-                            } @else if (col.id === 'time' && showUtc() && displayTimeOnly(e); as t) {
-                              <span class="fuel-time">
-                                <span>{{ t }}</span>
-                                <span class="fuel-time-utc">UTC</span>
-                              </span>
-                            } @else {
-                              {{ cellText(e, col) }}
-                            }
-                          </span>
+                          <span class="fuel-copy__text">{{ cellText(e, col) }}</span>
                           @if (col.id === 'hrs' && e.rolledFromCount > 1) {
                             <span
                               class="fuel-roll-tag"
@@ -955,103 +671,6 @@
     title="Scroll table horizontally"
   >
     <div class="fuel-hscroll-spacer" [style.width.px]="hScrollWidth()"></div>
-  </div>
-}
-
-@if (showAddModal() && addModalSeed(); as seed) {
-  <app-fuel-event-edit-modal
-    [seed]="seed"
-    [allEvents]="library().editEvents"
-    [hoursAsHm]="hoursAsHm()"
-    [preferredDensity]="library().lastDensity"
-    [preferredDmaDensity]="library().lastDmaDensity"
-    (save)="onAddSave($event)"
-    (cancel)="closeAddModal()"
-  />
-}
-
-@if (etaVoyagePreview(); as voyagePreview) {
-  <app-fuel-eta-voyage-preview-modal
-    [preview]="voyagePreview"
-    (confirm)="applyEtaVoyagePreview($event)"
-    (cancel)="closeEtaVoyagePreview()"
-  />
-}
-
-@if (distanceForecast(); as forecast) {
-  <app-fuel-distance-forecast-modal
-    [seedLegs]="forecast.legs"
-    [seedStartRobMt]="forecast.startRobMt"
-    [planName]="forecast.planName"
-    (close)="closeDistanceForecast()"
-  />
-}
-
-@if (densityHud(); as hud) {
-  <div
-    class="fuel-density-hud"
-    [style.left.px]="hud.x"
-    [style.top.px]="hud.y"
-    (mousedown)="$event.stopPropagation()"
-    (pointerdown)="$event.stopPropagation()"
-    (wheel)="onDensityHudWheel($event)"
-  >
-    <span class="fuel-density-hud__label">{{
-      hud.target === 'dma'
-        ? 'Density (DMA / Boiler t)'
-        : hud.target === 'boilerCons'
-          ? 'Boiler density'
-          : 'Density'
-    }}</span>
-    <input
-      class="fuel-density-hud__input"
-      type="text"
-      inputmode="decimal"
-      [value]="hud.density"
-      (input)="onDensityHudInput($any($event.target).value)"
-      (keydown.enter)="commitDensityHud()"
-      (keydown.escape)="closeDensityHud()"
-      (keydown.arrowup)="onDensityHudArrow($event, 1)"
-      (keydown.arrowdown)="onDensityHudArrow($event, -1)"
-      autofocus
-    />
-    <div class="fuel-density-hud__steps" aria-hidden="true">
-      <button type="button" class="fuel-density-hud__step" tabindex="-1" title="+0.01" (mousedown)="$event.preventDefault()" (click)="nudgeDensityHud(1)">▲</button>
-      <button type="button" class="fuel-density-hud__step" tabindex="-1" title="−0.01" (mousedown)="$event.preventDefault()" (click)="nudgeDensityHud(-1)">▼</button>
-    </div>
-    <button type="button" class="fuel-density-hud__ok" (click)="commitDensityHud()">OK</button>
-  </div>
-}
-
-@if (robTankMenu(); as menu) {
-  <div
-    class="fuel-rob-menu"
-    [style.left.px]="menu.x"
-    [style.top.px]="menu.y"
-    (mousedown)="$event.stopPropagation()"
-    (pointerdown)="$event.stopPropagation()"
-    role="listbox"
-    [attr.aria-label]="'ROB tank for ' + menu.field"
-  >
-    <div class="fuel-rob-menu__title">
-      {{ menu.mode === 'bunker' ? 'Into ROB' : 'From ROB' }}
-    </div>
-    @for (tank of robMenuOptions(menu); track tank) {
-      <button
-        type="button"
-        class="fuel-rob-menu__item"
-        [class.fuel-rob-menu__item--active]="menu.selected === tank"
-        role="option"
-        [attr.aria-selected]="menu.selected === tank"
-        [title]="robTankTips[tank]"
-        (click)="selectRobTank(tank)"
-      >
-        <span class="fuel-rob-menu__label">{{ robTankLabels[tank] }}</span>
-        @if (menu.selected === tank) {
-          <span class="fuel-rob-menu__check" aria-hidden="true">✓</span>
-        }
-      </button>
-    }
   </div>
 }
 
