@@ -95,6 +95,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickDirectory: (defaultPath) => ipcRenderer.invoke('pick-directory', defaultPath),
   openDirectory: (dirPath) => ipcRenderer.invoke('open-directory', dirPath),
   openTempFile: (fileName, base64) => ipcRenderer.invoke('open-temp-file', fileName, base64),
+  /** Write bytes as `fileName` in temp and put that file on the OS clipboard (Windows). */
+  copyBytesToClipboardAs: (fileName, base64) =>
+    ipcRenderer.invoke('copy-bytes-to-clipboard-as', fileName, base64),
+  /** Put an existing disk file on the OS clipboard (Windows). */
+  copyFileToClipboard: (filePath) => ipcRenderer.invoke('copy-file-to-clipboard', filePath),
   listDirectories: (input) => ipcRenderer.invoke('list-directories', input),
   savePdfToPath: (dirPath, fileName, base64) =>
     ipcRenderer.invoke('save-pdf-to-path', dirPath, fileName, base64),

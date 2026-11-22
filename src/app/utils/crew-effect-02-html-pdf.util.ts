@@ -67,16 +67,8 @@ function formatPortWithCountry(portName: string, ports: AppData['ports']): strin
 }
 
 function crewRowHasContent(row: CrewEffectForm02CrewRow): boolean {
-  return !!(
-    row.familyGivenNames?.trim() ||
-    row.rankOrRating?.trim() ||
-    row.cigarettes?.trim() ||
-    row.tobaccoCigares?.trim() ||
-    row.spirits?.trim() ||
-    row.beer?.trim() ||
-    row.other?.trim() ||
-    row.signature?.trim()
-  );
+  // Person row only — orphaned PE/NIL must not number empty lines below passengers.
+  return !!(row.familyGivenNames?.trim() || row.rankOrRating?.trim());
 }
 
 function resolveRowNo(row: CrewEffectForm02CrewRow, index: number): string {

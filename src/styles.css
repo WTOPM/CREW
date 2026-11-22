@@ -31,6 +31,13 @@ body {
   line-height: 1.5;
 }
 
+/* A&D palette pointer-drag: keep grab cursor while LMB holds a block. */
+body.ad-palette-dragging,
+body.ad-palette-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
 html {
   scrollbar-gutter: stable;
 }

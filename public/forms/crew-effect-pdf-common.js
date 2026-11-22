@@ -199,19 +199,12 @@
 
   function crewEffectRowHasContent(row) {
     if (!row || typeof row !== 'object') return false;
-    const keys = [
-      'familyGivenNames',
-      'rankOrRating',
-      'cigarettes',
-      'spirits',
-      'wines',
-      'others',
-      'signature',
-      'tobaccoCigares',
-      'beer',
-      'other',
-    ];
-    return keys.some((k) => String(row[k] || '').trim() !== '');
+    // A real declaration line is a person (name or rank). Orphaned goods / "- P. E. -"
+    // left in overlay cellValues must not create ghost rows below the last passenger.
+    return (
+      String(row.familyGivenNames || '').trim() !== '' ||
+      String(row.rankOrRating || '').trim() !== ''
+    );
   }
 
   function normalizeCrewEffectRowNo(row, index) {

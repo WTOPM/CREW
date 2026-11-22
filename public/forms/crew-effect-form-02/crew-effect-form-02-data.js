@@ -150,6 +150,10 @@
 
   function applyCrewRowOverrides(row, rowIndex, cv) {
     if (!cv || !row) return row;
+    // Empty slots stay empty — never re-pin PE/NIL from a longer previous crew list.
+    if (!String(row.familyGivenNames || '').trim() && !String(row.rankOrRating || '').trim()) {
+      return row;
+    }
     const out = { ...row };
     CREW_CELL_FIELDS_02.forEach((field, col) => {
       const key = `d-${rowIndex}-${col}`;
@@ -187,13 +191,16 @@
     // but name/rank/no are never pinned (see strip on normalize/save).
     const crew = [];
     for (let i = 0; i < ROW_COUNT; i++) {
-      const row = applyCrewRowOverrides(defaultCrew[i] || emptyRow(), i, cv);
-      // Re-assert live identity after any legacy frozen d-*-0/1/2 values.
-      if (defaultCrew[i]) {
-        row.no = defaultCrew[i].no;
-        row.familyGivenNames = defaultCrew[i].familyGivenNames;
-        row.rankOrRating = defaultCrew[i].rankOrRating;
+      const live = defaultCrew[i] || emptyRow();
+      if (!members[i]) {
+        crew.push(emptyRow());
+        continue;
       }
+      const row = applyCrewRowOverrides(live, i, cv);
+      // Re-assert live identity after any legacy frozen d-*-0/1/2 values.
+      row.no = live.no;
+      row.familyGivenNames = live.familyGivenNames;
+      row.rankOrRating = live.rankOrRating;
       crew.push(row);
     }
 

@@ -206,6 +206,18 @@ declare global {
         fileName: string,
         base64: string,
       ) => Promise<{ ok: boolean; error?: string; path?: string }>;
+      /**
+       * Write `base64` under `fileName` in a temp folder, then put that file on the
+       * OS clipboard (Windows Explorer paste).
+       */
+      copyBytesToClipboardAs: (
+        fileName: string,
+        base64: string,
+      ) => Promise<{ ok: boolean; error?: string; path?: string }>;
+      /** Put an existing disk file on the OS clipboard (Windows). */
+      copyFileToClipboard: (
+        filePath: string,
+      ) => Promise<{ ok: boolean; error?: string; path?: string }>;
       listDirectories: (input: string) => Promise<string[]>;
       savePdfToPath: (
         dirPath: string,

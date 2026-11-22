@@ -44,9 +44,21 @@
     return el ? String(el.value || '').trim() : '';
   }
 
-  /** Voyage / identity always live — never restore frozen overlay text over them.
-   * Keep `_ceMode` so Arrival/Departure from Settings Save sticks. */
-  function stripLiveCellValues(cellValues) {
+  /** Rows that currently have a person (name). Used to drop orphan PE under empty lines. */
+  function occupiedCrewRows() {
+    const set = new Set();
+    for (let i = 0; i < ROW_COUNT; i++) {
+      if (getCi(`d-${i}-1`).trim()) set.add(i);
+    }
+    return set;
+  }
+
+  /**
+   * Voyage / identity always live — never restore frozen overlay text over them.
+   * Also drop any goods/PE keys for empty rows (legacy overlay leftover after crew shrinks).
+   * Keep `_ceMode` so Arrival/Departure from Settings Save sticks.
+   */
+  function stripLiveCellValues(cellValues, occupied) {
     if (!cellValues || typeof cellValues !== 'object') return {};
     const out = { ...cellValues };
     delete out['h-nameOfShip'];
@@ -55,8 +67,18 @@
     delete out['h-nationality'];
     delete out['footer-date'];
     delete out['footer-master'];
+    const rows = occupied || null;
     for (const key of Object.keys(out)) {
-      if (/^d-\d+-[012]$/i.test(key)) delete out[key];
+      const m = /^d-(\d+)-(\d+)$/i.exec(key);
+      if (!m) continue;
+      const row = Number(m[1]);
+      const col = Number(m[2]);
+      if (rows && !rows.has(row)) {
+        delete out[key];
+        continue;
+      }
+      // Live identity columns — never pin from overlay.
+      if (col <= 2) delete out[key];
     }
     return out;
   }
@@ -224,7 +246,11 @@
     if (!table || !Cells) return;
     const saved = editor.loadPositions();
     Cells.init(table);
-    const cellValues = stripLiveCellValues(overlayVariant?.cellValues || saved.cellValues || {});
+    const occupied = occupiedCrewRows();
+    const cellValues = stripLiveCellValues(
+      overlayVariant?.cellValues || saved.cellValues || {},
+      occupied,
+    );
     const cellStyles = overlayVariant?.cellStyles || saved.cellStyles || {};
     Cells.restoreCellValues(cellValues);
     Cells.restoreCellStyles(cellStyles);
@@ -232,7 +258,7 @@
     editor.connectCellEditor({
       collect: () => Cells.collectCellStyles(),
       collectValues: () => {
-        const values = stripLiveCellValues(Cells.collectCellValues());
+        const values = stripLiveCellValues(Cells.collectCellValues(), occupiedCrewRows());
         const depOn = document.getElementById('ced-cb-dep')?.textContent === '\u2713';
         values._ceMode = depOn ? 'departure' : 'arrival';
         return values;
@@ -331,7 +357,9 @@
     applyForm02(snapshot.form02);
     const overlayVariant = snapshot.documentOverlay?.[OVERLAY_KEY];
     if (overlayVariant?.cellValues) {
-      Cells?.restoreCellValues?.(stripLiveCellValues(overlayVariant.cellValues));
+      Cells?.restoreCellValues?.(
+        stripLiveCellValues(overlayVariant.cellValues, occupiedCrewRows()),
+      );
     }
     if (overlayVariant?.cellStyles) {
       Cells?.restoreCellStyles?.(overlayVariant.cellStyles);

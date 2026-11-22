@@ -55,15 +55,8 @@ function formatCaptainName(member: Pick<CrewMember, 'familyName' | 'givenNames'>
 }
 
 function crewRowHasContent(row: CrewEffectForm01CrewRow): boolean {
-  return !!(
-    row.familyGivenNames?.trim() ||
-    row.rankOrRating?.trim() ||
-    row.cigarettes?.trim() ||
-    row.spirits?.trim() ||
-    row.wines?.trim() ||
-    row.others?.trim() ||
-    row.signature?.trim()
-  );
+  // Person row only — orphaned PE/NIL must not number empty lines below passengers.
+  return !!(row.familyGivenNames?.trim() || row.rankOrRating?.trim());
 }
 
 function resolveRowNo(row: CrewEffectForm01CrewRow, index: number): string {

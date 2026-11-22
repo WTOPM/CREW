@@ -18,6 +18,9 @@ const fsp = fs.promises;
 const os = require('os');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
 
 /** One CREW window per machine — second launch focuses the existing instance. */
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -874,12 +877,8 @@ function notifyMainWindowActive(win = mainWindow) {
 }
 
 function attachTrayWindowHandlers(win) {
-  win.on('minimize', (event) => {
-    notifyMainWindowActive(win);
-    if (!minimizeToTrayEnabled) return;
-    event.preventDefault();
-    hideMainWindowToTray();
-  });
+  // Minimize (-) stays a normal taskbar minimize. Only Close (X) hides to tray.
+  win.on('minimize', () => notifyMainWindowActive(win));
 
   win.on('close', (event) => {
     if (!minimizeToTrayEnabled || appIsQuitting) return;
@@ -1208,6 +1207,52 @@ ipcMain.handle('open-temp-file', async (_event, fileName, base64) => {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+});
+
+/**
+ * Put a real file on the Windows clipboard (CF_HDROP) so Explorer paste drops the file.
+ * Electron's clipboard.writeBuffer cannot register standard CF_HDROP — use PowerShell.
+ */
+async function copyFilePathToOsClipboard(filePath) {
+  const p = path.resolve(String(filePath || '').trim());
+  if (!p) return { ok: false, error: 'Empty path' };
+  if (!fs.existsSync(p)) return { ok: false, error: 'File not found' };
+  if (process.platform !== 'win32') {
+    return { ok: false, error: 'File clipboard copy is only supported on Windows' };
+  }
+  const escaped = p.replace(/'/g, "''");
+  try {
+    await execFileAsync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', `Set-Clipboard -LiteralPath '${escaped}'`],
+      { windowsHide: true, timeout: 20000 },
+    );
+    return { ok: true, path: p };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Write bytes under a chosen file name in temp, then put that file on the OS clipboard. */
+ipcMain.handle('copy-bytes-to-clipboard-as', async (_event, fileName, base64) => {
+  const safeName = path
+    .basename(String(fileName || 'file.xlsx'))
+    .replace(/[<>:"/\\|?*\x00-\x1f]+/g, '_')
+    .trim();
+  if (!safeName) return { ok: false, error: 'Invalid file name' };
+  const dir = path.join(app.getPath('temp'), 'crew-clipboard');
+  try {
+    await fsp.mkdir(dir, { recursive: true });
+    const dest = path.join(dir, safeName);
+    await fsp.writeFile(dest, Buffer.from(String(base64 || ''), 'base64'));
+    return copyFilePathToOsClipboard(dest);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle('copy-file-to-clipboard', async (_event, filePath) => {
+  return copyFilePathToOsClipboard(filePath);
 });
 
 ipcMain.handle('list-directories', (_event, input) => {

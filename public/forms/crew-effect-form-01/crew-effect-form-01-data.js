@@ -103,6 +103,10 @@
   /** Apply AA/Aa (and other) editor text overrides onto a live crew row. */
   function applyCrewRowOverrides(row, rowIndex, cv) {
     if (!cv || !row) return row;
+    // Empty slots stay empty — never re-pin PE/NIL from a longer previous crew list.
+    if (!String(row.familyGivenNames || '').trim() && !String(row.rankOrRating || '').trim()) {
+      return row;
+    }
     const out = { ...row };
     CREW_CELL_FIELDS.forEach((field, col) => {
       const key = `d-${rowIndex}-${col}`;
@@ -156,7 +160,17 @@
     // Live crew/passenger list first; overlay cellValues (AA/Aa etc.) override after.
     const crew = [];
     for (let i = 0; i < ROW_COUNT; i++) {
-      crew.push(applyCrewRowOverrides(defaultCrew[i] || emptyRow(), i, cv));
+      const live = defaultCrew[i] || emptyRow();
+      if (!members[i]) {
+        crew.push(emptyRow());
+        continue;
+      }
+      const row = applyCrewRowOverrides(live, i, cv);
+      // Identity always follows the live list (never frozen overlay text).
+      row.no = live.no;
+      row.familyGivenNames = live.familyGivenNames;
+      row.rankOrRating = live.rankOrRating;
+      crew.push(row);
     }
 
     return {

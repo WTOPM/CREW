@@ -57,6 +57,40 @@
     return el ? String(el.value || '').trim() : '';
   }
 
+  /** Rows that currently have a person (name). Used to drop orphan PE under empty lines. */
+  function occupiedCrewRows() {
+    const set = new Set();
+    for (let i = 0; i < ROW_COUNT; i++) {
+      if (getCi(`d-${i}-1`).trim()) set.add(i);
+    }
+    return set;
+  }
+
+  /**
+   * Identity always live from the crew list. Drop overlay goods/PE on empty rows
+   * (legacy leftover when the list was longer — e.g. PE below the last passenger).
+   */
+  function stripLiveCellValues(cellValues, occupied) {
+    if (!cellValues || typeof cellValues !== 'object') return {};
+    const out = { ...cellValues };
+    delete out['h-nameOfShip'];
+    delete out['h-nationality'];
+    delete out['footer-master'];
+    const rows = occupied || null;
+    for (const key of Object.keys(out)) {
+      const m = /^d-(\d+)-(\d+)$/i.exec(key);
+      if (!m) continue;
+      const row = Number(m[1]);
+      const col = Number(m[2]);
+      if (rows && !rows.has(row)) {
+        delete out[key];
+        continue;
+      }
+      if (col <= 2) delete out[key];
+    }
+    return out;
+  }
+
   function buildCrewRows() {
     const tbody = document.getElementById('ced-crew');
     if (!tbody || tbody.dataset['built'] === '1') return;
@@ -134,14 +168,19 @@
     if (!table || !global.CrewEffectFormCells) return;
     const saved = editor.loadPositions();
     global.CrewEffectFormCells.init(table);
-    const cellValues = overlayVariant?.cellValues || saved.cellValues || {};
+    const occupied = occupiedCrewRows();
+    const cellValues = stripLiveCellValues(
+      overlayVariant?.cellValues || saved.cellValues || {},
+      occupied,
+    );
     const cellStyles = overlayVariant?.cellStyles || saved.cellStyles || {};
     global.CrewEffectFormCells.restoreCellValues(cellValues);
     global.CrewEffectFormCells.restoreCellStyles(cellStyles);
     global.CrewEffectFormCells.captureDirtyBaseline();
     editor.connectCellEditor({
       collect: () => global.CrewEffectFormCells.collectCellStyles(),
-      collectValues: () => global.CrewEffectFormCells.collectCellValues(),
+      collectValues: () =>
+        stripLiveCellValues(global.CrewEffectFormCells.collectCellValues(), occupiedCrewRows()),
       resetPage: resetEditorPage,
     });
   }
@@ -234,7 +273,9 @@
     }
     const overlayVariant = snapshot.documentOverlay?.[OVERLAY_KEY];
     if (overlayVariant?.cellValues) {
-      global.CrewEffectFormCells?.restoreCellValues?.(overlayVariant.cellValues);
+      global.CrewEffectFormCells?.restoreCellValues?.(
+        stripLiveCellValues(overlayVariant.cellValues, occupiedCrewRows()),
+      );
     }
     if (overlayVariant?.cellStyles) {
       global.CrewEffectFormCells?.restoreCellStyles?.(overlayVariant.cellStyles);

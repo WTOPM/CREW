@@ -560,8 +560,66 @@
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  flex: 0 0 11rem;
-  width: 11rem;
+  flex: 0 0 15.5rem;
+  width: 15.5rem;
+}
+
+.ad-meta-id-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.ad-meta-id-row .ad-meta-field--id {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ad-copy-xlsx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  flex: 0 0 auto;
+  min-height: 2.15rem;
+  padding: 0.35rem 0.55rem;
+  border: 2px solid #c4b5fd;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 20% 0%, #ede9fe 0%, transparent 60%),
+    linear-gradient(165deg, #f5f3ff 0%, #fff 75%);
+  color: #5b21b6;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 80%) inset;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    background 0.14s ease,
+    opacity 0.14s ease;
+}
+
+.ad-copy-xlsx-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
+}
+
+.ad-copy-xlsx-btn:hover:not(:disabled) {
+  border-color: #8b5cf6;
+  box-shadow:
+    0 0 0 3px rgb(139 92 246 / 16%),
+    0 1px 0 rgb(255 255 255 / 80%) inset;
+}
+
+.ad-copy-xlsx-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .ad-meta-field {
@@ -903,6 +961,50 @@
   color: inherit;
   font: inherit;
   cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.ad-palette-ghost {
+  position: fixed;
+  z-index: 10050;
+  pointer-events: none;
+  transform: translate(-50%, -60%);
+  padding: 0.45rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid #a78bfa;
+  background: linear-gradient(180deg, #f5f3ff 0%, #fff 100%);
+  color: #5b21b6;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 22%);
+  white-space: nowrap;
+}
+
+.ad-palette-ghost[data-group='river'] {
+  border-color: #38bdf8;
+  color: #0369a1;
+  background: linear-gradient(180deg, #e0f2fe 0%, #fff 100%);
+}
+
+.ad-palette-ghost[data-group='harbour'] {
+  border-color: #818cf8;
+  color: #3730a3;
+  background: linear-gradient(180deg, #eef2ff 0%, #fff 100%);
+}
+
+.ad-palette-ghost[data-group='anchorage'] {
+  border-color: #fb923c;
+  color: #c2410c;
+  background: linear-gradient(180deg, #fff7ed 0%, #fff 100%);
+}
+
+.ad-palette-ghost[data-group='tug'] {
+  border-color: #2dd4bf;
+  color: #0f766e;
+  background: linear-gradient(180deg, #f0fdfa 0%, #fff 100%);
 }
 
 .ad-chip__label {

@@ -109,6 +109,46 @@ function joinAdPath(folder: string, fileName: string): string {
   return `${dir}${sep}${fileName}`;
 }
 
+/** Nearest overflow parent that can absorb vertical and/or horizontal wheel delta. */
+function findAdScrollParent(
+  start: Element | null,
+  needY: boolean,
+  needX: boolean,
+): HTMLElement | null {
+  let cur: Element | null = start;
+  while (cur && cur !== document.documentElement) {
+    if (cur instanceof HTMLElement) {
+      const style = getComputedStyle(cur);
+      const oy = style.overflowY;
+      const ox = style.overflowX;
+      const canY =
+        needY &&
+        (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
+        cur.scrollHeight > cur.clientHeight + 1;
+      const canX =
+        needX &&
+        (ox === 'auto' || ox === 'scroll' || ox === 'overlay') &&
+        cur.scrollWidth > cur.clientWidth + 1;
+      if (canY || canX) return cur;
+    }
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
+/** Drop slot under the pointer (ghost has pointer-events: none). */
+function findAdAddSlotAt(clientX: number, clientY: number): HTMLElement | null {
+  const stack = document.elementsFromPoint(clientX, clientY);
+  for (const el of stack) {
+    if (!(el instanceof Element)) continue;
+    const slot = el.classList.contains('ad-add')
+      ? el
+      : el.closest('.ad-add');
+    if (slot instanceof HTMLElement) return slot;
+  }
+  return null;
+}
+
 function dirnameAdPath(filePath: string): string {
   const p = filePath.replace(/[\\/]+$/, '');
   const i = Math.max(p.lastIndexOf('\\'), p.lastIndexOf('/'));
@@ -262,6 +302,18 @@ export class AAndDPanelComponent {
   /** True when an Excel file from the folder is selected/open. */
   protected readonly hasOpenFile = computed(() => !!this.selectedFile().trim());
 
+  /** Removes document `wheel` listener used while CDK terminal reorder is active. */
+  private dragWheelCleanup: (() => void) | null = null;
+  /** Removes window listeners for palette pointer-drag. */
+  private palettePointerCleanup: (() => void) | null = null;
+  /** Floating chip under the cursor while dragging a palette block. */
+  protected readonly paletteGhost = signal<{
+    groupId: AdPaletteGroupId;
+    label: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
   constructor() {
     let persistReady = false;
     void Promise.resolve().then(() => {
@@ -294,10 +346,45 @@ export class AAndDPanelComponent {
       this.syncWorkspaceToStore(false);
     });
     this.destroyRef.onDestroy(() => {
+      this.clearPalettePointerDrag();
+      this.unbindDragWheelScroll();
       unregisterCommit();
       if (this.editDraft()) this.commitTerminalEdit();
       this.syncWorkspaceToStore(false);
     });
+  }
+
+  /**
+   * CDK drag suppresses default wheel scroll. Apply wheel delta ourselves so
+   * lower terminal rows stay reachable while reordering.
+   */
+  private bindDragWheelScroll(): void {
+    if (this.dragWheelCleanup) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!this.terminalReordering()) return;
+      const dx = event.deltaX || (event.shiftKey ? event.deltaY : 0);
+      const dy = event.shiftKey ? 0 : event.deltaY;
+      if (!dx && !dy) return;
+      event.preventDefault();
+      const under = document.elementFromPoint(event.clientX, event.clientY);
+      const scroller = findAdScrollParent(under, dy !== 0, dx !== 0);
+      if (scroller) {
+        scroller.scrollTop += dy;
+        scroller.scrollLeft += dx;
+        return;
+      }
+      window.scrollBy(dx, dy);
+    };
+    document.addEventListener('wheel', onWheel, { capture: true, passive: false });
+    this.dragWheelCleanup = () => {
+      document.removeEventListener('wheel', onWheel, true);
+      this.dragWheelCleanup = null;
+    };
+  }
+
+  private unbindDragWheelScroll(): void {
+    this.dragWheelCleanup?.();
+    this.dragWheelCleanup = null;
   }
 
   /** Push current signals into AppData; optionally flush the shared/local data file. */
@@ -824,32 +911,119 @@ export class AAndDPanelComponent {
     );
   }
 
-  protected onPaletteDragStart(groupId: AdPaletteGroupId, event: DragEvent): void {
+  /**
+   * Pointer drag (not HTML5 DnD): Electron blocks wheel during native drag,
+   * so lower terminals were unreachable. Pointer drag keeps wheel scrolling.
+   */
+  protected onPalettePointerDown(groupId: AdPaletteGroupId, event: PointerEvent): void {
+    if (event.button !== 0 || this.terminalReordering()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.settingsOpen.set(null);
+    this.closeCombos();
+    this.clearPalettePointerDrag();
+
+    const label = AD_PALETTE_GROUPS.find((g) => g.id === groupId)?.label ?? groupId;
     this.dragGroup.set(groupId);
     this.dropHover.set(null);
-    event.dataTransfer?.setData('text/plain', groupId);
-    event.dataTransfer?.setData('text/ad-group', groupId);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+    this.paletteGhost.set({ groupId, label, x: event.clientX, y: event.clientY });
+    document.body.classList.add('ad-palette-dragging');
+
+    let lastX = event.clientX;
+    let lastY = event.clientY;
+
+    const onMove = (e: PointerEvent) => {
+      lastX = e.clientX;
+      lastY = e.clientY;
+      this.paletteGhost.update((g) => (g ? { ...g, x: e.clientX, y: e.clientY } : null));
+      this.updatePaletteDropHover(e.clientX, e.clientY);
+    };
+    const onUp = (e: PointerEvent) => {
+      this.finishPalettePointerDrag(e.clientX, e.clientY);
+    };
+    const onWheel = () => {
+      // After the page scrolls under a held chip, re-hit-test the same pointer spot.
+      requestAnimationFrame(() => this.updatePaletteDropHover(lastX, lastY));
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.clearPalettePointerDrag();
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onUp, true);
+    window.addEventListener('wheel', onWheel, { passive: true, capture: true });
+    window.addEventListener('keydown', onKey, true);
+    this.palettePointerCleanup = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onUp, true);
+      window.removeEventListener('wheel', onWheel, true);
+      window.removeEventListener('keydown', onKey, true);
+      this.palettePointerCleanup = null;
+    };
   }
 
-  protected onPaletteDragEnd(): void {
+  private updatePaletteDropHover(clientX: number, clientY: number): void {
+    if (!this.dragGroup()) {
+      this.dropHover.set(null);
+      return;
+    }
+    const slot = findAdAddSlotAt(clientX, clientY);
+    if (!slot) {
+      this.dropHover.set(null);
+      return;
+    }
+    const terminalId = slot.dataset['termId']?.trim() || '';
+    if (!terminalId || !this.draft().terminals.some((t) => t.id === terminalId)) {
+      this.dropHover.set(null);
+      return;
+    }
+    const rect = slot.getBoundingClientRect();
+    const tone: AdActionTone = clientY < rect.top + rect.height / 2 ? 'in' : 'out';
+    this.dropHover.set({ terminalId, tone });
+  }
+
+  private finishPalettePointerDrag(clientX: number, clientY: number): void {
+    const groupId = this.dragGroup();
+    this.updatePaletteDropHover(clientX, clientY);
+    const hover = this.dropHover();
+    this.clearPalettePointerDrag();
+    if (!groupId || !hover) return;
+    const term = this.draft().terminals.find((t) => t.id === hover.terminalId);
+    if (!term) return;
+    const kind = adKindForDrop(groupId, hover.tone);
+    if (term.actions.some((a) => a.kind === kind)) return;
+    this.addGroupToTerminal(term.id, groupId, hover.tone);
+  }
+
+  private clearPalettePointerDrag(): void {
+    this.palettePointerCleanup?.();
+    this.palettePointerCleanup = null;
     this.dragGroup.set(null);
     this.dropHover.set(null);
+    this.paletteGhost.set(null);
+    document.body.classList.remove('ad-palette-dragging');
   }
 
   protected onTerminalCdkDragStarted(): void {
-    this.dragGroup.set(null);
-    this.dropHover.set(null);
+    this.clearPalettePointerDrag();
     this.terminalReordering.set(true);
+    this.bindDragWheelScroll();
   }
 
   protected onTerminalCdkDragEnded(): void {
     this.terminalReordering.set(false);
+    this.unbindDragWheelScroll();
   }
 
   /** Live CDK reorder — list animates while the row follows the pointer. */
   protected onTerminalCdkDrop(event: CdkDragDrop<AdTerminal[]>): void {
     this.terminalReordering.set(false);
+    this.unbindDragWheelScroll();
     if (event.previousIndex === event.currentIndex) return;
     this.draft.update((d) => {
       const terminals = [...d.terminals];
@@ -875,54 +1049,6 @@ export class AAndDPanelComponent {
     const h = this.dropHover();
     if (!h || h.terminalId !== term.id || h.tone !== tone) return false;
     return !this.halfIsTaken(term, tone);
-  }
-
-  protected onAddSlotDragOver(term: AdTerminal, event: DragEvent): void {
-    if (this.terminalReordering() || !this.dragGroup()) return;
-    event.preventDefault();
-    const el = event.currentTarget as HTMLElement | null;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const tone: AdActionTone = event.clientY < rect.top + rect.height / 2 ? 'in' : 'out';
-    const taken = this.halfIsTaken(term, tone);
-    if (event.dataTransfer) event.dataTransfer.dropEffect = taken ? 'none' : 'copy';
-    this.dropHover.set({ terminalId: term.id, tone });
-  }
-
-  protected onAddSlotDragLeave(event: DragEvent): void {
-    const related = event.relatedTarget as Node | null;
-    const cur = event.currentTarget as Node | null;
-    if (cur && related && cur.contains(related)) return;
-    this.dropHover.set(null);
-  }
-
-  protected onAddSlotDrop(term: AdTerminal, event: DragEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    const raw =
-      event.dataTransfer?.getData('text/ad-group') ||
-      event.dataTransfer?.getData('text/plain') ||
-      this.dragGroup() ||
-      '';
-    this.dragGroup.set(null);
-    if (!AD_PALETTE_GROUPS.some((g) => g.id === raw)) {
-      this.dropHover.set(null);
-      return;
-    }
-    const el = event.currentTarget as HTMLElement | null;
-    let tone: AdActionTone = 'in';
-    const hover = this.dropHover();
-    if (hover && hover.terminalId === term.id) {
-      tone = hover.tone;
-    } else if (el) {
-      const rect = el.getBoundingClientRect();
-      tone = event.clientY < rect.top + rect.height / 2 ? 'in' : 'out';
-    }
-    this.dropHover.set(null);
-    const groupId = raw as AdPaletteGroupId;
-    const kind = adKindForDrop(groupId, tone);
-    if (term.actions.some((a) => a.kind === kind)) return;
-    this.addGroupToTerminal(term.id, groupId, tone);
   }
 
   protected addGroupToTerminal(
@@ -1341,6 +1467,51 @@ export class AAndDPanelComponent {
       });
     } catch (e) {
       this.toast.showError(e instanceof Error ? e.message : 'Could not open A&D file');
+    }
+  }
+
+  /**
+   * Copy the currently open Excel onto the OS clipboard as `{portCallId}.xlsx`
+   * so Explorer / mail paste uses only that short name.
+   */
+  protected async copyOpenFileAsPortCallId(): Promise<void> {
+    if (!this.hasOpenFile()) {
+      this.toast.showError('Open an A&D document first');
+      return;
+    }
+    const id = this.draft().portCallId.trim();
+    if (!id) {
+      this.toast.showError('Enter Port call ID');
+      return;
+    }
+    const api = window.electronAPI;
+    if (!api?.readFileBase64 || !api.copyBytesToClipboardAs) {
+      this.toast.showError('Clipboard file copy only works in the desktop app');
+      return;
+    }
+    const src = this.filePath().trim();
+    if (!src) {
+      this.toast.showError('Open an A&D document first');
+      return;
+    }
+    const safeId = id.replace(/[<>:"/\\|?*\x00-\x1f]+/g, '_').trim() || 'port-call';
+    const clipName = `${safeId}.xlsx`;
+    try {
+      await this.withBusy(`Copying ${clipName}…`, async () => {
+        const read = await api.readFileBase64(src);
+        if (!read?.ok || !read.base64) {
+          this.toast.showError(read?.error || 'Could not read open file');
+          return;
+        }
+        const res = await api.copyBytesToClipboardAs(clipName, read.base64);
+        if (!res?.ok) {
+          this.toast.showError(res?.error || 'Could not copy to clipboard');
+          return;
+        }
+        this.toast.show(`Copied ${clipName} to clipboard`, 'success');
+      });
+    } catch (e) {
+      this.toast.showError(e instanceof Error ? e.message : 'Could not copy to clipboard');
     }
   }
 

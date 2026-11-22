@@ -215,23 +215,40 @@
 
   <div class="ad-meta card">
     <div class="ad-meta__stack">
-      <label
-        class="ad-meta-field ad-meta-field--id"
-        [class.ad-meta-field--missing]="isBlank(draft().portCallId)"
-        [class.ad-copy-pending]="copyPending('hdr:portCallId')"
-        (focusin)="markCopyReviewed('hdr:portCallId')"
-      >
-        <span class="ad-meta-field__label">Port call ID</span>
-        <input
-          class="ad-meta-field__input"
-          type="text"
-          inputmode="numeric"
-          autocomplete="off"
-          spellcheck="false"
-          [ngModel]="draft().portCallId"
-          (ngModelChange)="updateHeader('portCallId', $event)"
-        />
-      </label>
+      <div class="ad-meta-id-row">
+        <label
+          class="ad-meta-field ad-meta-field--id"
+          [class.ad-meta-field--missing]="isBlank(draft().portCallId)"
+          [class.ad-copy-pending]="copyPending('hdr:portCallId')"
+          (focusin)="markCopyReviewed('hdr:portCallId')"
+        >
+          <span class="ad-meta-field__label">Port call ID</span>
+          <input
+            class="ad-meta-field__input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            spellcheck="false"
+            [ngModel]="draft().portCallId"
+            (ngModelChange)="updateHeader('portCallId', $event)"
+          />
+        </label>
+        <button
+          type="button"
+          class="ad-copy-xlsx-btn"
+          title="Copy open Excel to clipboard as Port call ID.xlsx"
+          [disabled]="busy() || !hasOpenFile() || isBlank(draft().portCallId)"
+          (click)="copyOpenFileAsPortCallId()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"
+            />
+          </svg>
+          <span>Copy</span>
+        </button>
+      </div>
       <label
         class="ad-meta-field ad-meta-field--code"
         [class.ad-meta-field--missing]="isBlank(draft().portCode)"
@@ -293,6 +310,8 @@
           <br />
           TOP = ARRIVAL · BOTTOM = DEPARTURE
           <br />
+          WHEEL SCROLLS WHILE DRAGGING
+          <br />
           TOP STRIP · BLOCK DEFAULTS
         </span>
       </span>
@@ -319,9 +338,7 @@
             <button
               type="button"
               class="ad-chip__body"
-              draggable="true"
-              (dragstart)="onPaletteDragStart(g.id, $event)"
-              (dragend)="onPaletteDragEnd()"
+              (pointerdown)="onPalettePointerDown(g.id, $event)"
             >
               <span class="ad-chip__label">{{ g.label }}</span>
             </button>
@@ -738,11 +755,9 @@
             @if (canAddMore(term)) {
               <div
                 class="ad-add"
+                [attr.data-term-id]="term.id"
                 [class.ad-add--drag]="!!dragGroup()"
                 [class.ad-add--choose]="!!dragGroup() && dropHover()?.terminalId === term.id"
-                (dragover)="onAddSlotDragOver(term, $event)"
-                (dragleave)="onAddSlotDragLeave($event)"
-                (drop)="onAddSlotDrop(term, $event)"
               >
                 @if (dragGroup()) {
                   <div
@@ -1026,4 +1041,16 @@
     (save)="saveFileNamePattern($event)"
     (cancel)="closeFileNameModal()"
   />
+}
+
+@if (paletteGhost(); as ghost) {
+  <div
+    class="ad-palette-ghost"
+    [attr.data-group]="ghost.groupId"
+    [style.left.px]="ghost.x"
+    [style.top.px]="ghost.y"
+    aria-hidden="true"
+  >
+    {{ ghost.label }}
+  </div>
 }
