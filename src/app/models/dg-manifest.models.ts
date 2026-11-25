@@ -146,7 +146,7 @@ export interface DgLibrarySettings {
   activeInventoryTab: DgActiveInventoryTab;
   /**
    * Inventory table interaction: `edit` = normal inputs; `copy` = Excel-like
-   * read-only grid for cell/row/column selection + clipboard copy.
+   * VIEW grid for cell/row/column selection + clipboard copy/paste into text cells.
    */
   inventoryViewMode: 'edit' | 'copy';
   /** Port/date context for this page and DG document export. */

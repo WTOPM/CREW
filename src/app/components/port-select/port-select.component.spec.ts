@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Port } from '../../models/crew.models';
+import { portMatchesQuery, terminalOptionMatchesQuery } from './port-select.component';
 
 /** Mirrors port-select terminals-mode option building (pure). */
 function buildTerminalSections(ports: Port[]) {
@@ -39,5 +40,32 @@ describe('port-select modes', () => {
     expect(sections).toEqual([
       { portName: 'HAMBURG', portCode: 'DEHAM', abbrevs: ['EGH'] },
     ]);
+  });
+});
+
+describe('portMatchesQuery', () => {
+  const hamburg: Port = { name: 'HAMBURG', code: 'DEHAM' };
+
+  it('matches LOCODE prefix and port name', () => {
+    expect(portMatchesQuery(hamburg, 'de')).toBe(true);
+    expect(portMatchesQuery(hamburg, 'DEH')).toBe(true);
+    expect(portMatchesQuery(hamburg, 'ham')).toBe(true);
+    expect(portMatchesQuery(hamburg, 'xyz')).toBe(false);
+  });
+});
+
+describe('terminalOptionMatchesQuery', () => {
+  const opt = {
+    portName: 'HAMBURG',
+    portCode: 'DEHAM',
+    abbrev: 'EGH',
+    terminalName: 'Eurogate',
+  };
+
+  it('matches terminal abbrev and parent port code', () => {
+    expect(terminalOptionMatchesQuery(opt, 'eg')).toBe(true);
+    expect(terminalOptionMatchesQuery(opt, 'deh')).toBe(true);
+    expect(terminalOptionMatchesQuery(opt, 'euro')).toBe(true);
+    expect(terminalOptionMatchesQuery(opt, 'xyz')).toBe(false);
   });
 });

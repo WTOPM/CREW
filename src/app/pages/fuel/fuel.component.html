@@ -93,15 +93,6 @@
       <h2 class="fuel-section-title">Fuel log</h2>
       <div class="fuel-filter-presets">
         <div class="fuel-filter-presets__tools">
-          <button
-            type="button"
-            class="fuel-chip fuel-chip--summary"
-            [disabled]="!library().masterSummary"
-            title="Open MASTER S1–AC4 summary (AUX / tanks) — read only"
-            (click)="showMasterSummaryModal.set(true)"
-          >
-            S1–AC4
-          </button>
           <a
             routerLink="/fuel/stats"
             class="fuel-chip fuel-chip--stats"
@@ -123,7 +114,7 @@
                 d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3-10H5V5h10v4z"
               />
             </svg>
-            <span>Save</span>
+            <span>Save Settings</span>
           </button>
           <button
             type="button"
@@ -137,7 +128,7 @@
                 d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2zm4 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm2-4-3 3-3-3h2v-4h2v4h2z"
               />
             </svg>
-            <span>Load</span>
+            <span>Load Settings</span>
           </button>
         </div>
       </div>
@@ -680,95 +671,3 @@
   (closeSave)="showDisplaySaveModal.set(false)"
   (closeLoad)="showDisplayLoadModal.set(false)"
 />
-
-@if (showMasterSummaryModal() && library().masterSummary; as summary) {
-  <div class="modal-backdrop fuel-summary-backdrop" (click)="showMasterSummaryModal.set(false)">
-    <div
-      class="modal fuel-summary-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="fuel-summary-title"
-      (click)="$event.stopPropagation()"
-    >
-      <header class="fuel-summary-modal__head">
-        <div class="fuel-summary-modal__intro">
-          <h3 id="fuel-summary-title">MASTER S1–AC4</h3>
-          <p>As in Excel — compare and close</p>
-        </div>
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          (click)="showMasterSummaryModal.set(false)"
-        >
-          Close
-        </button>
-      </header>
-
-      <div class="fuel-summary-modal__body">
-        <div class="fuel-summary-table-wrap">
-          <table class="fuel-summary-grid">
-            <thead>
-              <tr>
-                <th class="fuel-summary-grid__aux">{{ summary.heading || 'AUX' }}</th>
-                @for (h of summary.aeMetricHeaders; track $index) {
-                  <th
-                    class="fuel-summary-grid__metric"
-                    [class.fuel-summary-grid__metric--mt]="h === 'MT'"
-                  >
-                    {{ h }}
-                  </th>
-                }
-                @for (h of summary.tankHeaders; track h) {
-                  <th class="fuel-summary-grid__tank" [attr.data-tank]="h">{{ h }}</th>
-                }
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of summary.aeRows; track row.label; let i = $index) {
-                <tr>
-                  <th scope="row">{{ row.label }}</th>
-                  <td>{{ row.kw || '' }}</td>
-                  <td>{{ row.rh || '' }}</td>
-                  <td>{{ row.kg || '' }}</td>
-                  @if (i === 0) {
-                    <td
-                      class="fuel-summary-grid__mt"
-                      [attr.rowspan]="summary.aeRows.length"
-                    >
-                      {{ summary.mt || '' }}
-                    </td>
-                  }
-                  @if (i === 0) {
-                    @for (val of summary.tankValues; track $index) {
-                      <td class="fuel-summary-grid__tank-val">{{ val || '' }}</td>
-                    }
-                  } @else if (i === 1) {
-                    <td
-                      class="fuel-summary-grid__banner fuel-summary-grid__banner--status"
-                      [attr.colspan]="summary.tankHeaders.length"
-                    >
-                      {{ summary.tankStatus || '' }}
-                    </td>
-                  } @else if (i === 2) {
-                    <td
-                      class="fuel-summary-grid__banner fuel-summary-grid__banner--note"
-                      [attr.colspan]="summary.tankHeaders.length"
-                    >
-                      {{ summary.tankNote || '' }}
-                    </td>
-                  }
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <footer class="fuel-summary-modal__foot">
-        <button type="button" class="btn btn-primary" (click)="showMasterSummaryModal.set(false)">
-          Close
-        </button>
-      </footer>
-    </div>
-  </div>
-}

@@ -141,6 +141,28 @@ export class DgManifestStore {
     void this.state.persist('silent');
   }
 
+  /** Replace CMA + DP WORLD onboard lists (session undo / restore). */
+  restoreDgOnboardInventories(input: {
+    cmaOnboard: DgOnboardContainer[];
+    unifeederOnboard: DgUnifeederRow[];
+  }): void {
+    this.data.update((d) => {
+      const lib = normalizeDgLibrary(d.dgLibrary, undefined, d.ports, d.ship);
+      return {
+        ...d,
+        dgLibrary: {
+          ...lib,
+          onboard: structuredClone(input.cmaOnboard),
+          unifeeder: {
+            ...lib.unifeeder,
+            onboard: structuredClone(input.unifeederOnboard),
+          },
+        },
+      };
+    });
+    void this.state.persist('silent');
+  }
+
   updateDgOnboardContainer(
     containerId: string,
     partial: Partial<Omit<DgOnboardContainer, 'id' | 'lines' | 'sourceManifestId'>>,

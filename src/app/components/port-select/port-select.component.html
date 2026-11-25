@@ -13,7 +13,7 @@
 </button>
 
 @if (open()) {
-  <ul
+  <div
     #panel
     class="ps-panel"
     [class.ps-panel--compact]="compact()"
@@ -24,48 +24,70 @@
     [style.width.px]="panelPos().width"
     [style.maxHeight.px]="panelPos().maxHeight"
   >
-    <li class="ps-panel__clear" role="option" (mousedown)="clear($event)">—</li>
+    <div class="ps-panel__search" (mousedown)="$event.stopPropagation()">
+      <input
+        #filterField
+        type="text"
+        class="ps-panel__filter"
+        [value]="query()"
+        placeholder="Search"
+        autocomplete="off"
+        spellcheck="false"
+        (input)="onQueryInput($event)"
+        (keydown)="onFilterKeydown($event)"
+      />
+    </div>
 
-    @if (isTerminalsMode()) {
-      @if (terminalSections().length === 0) {
-        <li class="ps-panel__empty">No terminals in port list</li>
+    <ul class="ps-panel__list">
+      <li class="ps-panel__clear" role="option" (mousedown)="clear($event)">—</li>
+
+      @if (isTerminalsMode()) {
+        @if (terminalSections().length === 0) {
+          <li class="ps-panel__empty">No terminals in port list</li>
+        } @else if (filteredTerminalSections().length === 0) {
+          <li class="ps-panel__empty">No matches</li>
+        } @else {
+          @for (section of filteredTerminalSections(); track section.portName) {
+            <li class="ps-panel__port ps-panel__port--header" aria-hidden="true">
+              <span class="ps-panel__port-code">{{ section.portCode }}</span>
+              <span class="ps-panel__port-colon">:</span>
+            </li>
+            @for (t of section.items; track t.abbrev) {
+              <li
+                class="ps-panel__term"
+                role="option"
+                [class.ps-panel__term--selected]="isTerminalSelected(t.abbrev)"
+                [title]="t.terminalName || t.abbrev"
+                (mousedown)="pickTerminal(t.portName, t.abbrev, $event)"
+              >
+                <span class="ps-panel__term-mark" aria-hidden="true">·</span>
+                <span class="ps-panel__term-code">{{ t.abbrev }}</span>
+                @if (!compact() && t.terminalName && t.terminalName.toUpperCase() !== t.abbrev) {
+                  <span class="ps-panel__term-name">{{ t.terminalName }}</span>
+                }
+              </li>
+            }
+          }
+        }
       } @else {
-        @for (section of terminalSections(); track section.portName) {
-          <li class="ps-panel__port ps-panel__port--header" aria-hidden="true">
-            <span class="ps-panel__port-code">{{ section.portCode }}</span>
-            <span class="ps-panel__port-colon">:</span>
-          </li>
-          @for (t of section.items; track t.abbrev) {
+        @if (filteredPorts().length === 0) {
+          <li class="ps-panel__empty">No matches</li>
+        } @else {
+          @for (p of filteredPorts(); track p.name) {
             <li
-              class="ps-panel__term"
+              class="ps-panel__port"
               role="option"
-              [class.ps-panel__term--selected]="isTerminalSelected(t.abbrev)"
-              [title]="t.terminalName || t.abbrev"
-              (mousedown)="pickTerminal(t.portName, t.abbrev, $event)"
+              [class.ps-panel__port--selected]="isPortSelected(p)"
+              (mousedown)="pickPort(p.name, $event)"
             >
-              <span class="ps-panel__term-mark" aria-hidden="true">·</span>
-              <span class="ps-panel__term-code">{{ t.abbrev }}</span>
-              @if (!compact() && t.terminalName && t.terminalName.toUpperCase() !== t.abbrev) {
-                <span class="ps-panel__term-name">{{ t.terminalName }}</span>
+              <span class="ps-panel__port-code">{{ portCodeLabel(p) }}</span>
+              @if (!compact()) {
+                <span class="ps-panel__port-name">{{ p.name }}</span>
               }
             </li>
           }
         }
       }
-    } @else {
-      @for (p of ports(); track p.name) {
-        <li
-          class="ps-panel__port"
-          role="option"
-          [class.ps-panel__port--selected]="isPortSelected(p)"
-          (mousedown)="pickPort(p.name, $event)"
-        >
-          <span class="ps-panel__port-code">{{ portCodeLabel(p) }}</span>
-          @if (!compact()) {
-            <span class="ps-panel__port-name">{{ p.name }}</span>
-          }
-        </li>
-      }
-    }
-  </ul>
+    </ul>
+  </div>
 }

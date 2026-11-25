@@ -69,15 +69,59 @@
 .ps-panel {
   position: fixed;
   z-index: 10050;
+  display: flex;
+  flex-direction: column;
   margin: 0;
-  padding: 0.3rem 0;
-  list-style: none;
-  overflow: auto;
+  padding: 0;
+  overflow: hidden;
   border: 1px solid #bae6fd;
   border-radius: 10px;
   background: linear-gradient(180deg, #f8fcff 0%, #ffffff 40%);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
   box-sizing: border-box;
+}
+
+.ps-panel__search {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.45rem 0.3rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.ps-panel__filter {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ps-panel__filter:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgb(56 189 248 / 25%);
+}
+
+.ps-panel__filter::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.ps-panel__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  overflow: auto;
 }
 
 .ps-panel__clear {

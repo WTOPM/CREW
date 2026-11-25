@@ -6,6 +6,12 @@ import {
   inject,
 } from '@angular/core';
 import { copyTextToClipboard } from '../utils/copy-text.util';
+import {
+  applyPasteToSheetTd,
+  mapPasteTargets,
+  parseClipboardTsv,
+} from '../utils/dg-sheet-paste.util';
+import { DgInventoryUndoStore } from '../services/dg-inventory-undo.store';
 import { ToastService } from '../services/toast.service';
 
 const SKIP_TD =
@@ -16,8 +22,8 @@ const SKIP_TH = '.uf-act, .uf-line-act, .col-act, .col-actions, .col-line-act';
 type CellPos = { r: number; c: number };
 
 /**
- * Excel-like rectangular selection for DG Copy view.
- * Keeps a cell grid cache so drag-paint stays O(changed cells).
+ * Excel-like rectangular selection for DG VIEW mode.
+ * Copy with Ctrl+C; paste a column/range with Ctrl+V into plain text inputs.
  */
 @Directive({
   selector: '[appDgSheetSelect]',
@@ -28,6 +34,7 @@ type CellPos = { r: number; c: number };
 })
 export class DgSheetSelectDirective implements OnDestroy {
   private readonly toast = inject(ToastService);
+  private readonly undo = inject(DgInventoryUndoStore);
   private readonly root = inject(ElementRef<HTMLElement>).nativeElement;
 
   @Input({ alias: 'appDgSheetSelect' })
@@ -52,6 +59,7 @@ export class DgSheetSelectDirective implements OnDestroy {
   /** Drag started on a column header → keep full-height column range. */
   private colDragging = false;
   private copyHandledAt = 0;
+  private pasteHandledAt = 0;
 
   /** row → col → td */
   private grid: HTMLElement[][] = [];
@@ -66,6 +74,7 @@ export class DgSheetSelectDirective implements OnDestroy {
     document.addEventListener('pointerup', this.onPointerUp, true);
     document.addEventListener('keydown', this.onKeyDown, true);
     document.addEventListener('copy', this.onCopy, true);
+    document.addEventListener('paste', this.onPaste, true);
     this.root.addEventListener('dblclick', this.onDblClick, true);
   }
 
@@ -75,6 +84,7 @@ export class DgSheetSelectDirective implements OnDestroy {
     document.removeEventListener('pointerup', this.onPointerUp, true);
     document.removeEventListener('keydown', this.onKeyDown, true);
     document.removeEventListener('copy', this.onCopy, true);
+    document.removeEventListener('paste', this.onPaste, true);
     this.root.removeEventListener('dblclick', this.onDblClick, true);
   }
 
@@ -146,12 +156,12 @@ export class DgSheetSelectDirective implements OnDestroy {
     if (!this.cellFromEvent(event) && this.headerColFromEvent(event) == null) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    this.toast.show('Switch to Edit mode to make changes', 'info');
+    this.toast.show('VIEW: select cells/column then Ctrl+C / Ctrl+V · Edit for full form', 'info');
   };
 
   private readonly onCopy = (event: Event): void => {
     if (!(event instanceof ClipboardEvent)) return;
-    if (!this.shouldHandleCopy()) return;
+    if (!this.shouldHandleClipboard()) return;
     if (this.outsideFieldOwnsTextSelection()) return;
     const text = this.selectionTsv();
     if (text == null) return;
@@ -161,16 +171,35 @@ export class DgSheetSelectDirective implements OnDestroy {
     this.toastCopied(text);
   };
 
-  private readonly onKeyDown = (event: Event): void => {
-    if (!(event instanceof KeyboardEvent)) return;
-    if (!this.shouldHandleCopy()) return;
-    if (!(event.ctrlKey || event.metaKey)) return;
-    if (event.key.toLowerCase() !== 'c' && event.code !== 'KeyC') return;
+  private readonly onPaste = (event: Event): void => {
+    if (!(event instanceof ClipboardEvent)) return;
+    if (!this.shouldHandleClipboard()) return;
     if (this.outsideFieldOwnsTextSelection()) return;
-    this.claimKeyboardFocus();
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    if (!text) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    void this.copySelection();
+    this.applyPasteText(text);
+  };
+
+  private readonly onKeyDown = (event: Event): void => {
+    if (!(event instanceof KeyboardEvent)) return;
+    if (!this.shouldHandleClipboard()) return;
+    if (!(event.ctrlKey || event.metaKey)) return;
+    const key = event.key.toLowerCase();
+    if (key === 'c' || event.code === 'KeyC') {
+      if (this.outsideFieldOwnsTextSelection()) return;
+      this.claimKeyboardFocus();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      void this.copySelection();
+      return;
+    }
+    if (key === 'v' || event.code === 'KeyV') {
+      // Prefer the native `paste` event (has clipboardData). Keep focus claimed.
+      if (this.outsideFieldOwnsTextSelection()) return;
+      this.claimKeyboardFocus();
+    }
   };
 
   private claimKeyboardFocus(): void {
@@ -183,8 +212,53 @@ export class DgSheetSelectDirective implements OnDestroy {
     }
   }
 
-  private shouldHandleCopy(): boolean {
+  private shouldHandleClipboard(): boolean {
     return this._enabled && !!this.anchor && !!this.focus;
+  }
+
+  private applyPasteText(text: string): void {
+    const now = Date.now();
+    if (now - this.pasteHandledAt < 400) return;
+    this.pasteHandledAt = now;
+
+    if (this.maxR < 0) this.indexCells();
+    const bounds = this.selectionBounds();
+    if (!bounds || this.maxR < 0) return;
+    const matrix = parseClipboardTsv(text);
+    if (!matrix.length) {
+      this.toast.show('Clipboard is empty', 'info');
+      return;
+    }
+    const targets = mapPasteTargets(matrix, bounds, { maxR: this.maxR, maxC: this.maxC });
+    this.undo.push();
+    let applied = 0;
+    let skipped = 0;
+    for (const t of targets) {
+      const td = this.grid[t.r]?.[t.c];
+      if (!td) {
+        skipped += 1;
+        continue;
+      }
+      if (applyPasteToSheetTd(td, t.value)) applied += 1;
+      else skipped += 1;
+    }
+
+    if (!applied) {
+      this.undo.discardLast();
+      this.toast.show(
+        skipped
+          ? 'Nothing pasted — select a text column (e.g. Stowage / Position)'
+          : 'Nothing pasted',
+        'info',
+      );
+      return;
+    }
+    this.toast.show(
+      skipped
+        ? `Pasted ${applied} cell(s) · ${skipped} skipped · Ctrl+Z to undo`
+        : `Pasted ${applied} cell(s) · Ctrl+Z to undo`,
+      'success',
+    );
   }
 
   private outsideFieldOwnsTextSelection(): boolean {

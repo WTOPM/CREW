@@ -35,6 +35,7 @@ import {
 import { DgPageArchiveService } from '../../services/dg-page-archive.service';
 import { StorageService } from '../../services/storage.service';
 import { DgManifestStore } from '../../services/dg-manifest.store';
+import { DgInventoryUndoStore } from '../../services/dg-inventory-undo.store';
 import { DgManifestSourcePdfService } from '../../services/dg-manifest-source-pdf.service';
 import { ToastService } from '../../services/toast.service';
 import { commitDgDualWeightEdit } from '../../utils/dg-weight-tonnage.util';
@@ -94,6 +95,7 @@ export type DgInventoryTab = DgActiveInventoryTab;
 export class DgComponent {
   private readonly storage = inject(StorageService);
   private readonly dg = inject(DgManifestStore);
+  private readonly inventoryUndo = inject(DgInventoryUndoStore);
   private readonly importer = inject(DgManifestImportService);
   private readonly prestowImporter = inject(DgCmaPrestowImportService);
   private readonly confirmDialog = inject(ConfirmDialogService);
@@ -578,6 +580,29 @@ export class DgComponent {
     if (target.readOnly || target.disabled) return;
     event.preventDefault();
     target.blur();
+  }
+
+  /** Undo last VIEW paste batch (does not steal Ctrl+Z from editable fields). */
+  @HostListener('document:keydown', ['$event'])
+  protected onInventoryUndoKey(event: KeyboardEvent): void {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+    if (event.key.toLowerCase() !== 'z' && event.code !== 'KeyZ') return;
+    if (!this.inventoryUndo.canUndo()) return;
+
+    const active = document.activeElement;
+    if (
+      (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) &&
+      !active.readOnly &&
+      !active.disabled
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.inventoryUndo.undo()) {
+      this.toast.show('Undid last paste', 'success');
+    }
   }
 
   protected onCmaUnNoCommit(containerId: string, lineId: string, event: FocusEvent): void {

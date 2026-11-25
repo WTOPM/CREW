@@ -5,7 +5,6 @@ import {
   DestroyRef,
   effect,
   ElementRef,
-  HostListener,
   inject,
   linkedSignal,
   signal,
@@ -169,7 +168,6 @@ export class FuelComponent {
   private ghostDragOrigin: { x: number; y: number } | null = null;
   protected readonly showDisplaySaveModal = signal(false);
   protected readonly showDisplayLoadModal = signal(false);
-  protected readonly showMasterSummaryModal = signal(false);
   protected readonly eventsMenuOpen = signal(false);
   protected readonly columnsMenuOpen = signal(false);
   /** Viewport coords for fixed Events/Columns menus (avoids overflow clipping). */
@@ -1037,7 +1035,6 @@ export class FuelComponent {
         sourcePath,
         sourceFileName: fileName,
         sheetName: result.sheetName,
-        masterSummary: result.masterSummary,
       });
       const warn = result.warnings.length ? ` (${result.warnings.length} warnings)` : '';
       this.toast.show(`Imported ${result.events.length} events${warn}`, 'success');
@@ -1117,12 +1114,6 @@ export class FuelComponent {
     this.utcOffsetMenuOpen.set(false);
   }
 
-  @HostListener('document:keydown.escape')
-  protected onEscape(): void {
-    if (this.showMasterSummaryModal()) {
-      this.showMasterSummaryModal.set(false);
-    }
-  }
 }
 
 function parseFuelPathSegments(raw: string): FuelPathSegment[] {

@@ -342,24 +342,6 @@
   color: var(--text);
 }
 
-.fuel-chip--summary {
-  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
-  border-color: #94a3b8;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-}
-
-.fuel-chip--summary:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #64748b;
-  color: #020617;
-}
-
-.fuel-chip--summary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .fuel-chip--stats {
   background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
   border-color: #60a5fa;
@@ -375,7 +357,7 @@
   color: #1e40af;
 }
 
-/* Separate tool chips (S1 / Stats / Forecast) from Save · Load layouts. */
+/* Separate tool chips (Stats) from Save · Load layouts. */
 .fuel-filter-presets__tools {
   display: inline-flex;
   flex-wrap: wrap;
@@ -395,160 +377,6 @@
 
 .fuel-filter-presets__layouts .dg-page-action-btn {
   min-height: 2.15rem;
-}
-
-.fuel-summary-backdrop {
-  z-index: 10040;
-}
-
-.fuel-summary-modal {
-  width: min(52rem, calc(100vw - 1.5rem));
-  max-width: 52rem;
-  max-height: calc(100vh - 2rem);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 18px 48px rgb(15 23 42 / 22%);
-}
-
-.fuel-summary-modal__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.15rem 0.85rem;
-  border-bottom: 1px solid #e2e8f0;
-  background: linear-gradient(135deg, #fffbeb 0%, #f8fafc 55%, #fff 100%);
-}
-
-.fuel-summary-modal__intro h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.fuel-summary-modal__intro p {
-  margin: 0.2rem 0 0;
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.fuel-summary-modal__body {
-  padding: 1rem 1.15rem;
-  overflow: auto;
-}
-
-.fuel-summary-table-wrap {
-  overflow-x: auto;
-  border: 1px solid #94a3b8;
-  border-radius: 6px;
-}
-
-.fuel-summary-grid {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-  font-variant-numeric: tabular-nums;
-  min-width: 40rem;
-}
-
-.fuel-summary-grid th,
-.fuel-summary-grid td {
-  padding: 0.38rem 0.45rem;
-  border: 1px solid #94a3b8;
-  text-align: center;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.fuel-summary-grid thead th {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-.fuel-summary-grid__aux,
-.fuel-summary-grid__metric {
-  background: #b8d4e8;
-  color: #0f172a;
-}
-
-.fuel-summary-grid__metric--mt {
-  background: #9ec5e0;
-}
-
-.fuel-summary-grid__tank[data-tank='ULSFO'] {
-  background: #f3c6a8;
-}
-
-.fuel-summary-grid__tank[data-tank='DMA'] {
-  background: #dbe3ea;
-}
-
-.fuel-summary-grid__tank[data-tank='Sludge'] {
-  background: #c4a574;
-  color: #1c1917;
-}
-
-.fuel-summary-grid__tank[data-tank='Bilge'] {
-  background: #a8b4d4;
-}
-
-.fuel-summary-grid__tank[data-tank='SEW'] {
-  background: #c5ccd4;
-}
-
-.fuel-summary-grid__tank[data-tank='LO'] {
-  background: #f2e28a;
-}
-
-.fuel-summary-grid tbody th {
-  text-align: left;
-  font-weight: 700;
-  background: #eef6fb;
-  color: #0f172a;
-}
-
-.fuel-summary-grid__mt {
-  background: #dbeafe;
-  color: #b91c1c;
-  font-weight: 800;
-}
-
-.fuel-summary-grid__tank-val {
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.fuel-summary-grid__tank-val:last-child {
-  background: #fef08a;
-}
-
-.fuel-summary-grid__banner {
-  font-weight: 800;
-  letter-spacing: 0.01em;
-}
-
-.fuel-summary-grid__banner--status {
-  background: #86efac;
-  color: #14532d;
-}
-
-.fuel-summary-grid__banner--note {
-  background: #fde68a;
-  color: #78350f;
-}
-
-.fuel-summary-modal__foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 0.75rem 1.15rem 1rem;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
 }
 
 .fuel-filter-row {

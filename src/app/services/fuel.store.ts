@@ -6,7 +6,6 @@ import {
   type FuelDisplayPreset,
   type FuelEventKind,
   type FuelLogEvent,
-  type FuelMasterSummary,
   type FuelViewPrefs,
 } from '../models/fuel.models';
 import { AppStateStore } from './app-state.store';
@@ -25,7 +24,6 @@ export class FuelStore {
     sourcePath: string;
     sourceFileName: string;
     sheetName: string;
-    masterSummary?: FuelMasterSummary | null;
   }): void {
     this.data.update((d) => {
       const prev = d.fuelLibrary ?? createDefaultFuelLibrary();
@@ -41,7 +39,6 @@ export class FuelStore {
           importedAt: new Date().toISOString(),
           view: prev.view,
           displayPresets: prev.displayPresets,
-          masterSummary: partial.masterSummary ?? null,
           editEvents: [],
           editBaseline: [],
           editDirty: false,

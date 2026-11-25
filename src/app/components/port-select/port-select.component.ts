@@ -28,6 +28,45 @@ interface TerminalOption {
   terminalName: string;
 }
 
+interface TerminalSection {
+  portName: string;
+  portCode: string;
+  items: TerminalOption[];
+}
+
+/** Match port name / LOCODE (and optional free text) against a typeahead query. */
+export function portMatchesQuery(port: Port, rawQuery: string): boolean {
+  const q = rawQuery.trim().toLowerCase();
+  if (!q) return true;
+  const name = (port.name ?? '').trim().toLowerCase();
+  const code = (port.code ?? '').trim().toLowerCase();
+  return (
+    code.startsWith(q) ||
+    name.startsWith(q) ||
+    name.includes(q) ||
+    code.includes(q)
+  );
+}
+
+/** Match terminal row (abbrev / name / parent port) against a typeahead query. */
+export function terminalOptionMatchesQuery(opt: TerminalOption, rawQuery: string): boolean {
+  const q = rawQuery.trim().toLowerCase();
+  if (!q) return true;
+  const abbrev = opt.abbrev.trim().toLowerCase();
+  const termName = opt.terminalName.trim().toLowerCase();
+  const portName = opt.portName.trim().toLowerCase();
+  const portCode = opt.portCode.trim().toLowerCase();
+  return (
+    abbrev.startsWith(q) ||
+    portCode.startsWith(q) ||
+    portName.startsWith(q) ||
+    abbrev.includes(q) ||
+    termName.includes(q) ||
+    portName.includes(q) ||
+    portCode.includes(q)
+  );
+}
+
 @Component({
   selector: 'app-port-select',
   templateUrl: './port-select.component.html',
@@ -52,9 +91,12 @@ export class PortSelectComponent {
 
   private readonly trigger = viewChild<ElementRef<HTMLButtonElement>>('trigger');
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+  private readonly filterField = viewChild<ElementRef<HTMLInputElement>>('filterField');
 
   protected readonly open = signal(false);
   protected readonly panelPos = signal<PanelPos>({ top: 0, left: 0, width: 0, maxHeight: 280 });
+  /** Typeahead text while the panel is open. */
+  protected readonly query = signal('');
 
   protected readonly isTerminalsMode = computed(() => this.mode() === 'terminals');
 
@@ -74,8 +116,8 @@ export class PortSelectComponent {
   });
 
   /** Port codes that have at least one terminal (section headers in terminals mode). */
-  protected readonly terminalSections = computed(() => {
-    const map = new Map<string, { portName: string; portCode: string; items: TerminalOption[] }>();
+  protected readonly terminalSections = computed((): TerminalSection[] => {
+    const map = new Map<string, TerminalSection>();
     for (const opt of this.terminalOptions()) {
       let section = map.get(opt.portName);
       if (!section) {
@@ -85,6 +127,23 @@ export class PortSelectComponent {
       section.items.push(opt);
     }
     return [...map.values()];
+  });
+
+  protected readonly filteredPorts = computed(() => {
+    const q = this.query();
+    return this.ports().filter((p) => portMatchesQuery(p, q));
+  });
+
+  protected readonly filteredTerminalSections = computed((): TerminalSection[] => {
+    const q = this.query();
+    if (!q.trim()) return this.terminalSections();
+    const out: TerminalSection[] = [];
+    for (const section of this.terminalSections()) {
+      const items = section.items.filter((t) => terminalOptionMatchesQuery(t, q));
+      if (!items.length) continue;
+      out.push({ ...section, items });
+    }
+    return out;
   });
 
   protected readonly displayLabel = computed(() => {
@@ -152,6 +211,25 @@ export class PortSelectComponent {
     );
   }
 
+  protected onQueryInput(event: Event): void {
+    const el = event.target as HTMLInputElement | null;
+    this.query.set(el?.value ?? '');
+  }
+
+  protected onFilterKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.closePanel();
+      this.trigger()?.nativeElement.focus();
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.pickFirstMatch();
+    }
+  }
+
   protected toggle(): void {
     if (this.open()) this.closePanel();
     else this.openPanel();
@@ -177,16 +255,35 @@ export class PortSelectComponent {
     this.closePanel();
   }
 
+  private pickFirstMatch(): void {
+    if (this.isTerminalsMode()) {
+      const first = this.filteredTerminalSections()[0]?.items[0];
+      if (!first) return;
+      this.valueChange.emit(first.abbrev);
+      this.portChange.emit(first.portName);
+      this.closePanel();
+      return;
+    }
+    const first = this.filteredPorts()[0];
+    if (!first) return;
+    this.valueChange.emit(first.name);
+    this.closePanel();
+  }
+
   private openPanel(): void {
+    this.query.set('');
     this.open.set(true);
     queueMicrotask(() => {
       this.attachPanelToBody();
       this.repositionPanel();
+      this.filterField()?.nativeElement.focus();
+      this.filterField()?.nativeElement.select();
     });
   }
 
   private closePanel(): void {
     this.open.set(false);
+    this.query.set('');
   }
 
   private attachPanelToBody(): void {
